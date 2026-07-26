@@ -18,12 +18,23 @@ func NewDomainService(cf *CloudflareClient, st *store.Store) *DomainService {
 	return &DomainService{cf: cf, store: st}
 }
 
-// BindDomain runs the full flow: ingress rules + DNS records + SaaS hostname.
-// Returns the preferred CNAME used, for confirmation messages.
+// BindDomain runs the full flow using the configured default service URL.
 func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error) {
 	cfg := d.store.GetConfig()
-	if cfg.TunnelID == "" || cfg.ServiceURL == "" {
+	if cfg.ServiceURL == "" {
+		return "", fmt.Errorf("service_url 未配置，请先在面板中设置")
+	}
+	return d.BindDomainWithService(mainDomain, auxDomain, cfg.ServiceURL, "")
+}
+
+// BindDomainWithService runs the full flow using the supplied service URL and optional preferred CNAME.
+func (d *DomainService) BindDomainWithService(mainDomain, auxDomain, serviceURL, preferredCNAME string) (string, error) {
+	cfg := d.store.GetConfig()
+	if cfg.TunnelID == "" || serviceURL == "" {
 		return "", fmt.Errorf("tunnel_id 或 service_url 未配置，请先在面板中设置")
+	}
+	if preferredCNAME == "" {
+		preferredCNAME = cfg.PreferredCNAME
 	}
 
 	mainZoneID, err := d.cf.GetZoneIDByHostname(mainDomain)
@@ -42,8 +53,8 @@ func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error)
 	}
 
 	newRules := []models.IngressRule{
-		{Hostname: mainDomain, Service: cfg.ServiceURL},
-		{Hostname: auxDomain, Service: cfg.ServiceURL},
+		{Hostname: mainDomain, Service: serviceURL},
+		{Hostname: auxDomain, Service: serviceURL},
 	}
 
 	ingress := tunnelCfg.Result.Config.Ingress
@@ -72,7 +83,7 @@ func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error)
 		return "", fmt.Errorf("设置辅助域名 DNS 失败: %w", err)
 	}
 
-	if err := d.cf.UpsertDNSRecord(mainZoneID, mainDomain, "CNAME", cfg.PreferredCNAME, false); err != nil {
+	if err := d.cf.UpsertDNSRecord(mainZoneID, mainDomain, "CNAME", preferredCNAME, false); err != nil {
 		return "", fmt.Errorf("设置主域名 DNS 失败: %w", err)
 	}
 
@@ -80,7 +91,7 @@ func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error)
 		return "", fmt.Errorf("设置 SaaS 主机名失败: %w", err)
 	}
 
-	return cfg.PreferredCNAME, nil
+	return preferredCNAME, nil
 }
 
 // SetFallbackOrigin resolves the zone and sets the SaaS fallback origin

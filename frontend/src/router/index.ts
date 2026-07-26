@@ -11,6 +11,7 @@ const router = createRouter({
     { path: '/tunnels', name: 'tunnels', component: () => import('../views/Tunnels.vue'), meta: { requiresAuth: true } },
     { path: '/tunnels/:id', name: 'tunnel-detail', component: () => import('../views/TunnelDetail.vue'), meta: { requiresAuth: true } },
     { path: '/domain', name: 'domain', component: () => import('../views/DomainBinding.vue'), meta: { requiresAuth: true } },
+    { path: '/domain/batch', name: 'domain-batch', component: () => import('../views/BatchDomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
     { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },

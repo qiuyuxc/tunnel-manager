@@ -80,6 +80,34 @@ type BindRequest struct {
 	AuxDomain  string `json:"aux_domain"`
 }
 
+// BatchBindItem is a domain binding group with its own origin service.
+type BatchBindItem struct {
+	ServiceURL     string `json:"service_url"`
+	PreferredCNAME string `json:"preferred_cname"`
+	MainDomain     string `json:"main_domain"`
+	AuxDomain      string `json:"aux_domain"`
+}
+
+// BatchBindRequest is the request body for batch domain binding.
+type BatchBindRequest struct {
+	Items []BatchBindItem `json:"items"`
+}
+
+// BatchBindResult records the result for a single domain group.
+type BatchBindResult struct {
+	ServiceURL     string `json:"service_url"`
+	PreferredCNAME string `json:"preferred_cname"`
+	MainDomain     string `json:"main_domain"`
+	AuxDomain      string `json:"aux_domain"`
+	Success        bool   `json:"success"`
+	Message        string `json:"message"`
+}
+
+// BatchBindResponse is the response body for batch domain binding.
+type BatchBindResponse struct {
+	Results []BatchBindResult `json:"results"`
+}
+
 // FallbackRequest is the request body for setting fallback origin
 type FallbackRequest struct {
 	Domain string `json:"domain"`
@@ -122,11 +150,11 @@ type ChangeUsernameRequest struct {
 
 // TelegramSettingsRequest is the request body for saving bot settings
 type TelegramSettingsRequest struct {
-	Enabled    bool   `json:"enabled"`
-	BotToken   string `json:"bot_token"`
-	AdminTGIDs string `json:"admin_tg_ids"`
-	Mode       string `json:"mode"`
-	WebhookURL string `json:"webhook_url"`
+	Enabled     bool   `json:"enabled"`
+	BotToken    string `json:"bot_token"`
+	AdminTGIDs  string `json:"admin_tg_ids"`
+	Mode        string `json:"mode"`
+	WebhookURL  string `json:"webhook_url"`
 	ApiEndpoint string `json:"api_endpoint"`
 }
 

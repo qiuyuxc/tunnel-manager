@@ -45,6 +45,46 @@ func (h *DomainHandler) BindDomain(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// BindDomainsBatch binds domain pairs sequentially and returns every result.
+func (h *DomainHandler) BindDomainsBatch(w http.ResponseWriter, r *http.Request) {
+	var req models.BatchBindRequest
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if len(req.Items) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "items cannot be empty"})
+		return
+	}
+
+	results := make([]models.BatchBindResult, 0, len(req.Items))
+	for _, item := range req.Items {
+		result := models.BatchBindResult{
+			ServiceURL:     item.ServiceURL,
+			PreferredCNAME: item.PreferredCNAME,
+			MainDomain:     item.MainDomain,
+			AuxDomain:      item.AuxDomain,
+		}
+		if item.ServiceURL == "" || item.MainDomain == "" || item.AuxDomain == "" {
+			result.Message = "service_url, main_domain and aux_domain are required"
+			results = append(results, result)
+			continue
+		}
+
+		preferredCNAME, err := h.svc.BindDomainWithService(item.MainDomain, item.AuxDomain, item.ServiceURL, item.PreferredCNAME)
+		if err != nil {
+			result.Message = err.Error()
+		} else {
+			result.Success = true
+			result.PreferredCNAME = preferredCNAME
+			result.Message = fmt.Sprintf("Domain binding complete! Access: https://%s", item.MainDomain)
+		}
+		results = append(results, result)
+	}
+
+	writeJSON(w, http.StatusOK, models.BatchBindResponse{Results: results})
+}
+
 // SetFallbackOrigin sets the fallback origin for custom hostnames
 func (h *DomainHandler) SetFallbackOrigin(w http.ResponseWriter, r *http.Request) {
 	var req models.FallbackRequest

@@ -61,6 +61,22 @@ export interface BindRequest {
   aux_domain: string
 }
 
+export interface BatchBindItem {
+  service_url: string
+  preferred_cname: string
+  main_domain: string
+  aux_domain: string
+}
+
+export interface BatchBindResult extends BatchBindItem {
+  success: boolean
+  message: string
+}
+
+export interface BatchBindResponse {
+  results: BatchBindResult[]
+}
+
 export interface ApiResponse {
   status: string
   error?: string
@@ -129,6 +145,10 @@ export function listZones() {
 // Domain
 export function bindDomain(data: BindRequest) {
   return api.post<ApiResponse>('/domain/bind', data)
+}
+
+export function bindDomainsBatch(items: BatchBindItem[]) {
+  return api.post<BatchBindResponse>('/domain/bind-batch', { items })
 }
 
 export function setFallbackOrigin(domain: string) {

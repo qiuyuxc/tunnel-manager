@@ -116,6 +116,7 @@ func main() {
 
 		// Domain endpoints
 		r.Post("/domain/bind", mw.Auth(domainHandler.BindDomain))
+		r.Post("/domain/bind-batch", mw.Auth(domainHandler.BindDomainsBatch))
 		r.Post("/domain/fallback", mw.Auth(domainHandler.SetFallbackOrigin))
 
 		// Telegram bot endpoints

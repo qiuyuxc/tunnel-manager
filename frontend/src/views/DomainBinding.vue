@@ -5,8 +5,13 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         返回控制面板
       </router-link>
-      <h2>域名绑定</h2>
-      <p>将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源</p>
+      <div class="page-header-row">
+        <div>
+          <h2>域名绑定</h2>
+          <p>将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源</p>
+        </div>
+        <router-link to="/domain/batch" class="btn btn-secondary batch-link">批量绑定</router-link>
+      </div>
     </div>
 
     <div v-if="!config.tunnel_id || !config.service_url" class="prereq-banner section">
@@ -172,6 +177,8 @@ onMounted(() => { configStore.fetchConfig() })
 
 <style scoped>
 .page-header { margin-bottom: var(--spacing-lg); }
+.page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
+.batch-link { flex: none; margin-top: 2px; text-decoration: none; }
 .section { margin-bottom: var(--spacing-md); }
 
 .prereq-banner {
@@ -214,6 +221,13 @@ onMounted(() => { configStore.fetchConfig() })
   padding: var(--spacing-lg);
 }
 .form-card-header { margin-bottom: var(--spacing-md); }
+.batch-hint { margin: 6px 0 0; color: var(--color-mute); font-size: 13px; line-height: 1.5; }
+.batch-input { display: block; width: 100%; min-height: 132px; resize: vertical; padding: 10px 12px; font-family: inherit; line-height: 1.5; }
+.batch-results { display: flex; flex-direction: column; gap: 8px; }
+.batch-result-row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 8px; font-size: 13px; }
+.batch-result-success { color: var(--color-success); }
+.batch-result-error { color: var(--color-error); }
+.batch-result-message { color: var(--color-mute); overflow-wrap: anywhere; }
 .form-fields { display: flex; flex-direction: column; gap: var(--spacing-md); }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label {
