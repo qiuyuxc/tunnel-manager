@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+frontend/dist/
+backend/tunnel-manager
+
+# Local data and logs
+backend/data/
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Stray shell artifacts
+-exec
+-not

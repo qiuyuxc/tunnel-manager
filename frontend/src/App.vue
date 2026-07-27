@@ -21,11 +21,11 @@ import { NMessageProvider, NConfigProvider, NLayout } from 'naive-ui'
 import { computed } from 'vue'
 import NavBar from './components/NavBar.vue'
 import { useConfigStore } from './stores/config'
-import { vercelThemeOverrides } from './theme'
+import { warmDarkThemeOverrides, warmThemeOverrides } from './theme'
 
 const configStore = useConfigStore()
 const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)
-const themeOverrides = computed(() => configStore.darkMode ? {} : vercelThemeOverrides)
+const themeOverrides = computed(() => configStore.darkMode ? warmDarkThemeOverrides : warmThemeOverrides)
 
 // Sync dark mode to data-theme attribute on mount
 if (configStore.darkMode) {

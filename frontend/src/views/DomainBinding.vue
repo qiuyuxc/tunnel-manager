@@ -50,7 +50,7 @@
 
     <div class="form-card section">
       <div class="form-card-header">
-        <span class="caption-mono" style="color: var(--color-mute);">绑定新域名</span>
+        <span class="caption-mono form-card-label">绑定新域名</span>
       </div>
       <div class="form-fields">
         <div class="field">
@@ -184,55 +184,47 @@ onMounted(() => { configStore.fetchConfig() })
 .prereq-banner {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
   background: var(--color-banner-warning-bg);
   border: 1px solid var(--color-banner-warning-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
-.prereq-title { font-size: 14px; font-weight: 500; color: var(--color-banner-warning-text); }
-.prereq-desc { font-size: 14px; color: var(--color-banner-warning-text); opacity: 0.8; margin-top: 2px; }
+.prereq-title { font-size: 14px; font-weight: 600; color: var(--color-banner-warning-text); }
+.prereq-desc { font-size: 14px; color: var(--color-banner-warning-text); opacity: 0.84; margin-top: 2px; }
 
-.config-summary {
+.config-summary,
+.form-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
 }
+.config-summary { overflow: hidden; }
 .summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px var(--spacing-lg);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
   border-bottom: 1px solid var(--color-hairline);
 }
 .summary-row:last-child { border-bottom: none; }
-.summary-label { color: var(--color-mute); }
+.summary-label,
+.form-card-label { color: var(--color-mute); }
 .summary-empty { color: var(--color-mute); font-size: 14px; }
-.summary-row-edit { flex-wrap: wrap; gap: 8px; }
-.summary-edit { display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; }
-.summary-input { height: 32px; font-size: 13px; max-width: 280px; }
-.btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+.summary-row-edit { flex-wrap: wrap; }
+.summary-edit { display: flex; gap: var(--spacing-xs); align-items: center; flex: 1; min-width: 0; justify-content: flex-end; }
+.summary-input { min-height: 32px; font-size: 13px; max-width: 280px; }
+.btn-sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
 
-.form-card {
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  padding: var(--spacing-lg);
-}
+.form-card { padding: var(--spacing-lg); }
 .form-card-header { margin-bottom: var(--spacing-md); }
-.batch-hint { margin: 6px 0 0; color: var(--color-mute); font-size: 13px; line-height: 1.5; }
-.batch-input { display: block; width: 100%; min-height: 132px; resize: vertical; padding: 10px 12px; font-family: inherit; line-height: 1.5; }
-.batch-results { display: flex; flex-direction: column; gap: 8px; }
-.batch-result-row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 8px; font-size: 13px; }
-.batch-result-success { color: var(--color-success); }
-.batch-result-error { color: var(--color-error); }
-.batch-result-message { color: var(--color-mute); overflow-wrap: anywhere; }
 .form-fields { display: flex; flex-direction: column; gap: var(--spacing-md); }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-ink);
   margin-bottom: 4px;
 }
@@ -247,7 +239,7 @@ onMounted(() => { configStore.fetchConfig() })
 
 .result-card {
   padding: var(--spacing-lg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .result-card.success {
   background: var(--color-result-success-bg);
@@ -260,25 +252,20 @@ onMounted(() => { configStore.fetchConfig() })
 .result-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
   font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
 }
 .result-card.success .result-header { color: var(--color-result-success-text); }
 .result-card.error .result-header { color: var(--color-result-error-text); }
-.result-body { font-size: 14px; color: var(--color-body); }
+.result-body { font-size: 14px; color: var(--color-body); overflow-wrap: anywhere; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
 
-/* Result card transition */
-.result-slide-enter-active {
-  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.result-slide-leave-active {
-  animation: fadeIn 0.2s ease-in reverse;
-}
+.result-slide-enter-active { animation: fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1); }
+.result-slide-leave-active { animation: fadeIn 200ms ease-in reverse; }
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -288,13 +275,19 @@ onMounted(() => { configStore.fetchConfig() })
   to { opacity: 0; }
 }
 
+@media (max-width: 768px) {
+  .page-header-row { flex-direction: column; }
+  .batch-link { margin-top: 0; }
+  .summary-row { align-items: flex-start; flex-direction: column; }
+  .summary-edit { width: 100%; justify-content: stretch; }
+  .summary-input { max-width: none; flex: 1; }
+}
+
 @media (max-width: 480px) {
-  .summary-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
+  .summary-edit { align-items: stretch; flex-direction: column; }
+  .summary-edit .btn { width: 100%; justify-content: center; }
   .field-label { display: flex; flex-direction: column; gap: 2px; }
   .field-note { margin-left: 0; }
+  .form-action .btn { width: 100%; justify-content: center; }
 }
 </style>

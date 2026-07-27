@@ -1,15 +1,17 @@
 <template>
   <div class="nav-bar">
     <div class="nav-inner">
-      <div class="nav-left">
+      <div class="nav-brand">
         <router-link to="/" class="logo">
-          <svg width="20" height="20" viewBox="0 0 76 76" fill="none">
-            <rect width="76" height="76" rx="12" fill="var(--color-ink)"/>
-            <path d="M49 26H27v24l22-24z" fill="var(--color-canvas)"/>
-            <path d="M38 38L27 50h22L38 38z" fill="var(--color-canvas)" fill-opacity="0.5"/>
-          </svg>
+          <span class="logo-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 76 76" fill="none">
+              <path d="M49 26H27v24l22-24z" fill="currentColor"/>
+              <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
+            </svg>
+          </span>
           <span class="logo-text">Tunnel Manager</span>
         </router-link>
+        <span class="nav-context">Control room</span>
       </div>
 
       <div class="nav-center">
@@ -121,24 +123,27 @@ async function handleLogout() {
   position: sticky;
   top: 0;
   z-index: 100;
-  height: var(--header-height);
-  background: var(--color-canvas);
+  min-height: var(--header-height);
+  background: color-mix(in srgb, var(--color-canvas) 92%, transparent);
   border-bottom: 1px solid var(--color-hairline);
 }
 
 .nav-inner {
   max-width: var(--max-width);
-  height: 100%;
+  min-height: var(--header-height);
   margin: 0 auto;
   padding: 0 var(--spacing-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-lg);
 }
 
-.nav-left {
+.nav-brand {
   display: flex;
   align-items: center;
+  gap: 12px;
+  min-width: 220px;
 }
 
 .logo {
@@ -149,40 +154,63 @@ async function handleLogout() {
   color: var(--color-ink);
 }
 
-.logo-text {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.4px;
+.logo-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-lg);
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-canvas) 10%, transparent);
 }
 
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.nav-context {
+  font-size: 12px;
+  color: var(--color-mute);
+  padding-left: 12px;
+  border-left: 1px solid var(--color-hairline);
+}
 
 .nav-center {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-soft);
 }
 
 .nav-link {
   position: relative;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
+  padding: 7px 11px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
   color: var(--color-body);
   text-decoration: none;
-  transition: color 0.2s ease, background 0.2s ease, font-weight 0.2s ease;
+  transition: color 160ms ease-out, background-color 160ms ease-out;
 }
 
 .nav-link:hover {
   color: var(--color-ink);
-  background: var(--color-canvas-soft-2);
+  background: color-mix(in srgb, var(--color-canvas) 76%, transparent);
 }
 
 .nav-link.active {
   color: var(--color-ink);
-  background: var(--color-canvas-soft-2);
-  font-weight: 500;
+  background: var(--color-canvas);
+  box-shadow: 0 1px 2px rgba(38, 31, 22, 0.08);
 }
 
 .nav-right {
@@ -192,37 +220,37 @@ async function handleLogout() {
 }
 
 .icon-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-hairline);
   background: var(--color-canvas);
-  color: var(--color-ink);
+  color: var(--color-body);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 120ms ease-out, border-color 160ms ease-out, color 160ms ease-out, background-color 160ms ease-out;
 }
 
 .icon-button:hover {
+  color: var(--color-ink);
   border-color: var(--color-hairline-strong);
+  background: var(--color-canvas-soft);
 }
 
-.logout-btn {
-  color: var(--color-mute);
-}
+.icon-button:active { transform: scale(0.96); }
+
 .logout-btn:hover {
   color: var(--color-error);
   border-color: var(--color-error);
 }
 
-/* Hamburger */
 .hamburger {
   display: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-hairline);
   background: var(--color-canvas);
   cursor: pointer;
@@ -239,28 +267,20 @@ async function handleLogout() {
   height: 2px;
   background: var(--color-ink);
   border-radius: 1px;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease-out;
 }
 
-.hamburger-line.open:nth-child(1) {
-  transform: translateY(6px) rotate(45deg);
-}
-.hamburger-line.open:nth-child(2) {
-  opacity: 0;
-}
-.hamburger-line.open:nth-child(3) {
-  transform: translateY(-6px) rotate(-45deg);
-}
+.hamburger-line.open:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.hamburger-line.open:nth-child(2) { opacity: 0; }
+.hamburger-line.open:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
-/* Mobile overlay */
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(29, 24, 18, 0.38);
   z-index: 99;
 }
 
-/* Mobile menu */
 .mobile-menu {
   position: fixed;
   top: var(--header-height);
@@ -273,23 +293,27 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  box-shadow: 0 16px 36px rgba(38, 31, 22, 0.14);
 }
 
-.mobile-nav-link {
-  display: block;
+.mobile-nav-link,
+.mobile-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px var(--spacing-md);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-body);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: color 160ms ease-out, background-color 160ms ease-out;
 }
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
   color: var(--color-ink);
-  background: var(--color-canvas-soft-2);
+  background: var(--color-canvas-soft);
 }
 
 .mobile-menu-divider {
@@ -299,40 +323,36 @@ async function handleLogout() {
 }
 
 .mobile-logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px var(--spacing-md);
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--color-mute);
   background: transparent;
   border: none;
   cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: all 0.2s ease;
 }
 
 .mobile-logout-btn:hover {
   color: var(--color-error);
-  background: var(--color-canvas-soft-2);
+  background: var(--color-canvas-soft);
 }
 
-/* Transitions */
-.fade-enter-active { transition: opacity 0.25s ease-out; }
-.fade-leave-active { transition: opacity 0.2s ease-in; }
+.fade-enter-active { transition: opacity 180ms ease-out; }
+.fade-leave-active { transition: opacity 140ms ease-in; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.slide-enter-active { transition: opacity 0.3s ease-out, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.slide-leave-active { transition: opacity 0.2s ease-in, transform 0.2s ease-in; }
+.slide-enter-active { transition: opacity 240ms ease-out, transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+.slide-leave-active { transition: opacity 160ms ease-in, transform 160ms ease-in; }
 .slide-enter-from { opacity: 0; transform: translateY(-8px); }
 .slide-leave-to { opacity: 0; transform: translateY(-4px); }
+
+@media (max-width: 980px) {
+  .nav-context { display: none; }
+  .nav-brand { min-width: auto; }
+}
 
 @media (max-width: 768px) {
   .nav-center { display: none; }
   .hamburger { display: flex; }
   .nav-inner { padding: 0 var(--spacing-md); }
+  .logo-text { font-size: 16px; }
 }
 </style>

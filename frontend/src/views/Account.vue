@@ -20,7 +20,7 @@
             <input v-model="newUsername" placeholder="新用户名" class="vercel-input" />
           </div>
         </div>
-        <div class="settings-input-row" style="margin-top: var(--spacing-sm);">
+        <div class="settings-input-row settings-action-row">
           <div class="input-wrapper">
             <input v-model="usernamePassword" type="password" placeholder="输入当前密码确认" class="vercel-input" />
           </div>
@@ -40,7 +40,7 @@
             <input v-model="currentPassword" type="password" placeholder="当前密码" class="vercel-input" />
           </div>
         </div>
-        <div class="settings-input-row" style="margin-top: var(--spacing-sm);">
+        <div class="settings-input-row settings-action-row">
           <div class="input-wrapper">
             <input v-model="newPassword" type="password" placeholder="新密码" class="vercel-input" />
           </div>
@@ -125,36 +125,35 @@ async function savePassword() {
 .settings-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease-out;
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
 }
 .settings-card:hover {
   border-color: var(--color-hairline-strong);
-  box-shadow: 0px 0px 0px 1px var(--color-hairline-strong), 0px 1px 1px rgba(0,0,0,0.02), 0px 2px 2px rgba(0,0,0,0.04);
-  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
 }
 
 .settings-card-header { margin-bottom: var(--spacing-md); }
 .settings-card-title {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-ink);
   margin-bottom: 4px;
 }
 .settings-card-desc {
   font-size: 14px;
   color: var(--color-mute);
-  line-height: 20px;
+  line-height: 1.65;
 }
 
 .settings-input-row {
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-sm);
   align-items: flex-start;
 }
-
-.input-wrapper { flex: 1; }
+.settings-action-row { margin-top: var(--spacing-sm); }
+.input-wrapper { flex: 1; min-width: 0; }
 
 @media (max-width: 768px) {
   .settings-input-row {
@@ -164,7 +163,6 @@ async function savePassword() {
     width: 100%;
     max-width: 100%;
     justify-content: center;
-    box-sizing: border-box;
   }
 }
 </style>

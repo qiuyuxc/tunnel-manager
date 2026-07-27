@@ -11,7 +11,7 @@
 
     <div class="selection-card section">
       <div class="selection-header">
-        <span class="caption-mono" style="color: var(--color-mute);">当前已选隧道</span>
+        <span class="caption-mono selection-label">当前已选隧道</span>
       </div>
       <div v-if="config.tunnel_id" class="selection-body">
         <code class="inline-code">{{ config.tunnel_id }}</code>
@@ -124,9 +124,11 @@ onMounted(() => { loadTunnels() })
 .selection-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
 }
+.selection-label { color: var(--color-mute); }
 .selection-header { margin-bottom: 10px; }
 .selection-body { display: flex; align-items: center; gap: 10px; }
 .selection-empty { color: var(--color-mute); font-size: 14px; }
@@ -138,7 +140,8 @@ onMounted(() => { loadTunnels() })
   gap: 1px;
   background: var(--color-hairline);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
   overflow: hidden;
 }
 .tunnel-card {
@@ -148,7 +151,7 @@ onMounted(() => { loadTunnels() })
   padding: var(--spacing-md) var(--spacing-lg);
   background: var(--color-canvas);
   gap: var(--spacing-md);
-  transition: background-color 0.2s ease, transform 0.25s ease;
+  transition: background-color 160ms ease-out, transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .tunnel-card:hover {
   background: var(--color-canvas-soft);
@@ -163,7 +166,7 @@ onMounted(() => { loadTunnels() })
 .tunnel-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-canvas-soft-2);
   display: flex;
   align-items: center;
@@ -174,21 +177,20 @@ onMounted(() => { loadTunnels() })
 .tunnel-info { min-width: 0; }
 .tunnel-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .tunnel-id {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-mute);
+  overflow-wrap: anywhere;
 }
 .tunnel-card-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   flex-shrink: 0;
 }
 
@@ -197,8 +199,8 @@ onMounted(() => { loadTunnels() })
   font-size: 12px;
   padding: 0 8px;
   height: 22px;
-  line-height: 22px;
-  border-radius: 9999px;
+  line-height: 20px;
+  border-radius: 999px;
   text-transform: uppercase;
 }
 .status-tag.healthy {
@@ -221,17 +223,21 @@ onMounted(() => { loadTunnels() })
 .btn-sm {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 0 10px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 120ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
   border: none;
+  text-decoration: none;
+  box-sizing: border-box;
 }
+.btn-sm:active:not(:disabled) { transform: scale(0.97); }
 .btn-select { background: transparent; color: var(--color-ink); border: 1px solid var(--color-hairline); }
-.btn-select:hover { border-color: var(--color-hairline-strong); }
+.btn-select:hover { border-color: var(--color-hairline-strong); background: var(--color-canvas-soft); }
 .btn-active { background: var(--color-canvas-soft-2); color: var(--color-mute); cursor: default; }
 .btn-ghost-sm { background: transparent; color: var(--color-ink); border: none; cursor: pointer; }
 .btn-ghost-sm:hover { opacity: 0.6; }
@@ -241,14 +247,15 @@ onMounted(() => { loadTunnels() })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 64px 24px;
+  padding: var(--spacing-3xl) var(--spacing-lg);
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  gap: 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
+  gap: var(--spacing-sm);
 }
-.empty-text { color: var(--color-body); font-size: 16px; font-weight: 500; }
-.empty-hint { color: var(--color-mute); font-size: 14px; }
+.empty-text { color: var(--color-body); font-size: 16px; font-weight: 600; }
+.empty-hint { color: var(--color-mute); font-size: 14px; text-align: center; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
@@ -257,7 +264,10 @@ onMounted(() => { loadTunnels() })
   .tunnel-card { padding: var(--spacing-sm) var(--spacing-md); }
 }
 @media (max-width: 480px) {
-  .tunnel-card { flex-wrap: wrap; gap: var(--spacing-sm); }
-  .tunnel-card-right { width: 100%; justify-content: flex-end; }
+  .selection-body { align-items: flex-start; flex-direction: column; }
+  .tunnel-card { align-items: flex-start; flex-direction: column; gap: var(--spacing-sm); }
+  .tunnel-card-left,
+  .tunnel-card-right { width: 100%; }
+  .tunnel-card-right { justify-content: flex-end; }
 }
 </style>

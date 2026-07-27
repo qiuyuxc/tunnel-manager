@@ -99,26 +99,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-
-/* Status Banner */
 .status-banner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 13px 16px;
+  border-radius: var(--radius-md);
   font-size: 14px;
+  font-weight: 600;
   margin-bottom: var(--spacing-lg);
+  border: 1px solid transparent;
 }
 .status-banner.ready {
   background: var(--color-banner-info-bg);
-  border: 1px solid var(--color-banner-info-border);
+  border-color: var(--color-banner-info-border);
   color: var(--color-banner-info-text);
 }
 .status-banner.pending {
   background: var(--color-banner-warning-bg);
-  border: 1px solid var(--color-banner-warning-border);
+  border-color: var(--color-banner-warning-border);
   color: var(--color-banner-warning-text);
 }
 .status-banner-dot {
@@ -126,7 +125,7 @@ onMounted(() => {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  transition: background-color 0.4s ease;
+  transition: background-color 180ms ease-out;
 }
 .status-banner-dot.ready { background: var(--color-success); }
 .status-banner-dot.pending {
@@ -136,69 +135,75 @@ onMounted(() => {
 
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.45; }
 }
 
-/* Config Cards */
-.config-card {
+.config-card,
+.actions-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
+}
+.config-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  min-height: 164px;
 }
-.config-card:hover {
-  box-shadow: 0px 0px 0px 1px var(--color-hairline-strong), 0px 1px 1px rgba(0,0,0,0.02), 0px 2px 2px rgba(0,0,0,0.04);
-  transform: translateY(-1px);
+.config-card:hover,
+.actions-card:hover {
+  border-color: var(--color-hairline-strong);
+  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
 }
 .config-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-md);
 }
 .config-label { color: var(--color-mute); }
 .config-badge {
   font-size: 12px;
   padding: 0 8px;
-  border-radius: 9999px;
-  height: 20px;
+  border-radius: 999px;
+  min-height: 22px;
   line-height: 20px;
-  font-family: var(--font-mono);
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border: 1px solid transparent;
 }
 .config-badge.active {
-  background: var(--color-canvas-soft-2);
-  color: var(--color-ink);
-  border: 1px solid var(--color-ink);
+  background: var(--color-status-healthy-bg);
+  color: var(--color-status-healthy-text);
+  border-color: var(--color-status-healthy-border);
 }
 .config-badge.inactive {
   background: var(--color-banner-warning-bg);
   color: var(--color-banner-warning-text);
-  border: 1px solid var(--color-banner-warning-border);
+  border-color: var(--color-banner-warning-border);
 }
-.config-value { min-height: 24px; }
+.config-value {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
 .config-empty { color: var(--color-mute); font-size: 14px; }
 .config-action {
-  padding-top: 4px;
+  margin-top: auto;
+  padding-top: 12px;
   border-top: 1px solid var(--color-hairline);
 }
 .action-link {
   font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ink);
+  font-weight: 700;
+  color: var(--color-link);
   text-decoration: none;
 }
-.action-link:hover { opacity: 0.6; }
+.action-link:hover { color: var(--color-ink); }
 
-/* Actions Card */
-.actions-card {
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  padding: var(--spacing-lg);
-  overflow: hidden;
-}
+.actions-card { overflow: hidden; }
 .actions-label {
   display: block;
   color: var(--color-mute);
@@ -211,7 +216,7 @@ onMounted(() => {
 }
 
 .btn-secondary.disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   pointer-events: none;
 }
 

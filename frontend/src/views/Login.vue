@@ -2,11 +2,12 @@
   <div class="login-page">
     <div class="login-card" :class="{ 'login-card-enter': mounted, 'login-card-shake': shaking }">
       <div class="login-logo">
-        <svg width="32" height="32" viewBox="0 0 76 76" fill="none">
-          <rect width="76" height="76" rx="12" fill="#171717"/>
-          <path d="M49 26H27v24l22-24z" fill="white"/>
-          <path d="M38 38L27 50h22L38 38z" fill="white" fill-opacity="0.5"/>
-        </svg>
+          <span class="logo-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 76 76" fill="none">
+              <path d="M49 26H27v24l22-24z" fill="currentColor"/>
+              <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
+            </svg>
+          </span>
       </div>
       <h1 class="login-title">Tunnel Manager</h1>
       <p class="login-subtitle">登录以继续</p>
@@ -101,22 +102,25 @@ function triggerShake() {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-md);
-  background: var(--color-canvas-soft);
+  padding: var(--spacing-lg);
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--color-link) 12%, transparent), transparent 28%),
+    linear-gradient(135deg, var(--color-canvas-soft), var(--color-canvas));
   box-sizing: border-box;
 }
 
 .login-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 392px;
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
   text-align: center;
+  box-shadow: 0 24px 60px rgba(58, 47, 34, 0.12);
   opacity: 0;
   transform: translateY(16px) scale(0.98);
-  transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 420ms ease-out, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .login-card-enter {
@@ -124,19 +128,32 @@ function triggerShake() {
   transform: translateY(0) scale(1);
 }
 
-.login-card-shake {
-  animation: shake 0.45s ease-out;
-}
+.login-card-shake { animation: shake 0.45s ease-out; }
 
 .login-logo {
   margin-bottom: var(--spacing-md);
+  display: flex;
+  justify-content: center;
+}
+
+.logo-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-title {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 25px;
   font-weight: 600;
+  line-height: 1.15;
   color: var(--color-ink);
-  margin: 0 0 4px 0;
+  margin: 0 0 6px;
 }
 
 .login-subtitle {
@@ -155,22 +172,24 @@ function triggerShake() {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .field-label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-ink);
 }
 
 .login-error {
   font-size: 14px;
-  color: var(--color-error);
+  color: var(--color-result-error-text);
   text-align: center;
-  padding: 8px;
+  padding: 9px 10px;
   background: var(--color-result-error-bg);
-  border-radius: 6px;
+  border: 1px solid var(--color-result-error-border);
+  border-radius: var(--radius-md);
+  animation: fadeIn 180ms ease-out;
 }
 
 .login-btn {
@@ -182,14 +201,10 @@ function triggerShake() {
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid color-mix(in srgb, currentColor 26%, transparent);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-}
-
-.login-error {
-  animation: fadeIn 0.3s ease-out;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -201,4 +216,8 @@ function triggerShake() {
   80% { transform: translateX(3px); }
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 480px) {
+  .login-card { padding: var(--spacing-xl) var(--spacing-lg); }
+}
 </style>

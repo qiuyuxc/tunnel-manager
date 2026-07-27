@@ -33,7 +33,7 @@
       <!-- Ingress Routes -->
       <div class="section">
         <div class="section-header">
-          <span class="caption-mono" style="color: var(--color-mute);">已发布应用程序路由</span>
+          <span class="caption-mono section-label">已发布应用程序路由</span>
           <div class="section-actions">
             <span class="route-count">{{ routes.length }} 条规则</span>
             <button class="btn btn-primary" @click="startAdd">
@@ -185,8 +185,9 @@ onMounted(() => { load() })
 .info-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -200,6 +201,7 @@ onMounted(() => { load() })
   word-break: break-all;
 }
 
+.section-label { color: var(--color-mute); }
 .section-header {
   display: flex;
   align-items: center;
@@ -226,22 +228,23 @@ onMounted(() => { load() })
   position: relative;
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-md);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  transition: border-color 160ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out;
 }
 .route-card:hover {
   border-color: var(--color-hairline-strong);
-  box-shadow: 0px 0px 0px 1px var(--color-hairline-strong), 0px 1px 1px rgba(0,0,0,0.02), 0px 2px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
   transform: translateY(-1px);
 }
 .route-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-canvas-soft-2);
   display: flex;
   align-items: center;
@@ -306,11 +309,12 @@ onMounted(() => { load() })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 64px 24px;
+  padding: var(--spacing-3xl) var(--spacing-lg);
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  gap: 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
+  gap: var(--spacing-sm);
 }
 .empty-text { color: var(--color-body); font-size: 16px; font-weight: 500; }
 
@@ -357,9 +361,7 @@ onMounted(() => { load() })
 }
 @media (max-width: 768px) {
   .route-modal {
-    max-width: 85vw;
-    transform: scale(0.88);
-    transform-origin: center center;
+    max-width: calc(100vw - 2 * var(--spacing-md));
   }
 }
 
@@ -377,16 +379,18 @@ onMounted(() => { load() })
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-hairline);
   background: transparent;
   color: var(--color-mute);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: transform 120ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
 }
 .btn-icon:hover {
   border-color: var(--color-hairline-strong);
+  background: var(--color-canvas-soft);
   color: var(--color-ink);
 }
+.btn-icon:active { transform: scale(0.96); }
 </style>

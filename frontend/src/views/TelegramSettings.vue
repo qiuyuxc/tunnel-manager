@@ -315,35 +315,36 @@ onUnmounted(() => {
 .settings-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease-out;
+  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
+  transition: border-color 160ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out;
 }
 .settings-card:hover {
   border-color: var(--color-hairline-strong);
-  box-shadow: 0px 0px 0px 1px var(--color-hairline-strong), 0px 1px 1px rgba(0,0,0,0.02), 0px 2px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
   transform: translateY(-1px);
 }
 
 .settings-card-header { margin-bottom: var(--spacing-md); }
 .settings-card-title {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-ink);
   margin-bottom: 4px;
 }
 .settings-card-desc {
   font-size: 14px;
   color: var(--color-mute);
-  line-height: 20px;
+  line-height: 1.65;
 }
 
 .settings-input-row {
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-sm);
   align-items: flex-start;
 }
-.input-wrapper { flex: 1; }
+.input-wrapper { flex: 1; min-width: 0; }
 
 .token-hint {
   display: block;
@@ -372,7 +373,7 @@ onUnmounted(() => {
 }
 .status-dot.on {
   background: var(--color-success);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent);
 }
 .status-dot.off {
   background: var(--color-mute);
@@ -421,7 +422,7 @@ onUnmounted(() => {
   bottom: 0;
   background: var(--color-hairline-strong);
   border-radius: 22px;
-  transition: background 0.2s ease;
+  transition: background-color 160ms ease-out;
 }
 .switch-slider::before {
   content: '';
@@ -430,9 +431,9 @@ onUnmounted(() => {
   width: 16px;
   left: 3px;
   bottom: 3px;
-  background: white;
+  background: var(--color-canvas);
   border-radius: 50%;
-  transition: transform 0.2s ease;
+  transition: transform 160ms ease-out;
 }
 .switch input:checked + .switch-slider {
   background: var(--color-ink);
@@ -452,7 +453,7 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   opacity: 0.5;
-  transition: opacity 0.2s ease;
+  transition: opacity 160ms ease-out;
 }
 .radio-item.active { opacity: 1; }
 .radio-item input { display: none; }
@@ -464,7 +465,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s ease;
+  transition: border-color 160ms ease-out;
 }
 .radio-item.active .radio-dot {
   border-color: var(--color-ink);
@@ -511,9 +512,9 @@ onUnmounted(() => {
 .guide-list code {
   font-family: var(--font-mono);
   font-size: 13px;
-  background: var(--color-canvas-soft-1);
+  background: var(--color-canvas-soft-2);
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-hairline);
 }
 .command-list {
@@ -530,9 +531,9 @@ onUnmounted(() => {
 .command-list code {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--color-canvas-soft-1);
+  background: var(--color-canvas-soft-2);
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-hairline);
 }
 .guide-note {
@@ -545,8 +546,14 @@ onUnmounted(() => {
 .spin { animation: spin 1s linear infinite; }
 
 @media (max-width: 768px) {
-  .mode-row { flex-direction: column; gap: 12px; }
+  .mode-row { flex-direction: column; gap: var(--spacing-sm); }
   .actions-row { flex-direction: column; }
   .actions-row .btn { width: 100%; justify-content: center; box-sizing: border-box; }
+}
+
+@media (max-width: 480px) {
+  .status-row { align-items: flex-start; flex-direction: column; gap: var(--spacing-sm); }
+  .status-row .btn { width: 100%; justify-content: center; }
+  .toggle-row { justify-content: space-between; }
 }
 </style>
