@@ -72,6 +72,14 @@ if [ -f .env ]; then
     echo "🔄 拉取最新代码..."
     git pull origin main
   fi
+  if ! grep -q '^APP_ENCRYPTION_KEY=.' .env; then
+    APP_ENCRYPTION_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d '\n')
+    if grep -q '^APP_ENCRYPTION_KEY=' .env; then
+      sed -i "s|^APP_ENCRYPTION_KEY=.*|APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}|" .env
+    else
+      printf '\nAPP_ENCRYPTION_KEY=%s\n' "$APP_ENCRYPTION_KEY" >> .env
+    fi
+  fi
   source .env
 else
   echo ""
@@ -80,12 +88,14 @@ else
   read -p "CF_ACCOUNT_ID: " CF_AID
   read -p "API_KEY (可选，直接回车跳过): " API_KEY
   read -p "ADMIN_PASSWORD (可选，直接回车随机生成): " ADMIN_PASS
+  APP_ENCRYPTION_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d '\n')
 
   cat > .env <<EOF
 CF_API_TOKEN=${CF_TOKEN}
 CF_ACCOUNT_ID=${CF_AID}
 API_KEY=${API_KEY}
 ADMIN_PASSWORD=${ADMIN_PASS}
+APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
 EOF
   echo "✅ .env 已生成"
 fi

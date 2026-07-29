@@ -1,14 +1,21 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Config represents the application configuration state
 type Config struct {
-	TunnelID          string `json:"tunnel_id"`
-	ServiceURL        string `json:"service_url"`
-	PreferredCNAME    string `json:"preferred_cname"`
-	AdminUsername     string `json:"admin_username"`
-	AdminPasswordHash string `json:"admin_password_hash"`
+	TunnelID               string   `json:"tunnel_id"`
+	ServiceURL             string   `json:"service_url"`
+	PreferredCNAME         string   `json:"preferred_cname"`
+	AdminUsername          string   `json:"admin_username"`
+	AdminPasswordHash      string   `json:"admin_password_hash"`
+	TOTPEnabled            bool     `json:"totp_enabled,omitempty"`
+	TOTPSecretEncrypted    string   `json:"totp_secret_encrypted,omitempty"`
+	TOTPRecoveryCodeHashes []string `json:"totp_recovery_code_hashes,omitempty"`
+	TOTPLastAcceptedStep   int64    `json:"totp_last_accepted_step,omitempty"`
 	// Telegram bot settings
 	TGBotEnabled    bool   `json:"tg_bot_enabled"`
 	TGBotToken      string `json:"tg_bot_token"`
@@ -134,6 +141,57 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Token    string `json:"token"`
 	Username string `json:"username"`
+}
+
+// TwoFactorChallengeResponse requests a second authentication factor.
+type TwoFactorChallengeResponse struct {
+	TwoFactorRequired bool      `json:"two_factor_required"`
+	ChallengeToken    string    `json:"challenge_token"`
+	ExpiresAt         time.Time `json:"expires_at"`
+}
+
+// TwoFactorLoginRequest completes a challenged login.
+type TwoFactorLoginRequest struct {
+	ChallengeToken string `json:"challenge_token"`
+	Code           string `json:"code"`
+}
+
+// TOTPSetupResponse contains a pending authenticator setup.
+type TOTPSetupResponse struct {
+	SetupToken string    `json:"setup_token"`
+	Secret     string    `json:"secret"`
+	OTPAuthURI string    `json:"otpauth_uri"`
+	ExpiresAt  time.Time `json:"expires_at"`
+}
+
+// TOTPConfirmRequest confirms a pending authenticator setup.
+type TOTPConfirmRequest struct {
+	SetupToken string `json:"setup_token"`
+	Code       string `json:"code"`
+}
+
+// TOTPConfirmResponse returns one-time recovery codes.
+type TOTPConfirmResponse struct {
+	Enabled       bool     `json:"enabled"`
+	RecoveryCodes []string `json:"recovery_codes"`
+}
+
+// TOTPStatusResponse reports two-factor authentication status.
+type TOTPStatusResponse struct {
+	Enabled                bool `json:"enabled"`
+	RecoveryCodesRemaining int  `json:"recovery_codes_remaining"`
+	SetupAvailable         bool `json:"setup_available"`
+}
+
+// TOTPDisableRequest authorizes disabling two-factor authentication.
+type TOTPDisableRequest struct {
+	CurrentPassword string `json:"current_password"`
+	Code            string `json:"code"`
+}
+
+// TOTPDisableResponse reports the disabled state.
+type TOTPDisableResponse struct {
+	Enabled bool `json:"enabled"`
 }
 
 // ChangePasswordRequest is the request body for changing password

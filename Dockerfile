@@ -3,7 +3,7 @@
 FROM node:20-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN --mount=type=cache,target=/root/.npm npm install --loglevel verbose
+RUN --mount=type=cache,target=/root/.npm npm ci --loglevel verbose
 COPY frontend/ .
 RUN npm run build
 

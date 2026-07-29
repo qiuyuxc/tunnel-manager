@@ -1,4 +1,14 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipAuthInvalidation?: boolean
+  }
+
+  interface InternalAxiosRequestConfig {
+    skipAuthInvalidation?: boolean
+  }
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -6,7 +16,7 @@ const api = axios.create({
 })
 
 // Attach auth token to all requests
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers['X-Auth-Token'] = token
@@ -18,7 +28,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && window.location.pathname !== '/login') {
+    if (err.response?.status === 401 && !err.config?.skipAuthInvalidation && window.location.pathname !== '/login') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_username')
       window.location.href = '/login'
@@ -84,8 +94,59 @@ export interface ApiResponse {
 }
 
 // Auth
+export interface LoginResponse {
+  token: string
+  username: string
+}
+
+export interface TwoFactorChallengeResponse {
+  two_factor_required: true
+  challenge_token: string
+  expires_at: string
+}
+
+export type LoginResult = LoginResponse | TwoFactorChallengeResponse
+
+export interface TOTPStatusResponse {
+  enabled: boolean
+  recovery_codes_remaining: number
+  setup_available: boolean
+}
+
+export interface TOTPSetupResponse {
+  setup_token: string
+  secret: string
+  otpauth_uri: string
+  expires_at: string
+}
+
+export interface TOTPConfirmResponse {
+  enabled: boolean
+  recovery_codes: string[]
+}
+
 export function login(username: string, password: string) {
-  return api.post<{ token: string; username: string }>('/admin/login', { username, password })
+  return api.post<LoginResult>('/admin/login', { username, password })
+}
+
+export function completeTwoFactorLogin(challengeToken: string, code: string) {
+  return api.post<LoginResponse>('/admin/login/2fa', { challenge_token: challengeToken, code })
+}
+
+export function getTwoFactorStatus() {
+  return api.get<TOTPStatusResponse>('/admin/2fa/status')
+}
+
+export function setupTwoFactor() {
+  return api.post<TOTPSetupResponse>('/admin/2fa/setup', {})
+}
+
+export function confirmTwoFactor(setupToken: string, code: string) {
+  return api.post<TOTPConfirmResponse>('/admin/2fa/confirm', { setup_token: setupToken, code }, { skipAuthInvalidation: true })
+}
+
+export function disableTwoFactor(currentPassword: string, code: string) {
+  return api.post<{ enabled: false }>('/admin/2fa/disable', { current_password: currentPassword, code }, { skipAuthInvalidation: true })
 }
 
 export function logout() {

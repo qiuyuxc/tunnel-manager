@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 
+	"tunnel-manager/auth"
 	"tunnel-manager/handlers"
 	"tunnel-manager/services"
 	"tunnel-manager/store"
@@ -42,7 +43,9 @@ func main() {
 			newPassword = generateRandomPassword(12)
 		}
 
-		st.SetAdminCredentials(username, store.HashPassword(newPassword))
+		if err := st.SetAdminCredentials(username, store.HashPassword(newPassword)); err != nil {
+			log.Fatalf("reset administrator password: %v", err)
+		}
 		fmt.Printf("========================================\n")
 		fmt.Printf("  密码已重置\n")
 		fmt.Printf("  用户名: %s\n", username)
@@ -55,6 +58,14 @@ func main() {
 	apiToken := os.Getenv("CF_API_TOKEN")
 	accountID := os.Getenv("CF_ACCOUNT_ID")
 	apiKey := os.Getenv("API_KEY")
+	var encryptionKey []byte
+	if encodedKey := os.Getenv("APP_ENCRYPTION_KEY"); encodedKey != "" {
+		var err error
+		encryptionKey, err = auth.ParseEncryptionKey(encodedKey)
+		if err != nil {
+			log.Fatalf("invalid APP_ENCRYPTION_KEY: %v", err)
+		}
+	}
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -75,7 +86,7 @@ func main() {
 	configHandler := handlers.NewConfigHandler(st)
 	tunnelHandler := handlers.NewTunnelHandler(cf)
 	domainHandler := handlers.NewDomainHandler(domainService)
-	adminHandler := handlers.NewAdminHandler(st)
+	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
 
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
 	telegramHandler := handlers.NewTelegramHandler(st, telegramBot)
@@ -94,12 +105,17 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		// Admin endpoints (no auth required)
 		r.Post("/admin/login", adminHandler.Login)
+		r.Post("/admin/login/2fa", adminHandler.LoginTwoFactor)
 		r.Post("/admin/logout", adminHandler.Logout)
 		r.Get("/admin/status", adminHandler.Status)
 
-		// Protected admin endpoints (behind auth)
+		// Account management preserves existing Auth behavior; 2FA management requires a real session.
 		r.Put("/admin/password", mw.Auth(adminHandler.ChangePassword))
 		r.Put("/admin/username", mw.Auth(adminHandler.ChangeUsername))
+		r.Post("/admin/2fa/setup", mw.SessionOnly(adminHandler.SetupTOTP))
+		r.Post("/admin/2fa/confirm", mw.SessionOnly(adminHandler.ConfirmTOTP))
+		r.Get("/admin/2fa/status", mw.SessionOnly(adminHandler.TOTPStatus))
+		r.Post("/admin/2fa/disable", mw.SessionOnly(adminHandler.DisableTOTP))
 
 		// Config endpoints
 		r.Get("/config", mw.Auth(configHandler.GetConfig))

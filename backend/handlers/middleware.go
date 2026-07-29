@@ -59,6 +59,19 @@ func (m *Middleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// SessionOnly wraps security-sensitive account management endpoints and accepts
+// only a valid administrator session token.
+func (m *Middleware) SessionOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("X-Auth-Token")
+		if m.AdminHandler == nil || !m.AdminHandler.ValidateToken(token) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		next(w, r)
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
