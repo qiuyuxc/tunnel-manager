@@ -31,17 +31,18 @@ func (h *DomainHandler) BindDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.svc.BindDomain(req.MainDomain, req.AuxDomain)
+	preferredCNAME, err := h.svc.BindDomainWithPreferredCNAME(req.MainDomain, req.AuxDomain, req.PreferredCNAME)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{
-		"status":      "ok",
-		"message":     fmt.Sprintf("Domain binding complete! Access: https://%s", req.MainDomain),
-		"main_domain": req.MainDomain,
-		"aux_domain":  req.AuxDomain,
+		"status":          "ok",
+		"message":         fmt.Sprintf("Domain binding complete! Access: https://%s", req.MainDomain),
+		"main_domain":     req.MainDomain,
+		"aux_domain":      req.AuxDomain,
+		"preferred_cname": preferredCNAME,
 	})
 }
 

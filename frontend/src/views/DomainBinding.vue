@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" style="padding-top: 0;">
+  <div class="page-container">
     <div class="page-header">
       <router-link to="/" class="back-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -24,8 +24,10 @@
 
     <div class="config-summary section">
       <div class="summary-row">
-        <span class="summary-label caption-mono">隧道 ID</span>
-        <code v-if="config.tunnel_id" class="inline-code">{{ config.tunnel_id }}</code>
+        <span class="summary-label caption-mono">当前隧道</span>
+        <div v-if="config.tunnel_id" class="summary-tunnel">
+          <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+        </div>
         <span v-else class="summary-empty">未配置</span>
       </div>
       <div class="summary-row summary-row-edit">
@@ -37,14 +39,9 @@
           </button>
         </div>
       </div>
-      <div class="summary-row summary-row-edit">
-        <span class="summary-label caption-mono">优选 CNAME</span>
-        <div class="summary-edit">
-          <input v-model="preferredCNAME" placeholder="cf.090227.xyz" class="vercel-input summary-input" />
-          <button class="btn btn-secondary btn-sm" :disabled="savingCNAME" @click="saveCNAME">
-            {{ savingCNAME ? '...' : '保存' }}
-          </button>
-        </div>
+      <div class="summary-row">
+        <span class="summary-label caption-mono">默认 CNAME</span>
+        <code class="inline-code">{{ config.preferred_cname }}</code>
       </div>
     </div>
 
@@ -53,6 +50,19 @@
         <span class="caption-mono form-card-label">绑定新域名</span>
       </div>
       <div class="form-fields">
+        <div class="field cname-field">
+          <label class="field-label">本次优选 CNAME <span class="field-note">可直接选择常用线路或手动输入</span></label>
+          <div class="input-wrapper">
+            <cname-picker
+              v-model="form.preferred_cname"
+              :presets="config.cname_presets"
+              :show-default="true"
+              :default-value="config.preferred_cname"
+              placeholder="留空使用默认值"
+            />
+            <span class="field-hint">默认：{{ config.preferred_cname }}</span>
+          </div>
+        </div>
         <div class="field">
           <label class="field-label">主域名 <span class="field-note">对外访问域名</span></label>
           <div class="input-wrapper">
@@ -105,21 +115,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { bindDomain, setServiceURL, setPreferredCNAME, type BindRequest } from '../api'
+import { bindDomain, setServiceURL, type BindRequest } from '../api'
+import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
 
 const message = useMessage()
 const configStore = useConfigStore()
 const config = configStore.config
 
-const form = ref<BindRequest>({ main_domain: '', aux_domain: '' })
+const form = ref<BindRequest>({ preferred_cname: '', main_domain: '', aux_domain: '' })
 const errors = ref<Record<string, string>>({})
 const binding = ref(false)
 const result = ref<{ success: boolean; message: string } | null>(null)
 const serviceURL = ref(config.service_url)
 const savingService = ref(false)
-const preferredCNAME = ref(config.preferred_cname)
-const savingCNAME = ref(false)
 
 const isValid = computed(() => form.value.main_domain.trim() && form.value.aux_domain.trim())
 
@@ -142,19 +151,6 @@ async function saveServiceURL() {
   }
 }
 
-async function saveCNAME() {
-  savingCNAME.value = true
-  try {
-    await setPreferredCNAME(preferredCNAME.value)
-    config.preferred_cname = preferredCNAME.value
-    message.success('优选 CNAME 已更新')
-  } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
-  } finally {
-    savingCNAME.value = false
-  }
-}
-
 async function handleBind() {
   if (!isValid.value) return
   binding.value = true
@@ -172,11 +168,14 @@ async function handleBind() {
   }
 }
 
-onMounted(() => { configStore.fetchConfig() })
+onMounted(async () => {
+  await configStore.fetchConfig()
+  serviceURL.value = config.service_url
+})
 </script>
 
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
+.page-header { max-width: none; margin-bottom: var(--spacing-lg); }
 .page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
 .batch-link { flex: none; margin-top: 2px; text-decoration: none; }
 .section { margin-bottom: var(--spacing-md); }
@@ -217,10 +216,13 @@ onMounted(() => { configStore.fetchConfig() })
 .summary-edit { display: flex; gap: var(--spacing-xs); align-items: center; flex: 1; min-width: 0; justify-content: flex-end; }
 .summary-input { min-height: 32px; font-size: 13px; max-width: 280px; }
 .btn-sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.summary-tunnel { display: flex; min-width: 0; align-items: flex-end; flex-direction: column; gap: 2px; text-align: right; }
+.summary-tunnel strong { color: var(--color-ink); font-size: 14px; }
 
 .form-card { padding: var(--spacing-lg); }
 .form-card-header { margin-bottom: var(--spacing-md); }
-.form-fields { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
+.cname-field { grid-column: 1 / -1; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label {
   font-size: 14px;
@@ -231,6 +233,7 @@ onMounted(() => { configStore.fetchConfig() })
 .field-note { font-weight: 400; color: var(--color-mute); margin-left: 4px; }
 .input-wrapper { display: flex; flex-direction: column; gap: 4px; }
 .field-error { font-size: 12px; color: var(--color-error); }
+.field-hint { font-size: 12px; color: var(--color-mute); }
 .form-action {
   margin-top: var(--spacing-lg);
   padding-top: var(--spacing-lg);
@@ -281,6 +284,9 @@ onMounted(() => { configStore.fetchConfig() })
   .summary-row { align-items: flex-start; flex-direction: column; }
   .summary-edit { width: 100%; justify-content: stretch; }
   .summary-input { max-width: none; flex: 1; }
+  .form-fields { grid-template-columns: 1fr; }
+  .cname-field { grid-column: auto; }
+  .summary-tunnel { align-items: flex-start; text-align: left; }
 }
 
 @media (max-width: 480px) {

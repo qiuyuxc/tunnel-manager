@@ -2,7 +2,7 @@
   <n-message-provider>
     <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
       <n-layout class="app-layout">
-        <nav-bar />
+        <nav-bar v-if="$route.path !== '/login'" />
         <main class="main-content">
           <router-view v-slot="{ Component }">
             <transition name="page">
@@ -26,6 +26,8 @@ import { warmDarkThemeOverrides, warmThemeOverrides } from './theme'
 const configStore = useConfigStore()
 const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)
 const themeOverrides = computed(() => configStore.darkMode ? warmDarkThemeOverrides : warmThemeOverrides)
+
+configStore.fetchSiteSettings()
 
 // Sync dark mode to data-theme attribute on mount
 if (configStore.darkMode) {

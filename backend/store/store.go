@@ -54,9 +54,14 @@ func NewStore(filePath string) *Store {
 		filePath: filePath,
 		config: models.Config{
 			PreferredCNAME: "cf.090227.xyz",
-			AdminUsername:  "admin",
-			TGMode:         "polling",
-			TGApiEndpoint:  "https://api.telegram.org",
+			CNAMEPresets: []models.CNAMEPreset{
+				{Name: "默认优选", Value: "cf.090227.xyz"},
+			},
+			SiteName:        "Tunnel Manager",
+			SiteDescription: "Cloudflare 隧道管理中心",
+			AdminUsername:   "admin",
+			TGMode:          "polling",
+			TGApiEndpoint:   "https://api.telegram.org",
 		},
 	}
 	s.load()
@@ -83,11 +88,23 @@ func (s *Store) load() {
 		log.Printf("========================================")
 		return
 	}
-	if err := json.Unmarshal(data, &s.config); err != nil {
+	var loaded models.Config
+	if err := json.Unmarshal(data, &loaded); err != nil {
 		log.Printf("load configuration: %v", err)
+	} else {
+		s.config = loaded
 	}
 	if s.config.PreferredCNAME == "" {
 		s.config.PreferredCNAME = "cf.090227.xyz"
+	}
+	if len(s.config.CNAMEPresets) == 0 {
+		s.config.CNAMEPresets = []models.CNAMEPreset{{Name: "默认优选", Value: s.config.PreferredCNAME}}
+	}
+	if s.config.SiteName == "" {
+		s.config.SiteName = "Tunnel Manager"
+	}
+	if s.config.SiteDescription == "" {
+		s.config.SiteDescription = "Cloudflare 隧道管理中心"
 	}
 	if s.config.AdminUsername == "" {
 		s.config.AdminUsername = "admin"
@@ -176,16 +193,22 @@ func (s *Store) GetConfig() models.Config {
 	defer s.mu.RUnlock()
 	config := s.config
 	config.TOTPRecoveryCodeHashes = append([]string(nil), s.config.TOTPRecoveryCodeHashes...)
+	config.CNAMEPresets = append([]models.CNAMEPreset(nil), s.config.CNAMEPresets...)
 	return config
 }
 
-// SetTunnelID sets the active tunnel ID
-func (s *Store) SetTunnelID(id string) {
+// SetTunnelSelection sets the active tunnel and its display name.
+func (s *Store) SetTunnelSelection(id, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	previous := s.config
 	s.config.TunnelID = id
-	s.restoreAndLog(previous, "save tunnel ID")
+	s.config.TunnelName = name
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
 }
 
 // SetServiceURL sets the forwarding service URL
@@ -204,6 +227,34 @@ func (s *Store) SetPreferredCNAME(cname string) {
 	previous := s.config
 	s.config.PreferredCNAME = cname
 	s.restoreAndLog(previous, "save preferred CNAME")
+}
+
+// SetSiteSettings updates public-facing site branding.
+func (s *Store) SetSiteSettings(name, description, icon string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.SiteName = name
+	s.config.SiteDescription = description
+	s.config.SiteIcon = icon
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// SetCNAMEPresets replaces the reusable CNAME options.
+func (s *Store) SetCNAMEPresets(items []models.CNAMEPreset) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.CNAMEPresets = append([]models.CNAMEPreset(nil), items...)
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
 }
 
 // GetAdminCredentials returns admin username and password hash

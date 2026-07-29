@@ -62,11 +62,28 @@ export interface Zone {
 
 export interface Config {
   tunnel_id: string
+  tunnel_name: string
   service_url: string
   preferred_cname: string
+  cname_presets: CNAMEPreset[]
+  site_name: string
+  site_description: string
+  site_icon: string
+}
+
+export interface CNAMEPreset {
+  name: string
+  value: string
+}
+
+export interface SiteSettings {
+  name: string
+  description: string
+  icon: string
 }
 
 export interface BindRequest {
+  preferred_cname: string
   main_domain: string
   aux_domain: string
 }
@@ -170,8 +187,12 @@ export function getConfig() {
   return api.get<Config>('/config')
 }
 
-export function setTunnelID(value: string) {
-  return api.post('/config/tunnel', { value })
+export function getSiteSettings() {
+  return api.get<SiteSettings>('/site')
+}
+
+export function setTunnelSelection(id: string, name: string) {
+  return api.post('/config/tunnel', { id, name })
 }
 
 export function setServiceURL(value: string) {
@@ -180,6 +201,14 @@ export function setServiceURL(value: string) {
 
 export function setPreferredCNAME(value: string) {
   return api.post('/config/preferred-cname', { value })
+}
+
+export function setSiteSettings(data: SiteSettings) {
+  return api.put<SiteSettings>('/config/site', data)
+}
+
+export function setCNAMEPresets(items: CNAMEPreset[]) {
+  return api.put<{ status: string; cname_presets: CNAMEPreset[] }>('/config/cname-presets', { items })
 }
 
 // Tunnels

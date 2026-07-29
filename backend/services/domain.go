@@ -20,11 +20,16 @@ func NewDomainService(cf *CloudflareClient, st *store.Store) *DomainService {
 
 // BindDomain runs the full flow using the configured default service URL.
 func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error) {
+	return d.BindDomainWithPreferredCNAME(mainDomain, auxDomain, "")
+}
+
+// BindDomainWithPreferredCNAME runs the flow with the configured service URL and an optional CNAME override.
+func (d *DomainService) BindDomainWithPreferredCNAME(mainDomain, auxDomain, preferredCNAME string) (string, error) {
 	cfg := d.store.GetConfig()
 	if cfg.ServiceURL == "" {
 		return "", fmt.Errorf("service_url 未配置，请先在面板中设置")
 	}
-	return d.BindDomainWithService(mainDomain, auxDomain, cfg.ServiceURL, "")
+	return d.BindDomainWithService(mainDomain, auxDomain, cfg.ServiceURL, preferredCNAME)
 }
 
 // BindDomainWithService runs the full flow using the supplied service URL and optional preferred CNAME.

@@ -103,6 +103,9 @@ func main() {
 	r.Use(mw.CORS)
 
 	r.Route("/api", func(r chi.Router) {
+		// Public site branding
+		r.Get("/site", configHandler.GetSiteSettings)
+
 		// Admin endpoints (no auth required)
 		r.Post("/admin/login", adminHandler.Login)
 		r.Post("/admin/login/2fa", adminHandler.LoginTwoFactor)
@@ -119,9 +122,11 @@ func main() {
 
 		// Config endpoints
 		r.Get("/config", mw.Auth(configHandler.GetConfig))
-		r.Post("/config/tunnel", mw.Auth(configHandler.SetTunnelID))
+		r.Post("/config/tunnel", mw.Auth(configHandler.SetTunnelSelection))
 		r.Post("/config/service", mw.Auth(configHandler.SetServiceURL))
 		r.Post("/config/preferred-cname", mw.Auth(configHandler.SetPreferredCNAME))
+		r.Put("/config/site", mw.Auth(configHandler.SetSiteSettings))
+		r.Put("/config/cname-presets", mw.Auth(configHandler.SetCNAMEPresets))
 
 		// Tunnel endpoints
 		r.Get("/tunnels", mw.Auth(tunnelHandler.ListTunnels))

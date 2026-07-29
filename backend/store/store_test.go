@@ -256,6 +256,62 @@ func TestGetConfigDeepCopiesRecoveryHashes(t *testing.T) {
 	}
 }
 
+func TestGetConfigDeepCopiesCNAMEPresets(t *testing.T) {
+	s, _ := newStoreWithConfig(t, models.Config{
+		AdminUsername:     "admin",
+		AdminPasswordHash: HashPassword("password"),
+		PreferredCNAME:    "default.example.com",
+		CNAMEPresets: []models.CNAMEPreset{
+			{Name: "线路 A", Value: "a.example.com"},
+		},
+	})
+	config := s.GetConfig()
+	config.CNAMEPresets[0].Value = "changed.example.com"
+	if got := s.GetConfig().CNAMEPresets[0].Value; got != "a.example.com" {
+		t.Fatalf("stored CNAME preset changed through GetConfig: %q", got)
+	}
+}
+
+func TestLegacyConfigReceivesBrandingAndCNAMEPresetDefaults(t *testing.T) {
+	s, _ := newStoreWithConfig(t, models.Config{
+		AdminUsername:     "admin",
+		AdminPasswordHash: HashPassword("password"),
+		PreferredCNAME:    "legacy.example.com",
+	})
+	config := s.GetConfig()
+	if config.SiteName != "Tunnel Manager" || config.SiteDescription == "" {
+		t.Fatalf("site defaults = (%q, %q)", config.SiteName, config.SiteDescription)
+	}
+	if len(config.CNAMEPresets) != 1 || config.CNAMEPresets[0].Value != "legacy.example.com" {
+		t.Fatalf("CNAME defaults = %#v", config.CNAMEPresets)
+	}
+}
+
+func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
+	s := newTestStore(t, HashPassword("password"))
+	if err := s.SetSiteSettings("My Panel", "Operations", "https://example.com/icon.png"); err != nil {
+		t.Fatal(err)
+	}
+	presets := []models.CNAMEPreset{{Name: "线路 A", Value: "a.example.com"}}
+	if err := s.SetCNAMEPresets(presets); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetTunnelSelection("tunnel-id", "Production"); err != nil {
+		t.Fatal(err)
+	}
+
+	config := NewStore(s.filePath).GetConfig()
+	if config.SiteName != "My Panel" || config.SiteDescription != "Operations" || config.SiteIcon != "https://example.com/icon.png" {
+		t.Fatalf("persisted site settings = %#v", config)
+	}
+	if config.TunnelID != "tunnel-id" || config.TunnelName != "Production" {
+		t.Fatalf("persisted tunnel = (%q, %q)", config.TunnelID, config.TunnelName)
+	}
+	if len(config.CNAMEPresets) != 1 || config.CNAMEPresets[0] != presets[0] {
+		t.Fatalf("persisted presets = %#v", config.CNAMEPresets)
+	}
+}
+
 func TestAtomicSaveReplacesFileWithPrivatePermissions(t *testing.T) {
 	s, path := newStoreWithConfig(t, models.Config{AdminUsername: "admin", AdminPasswordHash: HashPassword("password")})
 	if err := os.Chmod(path, 0644); err != nil {

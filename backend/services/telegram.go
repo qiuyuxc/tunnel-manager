@@ -409,9 +409,26 @@ func (b *TelegramBot) handleListTunnels(cfg models.Config, chatID int64) {
 }
 
 func (b *TelegramBot) handleSelectTunnel(chatID int64, tunnelID string) {
-	b.store.SetTunnelID(tunnelID)
+	tunnelName := ""
+	if tunnels, err := b.cf.ListTunnels(); err == nil {
+		for _, tunnel := range tunnels {
+			if tunnel.ID == tunnelID {
+				tunnelName = tunnel.Name
+				break
+			}
+		}
+	}
+	if err := b.store.SetTunnelSelection(tunnelID, tunnelName); err != nil {
+		cfg := b.store.GetConfig()
+		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存隧道选择失败: %s", err.Error()))
+		return
+	}
 	cfg := b.store.GetConfig()
-	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已锁定隧道ID: `%s`\n\n💡 **下一步**：请设置本地转发端口。\n例如: `/转发 http://localhost:3000`", tunnelID))
+	displayName := tunnelName
+	if displayName == "" {
+		displayName = tunnelID
+	}
+	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已锁定隧道: `%s`\n\n💡 **下一步**：请设置本地转发端口。\n例如: `/转发 http://localhost:3000`", displayName))
 }
 
 func (b *TelegramBot) handleSetService(chatID int64, url string) {

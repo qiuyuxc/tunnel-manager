@@ -7,15 +7,20 @@ import (
 
 // Config represents the application configuration state
 type Config struct {
-	TunnelID               string   `json:"tunnel_id"`
-	ServiceURL             string   `json:"service_url"`
-	PreferredCNAME         string   `json:"preferred_cname"`
-	AdminUsername          string   `json:"admin_username"`
-	AdminPasswordHash      string   `json:"admin_password_hash"`
-	TOTPEnabled            bool     `json:"totp_enabled,omitempty"`
-	TOTPSecretEncrypted    string   `json:"totp_secret_encrypted,omitempty"`
-	TOTPRecoveryCodeHashes []string `json:"totp_recovery_code_hashes,omitempty"`
-	TOTPLastAcceptedStep   int64    `json:"totp_last_accepted_step,omitempty"`
+	TunnelID               string        `json:"tunnel_id"`
+	TunnelName             string        `json:"tunnel_name"`
+	ServiceURL             string        `json:"service_url"`
+	PreferredCNAME         string        `json:"preferred_cname"`
+	CNAMEPresets           []CNAMEPreset `json:"cname_presets,omitempty"`
+	SiteName               string        `json:"site_name"`
+	SiteDescription        string        `json:"site_description"`
+	SiteIcon               string        `json:"site_icon"`
+	AdminUsername          string        `json:"admin_username"`
+	AdminPasswordHash      string        `json:"admin_password_hash"`
+	TOTPEnabled            bool          `json:"totp_enabled,omitempty"`
+	TOTPSecretEncrypted    string        `json:"totp_secret_encrypted,omitempty"`
+	TOTPRecoveryCodeHashes []string      `json:"totp_recovery_code_hashes,omitempty"`
+	TOTPLastAcceptedStep   int64         `json:"totp_last_accepted_step,omitempty"`
 	// Telegram bot settings
 	TGBotEnabled    bool   `json:"tg_bot_enabled"`
 	TGBotToken      string `json:"tg_bot_token"`
@@ -24,6 +29,19 @@ type Config struct {
 	TGWebhookURL    string `json:"tg_webhook_url"`
 	TGWebhookSecret string `json:"tg_webhook_secret"`
 	TGApiEndpoint   string `json:"tg_api_endpoint"`
+}
+
+// CNAMEPreset is a reusable preferred CNAME option.
+type CNAMEPreset struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// SiteSettings contains public-facing site branding.
+type SiteSettings struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
 }
 
 // Tunnel represents a Cloudflare Tunnel
@@ -83,8 +101,9 @@ type CFError struct {
 
 // BindRequest is the request body for domain binding
 type BindRequest struct {
-	MainDomain string `json:"main_domain"`
-	AuxDomain  string `json:"aux_domain"`
+	PreferredCNAME string `json:"preferred_cname"`
+	MainDomain     string `json:"main_domain"`
+	AuxDomain      string `json:"aux_domain"`
 }
 
 // BatchBindItem is a domain binding group with its own origin service.
@@ -129,6 +148,25 @@ type CustomHostname struct {
 // SetValueRequest is a generic request for setting a single value
 type SetValueRequest struct {
 	Value string `json:"value"`
+}
+
+// SetTunnelRequest selects a tunnel while preserving its display name.
+type SetTunnelRequest struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+}
+
+// SetSiteSettingsRequest updates public-facing site branding.
+type SetSiteSettingsRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+}
+
+// SetCNAMEPresetsRequest replaces the reusable CNAME options.
+type SetCNAMEPresetsRequest struct {
+	Items []CNAMEPreset `json:"items"`
 }
 
 // LoginRequest is the request body for admin login

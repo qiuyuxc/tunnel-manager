@@ -3,18 +3,19 @@
     <div class="login-card" :class="{ 'login-card-enter': mounted, 'login-card-shake': shaking }">
       <div class="login-logo">
         <span class="logo-mark" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 76 76" fill="none">
+          <img v-if="store.config.site_icon" :src="store.config.site_icon" alt="" class="brand-icon" />
+          <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
             <path d="M49 26H27v24l22-24z" fill="currentColor"/>
             <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
           </svg>
         </span>
       </div>
-      <h1 class="login-title">Tunnel Manager</h1>
+      <h1 class="login-title">{{ store.config.site_name }}</h1>
 
       <Transition name="step-fade" mode="out-in">
         <div :key="step">
           <template v-if="step === 'credentials'">
-            <p class="login-subtitle">登录以继续</p>
+            <p class="login-subtitle">{{ store.config.site_description || '登录以继续' }}</p>
             <form class="login-form" @submit.prevent="handleLogin">
               <div class="field">
                 <label class="field-label" for="login-username">用户名</label>
@@ -315,6 +316,8 @@ function triggerShake() {
   align-items: center;
   justify-content: center;
 }
+
+.brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .login-title {
   font-family: var(--font-display);

@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" style="padding-top: 0;">
+  <div class="page-container">
     <div class="page-header">
       <h2>控制面板</h2>
       <p>当前配置概览与快速操作</p>
@@ -21,7 +21,10 @@
           </span>
         </div>
         <div class="config-value">
-          <code v-if="config.tunnel_id" class="inline-code">{{ config.tunnel_id }}</code>
+          <div v-if="config.tunnel_id" class="tunnel-display">
+            <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+            <code>{{ config.tunnel_id }}</code>
+          </div>
           <span v-else class="config-empty">尚未锁定隧道</span>
         </div>
         <div class="config-action">
@@ -189,6 +192,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
 }
+.tunnel-display { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.tunnel-display strong { font-size: 15px; color: var(--color-ink); }
+.tunnel-display code { color: var(--color-mute); font: 12px/1.4 var(--font-mono); overflow-wrap: anywhere; }
 .config-empty { color: var(--color-mute); font-size: 14px; }
 .config-action {
   margin-top: auto;

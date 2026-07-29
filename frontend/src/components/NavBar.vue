@@ -4,14 +4,15 @@
       <div class="nav-brand">
         <router-link to="/" class="logo">
           <span class="logo-mark" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 76 76" fill="none">
+            <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" class="brand-icon" />
+            <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
               <path d="M49 26H27v24l22-24z" fill="currentColor"/>
               <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
             </svg>
           </span>
-          <span class="logo-text">Tunnel Manager</span>
+          <span class="logo-text">{{ configStore.config.site_name }}</span>
         </router-link>
-        <span class="nav-context">Control room</span>
+        <span class="nav-context">{{ configStore.config.site_description }}</span>
       </div>
 
       <div class="nav-center">
@@ -126,6 +127,14 @@ async function handleLogout() {
   min-height: var(--header-height);
   background: color-mix(in srgb, var(--color-canvas) 92%, transparent);
   border-bottom: 1px solid var(--color-hairline);
+  backdrop-filter: blur(18px);
+}
+
+.brand-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .nav-inner {
@@ -174,6 +183,10 @@ async function handleLogout() {
 }
 
 .nav-context {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--color-mute);
   padding-left: 12px;
@@ -344,12 +357,12 @@ async function handleLogout() {
 .slide-enter-from { opacity: 0; transform: translateY(-8px); }
 .slide-leave-to { opacity: 0; transform: translateY(-4px); }
 
-@media (max-width: 980px) {
+@media (max-width: 1120px) {
   .nav-context { display: none; }
   .nav-brand { min-width: auto; }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .nav-center { display: none; }
   .hamburger { display: flex; }
   .nav-inner { padding: 0 var(--spacing-md); }

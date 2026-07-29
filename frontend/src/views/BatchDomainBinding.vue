@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" style="padding-top: 0;">
+  <div class="page-container">
     <div class="page-header">
       <router-link to="/domain" class="back-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -14,6 +14,13 @@
       <div>
         <div class="prereq-title">前置条件未满足</div>
         <div class="prereq-desc">请先在「隧道管理」选择隧道。</div>
+      </div>
+    </div>
+
+    <div v-else class="tunnel-context section">
+      <span class="caption-mono">当前隧道</span>
+      <div>
+        <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
       </div>
     </div>
 
@@ -41,7 +48,14 @@
         </div>
         <div class="field">
           <label class="field-label" :for="`cname-${group.id}`">优选 CNAME <span class="field-note">选填，留空使用全局配置</span></label>
-          <input :id="`cname-${group.id}`" v-model="group.preferred_cname" class="vercel-input" placeholder="例如: cf.090227.xyz" :disabled="submitting" />
+          <cname-picker
+            v-model="group.preferred_cname"
+            :input-id="`cname-${group.id}`"
+            :presets="config.cname_presets"
+            :show-default="true"
+            :default-value="config.preferred_cname"
+            :disabled="submitting"
+          />
         </div>
         <div class="field">
           <label class="field-label" :for="`main-${group.id}`">主域名 <span class="field-note">对外访问域名</span></label>
@@ -77,6 +91,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomainsBatch, type BatchBindItem, type BatchBindResult } from '../api'
+import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
 
 type Field = keyof BatchBindItem
@@ -178,6 +193,10 @@ onMounted(async () => {
 }
 .prereq-title { font-size: 14px; font-weight: 600; color: var(--color-banner-warning-text); }
 .prereq-desc { margin-top: 2px; font-size: 14px; color: var(--color-banner-warning-text); opacity: 0.84; }
+.tunnel-context { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); background: var(--color-canvas); }
+.tunnel-context > span { color: var(--color-mute); }
+.tunnel-context > div { display: flex; min-width: 0; align-items: flex-end; flex-direction: column; gap: 2px; }
+.tunnel-context strong { color: var(--color-ink); font-size: 14px; }
 .binding-group {
   padding: var(--spacing-lg);
   background: var(--color-canvas);
@@ -237,6 +256,8 @@ onMounted(async () => {
 .spin { animation: spin 1s linear infinite; }
 @media (max-width: 720px) { .form-fields { grid-template-columns: 1fr; } }
 @media (max-width: 480px) {
+  .tunnel-context { align-items: flex-start; flex-direction: column; }
+  .tunnel-context > div { align-items: flex-start; }
   .group-header { align-items: stretch; flex-direction: column; }
   .group-actions { justify-content: flex-end; }
   .field-label { display: flex; flex-direction: column; gap: 2px; }

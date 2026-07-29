@@ -16,7 +16,8 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 - 隧道管理：列出、选择 Cloudflare Tunnel，查看和编辑应用程序路由
 - 域名绑定：自动配置 Tunnel 路由、DNS CNAME 与 SaaS Custom Hostname
 - 批量绑定：一次提交多个绑定组，每组可独立配置转发地址与优选 CNAME
-- 优选 CNAME：自定义全局优选域名
+- 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题
+- 优选 CNAME：自定义全局默认值并维护常用 CNAME 组，绑定时可直接选择
 - 回退源设置：一键配置 fallback origin
 - Telegram Bot：远程管理隧道，支持长轮询、Webhook 与自定义 API 端点
 - 管理员认证：Argon2id 密码哈希、12 小时会话、旧 SHA-256 哈希自动迁移
@@ -99,9 +100,12 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 | POST | `/api/admin/2fa/confirm` | 确认启用并生成恢复码 | 管理员会话 |
 | POST | `/api/admin/2fa/disable` | 关闭 2FA | 管理员会话 |
 | GET | `/api/config` | 获取配置 | 需要 |
-| POST | `/api/config/tunnel` | 设置隧道 ID | 需要 |
+| GET | `/api/site` | 获取公开站点品牌信息 | 无 |
+| POST | `/api/config/tunnel` | 设置隧道 ID 与显示名称 | 需要 |
 | POST | `/api/config/service` | 设置转发地址 | 需要 |
 | POST | `/api/config/preferred-cname` | 设置优选 CNAME | 需要 |
+| PUT | `/api/config/site` | 更新站点品牌信息 | 需要 |
+| PUT | `/api/config/cname-presets` | 更新常用 CNAME 组 | 需要 |
 | GET | `/api/tunnels` | 列出隧道 | 需要 |
 | GET | `/api/tunnels/{tunnelID}` | 获取隧道详情与路由 | 需要 |
 | POST | `/api/tunnels/{tunnelID}/ingress` | 新增应用程序路由 | 需要 |

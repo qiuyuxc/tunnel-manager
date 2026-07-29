@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" style="padding-top: 0;">
+  <div class="page-container">
     <div class="page-header">
       <router-link to="/" class="back-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -14,7 +14,10 @@
         <span class="caption-mono selection-label">当前已选隧道</span>
       </div>
       <div v-if="config.tunnel_id" class="selection-body">
-        <code class="inline-code">{{ config.tunnel_id }}</code>
+        <div class="selected-tunnel">
+          <strong>{{ config.tunnel_name || '当前隧道' }}</strong>
+          <code class="tunnel-id">{{ config.tunnel_id }}</code>
+        </div>
         <button class="btn-ghost-sm" @click="clearTunnel">清除</button>
       </div>
       <div v-else class="selection-empty">
@@ -48,7 +51,7 @@
             class="btn-sm"
             :class="config.tunnel_id === tunnel.id ? 'btn-active' : 'btn-select'"
             :disabled="config.tunnel_id === tunnel.id"
-            @click="selectTunnel(tunnel.id)"
+            @click="selectTunnel(tunnel)"
           >
             {{ config.tunnel_id === tunnel.id ? '已选' : '选择' }}
           </button>
@@ -67,7 +70,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { listTunnels, setTunnelID, type Tunnel } from '../api'
+import { listTunnels, setTunnelSelection, type Tunnel } from '../api'
 import { useConfigStore } from '../stores/config'
 
 const message = useMessage()
@@ -94,10 +97,11 @@ async function loadTunnels() {
   }
 }
 
-async function selectTunnel(id: string) {
+async function selectTunnel(tunnel: Tunnel) {
   try {
-    await setTunnelID(id)
-    config.tunnel_id = id
+    await setTunnelSelection(tunnel.id, tunnel.name)
+    config.tunnel_id = tunnel.id
+    config.tunnel_name = tunnel.name
     message.success('隧道已锁定')
   } catch (e: any) {
     message.error('选择失败: ' + (e.response?.data?.error || e.message))
@@ -106,8 +110,9 @@ async function selectTunnel(id: string) {
 
 async function clearTunnel() {
   try {
-    await setTunnelID('')
+    await setTunnelSelection('', '')
     config.tunnel_id = ''
+    config.tunnel_name = ''
     message.success('已清除隧道选择')
   } catch (e: any) {
     message.error('清除失败')
@@ -131,6 +136,9 @@ onMounted(() => { loadTunnels() })
 .selection-label { color: var(--color-mute); }
 .selection-header { margin-bottom: 10px; }
 .selection-body { display: flex; align-items: center; gap: 10px; }
+.selection-body { justify-content: space-between; }
+.selected-tunnel { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.selected-tunnel strong { color: var(--color-ink); font-size: 15px; }
 .selection-empty { color: var(--color-mute); font-size: 14px; }
 .toolbar { display: flex; }
 
