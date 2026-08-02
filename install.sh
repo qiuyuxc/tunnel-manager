@@ -80,12 +80,28 @@ if [ -f .env ]; then
       printf '\nAPP_ENCRYPTION_KEY=%s\n' "$APP_ENCRYPTION_KEY" >> .env
     fi
   fi
+  for OAUTH_VAR in CF_OAUTH_CLIENT_ID CF_OAUTH_CLIENT_SECRET CF_OAUTH_REDIRECT_URI CF_OAUTH_SCOPES; do
+    if ! grep -q "^${OAUTH_VAR}=" .env; then
+      printf '%s=\n' "$OAUTH_VAR" >> .env
+    fi
+  done
   source .env
 else
   echo ""
   echo "📝 首次运行，配置环境变量："
-  read -p "CF_API_TOKEN: " CF_TOKEN
-  read -p "CF_ACCOUNT_ID: " CF_AID
+  echo "推荐使用 Cloudflare OAuth，API Token 仅作为旧版兼容方式。"
+  read -p "CF_OAUTH_CLIENT_ID (推荐，留空则使用 API Token): " CF_OAUTH_CLIENT_ID
+  CF_OAUTH_CLIENT_SECRET=""
+  CF_OAUTH_REDIRECT_URI=""
+  CF_TOKEN=""
+  CF_AID=""
+  if [ -n "$CF_OAUTH_CLIENT_ID" ]; then
+    read -p "CF_OAUTH_CLIENT_SECRET: " CF_OAUTH_CLIENT_SECRET
+    read -p "CF_OAUTH_REDIRECT_URI (例如 https://example.com/api/cloudflare/oauth/callback): " CF_OAUTH_REDIRECT_URI
+  else
+    read -p "CF_API_TOKEN: " CF_TOKEN
+    read -p "CF_ACCOUNT_ID: " CF_AID
+  fi
   read -p "API_KEY (可选，直接回车跳过): " API_KEY
   read -p "ADMIN_PASSWORD (可选，直接回车随机生成): " ADMIN_PASS
   APP_ENCRYPTION_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d '\n')
@@ -93,6 +109,10 @@ else
   cat > .env <<EOF
 CF_API_TOKEN=${CF_TOKEN}
 CF_ACCOUNT_ID=${CF_AID}
+CF_OAUTH_CLIENT_ID=${CF_OAUTH_CLIENT_ID}
+CF_OAUTH_CLIENT_SECRET=${CF_OAUTH_CLIENT_SECRET}
+CF_OAUTH_REDIRECT_URI=${CF_OAUTH_REDIRECT_URI}
+CF_OAUTH_SCOPES=
 API_KEY=${API_KEY}
 ADMIN_PASSWORD=${ADMIN_PASS}
 APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
@@ -116,6 +136,9 @@ echo ""
 echo "=============================="
 echo "  ✅ 部署完成！"
 echo "  访问: http://$(hostname -I | awk '{print $1}'):8080"
+if [ -n "$CF_OAUTH_CLIENT_ID" ]; then
+  echo "  登录后请前往“全局设置”完成 Cloudflare OAuth 授权"
+fi
 echo ""
 
 # Show password hint

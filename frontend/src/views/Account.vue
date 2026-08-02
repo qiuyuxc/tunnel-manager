@@ -6,7 +6,7 @@
         返回控制面板
       </router-link>
       <h2>账户设置</h2>
-      <p>管理登录凭据与账户安全</p>
+      <p>管理登录凭据、Cloudflare 账户连接与账户安全</p>
     </div>
 
     <div class="settings-list">
@@ -162,7 +162,72 @@
         </div>
       </section>
 
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.08s' }">
+      <section class="settings-card cloudflare-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.08s' }" aria-labelledby="cloudflare-title">
+        <div class="cloudflare-heading">
+          <div>
+            <p class="security-kicker">Account connection</p>
+            <h3 id="cloudflare-title" class="settings-card-title">Cloudflare 账户连接</h3>
+            <p class="settings-card-desc">通过 OAuth 管理 Cloudflare 账户凭据。OAuth 连接存在时始终优先用于账户、隧道与 Zone 请求。</p>
+          </div>
+          <span class="connection-badge" :class="cloudflare.connected ? 'connected' : 'disconnected'">
+            {{ loadingCloudflare ? '读取中' : cloudflare.connected ? '已连接' : '未连接' }}
+          </span>
+        </div>
+
+        <div v-if="loadingCloudflare" class="cloudflare-loading" role="status">
+          <span class="state-pulse" aria-hidden="true"></span>
+          <span>正在读取 Cloudflare 连接状态</span>
+        </div>
+
+        <div v-else class="cloudflare-panel">
+          <div class="cloudflare-status">
+            <div>
+              <span class="cloudflare-label">凭据来源</span>
+              <strong>{{ cloudflareSourceLabel }}</strong>
+            </div>
+            <div>
+              <span class="cloudflare-label">当前账户</span>
+              <strong>{{ cloudflare.account_name || '尚未选择' }}</strong>
+              <code v-if="cloudflare.account_id">{{ cloudflare.account_id }}</code>
+            </div>
+            <div>
+              <span class="cloudflare-label">OAuth 有效期</span>
+              <strong>{{ cloudflare.expires_at ? formatOAuthExpiry(cloudflare.expires_at) : '不适用' }}</strong>
+            </div>
+          </div>
+
+          <label v-if="cloudflare.source === 'oauth' && cloudflare.accounts?.length" class="account-selector">
+            <span class="field-label">切换 Cloudflare 账户</span>
+            <select class="vercel-input" :value="cloudflare.account_id" :disabled="selectingAccount" @change="changeCloudflareAccount">
+              <option v-for="account in cloudflare.accounts" :key="account.id" :value="account.id">
+                {{ account.name }} · {{ account.id }}
+              </option>
+            </select>
+          </label>
+
+          <p v-if="cloudflareStatusError || cloudflare.error" class="cloudflare-error" role="alert">
+            {{ cloudflareStatusError || cloudflare.error }}
+          </p>
+
+          <div v-if="!cloudflare.configured" class="oauth-setup-hint">
+            <strong>服务器尚未配置 OAuth 客户端</strong>
+            <span>请设置 <code>CF_OAUTH_CLIENT_ID</code>、<code>CF_OAUTH_CLIENT_SECRET</code> 与有效的 <code>APP_ENCRYPTION_KEY</code>。</span>
+          </div>
+
+          <div class="cloudflare-actions">
+            <button v-if="cloudflare.configured" class="btn btn-primary" type="button" :disabled="startingOAuth" @click="connectCloudflare">
+              {{ startingOAuth ? '正在跳转...' : cloudflare.source === 'oauth' ? '重新授权' : '连接 Cloudflare' }}
+            </button>
+            <button v-if="cloudflare.source === 'oauth'" class="btn btn-secondary danger-outline" type="button" :disabled="disconnectingOAuth" @click="confirmDisconnectCloudflare">
+              {{ disconnectingOAuth ? '断开中...' : '断开授权' }}
+            </button>
+            <button v-if="cloudflareStatusError" class="btn btn-secondary" type="button" @click="loadCloudflareStatus">重试</button>
+            <span v-if="cloudflare.source === 'api_token'" class="legacy-note">当前使用环境变量 API Token；完成 OAuth 授权后会自动优先使用 OAuth。</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.12s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">修改用户名</div>
           <div class="settings-card-desc">当前用户名: <strong>{{ store.username }}</strong></div>
@@ -206,23 +271,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useDialog, useMessage } from 'naive-ui'
 import QRCode from 'qrcode'
 import {
   changePassword,
   changeUsername,
   confirmTwoFactor,
+  disconnectCloudflareOAuth,
   disableTwoFactor,
+  getCloudflareOAuthStatus,
   getTwoFactorStatus,
+  selectCloudflareAccount,
   setupTwoFactor,
+  startCloudflareOAuth,
+  type CloudflareOAuthStatus,
   type TOTPSetupResponse,
   type TOTPStatusResponse,
 } from '../api'
 import { useConfigStore } from '../stores/config'
 
 const message = useMessage()
+const dialog = useDialog()
+const route = useRoute()
 const router = useRouter()
 const store = useConfigStore()
 const visible = ref(false)
@@ -233,6 +305,21 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const savingUsername = ref(false)
 const savingPassword = ref(false)
+
+const loadingCloudflare = ref(true)
+const startingOAuth = ref(false)
+const disconnectingOAuth = ref(false)
+const selectingAccount = ref(false)
+const cloudflareStatusError = ref('')
+const cloudflare = reactive<CloudflareOAuthStatus>({
+  configured: false,
+  connected: false,
+  source: 'none',
+  account_id: '',
+  account_name: '',
+  accounts: [],
+  redirect_uri: '',
+})
 
 const statusLoading = ref(true)
 const statusError = ref('')
@@ -262,6 +349,7 @@ let disposed = false
 let statusRequestGeneration = 0
 let setupRequestGeneration = 0
 let confirmRequestGeneration = 0
+let oauthRequestGeneration = 0
 
 const setupExpired = computed(() => Boolean(setupSession.value) && expiresAtMs.value <= nowMs.value)
 const countdownLabel = computed(() => {
@@ -281,8 +369,114 @@ const statusStamp = computed(() => {
   return { label: '未启用', tone: 'neutral' }
 })
 
+const cloudflareSourceLabel = computed(() => {
+  if (cloudflare.source === 'oauth') return 'Cloudflare OAuth 2.0'
+  if (cloudflare.source === 'api_token') return '环境变量 API Token'
+  return '未配置'
+})
+
 function apiError(error: any, fallback: string) {
   return error.response?.data?.error || error.message || fallback
+}
+
+async function loadCloudflareStatus() {
+  const generation = ++oauthRequestGeneration
+  loadingCloudflare.value = true
+  cloudflareStatusError.value = ''
+  try {
+    const { data } = await getCloudflareOAuthStatus()
+    if (disposed || generation !== oauthRequestGeneration) return
+    Object.assign(cloudflare, {
+      configured: false,
+      connected: false,
+      source: 'none',
+      account_id: '',
+      account_name: '',
+      accounts: [],
+      expires_at: undefined,
+      redirect_uri: '',
+      error: undefined,
+    }, data, { accounts: data.accounts || [] })
+  } catch (error: any) {
+    if (disposed || generation !== oauthRequestGeneration) return
+    cloudflareStatusError.value = apiError(error, '请稍后重试')
+    message.error('读取 Cloudflare 状态失败: ' + cloudflareStatusError.value)
+  } finally {
+    if (!disposed && generation === oauthRequestGeneration) loadingCloudflare.value = false
+  }
+}
+
+async function connectCloudflare() {
+  if (startingOAuth.value) return
+  startingOAuth.value = true
+  try {
+    const { data } = await startCloudflareOAuth()
+    window.location.assign(data.authorization_url)
+  } catch (error: any) {
+    startingOAuth.value = false
+    message.error('启动 OAuth 失败: ' + apiError(error, '请稍后重试'))
+  }
+}
+
+async function disconnectCloudflare() {
+  if (disconnectingOAuth.value) return
+  disconnectingOAuth.value = true
+  try {
+    const { data } = await disconnectCloudflareOAuth()
+    if (data.warning) message.warning(data.warning)
+    else message.success('Cloudflare OAuth 已断开')
+    await loadCloudflareStatus()
+  } catch (error: any) {
+    message.error('断开失败: ' + apiError(error, '请稍后重试'))
+  } finally {
+    disconnectingOAuth.value = false
+  }
+}
+
+function confirmDisconnectCloudflare() {
+  if (disconnectingOAuth.value) return
+  dialog.warning({
+    title: '断开 Cloudflare OAuth',
+    content: '断开后将撤销并删除当前 OAuth 凭据，已选择的 Cloudflare 账户与隧道也会被清除。',
+    positiveText: '确认断开',
+    negativeText: '取消',
+    positiveButtonProps: { type: 'error' },
+    onPositiveClick: disconnectCloudflare,
+  })
+}
+
+async function changeCloudflareAccount(event: Event) {
+  const accountID = (event.target as HTMLSelectElement).value
+  if (!accountID || selectingAccount.value || accountID === cloudflare.account_id) return
+  selectingAccount.value = true
+  try {
+    const { data } = await selectCloudflareAccount(accountID)
+    cloudflare.account_id = data.id
+    cloudflare.account_name = data.name
+    message.success(`已切换到 ${data.name}`)
+  } catch (error: any) {
+    message.error('切换账户失败: ' + apiError(error, '请稍后重试'))
+    await loadCloudflareStatus()
+  } finally {
+    selectingAccount.value = false
+  }
+}
+
+function formatOAuthExpiry(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '自动刷新' : date.toLocaleString()
+}
+
+async function handleCloudflareOAuthResult() {
+  const result = typeof route.query.cloudflare_oauth === 'string' ? route.query.cloudflare_oauth : ''
+  if (!result) return
+  const oauthMessage = typeof route.query.message === 'string' ? route.query.message : ''
+  const query = { ...route.query }
+  delete query.cloudflare_oauth
+  delete query.message
+  await router.replace({ path: route.path, query })
+  if (result === 'success') message.success('Cloudflare OAuth 授权成功')
+  if (result === 'error') message.error('Cloudflare OAuth 授权失败: ' + (oauthMessage || '未知错误'))
 }
 
 async function loadTwoFactorStatus() {
@@ -543,12 +737,15 @@ onMounted(() => {
     if (!disposed) visible.value = true
   })
   void loadTwoFactorStatus()
+  void loadCloudflareStatus()
+  void handleCloudflareOAuthResult()
 })
 
 onBeforeUnmount(() => {
   disposed = true
   ++statusRequestGeneration
   ++setupRequestGeneration
+  ++oauthRequestGeneration
   window.removeEventListener('beforeunload', handleBeforeUnload)
   if (visibleFrame !== undefined) cancelAnimationFrame(visibleFrame)
   clearCountdown()
@@ -569,6 +766,7 @@ onBeforeUnmount(() => {
 }
 
 .settings-card {
+  min-width: 0;
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
@@ -593,6 +791,33 @@ onBeforeUnmount(() => {
   line-height: 1.65;
   margin: 0;
 }
+
+.cloudflare-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+.cloudflare-heading .settings-card-title { font-size: 19px; }
+.cloudflare-heading .settings-card-desc { max-width: 680px; }
+.connection-badge { display: inline-flex; flex: none; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.connection-badge.connected { color: var(--color-success); background: var(--color-result-success-bg); }
+.connection-badge.disconnected { color: var(--color-mute); background: var(--color-canvas-soft); }
+.cloudflare-loading { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 72px; color: var(--color-mute); font-size: 14px; }
+.cloudflare-panel { display: flex; min-width: 0; flex-direction: column; gap: var(--spacing-md); }
+.cloudflare-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-sm); }
+.cloudflare-status > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: var(--spacing-md); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); background: var(--color-canvas-soft); }
+.cloudflare-label { color: var(--color-mute); font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.cloudflare-status strong { color: var(--color-ink); font-size: 14px; overflow-wrap: anywhere; }
+.cloudflare-status code, .oauth-setup-hint code { color: var(--color-mute); font: 12px/1.5 var(--font-mono); overflow-wrap: anywhere; word-break: break-all; }
+.account-selector { display: flex; min-width: 0; max-width: 680px; flex-direction: column; gap: 5px; }
+.account-selector select { width: 100%; min-width: 0; }
+.cloudflare-error { margin: 0; padding: var(--spacing-sm) var(--spacing-md); color: var(--color-error); border-radius: var(--radius-md); background: var(--color-result-error-bg); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.oauth-setup-hint { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: var(--spacing-md); border: 1px dashed var(--color-hairline-strong); border-radius: var(--radius-md); color: var(--color-mute); font-size: 13px; overflow-wrap: anywhere; }
+.oauth-setup-hint strong { color: var(--color-ink); }
+.cloudflare-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm); }
+.legacy-note { min-width: 0; color: var(--color-mute); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 
 .security-card {
   padding: 0;
@@ -785,8 +1010,13 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .security-heading,
-  .security-state { align-items: stretch; flex-direction: column; gap: var(--spacing-sm); }
+  .security-state,
+  .cloudflare-heading { align-items: stretch; flex-direction: column; gap: var(--spacing-sm); }
   .status-stamp { align-self: flex-start; min-width: 0; }
+  .connection-badge { align-self: flex-start; }
+  .cloudflare-status { grid-template-columns: 1fr; }
+  .cloudflare-actions { align-items: stretch; flex-direction: column; }
+  .cloudflare-actions .btn { width: 100%; max-width: 100%; justify-content: center; }
   .security-state .btn,
   .compact-state .btn { width: 100%; max-width: 100%; margin-left: 0; justify-content: center; }
   .setup-grid { grid-template-columns: 1fr; }

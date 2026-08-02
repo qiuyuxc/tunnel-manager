@@ -368,6 +368,23 @@ func TestSetAdminCredentialsReturnsSaveFailure(t *testing.T) {
 	}
 }
 
+func TestChangingCloudflareAccountClearsTunnelSelection(t *testing.T) {
+	s := newTestStore(t, HashPassword("password"))
+	if err := s.SetCloudflareAccount("account-one", "One"); err != nil {
+		t.Fatalf("SetCloudflareAccount() error = %v", err)
+	}
+	if err := s.SetTunnelSelection("tunnel-one", "Tunnel One"); err != nil {
+		t.Fatalf("SetTunnelSelection() error = %v", err)
+	}
+	if err := s.SetCloudflareAccount("account-two", "Two"); err != nil {
+		t.Fatalf("SetCloudflareAccount() error = %v", err)
+	}
+	config := s.GetConfig()
+	if config.TunnelID != "" || config.TunnelName != "" {
+		t.Fatalf("tunnel selection survived account change: %#v", config)
+	}
+}
+
 func sha256Hex(password string) string {
 	digest := sha256.Sum256([]byte(password))
 	return fmt.Sprintf("%x", digest)

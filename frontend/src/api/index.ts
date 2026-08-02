@@ -82,6 +82,23 @@ export interface SiteSettings {
   icon: string
 }
 
+export interface CloudflareAccount {
+  id: string
+  name: string
+}
+
+export interface CloudflareOAuthStatus {
+  configured: boolean
+  connected: boolean
+  source: 'oauth' | 'api_token' | 'none'
+  account_id: string
+  account_name: string
+  accounts: CloudflareAccount[] | null
+  expires_at?: string
+  redirect_uri: string
+  error?: string
+}
+
 export interface BindRequest {
   preferred_cname: string
   main_domain: string
@@ -209,6 +226,23 @@ export function setSiteSettings(data: SiteSettings) {
 
 export function setCNAMEPresets(items: CNAMEPreset[]) {
   return api.put<{ status: string; cname_presets: CNAMEPreset[] }>('/config/cname-presets', { items })
+}
+
+// Cloudflare OAuth
+export function getCloudflareOAuthStatus() {
+  return api.get<CloudflareOAuthStatus>('/cloudflare/oauth/status')
+}
+
+export function startCloudflareOAuth() {
+  return api.post<{ authorization_url: string }>('/cloudflare/oauth/start')
+}
+
+export function selectCloudflareAccount(accountID: string) {
+  return api.put<CloudflareAccount>('/cloudflare/oauth/account', { account_id: accountID })
+}
+
+export function disconnectCloudflareOAuth() {
+  return api.delete<{ status: string; warning?: string }>('/cloudflare/oauth')
 }
 
 // Tunnels

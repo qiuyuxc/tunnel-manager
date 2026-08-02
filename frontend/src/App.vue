@@ -1,23 +1,25 @@
 <template>
-  <n-message-provider>
-    <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
-      <n-layout class="app-layout">
-        <nav-bar v-if="$route.path !== '/login'" />
-        <main class="main-content">
-          <router-view v-slot="{ Component }">
-            <transition name="page">
-              <component :is="Component" :key="$route.fullPath" />
-            </transition>
-          </router-view>
-        </main>
-      </n-layout>
-    </n-config-provider>
-  </n-message-provider>
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+    <n-message-provider>
+      <n-dialog-provider>
+        <n-layout class="app-layout">
+          <nav-bar v-if="$route.path !== '/login'" />
+          <main class="main-content">
+            <router-view v-slot="{ Component }">
+              <transition name="page">
+                <component :is="Component" :key="$route.fullPath" />
+              </transition>
+            </router-view>
+          </main>
+        </n-layout>
+      </n-dialog-provider>
+    </n-message-provider>
+  </n-config-provider>
 </template>
 
 <script setup lang="ts">
 import { darkTheme } from 'naive-ui'
-import { NMessageProvider, NConfigProvider, NLayout } from 'naive-ui'
+import { NConfigProvider, NDialogProvider, NLayout, NMessageProvider } from 'naive-ui'
 import { computed } from 'vue'
 import NavBar from './components/NavBar.vue'
 import { useConfigStore } from './stores/config'

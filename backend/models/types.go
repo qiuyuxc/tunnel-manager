@@ -21,6 +21,12 @@ type Config struct {
 	TOTPSecretEncrypted    string        `json:"totp_secret_encrypted,omitempty"`
 	TOTPRecoveryCodeHashes []string      `json:"totp_recovery_code_hashes,omitempty"`
 	TOTPLastAcceptedStep   int64         `json:"totp_last_accepted_step,omitempty"`
+	CFAccountID            string        `json:"cf_account_id,omitempty"`
+	CFAccountName          string        `json:"cf_account_name,omitempty"`
+	CFOAuthAccessToken     string        `json:"cf_oauth_access_token,omitempty"`
+	CFOAuthRefreshToken    string        `json:"cf_oauth_refresh_token,omitempty"`
+	CFOAuthExpiresAt       int64         `json:"cf_oauth_expires_at,omitempty"`
+	CFOAuthScope           string        `json:"cf_oauth_scope,omitempty"`
 	// Telegram bot settings
 	TGBotEnabled    bool   `json:"tg_bot_enabled"`
 	TGBotToken      string `json:"tg_bot_token"`
@@ -55,6 +61,35 @@ type Tunnel struct {
 type Zone struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// Account represents a Cloudflare account available to the current credential.
+type Account struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// CloudflareOAuthStatus describes the configured Cloudflare credential source.
+type CloudflareOAuthStatus struct {
+	Configured  bool      `json:"configured"`
+	Connected   bool      `json:"connected"`
+	Source      string    `json:"source"`
+	AccountID   string    `json:"account_id"`
+	AccountName string    `json:"account_name"`
+	Accounts    []Account `json:"accounts"`
+	ExpiresAt   string    `json:"expires_at,omitempty"`
+	RedirectURI string    `json:"redirect_uri"`
+	Error       string    `json:"error,omitempty"`
+}
+
+// CloudflareOAuthStartResponse contains the URL for the authorization redirect.
+type CloudflareOAuthStartResponse struct {
+	AuthorizationURL string `json:"authorization_url"`
+}
+
+// CloudflareAccountRequest selects an account authorized through OAuth.
+type CloudflareAccountRequest struct {
+	AccountID string `json:"account_id"`
 }
 
 // DNSRecord represents a DNS record

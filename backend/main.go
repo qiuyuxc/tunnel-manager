@@ -57,6 +57,10 @@ func main() {
 
 	apiToken := os.Getenv("CF_API_TOKEN")
 	accountID := os.Getenv("CF_ACCOUNT_ID")
+	oauthClientID := os.Getenv("CF_OAUTH_CLIENT_ID")
+	oauthClientSecret := os.Getenv("CF_OAUTH_CLIENT_SECRET")
+	oauthRedirectURI := os.Getenv("CF_OAUTH_REDIRECT_URI")
+	oauthScopes := os.Getenv("CF_OAUTH_SCOPES")
 	apiKey := os.Getenv("API_KEY")
 	var encryptionKey []byte
 	if encodedKey := os.Getenv("APP_ENCRYPTION_KEY"); encodedKey != "" {
@@ -72,12 +76,19 @@ func main() {
 	}
 
 	if apiToken == "" || accountID == "" {
-		log.Fatal("CF_API_TOKEN and CF_ACCOUNT_ID environment variables are required")
+		log.Printf("Cloudflare static credentials are incomplete; connect through OAuth in global settings")
 	}
 
 	// Initialize dependencies
 	st := store.NewStore(storePath)
 	cf := services.NewCloudflareClient(apiToken, accountID)
+	cloudflareOAuth := services.NewCloudflareOAuth(st, encryptionKey, services.CloudflareOAuthConfig{
+		ClientID:     oauthClientID,
+		ClientSecret: oauthClientSecret,
+		RedirectURI:  oauthRedirectURI,
+		Scopes:       oauthScopes,
+	})
+	cf.SetOAuth(cloudflareOAuth)
 
 	// Initialize services
 	domainService := services.NewDomainService(cf, st)
@@ -87,6 +98,7 @@ func main() {
 	tunnelHandler := handlers.NewTunnelHandler(cf)
 	domainHandler := handlers.NewDomainHandler(domainService)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
+	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
 	telegramHandler := handlers.NewTelegramHandler(st, telegramBot)
@@ -119,6 +131,13 @@ func main() {
 		r.Post("/admin/2fa/confirm", mw.SessionOnly(adminHandler.ConfirmTOTP))
 		r.Get("/admin/2fa/status", mw.SessionOnly(adminHandler.TOTPStatus))
 		r.Post("/admin/2fa/disable", mw.SessionOnly(adminHandler.DisableTOTP))
+
+		// Cloudflare OAuth endpoints. The callback authenticates through single-use state.
+		r.Get("/cloudflare/oauth/status", mw.SessionOnly(cloudflareOAuthHandler.Status))
+		r.Post("/cloudflare/oauth/start", mw.SessionOnly(cloudflareOAuthHandler.Start))
+		r.Put("/cloudflare/oauth/account", mw.SessionOnly(cloudflareOAuthHandler.SelectAccount))
+		r.Delete("/cloudflare/oauth", mw.SessionOnly(cloudflareOAuthHandler.Disconnect))
+		r.Get("/cloudflare/oauth/callback", cloudflareOAuthHandler.Callback)
 
 		// Config endpoints
 		r.Get("/config", mw.Auth(configHandler.GetConfig))

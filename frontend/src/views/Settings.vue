@@ -6,7 +6,7 @@
         返回控制面板
       </router-link>
       <h2>全局设置</h2>
-      <p>集中管理站点品牌、域名绑定偏好与 Cloudflare SaaS 配置。</p>
+      <p>集中管理站点品牌、域名绑定偏好、回退源与隧道设置。</p>
     </div>
 
     <div class="settings-grid section">
@@ -147,7 +147,13 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { setCNAMEPresets, setFallbackOrigin, setPreferredCNAME, setSiteSettings, type CNAMEPreset } from '../api'
+import {
+  setCNAMEPresets,
+  setFallbackOrigin,
+  setPreferredCNAME,
+  setSiteSettings,
+  type CNAMEPreset,
+} from '../api'
 import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
 

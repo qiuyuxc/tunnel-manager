@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 
@@ -508,6 +509,64 @@ func (s *Store) disableTOTPLocked() error {
 	s.config.TOTPSecretEncrypted = ""
 	s.config.TOTPRecoveryCodeHashes = nil
 	s.config.TOTPLastAcceptedStep = 0
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// SetCloudflareOAuth stores encrypted OAuth credentials and their expiry.
+func (s *Store) SetCloudflareOAuth(accessToken, refreshToken string, expiresAt time.Time, scope string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.CFOAuthAccessToken = accessToken
+	s.config.CFOAuthRefreshToken = refreshToken
+	if expiresAt.IsZero() {
+		s.config.CFOAuthExpiresAt = 0
+	} else {
+		s.config.CFOAuthExpiresAt = expiresAt.Unix()
+	}
+	s.config.CFOAuthScope = scope
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// SetCloudflareAccount selects the account used for account-scoped API calls.
+func (s *Store) SetCloudflareAccount(id, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	if s.config.CFAccountID != id {
+		s.config.TunnelID = ""
+		s.config.TunnelName = ""
+	}
+	s.config.CFAccountID = id
+	s.config.CFAccountName = name
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// ClearCloudflareOAuth removes OAuth credentials and the OAuth account selection.
+func (s *Store) ClearCloudflareOAuth() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.CFOAuthAccessToken = ""
+	s.config.CFOAuthRefreshToken = ""
+	s.config.CFOAuthExpiresAt = 0
+	s.config.CFOAuthScope = ""
+	s.config.CFAccountID = ""
+	s.config.CFAccountName = ""
+	s.config.TunnelID = ""
+	s.config.TunnelName = ""
 	if err := s.saveLocked(); err != nil {
 		s.config = previous
 		return err

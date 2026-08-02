@@ -19,6 +19,7 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 - 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题
 - 优选 CNAME：自定义全局默认值并维护常用 CNAME 组，绑定时可直接选择
 - 回退源设置：一键配置 fallback origin
+- Cloudflare OAuth 2.0：管理员授权后自动获取并刷新访问令牌，可选择授权账户，无需手动复制 API Token
 - Telegram Bot：远程管理隧道，支持长轮询、Webhook 与自定义 API 端点
 - 管理员认证：Argon2id 密码哈希、12 小时会话、旧 SHA-256 哈希自动迁移
 - 双重身份验证：标准 TOTP、加密密钥存储、一次性恢复码与防重放
@@ -40,7 +41,7 @@ cd tunnel-manager
 ./install.sh
 ```
 
-脚本会检测 Docker 环境，引导填写 Cloudflare 凭据，生成管理员配置和 `APP_ENCRYPTION_KEY`，然后构建并启动服务。首次启动后查看日志获取初始密码：
+脚本会检测 Docker 环境，引导填写 Cloudflare OAuth 客户端或兼容的 API Token，生成管理员配置和 `APP_ENCRYPTION_KEY`，然后构建并启动服务。首次启动后查看日志获取初始密码：
 
 ```bash
 docker compose logs | grep 密
@@ -50,15 +51,32 @@ docker compose logs | grep 密
 
 | 变量 | 必需 | 说明 |
 |---|---|---|
-| `CF_API_TOKEN` | 是 | Cloudflare API Token |
-| `CF_ACCOUNT_ID` | 是 | Cloudflare Account ID |
+| `CF_OAUTH_CLIENT_ID` | OAuth 必需 | Cloudflare OAuth Client ID |
+| `CF_OAUTH_CLIENT_SECRET` | OAuth 必需 | Cloudflare OAuth Client Secret，仅保存在服务端环境变量中 |
+| `CF_OAUTH_REDIRECT_URI` | 推荐 | OAuth 回调地址，必须与 Cloudflare 客户端登记值完全一致；留空时根据请求地址推导 |
+| `CF_OAUTH_SCOPES` | 否 | 显式请求的空格分隔 scope；默认留空并使用 OAuth 客户端配置的 scopes |
+| `CF_API_TOKEN` | 兼容 | 旧版静态 Cloudflare API Token；未连接 OAuth 时使用 |
+| `CF_ACCOUNT_ID` | 兼容 | 静态 Token 对应的 Account ID；OAuth 会自动读取并保存账户 |
 | `API_KEY` | 否 | 自动化调用使用的 API Key |
 | `ADMIN_PASSWORD` | 否 | 首次启动的管理员密码，留空时自动生成 |
 | `APP_ENCRYPTION_KEY` | 2FA 必需 | Base64 编码的 32 字节随机密钥，用于加密 TOTP secret |
 | `STORE_PATH` | 否 | JSON 配置路径，默认 `data/config.json` |
 | `PORT` | 否 | HTTP 端口，默认 `8080` |
 
-> `APP_ENCRYPTION_KEY` 必须与数据文件一起备份。启用 2FA 后如果密钥丢失或被替换，服务会拒绝管理员登录，不会降级绕过第二重验证。
+> `APP_ENCRYPTION_KEY` 必须与数据文件一起备份。它同时保护 TOTP Secret 与 Cloudflare OAuth Token；密钥丢失或被替换后，已启用 2FA 的服务会拒绝管理员登录，OAuth 连接也需要重新授权。
+
+### 配置 Cloudflare OAuth 2.0
+
+1. 在 Cloudflare 控制台进入 **Manage Account → OAuth clients** 并创建客户端。
+2. 客户端类型选择服务端 Web 应用，启用 `authorization_code` 与 `refresh_token`，Token Authentication Method 选择 `client_secret_basic`，Response Type 选择 `code`。
+3. 登记回调地址：`https://你的面板域名/api/cloudflare/oauth/callback`。生产环境建议通过 HTTPS 访问并显式设置 `CF_OAUTH_REDIRECT_URI`。
+4. 为客户端选择本项目需要的权限：Account Settings Read、Cloudflare Tunnel Edit、Zone Read、DNS Edit、SSL and Certificates Edit。Cloudflare 会根据 Grant Type 自动处理 `offline_access`。
+5. 将 Client ID、Client Secret 和回调地址写入 `.env`，重启服务后登录面板，在“全局设置 → Cloudflare 连接”点击“连接 Cloudflare”。
+6. 授权页可以选择允许本应用访问的账户；授权完成后，面板会自动读取账户列表，多账户时可以随时切换。
+
+OAuth 使用授权码流程并附加 S256 PKCE。访问令牌和刷新令牌通过 `APP_ENCRYPTION_KEY` 使用 AES-GCM 加密后写入配置文件，Client Secret 不会发送到浏览器。若暂时未配置 OAuth，服务仍可使用 `CF_API_TOKEN` 与 `CF_ACCOUNT_ID`。
+
+> Cloudflare OAuth 客户端的回调地址要求精确匹配。通过反向代理部署时，应传递 `X-Forwarded-Proto` 和 `X-Forwarded-Host`，或直接配置 `CF_OAUTH_REDIRECT_URI`。
 
 ### 启用双重身份验证
 
@@ -99,6 +117,11 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 | POST | `/api/admin/2fa/setup` | 开始绑定验证器 | 管理员会话 |
 | POST | `/api/admin/2fa/confirm` | 确认启用并生成恢复码 | 管理员会话 |
 | POST | `/api/admin/2fa/disable` | 关闭 2FA | 管理员会话 |
+| GET | `/api/cloudflare/oauth/status` | 获取 OAuth、凭据来源与账户状态 | 管理员会话 |
+| POST | `/api/cloudflare/oauth/start` | 创建 OAuth 授权请求 | 管理员会话 |
+| GET | `/api/cloudflare/oauth/callback` | Cloudflare OAuth 回调 | OAuth State |
+| PUT | `/api/cloudflare/oauth/account` | 切换已授权账户 | 管理员会话 |
+| DELETE | `/api/cloudflare/oauth` | 撤销并清除 OAuth 凭据 | 管理员会话 |
 | GET | `/api/config` | 获取配置 | 需要 |
 | GET | `/api/site` | 获取公开站点品牌信息 | 无 |
 | POST | `/api/config/tunnel` | 设置隧道 ID 与显示名称 | 需要 |

@@ -6,6 +6,7 @@ frontend/dist/
 backend/tunnel-manager
 
 # Local data and logs
+data/
 backend/data/
 *.log
 

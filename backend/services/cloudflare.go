@@ -14,28 +14,70 @@ import (
 
 // CloudflareClient wraps Cloudflare API calls
 type CloudflareClient struct {
-	apiToken  string
-	accountID string
-	baseURL   string
+	apiToken   string
+	accountID  string
+	baseURL    string
 	httpClient *http.Client
+	oauth      *CloudflareOAuth
 }
 
 // NewCloudflareClient creates a new Cloudflare API client
 func NewCloudflareClient(apiToken, accountID string) *CloudflareClient {
 	return &CloudflareClient{
-		apiToken:  apiToken,
-		accountID: accountID,
-		baseURL:   "https://api.cloudflare.com/client/v4",
+		apiToken:   apiToken,
+		accountID:  accountID,
+		baseURL:    "https://api.cloudflare.com/client/v4",
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
+// SetOAuth enables OAuth credentials while preserving static credentials as fallback.
+func (c *CloudflareClient) SetOAuth(oauth *CloudflareOAuth) {
+	c.oauth = oauth
+}
+
+// DefaultAccountID returns the account configured through the environment.
+func (c *CloudflareClient) DefaultAccountID() string {
+	return c.accountID
+}
+
+// HasStaticCredentials reports whether legacy environment credentials are usable.
+func (c *CloudflareClient) HasStaticCredentials() bool {
+	return c.apiToken != "" && c.accountID != ""
+}
+
+func (c *CloudflareClient) accessToken() (string, error) {
+	if c.oauth != nil && c.oauth.Connected() {
+		return c.oauth.AccessToken()
+	}
+	if c.apiToken == "" {
+		return "", fmt.Errorf("Cloudflare 未连接，请先完成 OAuth 授权")
+	}
+	return c.apiToken, nil
+}
+
+func (c *CloudflareClient) currentAccountID() (string, error) {
+	if c.oauth != nil && c.oauth.Connected() {
+		if accountID := c.oauth.AccountID(); accountID != "" {
+			return accountID, nil
+		}
+	}
+	if c.accountID == "" {
+		return "", fmt.Errorf("Cloudflare 账户未选择")
+	}
+	return c.accountID, nil
+}
+
 func (c *CloudflareClient) newRequest(method, path string, body io.Reader) (*http.Request, error) {
+	token, err := c.accessToken()
+	if err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequest(method, c.baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.apiToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
@@ -74,7 +116,11 @@ func (c *CloudflareClient) do(req *http.Request, target interface{}) error {
 
 // ListTunnels lists all Cloudflare tunnels
 func (c *CloudflareClient) ListTunnels() ([]models.Tunnel, error) {
-	path := fmt.Sprintf("/accounts/%s/cfd_tunnel?is_deleted=false", c.accountID)
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel?is_deleted=false", accountID)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -89,7 +135,11 @@ func (c *CloudflareClient) ListTunnels() ([]models.Tunnel, error) {
 
 // GetTunnelConfig fetches the current tunnel configuration
 func (c *CloudflareClient) GetTunnelConfig(tunnelID string) (*models.TunnelConfigResponse, error) {
-	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", c.accountID, tunnelID)
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", accountID, tunnelID)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -124,7 +174,11 @@ func (c *CloudflareClient) GetTunnelConfig(tunnelID string) (*models.TunnelConfi
 
 // UpdateTunnelConfig updates the tunnel configuration
 func (c *CloudflareClient) UpdateTunnelConfig(tunnelID string, config interface{}) error {
-	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", c.accountID, tunnelID)
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", accountID, tunnelID)
 	body, err := json.Marshal(config)
 	if err != nil {
 		return err
@@ -136,6 +190,19 @@ func (c *CloudflareClient) UpdateTunnelConfig(tunnelID string, config interface{
 	}
 
 	return c.do(req, nil)
+}
+
+// ListAccounts lists accounts available to the active credential.
+func (c *CloudflareClient) ListAccounts() ([]models.Account, error) {
+	req, err := c.newRequest("GET", "/accounts?per_page=100", nil)
+	if err != nil {
+		return nil, err
+	}
+	var accounts []models.Account
+	if err := c.do(req, &accounts); err != nil {
+		return nil, err
+	}
+	return accounts, nil
 }
 
 // GetZoneIDByHostname finds the zone ID for a given hostname
