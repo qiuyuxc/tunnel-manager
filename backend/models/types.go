@@ -129,8 +129,10 @@ type TunnelConfigResponse struct {
 
 // IngressRule represents a tunnel ingress rule
 type IngressRule struct {
-	Hostname string `json:"hostname,omitempty"`
-	Service  string `json:"service"`
+	Hostname      string                 `json:"hostname,omitempty"`
+	Path          string                 `json:"path,omitempty"`
+	Service       string                 `json:"service"`
+	OriginRequest map[string]interface{} `json:"originRequest,omitempty"`
 }
 
 // CFAPIResponse is a generic Cloudflare API response wrapper

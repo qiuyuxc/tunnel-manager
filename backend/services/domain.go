@@ -133,31 +133,41 @@ func (d *DomainService) upsertIngress(tunnelID string, newRules []models.Ingress
 	if err != nil {
 		return fmt.Errorf("获取隧道配置失败: %w", err)
 	}
-	ingress := tunnelCfg.Result.Config.Ingress
-	filtered := make([]models.IngressRule, 0, len(ingress)+len(newRules))
-	var fallback models.IngressRule
-	hasFallback := false
-	for _, rule := range ingress {
-		if rule.Hostname == "" {
-			fallback = rule
-			hasFallback = true
-			continue
-		}
-		if !replace[rule.Hostname] {
-			filtered = append(filtered, rule)
-		}
-	}
-	filtered = append(filtered, newRules...)
-	if hasFallback {
-		filtered = append(filtered, fallback)
-	} else {
-		filtered = append(filtered, models.IngressRule{Service: "http_status:404"})
-	}
-	tunnelCfg.Result.Config.Ingress = filtered
+	tunnelCfg.Result.Config.Ingress = mergeIngressRules(tunnelCfg.Result.Config.Ingress, newRules, replace)
 	if err = d.cf.UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": tunnelCfg.Result.Config}); err != nil {
 		return fmt.Errorf("更新隧道配置失败: %w", err)
 	}
 	return nil
+}
+
+// mergeIngressRules preserves every existing rule and inserts managed hostname rules
+// immediately before the terminal catch-all. Path-only rules are not fallbacks.
+func mergeIngressRules(existing, newRules []models.IngressRule, replace map[string]bool) []models.IngressRule {
+	filtered := make([]models.IngressRule, 0, len(existing)+len(newRules)+1)
+	for _, rule := range existing {
+		if rule.Hostname != "" && replace[rule.Hostname] {
+			continue
+		}
+		filtered = append(filtered, rule)
+	}
+
+	fallbackIndex := -1
+	if len(filtered) > 0 {
+		last := filtered[len(filtered)-1]
+		if last.Hostname == "" && last.Path == "" {
+			fallbackIndex = len(filtered) - 1
+		}
+	}
+	if fallbackIndex == -1 {
+		filtered = append(filtered, newRules...)
+		return append(filtered, models.IngressRule{Service: "http_status:404"})
+	}
+
+	result := make([]models.IngressRule, 0, len(filtered)+len(newRules))
+	result = append(result, filtered[:fallbackIndex]...)
+	result = append(result, newRules...)
+	result = append(result, filtered[fallbackIndex])
+	return result
 }
 
 func (d *DomainService) SetFallbackOrigin(domain string) error {
