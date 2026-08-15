@@ -64,6 +64,15 @@ type BotStatus struct {
 // ---- bot ----
 
 // TelegramBot runs the Telegram bot logic
+type dnsDeleteConfirmation struct {
+	ChatID  int64
+	UserID  int64
+	ZoneID  string
+	Record  models.DNSRecord
+	Label   string
+	Expires time.Time
+}
+
 type TelegramBot struct {
 	store  *store.Store
 	cf     *CloudflareClient
@@ -78,15 +87,19 @@ type TelegramBot struct {
 	lastUpdateAt time.Time
 	lastUpdateID int64
 	httpClient   *http.Client
+
+	confirmMu     sync.Mutex
+	confirmations map[string]dnsDeleteConfirmation
 }
 
 // NewTelegramBot creates a new TelegramBot
 func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *TelegramBot {
 	return &TelegramBot{
-		store:      st,
-		cf:         cf,
-		domain:     ds,
-		httpClient: &http.Client{Timeout: 40 * time.Second},
+		store:         st,
+		cf:            cf,
+		domain:        ds,
+		httpClient:    &http.Client{Timeout: 40 * time.Second},
+		confirmations: make(map[string]dnsDeleteConfirmation),
 	}
 }
 
@@ -120,6 +133,10 @@ func (b *TelegramBot) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.cancel = cancel
 	b.running = true
+
+	if err := b.setCommands(cfg); err != nil {
+		log.Printf("[telegram] set commands failed: %v", err)
+	}
 
 	if b.mode == "webhook" {
 		if cfg.TGWebhookSecret == "" {
@@ -284,18 +301,25 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 	}
 
 	text := strings.TrimSpace(u.Message.Text)
-	args := strings.Fields(text)
+	args, parseErr := splitCommandArgs(text)
+	if parseErr != nil {
+		b.sendMessage(cfg, chatID, "❌ 命令解析失败: "+parseErr.Error())
+		return
+	}
 	if len(args) == 0 {
 		return
 	}
-	command := args[0]
+	command, addressedToThisBot := telegramCommandForBot(args[0], b.botUsername)
+	if !addressedToThisBot {
+		return
+	}
 
 	switch command {
 	case "/start", "/help":
 		b.handleHelp(cfg, chatID)
-	case "/当前配置":
+	case "/当前配置", "/config":
 		b.handleCurrentConfig(cfg, chatID)
-	case "/列出隧道":
+	case "/列出隧道", "/tunnels":
 		b.handleListTunnels(cfg, chatID)
 	case "/选择隧道":
 		if len(args) < 2 {
@@ -327,6 +351,58 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		} else {
 			b.handleDomainBinding(cfg, chatID, args[1], args[2])
 		}
+
+	case "/直连域名", "/bind_direct":
+		if len(args) < 2 {
+			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: `/直连域名 [主域名]`")
+		} else {
+			b.handleDomainBindingMode(cfg, chatID, BindingModeSimple, args[1], "", "")
+		}
+	case "/优选绑定", "/bind_preferred":
+		if len(args) < 3 {
+			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: `/优选绑定 [主域名] [辅助域名] [可选优选CNAME]`")
+		} else {
+			preferred := ""
+			if len(args) > 3 {
+				preferred = args[3]
+			}
+			b.handleDomainBindingMode(cfg, chatID, BindingModePreferred, args[1], args[2], preferred)
+		}
+	case "/列出区域", "/zones":
+		b.handleListZones(cfg, chatID)
+	case "/DNS列表", "/dns_list":
+		if len(args) < 2 {
+			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS列表 [ZoneID] [可选类型] [可选名称]`")
+		} else {
+			recordType, name := "", ""
+			if len(args) > 2 {
+				recordType = args[2]
+			}
+			if len(args) > 3 {
+				name = args[3]
+			}
+			b.handleListDNS(cfg, chatID, args[1], recordType, name)
+		}
+	case "/DNS添加", "/dns_add":
+		b.handleDNSWriteCommand(cfg, chatID, "", args[1:])
+	case "/DNS修改", "/dns_update":
+		if len(args) < 3 {
+			b.sendMessage(cfg, chatID, dnsWriteUsage(true))
+		} else {
+			b.handleDNSWriteCommand(cfg, chatID, args[2], append([]string{args[1]}, args[3:]...))
+		}
+	case "/DNS删除", "/dns_delete":
+		if len(args) < 3 {
+			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS删除 [ZoneID] [RecordID]`")
+		} else {
+			b.handleDNSDeleteRequest(cfg, chatID, userID, args[1], args[2])
+		}
+	case "/确认删除", "/dns_confirm":
+		if len(args) < 2 {
+			b.sendMessage(cfg, chatID, "❌ 用法: `/确认删除 [确认码]`")
+		} else {
+			b.handleDNSDeleteConfirm(cfg, chatID, userID, strings.ToLower(args[1]))
+		}
 	}
 }
 
@@ -347,8 +423,17 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 	}, "\n")
 
 	msg2 := strings.Join([]string{
-		"🎉 终极组合指令",
-		"• /绑定域名 [主域名] [辅助域名]",
+		"🌐 域名绑定",
+		"• /直连域名 [主域名]",
+		"• /优选绑定 [主域名] [辅助域名] [可选优选CNAME]",
+		"• /绑定域名 [主域名] [辅助域名]（兼容旧命令）",
+		"",
+		"🧭 DNS 管理",
+		"• /列出区域",
+		"• /DNS列表 [ZoneID] [可选类型] [可选名称]",
+		"• /DNS添加 [ZoneID] [类型] [名称] [内容] [TTL] [代理]",
+		"• /DNS修改 [ZoneID] [RecordID] [类型] [名称] [内容] [TTL] [代理]",
+		"• /DNS删除 [ZoneID] [RecordID]",
 		"",
 		"🔍 状态查询",
 		"• /当前配置",
@@ -454,7 +539,7 @@ func (b *TelegramBot) handleSetFallback(cfg models.Config, chatID int64, domain 
 func (b *TelegramBot) handleDomainBinding(cfg models.Config, chatID int64, mainDomain, auxDomain string) {
 	b.sendMessage(cfg, chatID, "⏳ 正在拉取隧道配置并全自动下发核心路由，请稍候...")
 
-	preferredCNAME, err := b.domain.BindDomain(mainDomain, auxDomain)
+	_, preferredCNAME, err := b.domain.BindDomainWithConfiguredService(BindingModePreferred, mainDomain, auxDomain, "")
 	if err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 绑定失败: %s", err.Error()))
 		return
@@ -469,23 +554,35 @@ func (b *TelegramBot) handleDomainBinding(cfg models.Config, chatID int64, mainD
 
 // ---- message sending ----
 
-func (b *TelegramBot) sendMessage(cfg models.Config, chatID int64, text string) {
-	baseURL := b.apiBase(cfg)
-	url := fmt.Sprintf("%s/bot%s/sendMessage", baseURL, cfg.TGBotToken)
-
-	payload := map[string]interface{}{
-		"chat_id":    chatID,
-		"text":       text,
-		"parse_mode": "Markdown",
+func (b *TelegramBot) sendMessage(cfg models.Config, chatID int64, text string) error {
+	for _, chunk := range splitTelegramText(text, 3900) {
+		if err := b.sendMessageChunk(cfg, chatID, chunk); err != nil {
+			log.Printf("[telegram] sendMessage error: %v", err)
+			return err
+		}
 	}
-	body, _ := json.Marshal(payload)
+	return nil
+}
 
+func (b *TelegramBot) sendMessageChunk(cfg models.Config, chatID int64, text string) error {
+	url := fmt.Sprintf("%s/bot%s/sendMessage", b.apiBase(cfg), cfg.TGBotToken)
+	body, err := json.Marshal(map[string]interface{}{"chat_id": chatID, "text": text})
+	if err != nil {
+		return err
+	}
 	resp, err := b.httpClient.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		log.Printf("[telegram] sendMessage error: %v", err)
-		return
+		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	var result tgGenericResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+	if !result.OK {
+		return fmt.Errorf("sendMessage failed: %s", result.Description)
+	}
+	return nil
 }
 
 // ---- webhook ----
@@ -533,7 +630,9 @@ func (b *TelegramBot) SendTestMessage() error {
 			lastErr = fmt.Errorf("无效的 TG ID: %s", idStr)
 			continue
 		}
-		b.sendMessage(cfg, chatID, "✅ 面板连接测试成功！\n\n我是 Tunnel Manager Bot，配置已生效。发送 `/help` 查看可用指令。")
+		if err := b.sendMessage(cfg, chatID, "✅ 面板连接测试成功！\n\n我是 Tunnel Manager Bot，配置已生效。发送 /help 查看可用指令。"); err != nil {
+			lastErr = err
+		}
 	}
 	return lastErr
 }
@@ -563,6 +662,39 @@ func (b *TelegramBot) getMe(cfg models.Config) (string, error) {
 		return "", fmt.Errorf("getMe failed: %s", result.Description)
 	}
 	return result.Result.Username, nil
+}
+
+func (b *TelegramBot) setCommands(cfg models.Config) error {
+	commands := []map[string]string{
+		{"command": "help", "description": "查看可用命令"},
+		{"command": "config", "description": "查看当前 Tunnel 配置"},
+		{"command": "tunnels", "description": "列出 Cloudflare Tunnel"},
+		{"command": "bind_direct", "description": "简化模式绑定主域名"},
+		{"command": "bind_preferred", "description": "优选模式绑定域名"},
+		{"command": "zones", "description": "列出 Cloudflare Zone"},
+		{"command": "dns_list", "description": "查询 DNS 记录"},
+		{"command": "dns_add", "description": "新增 DNS 记录"},
+		{"command": "dns_update", "description": "修改 DNS 记录"},
+		{"command": "dns_delete", "description": "申请删除 DNS 记录"},
+	}
+	body, err := json.Marshal(map[string]interface{}{"commands": commands})
+	if err != nil {
+		return err
+	}
+	url := fmt.Sprintf("%s/bot%s/setMyCommands", b.apiBase(cfg), cfg.TGBotToken)
+	resp, err := b.httpClient.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	var result tgGenericResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+	if !result.OK {
+		return fmt.Errorf("setMyCommands failed: %s", result.Description)
+	}
+	return nil
 }
 
 func (b *TelegramBot) setWebhook(cfg models.Config) error {
@@ -599,6 +731,87 @@ func (b *TelegramBot) deleteWebhook(cfg models.Config) {
 }
 
 // ---- util ----
+
+func telegramCommandForBot(raw, username string) (string, bool) {
+	parts := strings.SplitN(raw, "@", 2)
+	if len(parts) == 2 && !strings.EqualFold(parts[1], username) {
+		return "", false
+	}
+	return parts[0], true
+}
+
+func splitTelegramText(text string, limit int) []string {
+	if limit <= 0 || len([]rune(text)) <= limit {
+		return []string{text}
+	}
+	var chunks []string
+	remaining := []rune(text)
+	for len(remaining) > 0 {
+		n := limit
+		if len(remaining) < n {
+			n = len(remaining)
+		}
+		cut := n
+		for i := n - 1; i > n/2; i-- {
+			if remaining[i] == '\n' {
+				cut = i + 1
+				break
+			}
+		}
+		chunks = append(chunks, string(remaining[:cut]))
+		remaining = remaining[cut:]
+	}
+	return chunks
+}
+
+func splitCommandArgs(text string) ([]string, error) {
+	var args []string
+	var current strings.Builder
+	var quote rune
+	started := false
+	runes := []rune(text)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+				started = true
+				continue
+			}
+			if r == '\\' && i+1 < len(runes) && (runes[i+1] == quote || runes[i+1] == '\\') {
+				i++
+				current.WriteRune(runes[i])
+				started = true
+				continue
+			}
+			current.WriteRune(r)
+			started = true
+			continue
+		}
+		if r == '"' || r == '\'' {
+			quote = r
+			started = true
+			continue
+		}
+		if r == ' ' || r == '\t' || r == '\n' {
+			if started {
+				args = append(args, current.String())
+				current.Reset()
+				started = false
+			}
+			continue
+		}
+		current.WriteRune(r)
+		started = true
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("引号未闭合")
+	}
+	if started {
+		args = append(args, current.String())
+	}
+	return args, nil
+}
 
 func generateRandomHex(length int) string {
 	b := make([]byte, length/2)
