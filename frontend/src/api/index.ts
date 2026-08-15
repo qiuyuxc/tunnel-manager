@@ -274,7 +274,7 @@ export type DNSRecordType = 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX'
 
 export interface DNSRecord {
   id: string
-  type: DNSRecordType
+  type: string
   name: string
   content: string
   ttl: number

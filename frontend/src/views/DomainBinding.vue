@@ -165,6 +165,11 @@ async function handleBind() {
   binding.value = true
   result.value = null
   try {
+    const nextServiceURL = serviceURL.value.trim()
+    if (nextServiceURL !== config.service_url.trim()) {
+      await setServiceURL(nextServiceURL)
+      config.service_url = nextServiceURL
+    }
     const { data } = await bindDomain(form.value)
     result.value = { success: true, message: data.message || '域名绑定成功' }
     message.success('绑定成功！')
