@@ -49,8 +49,16 @@
       <div class="form-card-header">
         <span class="caption-mono form-card-label">绑定新域名</span>
       </div>
-      <div class="form-fields">
-        <div class="field cname-field">
+      <div class="mode-selector" role="radiogroup" aria-label="绑定模式">
+        <button type="button" class="mode-option" :class="{ active: form.mode === 'simple' }" role="radio" :aria-checked="form.mode === 'simple'" @click="form.mode = 'simple'">
+          <strong>简单模式</strong><span>只需主域名和转发服务</span>
+        </button>
+        <button type="button" class="mode-option" :class="{ active: form.mode === 'preferred' }" role="radio" :aria-checked="form.mode === 'preferred'" @click="form.mode = 'preferred'">
+          <strong>优选模式</strong><span>配置优选 CNAME 和辅助回源域名</span>
+        </button>
+      </div>
+      <div class="form-fields" :class="{ 'simple-fields': form.mode === 'simple' }">
+        <div v-if="form.mode === 'preferred'" class="field cname-field">
           <label class="field-label">本次优选 CNAME <span class="field-note">可直接选择常用线路或手动输入</span></label>
           <div class="input-wrapper">
             <cname-picker
@@ -76,7 +84,7 @@
             <span v-if="errors.main_domain" class="field-error">{{ errors.main_domain }}</span>
           </div>
         </div>
-        <div class="field">
+        <div v-if="form.mode === 'preferred'" class="field">
           <label class="field-label">辅助域名 <span class="field-note">用作回源</span></label>
           <div class="input-wrapper">
             <input
@@ -123,18 +131,19 @@ const message = useMessage()
 const configStore = useConfigStore()
 const config = configStore.config
 
-const form = ref<BindRequest>({ preferred_cname: '', main_domain: '', aux_domain: '' })
+const form = ref<BindRequest>({ mode: 'simple', preferred_cname: '', main_domain: '', aux_domain: '' })
 const errors = ref<Record<string, string>>({})
 const binding = ref(false)
 const result = ref<{ success: boolean; message: string } | null>(null)
 const serviceURL = ref(config.service_url)
 const savingService = ref(false)
 
-const isValid = computed(() => form.value.main_domain.trim() && form.value.aux_domain.trim())
+const isValid = computed(() => serviceURL.value.trim() && form.value.main_domain.trim() && (form.value.mode === 'simple' || form.value.aux_domain.trim()))
 
 function validate(field: string) {
-  const v = form.value[field as keyof BindRequest].trim()
-  errors.value[field] = field === 'main_domain' || field === 'aux_domain'
+  const value = form.value[field as keyof BindRequest]
+  const v = typeof value === 'string' ? value.trim() : value
+  errors.value[field] = field === 'main_domain' || (field === 'aux_domain' && form.value.mode === 'preferred')
     ? (!v ? '此字段不能为空' : '') : ''
 }
 
@@ -221,8 +230,15 @@ onMounted(async () => {
 
 .form-card { padding: var(--spacing-lg); }
 .form-card-header { margin-bottom: var(--spacing-md); }
+.mode-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-xs); margin-bottom: var(--spacing-lg); padding: 4px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: var(--color-canvas-soft); }
+.mode-option { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: 10px 12px; color: var(--color-body); text-align: left; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out, transform 120ms ease-out; }
+.mode-option strong { color: var(--color-ink); font-size: 14px; }
+.mode-option span { font-size: 12px; line-height: 1.5; }
+.mode-option.active { background: var(--color-canvas); border-color: var(--color-hairline); box-shadow: 0 1px 2px rgba(58, 47, 34, 0.06); }
+.mode-option:active { transform: scale(0.99); }
 .form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
 .cname-field { grid-column: 1 / -1; }
+.simple-fields { grid-template-columns: 1fr; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label {
   font-size: 14px;
@@ -284,6 +300,7 @@ onMounted(async () => {
   .summary-row { align-items: flex-start; flex-direction: column; }
   .summary-edit { width: 100%; justify-content: stretch; }
   .summary-input { max-width: none; flex: 1; }
+  .mode-selector { grid-template-columns: 1fr; }
   .form-fields { grid-template-columns: 1fr; }
   .cname-field { grid-column: auto; }
   .summary-tunnel { align-items: flex-start; text-align: left; }

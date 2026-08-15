@@ -26,12 +26,17 @@ func (h *DomainHandler) BindDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.MainDomain == "" || req.AuxDomain == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "main_domain and aux_domain are required"})
+	mode, err := services.NormalizeBindingMode(req.Mode)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if req.MainDomain == "" || (mode == services.BindingModePreferred && req.AuxDomain == "") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "main_domain is required; aux_domain is also required in preferred mode"})
 		return
 	}
 
-	preferredCNAME, err := h.svc.BindDomainWithPreferredCNAME(req.MainDomain, req.AuxDomain, req.PreferredCNAME)
+	mode, preferredCNAME, err := h.svc.BindDomainWithConfiguredService(mode, req.MainDomain, req.AuxDomain, req.PreferredCNAME)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -39,6 +44,7 @@ func (h *DomainHandler) BindDomain(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":          "ok",
+		"mode":            mode,
 		"message":         fmt.Sprintf("Domain binding complete! Access: https://%s", req.MainDomain),
 		"main_domain":     req.MainDomain,
 		"aux_domain":      req.AuxDomain,
@@ -60,19 +66,26 @@ func (h *DomainHandler) BindDomainsBatch(w http.ResponseWriter, r *http.Request)
 
 	results := make([]models.BatchBindResult, 0, len(req.Items))
 	for _, item := range req.Items {
+		mode, modeErr := services.NormalizeBindingMode(item.Mode)
 		result := models.BatchBindResult{
+			Mode:           mode,
 			ServiceURL:     item.ServiceURL,
 			PreferredCNAME: item.PreferredCNAME,
 			MainDomain:     item.MainDomain,
 			AuxDomain:      item.AuxDomain,
 		}
-		if item.ServiceURL == "" || item.MainDomain == "" || item.AuxDomain == "" {
-			result.Message = "service_url, main_domain and aux_domain are required"
+		if modeErr != nil {
+			result.Message = modeErr.Error()
+			results = append(results, result)
+			continue
+		}
+		if item.ServiceURL == "" || item.MainDomain == "" || (mode == services.BindingModePreferred && item.AuxDomain == "") {
+			result.Message = "service_url and main_domain are required; aux_domain is also required in preferred mode"
 			results = append(results, result)
 			continue
 		}
 
-		preferredCNAME, err := h.svc.BindDomainWithService(item.MainDomain, item.AuxDomain, item.ServiceURL, item.PreferredCNAME)
+		mode, preferredCNAME, err := h.svc.BindDomainWithMode(mode, item.MainDomain, item.AuxDomain, item.ServiceURL, item.PreferredCNAME)
 		if err != nil {
 			result.Message = err.Error()
 		} else {

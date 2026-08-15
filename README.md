@@ -14,8 +14,9 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 ## 功能
 
 - 隧道管理：列出、选择 Cloudflare Tunnel，查看和编辑应用程序路由
-- 域名绑定：自动配置 Tunnel 路由、DNS CNAME 与 SaaS Custom Hostname
-- 批量绑定：一次提交多个绑定组，每组可独立配置转发地址与优选 CNAME
+- 域名绑定：可选择简化直连或优选模式；简化模式只配置主域名 Tunnel 路由和代理 CNAME，优选模式继续配置辅助域名与 SaaS Custom Hostname
+- 批量绑定：一次提交多个绑定组，每组可独立选择绑定模式、转发地址与优选 CNAME
+- DNS 管理：独立页面按 Zone 查询、新增、编辑和删除 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态与 MX 优先级
 - 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题
 - 优选 CNAME：自定义全局默认值并维护常用 CNAME 组，绑定时可直接选择
 - 回退源设置：一键配置 fallback origin
@@ -24,6 +25,15 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 - 管理员认证：Argon2id 密码哈希、12 小时会话、旧 SHA-256 哈希自动迁移
 - 双重身份验证：标准 TOTP、加密密钥存储、一次性恢复码与防重放
 - 密码重置：忘记密码时通过 CLI 命令重置
+
+## 域名绑定模式
+
+Web 端的单个与批量域名绑定支持两种模式，批量操作时每组可以独立选择：
+
+- **简化直连**：只填写主域名与转发地址。系统为主域名添加 Tunnel Ingress，并创建代理开启的 CNAME 指向 `<tunnel-id>.cfargotunnel.com`；不需要辅助域名，也不会创建 SaaS Custom Hostname。
+- **优选模式**：沿用优选 CNAME、辅助域名与 Cloudflare for SaaS Custom Hostname 的完整流程。优选 CNAME 留空时使用全局默认值。
+
+为兼容旧客户端，未提交 `mode` 的 API 请求仍按优选模式处理。Telegram Bot 当前也继续使用优选模式。
 
 ## 技术栈
 
@@ -134,6 +144,10 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 | POST | `/api/tunnels/{tunnelID}/ingress` | 新增应用程序路由 | 需要 |
 | PUT | `/api/tunnels/{tunnelID}/ingress` | 更新应用程序路由 | 需要 |
 | GET | `/api/zones` | 列出 Zone | 需要 |
+| GET | `/api/zones/{zoneID}/dns-records` | 查询 Zone DNS 记录 | 需要 |
+| POST | `/api/zones/{zoneID}/dns-records` | 新增 DNS 记录 | 需要 |
+| PUT | `/api/zones/{zoneID}/dns-records/{recordID}` | 编辑 DNS 记录 | 需要 |
+| DELETE | `/api/zones/{zoneID}/dns-records/{recordID}` | 删除 DNS 记录 | 需要 |
 | POST | `/api/domain/bind` | 绑定单组域名 | 需要 |
 | POST | `/api/domain/bind-batch` | 批量绑定域名 | 需要 |
 | POST | `/api/domain/fallback` | 设置回退源 | 需要 |

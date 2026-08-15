@@ -94,11 +94,24 @@ type CloudflareAccountRequest struct {
 
 // DNSRecord represents a DNS record
 type DNSRecord struct {
-	ID      string `json:"id,omitempty"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Content   string `json:"content"`
+	Proxied   bool   `json:"proxied"`
+	Proxiable bool   `json:"proxiable,omitempty"`
+	TTL       int    `json:"ttl,omitempty"`
+	Priority  int    `json:"priority,omitempty"`
+}
+
+// DNSRecordRequest contains the editable fields for a DNS record.
+type DNSRecordRequest struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	Proxied  bool   `json:"proxied"`
+	TTL      int    `json:"ttl"`
+	Priority *int   `json:"priority,omitempty"`
 }
 
 // TunnelConfigResponse represents the CF API response for tunnel config
@@ -136,6 +149,7 @@ type CFError struct {
 
 // BindRequest is the request body for domain binding
 type BindRequest struct {
+	Mode           string `json:"mode,omitempty"`
 	PreferredCNAME string `json:"preferred_cname"`
 	MainDomain     string `json:"main_domain"`
 	AuxDomain      string `json:"aux_domain"`
@@ -143,6 +157,7 @@ type BindRequest struct {
 
 // BatchBindItem is a domain binding group with its own origin service.
 type BatchBindItem struct {
+	Mode           string `json:"mode,omitempty"`
 	ServiceURL     string `json:"service_url"`
 	PreferredCNAME string `json:"preferred_cname"`
 	MainDomain     string `json:"main_domain"`
@@ -156,6 +171,7 @@ type BatchBindRequest struct {
 
 // BatchBindResult records the result for a single domain group.
 type BatchBindResult struct {
+	Mode           string `json:"mode"`
 	ServiceURL     string `json:"service_url"`
 	PreferredCNAME string `json:"preferred_cname"`
 	MainDomain     string `json:"main_domain"`

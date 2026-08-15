@@ -40,13 +40,22 @@
         </div>
       </div>
 
-      <div class="form-fields">
+      <div class="mode-selector" role="radiogroup" :aria-label="`绑定组 ${index + 1} 模式`">
+        <button type="button" class="mode-option" :class="{ active: group.mode === 'simple' }" role="radio" :aria-checked="group.mode === 'simple'" :disabled="submitting" @click="group.mode = 'simple'">
+          <strong>简单模式</strong><span>主域名直连服务</span>
+        </button>
+        <button type="button" class="mode-option" :class="{ active: group.mode === 'preferred' }" role="radio" :aria-checked="group.mode === 'preferred'" :disabled="submitting" @click="group.mode = 'preferred'">
+          <strong>优选模式</strong><span>使用优选线路和辅助回源</span>
+        </button>
+      </div>
+
+      <div class="form-fields" :class="{ 'simple-fields': group.mode === 'simple' }">
         <div class="field">
           <label class="field-label" :for="`service-${group.id}`">转发地址</label>
           <input :id="`service-${group.id}`" v-model="group.service_url" class="vercel-input" placeholder="http://localhost:3000" :class="{ 'input-error': group.errors.service_url }" :disabled="submitting" @blur="validateGroup(group, 'service_url')" />
           <span v-if="group.errors.service_url" class="field-error">{{ group.errors.service_url }}</span>
         </div>
-        <div class="field">
+        <div v-if="group.mode === 'preferred'" class="field">
           <label class="field-label" :for="`cname-${group.id}`">优选 CNAME <span class="field-note">选填，留空使用全局配置</span></label>
           <cname-picker
             v-model="group.preferred_cname"
@@ -62,7 +71,7 @@
           <input :id="`main-${group.id}`" v-model="group.main_domain" class="vercel-input" placeholder="例如: kukie.cn" :class="{ 'input-error': group.errors.main_domain }" :disabled="submitting" @blur="validateGroup(group, 'main_domain')" />
           <span v-if="group.errors.main_domain" class="field-error">{{ group.errors.main_domain }}</span>
         </div>
-        <div class="field">
+        <div v-if="group.mode === 'preferred'" class="field">
           <label class="field-label" :for="`aux-${group.id}`">辅助域名 <span class="field-note">用作回源</span></label>
           <input :id="`aux-${group.id}`" v-model="group.aux_domain" class="vercel-input" placeholder="例如: fallback.169977.xyz" :class="{ 'input-error': group.errors.aux_domain }" :disabled="submitting" @blur="validateGroup(group, 'aux_domain')" />
           <span v-if="group.errors.aux_domain" class="field-error">{{ group.errors.aux_domain }}</span>
@@ -72,7 +81,7 @@
       <div v-if="group.result" class="group-result" :class="group.result.success ? 'success' : 'error'">
         <strong>{{ group.result.success ? '绑定成功' : '绑定失败' }}</strong>
         <span>{{ group.result.message }}</span>
-        <span v-if="group.result.success">优选 CNAME：{{ group.result.preferred_cname }}</span>
+        <span v-if="group.result.success && group.result.mode === 'preferred'">优选 CNAME：{{ group.result.preferred_cname }}</span>
       </div>
     </div>
 
@@ -118,6 +127,7 @@ const summary = computed(() => {
 function createGroup(): BindingGroup {
   return {
     id: nextGroupID++,
+    mode: 'simple',
     service_url: config.service_url,
     preferred_cname: '',
     main_domain: '',
@@ -143,7 +153,9 @@ function validateGroups() {
   let valid = true
   for (const group of groups.value) {
     group.result = null
-    for (const field of ['service_url', 'main_domain', 'aux_domain'] as Field[]) {
+    const requiredFields = group.mode === 'preferred' ? ['service_url', 'main_domain', 'aux_domain'] : ['service_url', 'main_domain']
+    group.errors.aux_domain = ''
+    for (const field of requiredFields as Field[]) {
       validateGroup(group, field)
       valid &&= !group.errors[field]
     }
@@ -159,7 +171,7 @@ async function handleBatchBind() {
 
   submitting.value = true
   try {
-    const items = groups.value.map(({ service_url, preferred_cname, main_domain, aux_domain }) => ({ service_url: service_url.trim(), preferred_cname: preferred_cname.trim(), main_domain: main_domain.trim(), aux_domain: aux_domain.trim() }))
+    const items = groups.value.map(({ mode, service_url, preferred_cname, main_domain, aux_domain }) => ({ mode, service_url: service_url.trim(), preferred_cname: preferred_cname.trim(), main_domain: main_domain.trim(), aux_domain: aux_domain.trim() }))
     const { data } = await bindDomainsBatch(items)
     groups.value.forEach((group, index) => {
       group.result = data.results[index] || { ...items[index], success: false, message: '未收到该组的执行结果' }
@@ -215,6 +227,13 @@ onMounted(async () => {
 }
 .group-header p { margin: 6px 0 0; color: var(--color-mute); font-size: 13px; }
 .group-actions { display: flex; gap: var(--spacing-xs); }
+.mode-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-xs); margin-bottom: var(--spacing-md); padding: 4px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: var(--color-canvas-soft); }
+.mode-option { display: flex; align-items: baseline; gap: 8px; min-height: 46px; padding: 8px 12px; color: var(--color-body); text-align: left; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out, transform 120ms ease-out; }
+.mode-option strong { color: var(--color-ink); font-size: 14px; white-space: nowrap; }
+.mode-option span { font-size: 12px; }
+.mode-option.active { background: var(--color-canvas); border-color: var(--color-hairline); box-shadow: 0 1px 2px rgba(58, 47, 34, 0.06); }
+.mode-option:active:not(:disabled) { transform: scale(0.99); }
+.mode-option:disabled { cursor: not-allowed; opacity: 0.6; }
 .icon-button {
   display: inline-grid;
   width: 32px;
@@ -232,6 +251,7 @@ onMounted(async () => {
 .icon-button.danger:hover:not(:disabled) { color: var(--color-error); border-color: var(--color-error); }
 .icon-button:disabled { cursor: not-allowed; opacity: 0.45; }
 .form-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--spacing-md); }
+.form-fields.simple-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field-label { margin-bottom: 4px; font-size: 14px; font-weight: 600; color: var(--color-ink); }
 .field-note { margin-left: 4px; color: var(--color-mute); font-weight: 400; }
@@ -254,7 +274,7 @@ onMounted(async () => {
 .summary-error { color: var(--color-error); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
-@media (max-width: 720px) { .form-fields { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .mode-selector, .form-fields, .form-fields.simple-fields { grid-template-columns: 1fr; } .mode-option { align-items: flex-start; flex-direction: column; gap: 2px; } }
 @media (max-width: 480px) {
   .tunnel-context { align-items: flex-start; flex-direction: column; }
   .tunnel-context > div { align-items: flex-start; }

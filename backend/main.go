@@ -97,6 +97,7 @@ func main() {
 	configHandler := handlers.NewConfigHandler(st)
 	tunnelHandler := handlers.NewTunnelHandler(cf)
 	domainHandler := handlers.NewDomainHandler(domainService)
+	dnsHandler := handlers.NewDNSHandler(cf)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
@@ -153,6 +154,10 @@ func main() {
 		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.AddIngressRule))
 		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.UpdateIngressRule))
 		r.Get("/zones", mw.Auth(tunnelHandler.ListZones))
+		r.Get("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.List))
+		r.Post("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.Create))
+		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Update))
+		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Delete))
 
 		// Domain endpoints
 		r.Post("/domain/bind", mw.Auth(domainHandler.BindDomain))

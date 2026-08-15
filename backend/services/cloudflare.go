@@ -275,6 +275,73 @@ func (c *CloudflareClient) UpsertDNSRecord(zoneID, name, recordType, content str
 	return c.do(req, nil)
 }
 
+// ListDNSRecords returns DNS records in a zone with optional type and name filters.
+func (c *CloudflareClient) ListDNSRecords(zoneID, recordType, name string) ([]models.DNSRecord, error) {
+	values := url.Values{}
+	values.Set("per_page", "5000")
+	if recordType != "" {
+		values.Set("type", strings.ToUpper(recordType))
+	}
+	if name != "" {
+		values.Set("name", name)
+	}
+	path := fmt.Sprintf("/zones/%s/dns_records?%s", zoneID, values.Encode())
+	req, err := c.newRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var records []models.DNSRecord
+	if err := c.do(req, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// CreateDNSRecord creates a DNS record and returns the Cloudflare representation.
+func (c *CloudflareClient) CreateDNSRecord(zoneID string, payload models.DNSRecordRequest) (*models.DNSRecord, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("/zones/%s/dns_records", zoneID), strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+	var record models.DNSRecord
+	if err := c.do(req, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// UpdateDNSRecord replaces an existing DNS record.
+func (c *CloudflareClient) UpdateDNSRecord(zoneID, recordID string, payload models.DNSRecordRequest) (*models.DNSRecord, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, recordID)
+	req, err := c.newRequest(http.MethodPut, path, strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+	var record models.DNSRecord
+	if err := c.do(req, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// DeleteDNSRecord removes a DNS record by ID.
+func (c *CloudflareClient) DeleteDNSRecord(zoneID, recordID string) error {
+	path := fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, recordID)
+	req, err := c.newRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+	return c.do(req, nil)
+}
+
 // SetFallbackOrigin sets the fallback origin for custom hostnames
 func (c *CloudflareClient) SetFallbackOrigin(zoneID, origin string) error {
 	path := fmt.Sprintf("/zones/%s/custom_hostnames/fallback_origin", zoneID)

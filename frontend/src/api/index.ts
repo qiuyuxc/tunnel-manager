@@ -99,13 +99,17 @@ export interface CloudflareOAuthStatus {
   error?: string
 }
 
+export type BindMode = 'simple' | 'preferred'
+
 export interface BindRequest {
+  mode: BindMode
   preferred_cname: string
   main_domain: string
   aux_domain: string
 }
 
 export interface BatchBindItem {
+  mode: BindMode
   service_url: string
   preferred_cname: string
   main_domain: string
@@ -264,6 +268,45 @@ export function updateIngressRule(tunnelID: string, old_hostname: string, hostna
 
 export function listZones() {
   return api.get<Zone[]>('/zones')
+}
+
+export type DNSRecordType = 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX'
+
+export interface DNSRecord {
+  id: string
+  type: DNSRecordType
+  name: string
+  content: string
+  ttl: number
+  proxied?: boolean
+  priority?: number
+  created_on?: string
+  modified_on?: string
+}
+
+export interface DNSRecordInput {
+  type: DNSRecordType
+  name: string
+  content: string
+  ttl: number
+  proxied?: boolean
+  priority?: number
+}
+
+export function listDNSRecords(zoneID: string) {
+  return api.get<DNSRecord[]>(`/zones/${zoneID}/dns-records`)
+}
+
+export function createDNSRecord(zoneID: string, data: DNSRecordInput) {
+  return api.post<DNSRecord>(`/zones/${zoneID}/dns-records`, data)
+}
+
+export function updateDNSRecord(zoneID: string, recordID: string, data: DNSRecordInput) {
+  return api.put<DNSRecord>(`/zones/${zoneID}/dns-records/${recordID}`, data)
+}
+
+export function deleteDNSRecord(zoneID: string, recordID: string) {
+  return api.delete<ApiResponse>(`/zones/${zoneID}/dns-records/${recordID}`)
 }
 
 // Domain
