@@ -212,6 +212,20 @@ func (s *Store) SetTunnelSelection(id, name string) error {
 	return nil
 }
 
+// SetZoneSelection sets the active zone used by Telegram DNS commands.
+func (s *Store) SetZoneSelection(id, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.SelectedZoneID = id
+	s.config.SelectedZoneName = name
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
 // SetServiceURL sets the forwarding service URL
 func (s *Store) SetServiceURL(url string) {
 	s.mu.Lock()

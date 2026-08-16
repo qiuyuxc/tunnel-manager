@@ -110,6 +110,7 @@ const navItems = [
   { path: '/settings', label: '全局设置' },
   { path: '/telegram', label: 'TG 机器人' },
   { path: '/account', label: '账户' },
+  { path: '/about', label: '关于' },
 ]
 
 async function handleLogout() {

@@ -20,6 +20,9 @@ import (
 	"tunnel-manager/store"
 )
 
+// Version is the current application version, kept in sync with UPDATE.md.
+const Version = "v1.12.0"
+
 func main() {
 	// CLI flags for password management
 	resetPassword := flag.Bool("reset-password", false, "Generate a new random admin password")
@@ -173,8 +176,9 @@ func main() {
 
 		// Health check (no auth)
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok"}`))
+			fmt.Fprintf(w, `{"status":"ok","version":%q}`, Version)
 		})
 	})
 

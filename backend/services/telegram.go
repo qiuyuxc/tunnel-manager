@@ -296,7 +296,7 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		}
 	}
 	if !authorized {
-		b.sendMessage(cfg, chatID, fmt.Sprintf("⛔ **拒绝访问**\n身份校验失败：您的 TG ID [%d] 未授权。", userID))
+		b.sendMessage(cfg, chatID, fmt.Sprintf("⛔ 拒绝访问\n身份校验失败：您的 TG ID [%d] 未授权。", userID))
 		return
 	}
 
@@ -323,44 +323,44 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		b.handleListTunnels(cfg, chatID)
 	case "/选择隧道":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 请输入隧道ID。例如: `/选择隧道 8db7f365-xxx`")
+			b.sendMessage(cfg, chatID, "❌ 请输入隧道名称或ID。例如: /选择隧道 haxvps-2")
 		} else {
 			b.handleSelectTunnel(chatID, args[1])
 		}
 	case "/转发":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 请输入完整的本地服务URL。例如: `/转发 http://localhost:3000`")
+			b.sendMessage(cfg, chatID, "❌ 请输入完整的本地服务URL。例如: /转发 http://localhost:3000")
 		} else {
 			b.handleSetService(chatID, args[1])
 		}
 	case "/全局优选":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 请指定你的自定义优选 CNAME。例如: `/全局优选 cdn.kukie.cn`")
+			b.sendMessage(cfg, chatID, "❌ 请指定你的自定义优选 CNAME。例如: /全局优选 cdn.kukie.cn")
 		} else {
 			b.handleSetPreferredCNAME(chatID, args[1])
 		}
 	case "/设置回退源":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 请指定回退源域名。例如: `/设置回退源 fallback.169977.xyz`")
+			b.sendMessage(cfg, chatID, "❌ 请指定回退源域名。例如: /设置回退源 fallback.169977.xyz")
 		} else {
 			b.handleSetFallback(cfg, chatID, args[1])
 		}
 	case "/绑定域名":
 		if len(args) < 3 {
-			b.sendMessage(cfg, chatID, "❌ 参数不足。请按顺序输入: `/绑定域名 [访问域名] [辅助域名]`")
+			b.sendMessage(cfg, chatID, "❌ 参数不足。请按顺序输入: /绑定域名 [访问域名] [辅助域名]")
 		} else {
 			b.handleDomainBinding(cfg, chatID, args[1], args[2])
 		}
 
 	case "/直连域名", "/bind_direct":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: `/直连域名 [主域名]`")
+			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: /直连域名 [主域名]")
 		} else {
 			b.handleDomainBindingMode(cfg, chatID, BindingModeSimple, args[1], "", "")
 		}
 	case "/优选绑定", "/bind_preferred":
 		if len(args) < 3 {
-			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: `/优选绑定 [主域名] [辅助域名] [可选优选CNAME]`")
+			b.sendMessage(cfg, chatID, "❌ 参数不足。用法: /优选绑定 [主域名] [辅助域名] [可选优选CNAME]")
 		} else {
 			preferred := ""
 			if len(args) > 3 {
@@ -370,9 +370,29 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		}
 	case "/列出区域", "/zones":
 		b.handleListZones(cfg, chatID)
+	case "/选择区域", "/select_zone":
+		if len(args) < 2 {
+			b.sendMessage(cfg, chatID, "❌ 用法: /选择区域 [域名或ZoneID]\n例如: /选择区域 kukie.cn")
+		} else {
+			b.handleSelectZone(cfg, chatID, args[1])
+		}
 	case "/DNS列表", "/dns_list":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS列表 [域名或ZoneID] [可选类型] [可选名称]`")
+			if cfg.SelectedZoneID != "" {
+				b.handleListDNS(cfg, chatID, cfg.SelectedZoneID, "", "")
+			} else {
+				b.sendMessage(cfg, chatID, "❌ 用法: /DNS列表 [区域可选] [类型可选] [名称可选]\n未选择区域时需带区域，例如: /DNS列表 kukie.cn A")
+			}
+		} else if isRecordType(args[1]) {
+			if cfg.SelectedZoneID == "" {
+				b.sendMessage(cfg, chatID, "❌ 未选择区域，请先 /选择区域 [域名]\n或带区域使用: /DNS列表 kukie.cn A")
+			} else {
+				name := ""
+				if len(args) > 2 {
+					name = args[2]
+				}
+				b.handleListDNS(cfg, chatID, cfg.SelectedZoneID, args[1], name)
+			}
 		} else {
 			recordType, name := "", ""
 			if len(args) > 2 {
@@ -384,28 +404,66 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 			b.handleListDNS(cfg, chatID, args[1], recordType, name)
 		}
 	case "/DNS详情", "/dns_detail":
-		if len(args) < 3 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS详情 [域名或ZoneID] [记录名称]`")
-		} else {
+		switch len(args) {
+		case 1:
+			b.sendMessage(cfg, chatID, "❌ 用法: /DNS详情 [完整主机名]\n例如: /DNS详情 bbs.kukie.cn\n或选定区域后: /DNS详情 bbs")
+		case 2:
+			b.handleDNSDetail(cfg, chatID, args[1], args[1])
+		default:
 			b.handleDNSDetail(cfg, chatID, args[1], args[2])
 		}
 	case "/DNS添加", "/dns_add":
-		b.handleDNSWriteCommand(cfg, chatID, "", args[1:])
+		if len(args) < 2 {
+			b.sendMessage(cfg, chatID, dnsWriteUsage(false))
+		} else if isRecordType(args[1]) {
+			if cfg.SelectedZoneID == "" {
+				b.sendMessage(cfg, chatID, "❌ 未选择区域，请先 /选择区域 [域名]\n或带区域使用: /DNS添加 kukie.cn A www 1.2.3.4")
+			} else {
+				b.handleDNSWriteCommand(cfg, chatID, "", append([]string{cfg.SelectedZoneID}, args[1:]...))
+			}
+		} else {
+			b.handleDNSWriteCommand(cfg, chatID, "", args[1:])
+		}
 	case "/DNS修改", "/dns_update":
 		if len(args) < 3 {
 			b.sendMessage(cfg, chatID, dnsWriteUsage(true))
+		} else if isRecordType(args[2]) {
+			// 无区域: /DNS修改 [记录名或ID] [类型] [新内容] [TTL可选] [代理可选]
+			if cfg.SelectedZoneID == "" {
+				b.sendMessage(cfg, chatID, "❌ 未选择区域，请先 /选择区域 [域名]\n或带区域使用: /DNS修改 kukie.cn bbs CNAME saas.com")
+			} else {
+				zoneForParse := cfg.SelectedZoneID
+				if strings.Contains(args[1], ".") {
+					zoneForParse = args[1]
+				}
+				updateArgs := append([]string{zoneForParse, args[2], args[1]}, args[3:]...)
+				b.handleDNSWriteCommand(cfg, chatID, args[1], updateArgs)
+			}
+		} else if len(args) >= 4 && isRecordType(args[3]) {
+			// 带区域: /DNS修改 [区域] [记录名或ID] [类型] [新内容] [TTL可选] [代理可选]
+			updateArgs := append([]string{args[1], args[3], args[2]}, args[4:]...)
+			b.handleDNSWriteCommand(cfg, chatID, args[2], updateArgs)
 		} else {
-			b.handleDNSWriteCommand(cfg, chatID, args[2], append([]string{args[1]}, args[3:]...))
+			b.sendMessage(cfg, chatID, dnsWriteUsage(true))
 		}
 	case "/DNS删除", "/dns_delete":
-		if len(args) < 3 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS删除 [域名或ZoneID] [RecordID]`")
-		} else {
+		switch len(args) {
+		case 1:
+			b.sendMessage(cfg, chatID, "❌ 用法: /DNS删除 [区域可选] [记录名或RecordID]\n例如: /DNS删除 kukie.cn bbs 或 /DNS删除 bbs")
+		case 2:
+			if strings.Contains(args[1], ".") {
+				b.handleDNSDeleteRequest(cfg, chatID, userID, args[1], args[1])
+			} else if cfg.SelectedZoneID != "" {
+				b.handleDNSDeleteRequest(cfg, chatID, userID, cfg.SelectedZoneID, args[1])
+			} else {
+				b.sendMessage(cfg, chatID, "❌ 未选择区域，请先 /选择区域 [域名]\n或带区域使用: /DNS删除 kukie.cn bbs")
+			}
+		default:
 			b.handleDNSDeleteRequest(cfg, chatID, userID, args[1], args[2])
 		}
 	case "/确认删除", "/dns_confirm":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/确认删除 [确认码]`")
+			b.sendMessage(cfg, chatID, "❌ 用法: /确认删除 [确认码]")
 		} else {
 			b.handleDNSDeleteConfirm(cfg, chatID, userID, strings.ToLower(args[1]))
 		}
@@ -421,10 +479,11 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 		"📖 基础配置指令",
 		"• /全局优选 [域名]",
 		"• /设置回退源 [辅助域名]",
+		"• /选择区域 [域名或ZoneID]（DNS 命令可省略区域）",
 		"",
 		"⚙️ 隧道与转发指令",
 		"• /列出隧道",
-		"• /选择隧道 [隧道ID]",
+		"• /选择隧道 [名称或ID]",
 		"• /转发 [本地地址]",
 	}, "\n")
 
@@ -434,13 +493,15 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 		"• /优选绑定 [主域名] [辅助域名] [可选优选CNAME]",
 		"• /绑定域名 [主域名] [辅助域名]（兼容旧命令）",
 		"",
-		"🧭 DNS 管理（区域可用域名）",
+		"🧭 DNS 管理（先 /选择区域 可省略区域）",
 		"• /列出区域",
-		"• /DNS列表 [域名或ZoneID] [可选类型] [可选名称]（简洁列表）",
-		"• /DNS详情 [域名或ZoneID] [记录名称]（查看 ID 与完整信息）",
-		"• /DNS添加 [域名或ZoneID] [类型] [名称] [内容] [TTL] [代理]",
-		"• /DNS修改 [域名或ZoneID] [RecordID] [类型] [名称] [内容] [TTL] [代理]",
-		"• /DNS删除 [域名或ZoneID] [RecordID]",
+		"• /选择区域 [域名或ZoneID]",
+		"• /DNS列表 [区域可选] [类型可选] [名称可选]",
+		"• /DNS详情 [区域可选] [记录名]（或直接传完整主机名）",
+		"• /DNS添加 [区域可选] [类型] [名称] [内容] [TTL可选] [代理可选]",
+		"• /DNS修改 [区域可选] [记录名或ID] [类型] [新内容] [TTL可选] [代理可选]",
+		"• /DNS删除 [区域可选] [记录名或ID]",
+		"（TTL 缺省 auto，代理缺省 on；TXT/MX 自动关代理）",
 		"",
 		"🔍 状态查询",
 		"• /当前配置",
@@ -460,29 +521,32 @@ func (b *TelegramBot) handleCurrentConfig(cfg models.Config, chatID int64) {
 		globalPref = "cf.090227.xyz"
 	}
 
-	configText := "⚙️ **当前会话配置状态**\n\n"
+	var out strings.Builder
+	out.WriteString("⚙️ 当前配置\n\n")
 	if cfg.TunnelID != "" {
-		configText += fmt.Sprintf("🤖 **锁定隧道 ID**: \n`%s`\n\n", cfg.TunnelID)
+		fmt.Fprintf(&out, "隧道: %s\n", cfg.TunnelName)
 	} else {
-		configText += "🤖 **锁定隧道 ID**: \n❌ 未锁定\n\n"
+		out.WriteString("隧道: 未锁定\n")
 	}
 	if cfg.ServiceURL != "" {
-		configText += fmt.Sprintf("🔌 **本地转发地址**: \n`%s`\n\n", cfg.ServiceURL)
+		fmt.Fprintf(&out, "转发: %s\n", cfg.ServiceURL)
 	} else {
-		configText += "🔌 **本地转发地址**: \n❌ 未锁定\n\n"
+		out.WriteString("转发: 未设置\n")
 	}
-	configText += fmt.Sprintf("🎯 **全局优选 CNAME**: \n`%s`\n\n", globalPref)
-	configText += "--- \n💡 **下一步操作引导**：\n"
-
-	if cfg.TunnelID == "" {
-		configText += "👉 您尚未锁定隧道。请执行 `/列出隧道` 复制ID，然后使用 `/选择隧道 [隧道ID]` 进行锁定。"
-	} else if cfg.ServiceURL == "" {
-		configText += "👉 隧道已锁定，但缺少转发地址。请使用 `/转发 [本地服务地址]` 设置目标。"
-	} else {
-		configText += "✅ 基础参数均已就绪！\n👉 您现在可以直接执行终极指令：\n`/绑定域名 [访问域名] [辅助域名]`"
+	fmt.Fprintf(&out, "优选: %s\n", globalPref)
+	if cfg.SelectedZoneID != "" {
+		fmt.Fprintf(&out, "区域: %s\n", cfg.SelectedZoneName)
 	}
-
-	b.sendMessage(cfg, chatID, configText)
+	out.WriteString("\n下一步：\n")
+	switch {
+	case cfg.TunnelID == "":
+		out.WriteString("• /列出隧道 查看可用隧道\n• /选择隧道 [名称或ID] 锁定")
+	case cfg.ServiceURL == "":
+		out.WriteString("• /转发 [本地服务地址] 设置转发目标")
+	default:
+		out.WriteString("配置已就绪，可直接绑定域名：\n• /直连域名 [主域名]\n• /优选绑定 [主域名] [辅助域名]")
+	}
+	b.sendMessage(cfg, chatID, out.String())
 }
 
 func (b *TelegramBot) handleListTunnels(cfg models.Config, chatID int64) {
@@ -492,47 +556,52 @@ func (b *TelegramBot) handleListTunnels(cfg models.Config, chatID int64) {
 		return
 	}
 
-	text := "📋 **您账户下的 Tunnel 隧道列表：**\n\n"
-	for _, t := range tunnels {
-		text += fmt.Sprintf("🔹 **名称**: %s\n`%s`\n状态: %s\n\n", t.Name, t.ID, t.Status)
+	if len(tunnels) == 0 {
+		b.sendMessage(cfg, chatID, "账户下没有隧道。")
+		return
 	}
-	text += "👉 请使用 `/选择隧道 [隧道ID]` 来指定你要配置哪一台机器。"
-	b.sendMessage(cfg, chatID, text)
+	limit := len(tunnels)
+	if limit > 15 {
+		limit = 15
+	}
+	var out strings.Builder
+	out.WriteString("🚇 可用隧道\n\n")
+	for i, t := range tunnels[:limit] {
+		fmt.Fprintf(&out, "%d. %s · %s\n", i+1, t.Name, t.Status)
+	}
+	if len(tunnels) > limit {
+		fmt.Fprintf(&out, "\n共 %d 个，仅显示前 %d 个。", len(tunnels), limit)
+	}
+	out.WriteString("\n\n选择: /选择隧道 [名称或ID]")
+	b.sendMessage(cfg, chatID, out.String())
 }
 
-func (b *TelegramBot) handleSelectTunnel(chatID int64, tunnelID string) {
-	tunnelName := ""
-	if tunnels, err := b.cf.ListTunnels(); err == nil {
-		for _, tunnel := range tunnels {
-			if tunnel.ID == tunnelID {
-				tunnelName = tunnel.Name
-				break
-			}
-		}
+func (b *TelegramBot) handleSelectTunnel(chatID int64, arg string) {
+	t, err := b.resolveTunnelArg(arg)
+	if err != nil {
+		cfg := b.store.GetConfig()
+		b.sendMessage(cfg, chatID, "❌ "+err.Error())
+		return
 	}
-	if err := b.store.SetTunnelSelection(tunnelID, tunnelName); err != nil {
+	if err := b.store.SetTunnelSelection(t.ID, t.Name); err != nil {
 		cfg := b.store.GetConfig()
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存隧道选择失败: %s", err.Error()))
 		return
 	}
 	cfg := b.store.GetConfig()
-	displayName := tunnelName
-	if displayName == "" {
-		displayName = tunnelID
-	}
-	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已锁定隧道: `%s`\n\n💡 **下一步**：请设置本地转发端口。\n例如: `/转发 http://localhost:3000`", displayName))
+	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已锁定隧道: %s\n\n下一步：设置本地转发地址。\n例如: /转发 http://localhost:3000", t.Name))
 }
 
 func (b *TelegramBot) handleSetService(chatID int64, url string) {
 	b.store.SetServiceURL(url)
 	cfg := b.store.GetConfig()
-	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 转发源站已锁定: `%s`\n\n💡 **最后一步**：请指定绑定的域名。\n顺序为：[对外访问域名] [用作回源的辅助域名]\n例如：`/绑定域名 kukie.cn fallback.169977.xyz`", url))
+	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 转发源站已锁定: %s\n\n下一步：绑定域名。\n直连: /直连域名 [主域名]\n优选: /优选绑定 [主域名] [辅助域名]", url))
 }
 
 func (b *TelegramBot) handleSetPreferredCNAME(chatID int64, cname string) {
 	b.store.SetPreferredCNAME(cname)
 	cfg := b.store.GetConfig()
-	b.sendMessage(cfg, chatID, fmt.Sprintf("🎯 全局自选优选 CNAME 已成功变更为: `%s`", cname))
+	b.sendMessage(cfg, chatID, fmt.Sprintf("🎯 全局优选 CNAME 已变更为: %s", cname))
 }
 
 func (b *TelegramBot) handleSetFallback(cfg models.Config, chatID int64, domain string) {
@@ -540,7 +609,7 @@ func (b *TelegramBot) handleSetFallback(cfg models.Config, chatID int64, domain 
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 设置回退源失败: %s", err.Error()))
 		return
 	}
-	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 成功将 `%s` 设置为回退源！", domain))
+	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已将 %s 设置为回退源", domain))
 }
 
 func (b *TelegramBot) handleDomainBinding(cfg models.Config, chatID int64, mainDomain, auxDomain string) {
@@ -553,7 +622,7 @@ func (b *TelegramBot) handleDomainBinding(cfg models.Config, chatID int64, mainD
 	}
 
 	msg := fmt.Sprintf(
-		"🎉 **全套模块化路由配置成功！**\n\n🌐 **访问入口**: `%s`\n↩️ **内部回源**: `%s`\n🚀 **优选指向**: `%s`\n\n🔒 请等待 1-2 分钟后直接尝试 HTTPS 访问！",
+		"🎉 优选绑定配置成功！\n\n访问入口: %s\n内部回源: %s\n优选指向: %s\n\n请等待 1-2 分钟后尝试 HTTPS 访问。",
 		mainDomain, auxDomain, preferredCNAME,
 	)
 	b.sendMessage(cfg, chatID, msg)
@@ -679,7 +748,9 @@ func (b *TelegramBot) setCommands(cfg models.Config) error {
 		{"command": "bind_direct", "description": "简化模式绑定主域名"},
 		{"command": "bind_preferred", "description": "优选模式绑定域名"},
 		{"command": "zones", "description": "列出 Cloudflare Zone"},
+		{"command": "select_zone", "description": "选定 DNS 区域"},
 		{"command": "dns_list", "description": "查询 DNS 记录"},
+		{"command": "dns_detail", "description": "查看 DNS 记录详情"},
 		{"command": "dns_add", "description": "新增 DNS 记录"},
 		{"command": "dns_update", "description": "修改 DNS 记录"},
 		{"command": "dns_delete", "description": "申请删除 DNS 记录"},

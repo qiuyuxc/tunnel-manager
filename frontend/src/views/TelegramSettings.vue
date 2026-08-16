@@ -167,7 +167,7 @@
           <span class="command-label">可用指令：</span>
           <code>/当前配置</code> <code>/列出隧道</code> <code>/选择隧道</code> <code>/转发</code>
           <code>/直连域名</code> <code>/优选绑定</code> <code>/绑定域名</code> <code>/列出区域</code>
-          <code>/DNS列表</code> <code>/DNS添加</code> <code>/DNS修改</code> <code>/DNS删除</code> <code>/确认删除</code>
+          <code>/DNS列表</code> <code>/DNS详情</code> <code>/DNS添加</code> <code>/DNS修改</code> <code>/DNS删除</code> <code>/确认删除</code>
           <code>/全局优选</code> <code>/设置回退源</code> <code>/help</code>
         </div>
         <p class="guide-note">Bot 与面板共享同一配置，两边操作实时同步。</p>

@@ -16,6 +16,7 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
     { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
+    { path: '/about', name: 'about', component: () => import('../views/About.vue'), meta: { requiresAuth: true } },
   ],
 })
 

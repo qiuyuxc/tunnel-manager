@@ -35,6 +35,10 @@ type Config struct {
 	TGWebhookURL    string `json:"tg_webhook_url"`
 	TGWebhookSecret string `json:"tg_webhook_secret"`
 	TGApiEndpoint   string `json:"tg_api_endpoint"`
+
+	// Selected zone used by Telegram DNS commands
+	SelectedZoneID   string `json:"selected_zone_id,omitempty"`
+	SelectedZoneName string `json:"selected_zone_name,omitempty"`
 }
 
 // CNAMEPreset is a reusable preferred CNAME option.
