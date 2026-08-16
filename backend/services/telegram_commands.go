@@ -33,45 +33,157 @@ func (b *TelegramBot) handleListZones(cfg models.Config, chatID int64) {
 		b.sendMessage(cfg, chatID, "未找到可用区域。")
 		return
 	}
-	var out strings.Builder
-	out.WriteString("🌐 Cloudflare 区域\n\n")
-	for _, z := range zones {
-		fmt.Fprintf(&out, "• %s\n  %s\n", z.Name, z.ID)
+	limit := len(zones)
+	if limit > 20 {
+		limit = 20
 	}
-	out.WriteString("\n使用 /DNS列表 [ZoneID] 查看记录。")
+	var out strings.Builder
+	out.WriteString("🌐 可用 Cloudflare 区域\n\n")
+	for i, z := range zones[:limit] {
+		fmt.Fprintf(&out, "%d. %s\n", i+1, z.Name)
+	}
+	if len(zones) > limit {
+		fmt.Fprintf(&out, "\n共 %d 个区域，仅显示前 %d 个。", len(zones), limit)
+	}
+	out.WriteString("\n\nDNS 命令可直接使用区域域名，例如：\n/DNS列表 example.com")
 	b.sendMessage(cfg, chatID, out.String())
 }
 
-func (b *TelegramBot) handleListDNS(cfg models.Config, chatID int64, zoneID, typ, name string) {
+func (b *TelegramBot) handleListDNS(cfg models.Config, chatID int64, zoneArg, typ, name string) {
+	zoneID, zoneName, err := b.resolveZoneArg(zoneArg)
+	if err != nil {
+		b.sendMessage(cfg, chatID, "❌ "+err.Error())
+		return
+	}
 	records, err := b.cf.ListDNSRecords(zoneID, typ, name)
 	if err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 获取 DNS 失败: %s", err))
 		return
 	}
 	if len(records) == 0 {
-		b.sendMessage(cfg, chatID, "未找到匹配的 DNS 记录。")
+		b.sendMessage(cfg, chatID, fmt.Sprintf("未找到匹配的 DNS 记录（%s）。", zoneName))
 		return
 	}
 	limit := len(records)
-	if limit > 40 {
-		limit = 40
+	if limit > 15 {
+		limit = 15
 	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "📋 DNS 记录（%d 条）\n\n", len(records))
-	for _, r := range records[:limit] {
-		fmt.Fprintf(&out, "• %s %s → %s\n  ID: %s\n", r.Type, r.Name, r.Content, r.ID)
+	fmt.Fprintf(&out, "📋 %s · %d 条记录\n\n", zoneName, len(records))
+	for i, r := range records[:limit] {
+		fmt.Fprintf(&out, "%d. %-5s %s → %s\n", i+1, r.Type, r.Name, truncateRunes(r.Content, 60))
 	}
 	if len(records) > limit {
-		fmt.Fprintf(&out, "\n仅显示前 %d 条，请添加过滤。", limit)
+		fmt.Fprintf(&out, "\n共 %d 条，仅显示前 %d 条。\n", len(records), limit)
 	}
+	out.WriteString("\n过滤: /DNS列表 example.com A www\n详情: /DNS详情 example.com www")
 	b.sendMessage(cfg, chatID, out.String())
+}
+
+func (b *TelegramBot) handleDNSDetail(cfg models.Config, chatID int64, zoneArg, nameArg string) {
+	zoneID, zoneName, err := b.resolveZoneArg(zoneArg)
+	if err != nil {
+		b.sendMessage(cfg, chatID, "❌ "+err.Error())
+		return
+	}
+	records, err := b.cf.ListDNSRecords(zoneID, "", "")
+	if err != nil {
+		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 获取 DNS 失败: %s", err))
+		return
+	}
+	var matched []models.DNSRecord
+	for _, r := range records {
+		if recordNameMatches(r.Name, nameArg) {
+			matched = append(matched, r)
+		}
+	}
+	if len(matched) == 0 {
+		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 在 %s 未找到名称为 %q 的记录。", zoneName, nameArg))
+		return
+	}
+	var out strings.Builder
+	for _, r := range matched {
+		fmt.Fprintf(&out, "📋 %s · %s\n\n", zoneName, r.Name)
+		fmt.Fprintf(&out, "类型: %s\n", r.Type)
+		fmt.Fprintf(&out, "名称: %s\n", r.Name)
+		fmt.Fprintf(&out, "内容: %s\n", r.Content)
+		ttl := "自动"
+		if r.TTL > 1 {
+			ttl = fmt.Sprintf("%d 秒", r.TTL)
+		}
+		fmt.Fprintf(&out, "TTL:  %s\n", ttl)
+		proxied := "关"
+		if r.Proxied {
+			proxied = "开（橙云）"
+		}
+		fmt.Fprintf(&out, "代理: %s\n", proxied)
+		if r.Priority > 0 {
+			fmt.Fprintf(&out, "优先级: %d\n", r.Priority)
+		}
+		fmt.Fprintf(&out, "ID: %s\n\n", r.ID)
+	}
+	out.WriteString("修改: /DNS修改 [域名] [ID] 类型 名称 内容\n删除: /DNS删除 [域名] [ID]")
+	b.sendMessage(cfg, chatID, out.String())
+}
+
+func recordNameMatches(recordName, arg string) bool {
+	a := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(arg), "."))
+	n := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(recordName), "."))
+	return n == a || strings.HasPrefix(n, a+".")
+}
+
+func truncateRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…"
+}
+
+// resolveZoneArg accepts either a Cloudflare zone ID or a hostname and
+// returns the matching zone ID and name. Hostnames are matched by longest
+// suffix against active zone names (app.example.com → example.com).
+func (b *TelegramBot) resolveZoneArg(arg string) (string, string, error) {
+	arg = strings.TrimSpace(arg)
+	if arg == "" {
+		return "", "", fmt.Errorf("缺少区域参数")
+	}
+	zones, err := b.cf.ListZones()
+	if err != nil {
+		return "", "", err
+	}
+	host := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(arg), "."))
+	var best *models.Zone
+	for i := range zones {
+		z := &zones[i]
+		if strings.EqualFold(arg, z.ID) {
+			return z.ID, z.Name, nil
+		}
+		zoneName := strings.ToLower(strings.TrimSpace(z.Name))
+		if host == zoneName || strings.HasSuffix(host, "."+zoneName) {
+			if best == nil || len(zoneName) > len(best.Name) {
+				best = z
+			}
+		}
+	}
+	if best != nil {
+		return best.ID, best.Name, nil
+	}
+	if len(zones) == 0 {
+		return "", "", fmt.Errorf("Cloudflare 账户下没有可用区域")
+	}
+	names := make([]string, 0, len(zones))
+	for _, z := range zones {
+		names = append(names, z.Name)
+	}
+	return "", "", fmt.Errorf("未找到与 %q 匹配的区域。可用区域: %s", arg, strings.Join(names, ", "))
 }
 
 func dnsWriteUsage(update bool) string {
 	if update {
-		return "❌ 用法: /DNS修改 [ZoneID] [RecordID] [类型] [名称] [内容] [TTL/auto] [代理on/off] [MX优先级]"
+		return "❌ 用法: /DNS修改 [域名或ZoneID] [RecordID] [类型] [名称] [内容] [TTL/auto] [代理on/off] [MX优先级]"
 	}
-	return "❌ 用法: /DNS添加 [ZoneID] [类型] [名称] [内容] [TTL/auto] [代理on/off] [MX优先级]"
+	return "❌ 用法: /DNS添加 [域名或ZoneID] [类型] [名称] [内容] [TTL/auto] [代理on/off] [MX优先级]"
 }
 
 func parseDNSWrite(args []string) (string, models.DNSRecordRequest, error) {
@@ -128,24 +240,38 @@ func parseDNSWrite(args []string) (string, models.DNSRecordRequest, error) {
 }
 
 func (b *TelegramBot) handleDNSWriteCommand(cfg models.Config, chatID int64, recordID string, args []string) {
-	zone, p, err := parseDNSWrite(args)
+	zoneArg, p, err := parseDNSWrite(args)
 	if err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("%s\n%s", err, dnsWriteUsage(recordID != "")))
 		return
 	}
+	zoneID, zoneName, err := b.resolveZoneArg(zoneArg)
+	if err != nil {
+		b.sendMessage(cfg, chatID, "❌ "+err.Error())
+		return
+	}
 	if recordID == "" {
-		_, err = b.cf.CreateDNSRecord(zone, p)
+		_, err = b.cf.CreateDNSRecord(zoneID, p)
 	} else {
-		_, err = b.cf.UpdateDNSRecord(zone, recordID, p)
+		_, err = b.cf.UpdateDNSRecord(zoneID, recordID, p)
 	}
 	if err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ DNS 操作失败: %s", err))
 		return
 	}
-	b.sendMessage(cfg, chatID, "✅ DNS 记录已保存。")
+	action := "已添加"
+	if recordID != "" {
+		action = "已修改"
+	}
+	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ %s: %s %s → %s（%s）", action, p.Type, p.Name, p.Content, zoneName))
 }
 
-func (b *TelegramBot) handleDNSDeleteRequest(cfg models.Config, chatID, userID int64, zone, recordID string) {
+func (b *TelegramBot) handleDNSDeleteRequest(cfg models.Config, chatID, userID int64, zoneArg, recordID string) {
+	zone, zoneName, err := b.resolveZoneArg(zoneArg)
+	if err != nil {
+		b.sendMessage(cfg, chatID, "❌ "+err.Error())
+		return
+	}
 	records, err := b.cf.ListDNSRecords(zone, "", "")
 	if err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 查询记录失败: %s", err))
@@ -174,7 +300,7 @@ func (b *TelegramBot) handleDNSDeleteRequest(cfg models.Config, chatID, userID i
 	}
 	b.confirmations[code] = dnsDeleteConfirmation{ChatID: chatID, UserID: userID, ZoneID: zone, Record: target, Label: label, Expires: now.Add(5 * time.Minute)}
 	b.confirmMu.Unlock()
-	b.sendMessage(cfg, chatID, fmt.Sprintf("⚠️ 将删除: %s\n\n5 分钟内发送: /确认删除 %s", label, code))
+	b.sendMessage(cfg, chatID, fmt.Sprintf("⚠️ 将删除: %s（%s）\n\n5 分钟内发送: /确认删除 %s", label, zoneName, code))
 }
 
 func (b *TelegramBot) handleDNSDeleteConfirm(cfg models.Config, chatID, userID int64, code string) {

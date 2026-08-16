@@ -372,7 +372,7 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		b.handleListZones(cfg, chatID)
 	case "/DNS列表", "/dns_list":
 		if len(args) < 2 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS列表 [ZoneID] [可选类型] [可选名称]`")
+			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS列表 [域名或ZoneID] [可选类型] [可选名称]`")
 		} else {
 			recordType, name := "", ""
 			if len(args) > 2 {
@@ -382,6 +382,12 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 				name = args[3]
 			}
 			b.handleListDNS(cfg, chatID, args[1], recordType, name)
+		}
+	case "/DNS详情", "/dns_detail":
+		if len(args) < 3 {
+			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS详情 [域名或ZoneID] [记录名称]`")
+		} else {
+			b.handleDNSDetail(cfg, chatID, args[1], args[2])
 		}
 	case "/DNS添加", "/dns_add":
 		b.handleDNSWriteCommand(cfg, chatID, "", args[1:])
@@ -393,7 +399,7 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		}
 	case "/DNS删除", "/dns_delete":
 		if len(args) < 3 {
-			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS删除 [ZoneID] [RecordID]`")
+			b.sendMessage(cfg, chatID, "❌ 用法: `/DNS删除 [域名或ZoneID] [RecordID]`")
 		} else {
 			b.handleDNSDeleteRequest(cfg, chatID, userID, args[1], args[2])
 		}
@@ -428,12 +434,13 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 		"• /优选绑定 [主域名] [辅助域名] [可选优选CNAME]",
 		"• /绑定域名 [主域名] [辅助域名]（兼容旧命令）",
 		"",
-		"🧭 DNS 管理",
+		"🧭 DNS 管理（区域可用域名）",
 		"• /列出区域",
-		"• /DNS列表 [ZoneID] [可选类型] [可选名称]",
-		"• /DNS添加 [ZoneID] [类型] [名称] [内容] [TTL] [代理]",
-		"• /DNS修改 [ZoneID] [RecordID] [类型] [名称] [内容] [TTL] [代理]",
-		"• /DNS删除 [ZoneID] [RecordID]",
+		"• /DNS列表 [域名或ZoneID] [可选类型] [可选名称]（简洁列表）",
+		"• /DNS详情 [域名或ZoneID] [记录名称]（查看 ID 与完整信息）",
+		"• /DNS添加 [域名或ZoneID] [类型] [名称] [内容] [TTL] [代理]",
+		"• /DNS修改 [域名或ZoneID] [RecordID] [类型] [名称] [内容] [TTL] [代理]",
+		"• /DNS删除 [域名或ZoneID] [RecordID]",
 		"",
 		"🔍 状态查询",
 		"• /当前配置",

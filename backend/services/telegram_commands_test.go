@@ -114,6 +114,59 @@ func TestSendMessageReturnsTelegramFailure(t *testing.T) {
 	}
 }
 
+func TestResolveZoneArg(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"success\":true,\"result\":[{\"id\":\"zone-a\",\"name\":\"example.com\"},{\"id\":\"zone-b\",\"name\":\"example.org\"}]}"))
+	}))
+	defer server.Close()
+	cf := &CloudflareClient{apiToken: "test", baseURL: server.URL, httpClient: server.Client()}
+	bot := &TelegramBot{cf: cf}
+	if id, name, err := bot.resolveZoneArg("app.example.com"); err != nil || id != "zone-a" || name != "example.com" {
+		t.Fatalf("hostname match: id=%s name=%s err=%v", id, name, err)
+	}
+	if id, name, err := bot.resolveZoneArg("example.org"); err != nil || id != "zone-b" || name != "example.org" {
+		t.Fatalf("exact zone name: id=%s name=%s err=%v", id, name, err)
+	}
+	if id, _, err := bot.resolveZoneArg("zone-b"); err != nil || id != "zone-b" {
+		t.Fatalf("zone id: id=%s err=%v", id, err)
+	}
+	if _, _, err := bot.resolveZoneArg("unknown.net"); err == nil {
+		t.Fatal("expected error for unknown hostname")
+	}
+}
+
+func TestRecordNameMatches(t *testing.T) {
+	cases := []struct {
+		rec, arg string
+		want     bool
+	}{
+		{"www.169977.xyz", "www", true},
+		{"www.169977.xyz", "www.169977.xyz", true},
+		{"www.169977.xyz", "WWW", true},
+		{"www.169977.xyz", "web", false},
+		{"169977.xyz", "169977.xyz", true},
+		{"169977.xyz", "ww", false},
+	}
+	for _, c := range cases {
+		if got := recordNameMatches(c.rec, c.arg); got != c.want {
+			t.Fatalf("recordNameMatches(%q, %q) = %v, want %v", c.rec, c.arg, got, c.want)
+		}
+	}
+}
+
+func TestTruncateRunes(t *testing.T) {
+	if got := truncateRunes("1234567890", 4); got != "1234…" {
+		t.Fatalf("got %q", got)
+	}
+	if got := truncateRunes("1234", 4); got != "1234" {
+		t.Fatalf("should not truncate: %q", got)
+	}
+	if got := truncateRunes("", 4); got != "" {
+		t.Fatalf("empty: %q", got)
+	}
+}
+
 func TestSameDNSRecord(t *testing.T) {
 	a := models.DNSRecord{ID: "r", Type: "A", Name: "x", Content: "1.2.3.4", TTL: 1, Proxied: true}
 	if !sameDNSRecord(a, a) {
