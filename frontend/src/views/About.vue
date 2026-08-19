@@ -73,10 +73,10 @@
         <div class="changelog-note">
           <div class="changelog-note-title">本版本亮点（{{ currentVersion }}）</div>
           <ul>
+            <li>DNS 批量修改：勾选多条记录，弹窗中批量修改解析类型、解析值、TTL 和代理状态</li>
+            <li>区域选择器改为非原生下拉，支持搜索过滤</li>
+            <li>单条 DNS 编辑改为弹窗式，与批量修改交互一致</li>
             <li>Telegram Bot 新增 /选择区域，选定后 DNS 命令可省略区域参数</li>
-            <li>/DNS添加、/DNS修改 的 TTL 缺省 auto，代理缺省 on（TXT/MX 自动关闭）</li>
-            <li>DNS 详情、修改、删除支持直接使用记录名或完整主机名</li>
-            <li>所有 Bot 输出改为手机友好的紧凑纯文本排版</li>
           </ul>
         </div>
       </section>

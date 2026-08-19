@@ -144,7 +144,7 @@ type CFAPIResponse struct {
 	Success  bool            `json:"success"`
 	Result   json.RawMessage `json:"result"`
 	Errors   []CFError       `json:"errors"`
-	Messages []string        `json:"messages"`
+	Messages json.RawMessage `json:"messages,omitempty"`
 }
 
 // CFError represents a Cloudflare API error
