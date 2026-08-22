@@ -13,10 +13,10 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 
 ## 功能
 
-- 隧道管理：列出、选择 Cloudflare Tunnel，查看和编辑应用程序路由
+- 隧道管理：新建、删除、列出与选择 Cloudflare Tunnel，查看、编辑和删除应用程序路由；新建隧道后展示 cloudflared 连接令牌与运行命令，删除路由时可选择连带清理对应 DNS 记录
 - 域名绑定：可选择简化直连或优选模式；简化模式只配置主域名 Tunnel 路由和代理 CNAME，优选模式继续配置辅助域名与 SaaS Custom Hostname
 - 批量绑定：一次提交多个绑定组，每组可独立选择绑定模式、转发地址与优选 CNAME
-- DNS 管理：独立页面按 Zone 查询、新增、编辑和删除 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态与 MX 优先级
+- DNS 管理：独立页面按 Zone 查询、新增、编辑和删除 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态与 MX 优先级，并可多选批量修改或批量删除
 - 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题
 - 优选 CNAME：自定义全局默认值并维护常用 CNAME 组，绑定时可直接选择
 - 回退源设置：一键配置 fallback origin
@@ -155,9 +155,12 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 | PUT | `/api/config/site` | 更新站点品牌信息 | 需要 |
 | PUT | `/api/config/cname-presets` | 更新常用 CNAME 组 | 需要 |
 | GET | `/api/tunnels` | 列出隧道 | 需要 |
+| POST | `/api/tunnels` | 新建隧道并返回连接令牌 | 需要 |
 | GET | `/api/tunnels/{tunnelID}` | 获取隧道详情与路由 | 需要 |
+| DELETE | `/api/tunnels/{tunnelID}` | 删除隧道 | 需要 |
 | POST | `/api/tunnels/{tunnelID}/ingress` | 新增应用程序路由 | 需要 |
 | PUT | `/api/tunnels/{tunnelID}/ingress` | 更新应用程序路由 | 需要 |
+| DELETE | `/api/tunnels/{tunnelID}/ingress` | 删除应用程序路由，可选连带删除 DNS 记录 | 需要 |
 | GET | `/api/zones` | 列出 Zone | 需要 |
 | GET | `/api/zones/{zoneID}/dns-records` | 查询 Zone DNS 记录 | 需要 |
 | POST | `/api/zones/{zoneID}/dns-records` | 新增 DNS 记录 | 需要 |

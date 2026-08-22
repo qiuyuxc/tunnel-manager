@@ -266,6 +266,33 @@ export function updateIngressRule(tunnelID: string, old_hostname: string, hostna
   return api.put<ApiResponse>(`/tunnels/${tunnelID}/ingress`, { old_hostname, hostname, service })
 }
 
+export interface CreateTunnelResponse {
+  id: string
+  name: string
+  token?: string
+  run_command?: string
+  warning?: string
+}
+
+export interface DeleteIngressResponse extends ApiResponse {
+  dns_deleted?: number
+  dns_warning?: string
+}
+
+export function createTunnel(name: string) {
+  return api.post<CreateTunnelResponse>('/tunnels', { name })
+}
+
+export function deleteTunnel(tunnelID: string) {
+  return api.delete<ApiResponse>(`/tunnels/${tunnelID}`)
+}
+
+export function deleteIngressRule(tunnelID: string, hostname: string, deleteDNS: boolean) {
+  return api.delete<DeleteIngressResponse>(`/tunnels/${tunnelID}/ingress`, {
+    data: { hostname, delete_dns: deleteDNS },
+  })
+}
+
 export function listZones() {
   return api.get<Zone[]>('/zones')
 }

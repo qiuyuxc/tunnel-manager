@@ -65,6 +65,22 @@
           </template>
         </n-modal>
 
+        <!-- Delete Confirmation -->
+        <n-modal v-model:show="showDelete" preset="card" title="删除路由" class="route-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false" :mask-closable="!deleting">
+          <div class="modal-form">
+            <p class="delete-hint">确定删除路由 <code>{{ deleteTarget?.hostname }}</code> 吗？此操作无法撤销。</p>
+            <n-checkbox v-model:checked="deleteDNS">同时删除该主机名对应的 DNS 记录</n-checkbox>
+          </div>
+          <template #footer>
+            <div class="modal-footer">
+              <button class="btn btn-ghost" :disabled="deleting" @click="showDelete = false">取消</button>
+              <button class="btn btn-danger" :disabled="deleting" @click="submitDelete">
+                {{ deleting ? '删除中...' : '确认删除' }}
+              </button>
+            </div>
+          </template>
+        </n-modal>
+
         <div v-if="routes.length > 0" class="route-grid">
           <div v-for="(rule, idx) in routes" :key="idx" class="route-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: `${0.2 + idx * 0.04}s` }">
             <div class="route-icon">
@@ -81,9 +97,14 @@
                 <code>{{ rule.service }}</code>
               </div>
             </div>
-            <button v-if="rule.hostname" class="btn-icon" @click="startEdit(rule)" title="编辑">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
+            <div v-if="rule.hostname" class="route-actions">
+              <button class="btn-icon" @click="startEdit(rule)" title="编辑">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn-icon btn-icon-danger" @click="startDelete(rule)" title="删除">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -104,8 +125,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NModal } from 'naive-ui'
-import { getTunnelDetail, addIngressRule, updateIngressRule, type TunnelDetail as TunnelDetailType, type IngressRule } from '../api'
+import { useMessage, NModal, NCheckbox } from 'naive-ui'
+import { getTunnelDetail, addIngressRule, updateIngressRule, deleteIngressRule, type TunnelDetail as TunnelDetailType, type IngressRule } from '../api'
 
 const route = useRoute()
 const message = useMessage()
@@ -122,6 +143,12 @@ const editing = ref(false)
 const saving = ref(false)
 const editOldHostname = ref('')
 const form = ref({ hostname: '', service: '' })
+
+// Delete state
+const showDelete = ref(false)
+const deleting = ref(false)
+const deleteDNS = ref(true)
+const deleteTarget = ref<IngressRule | null>(null)
 
 async function load() {
   loading.value = true
@@ -167,6 +194,34 @@ async function submitForm() {
     message.error('操作失败: ' + (e.response?.data?.error || e.message))
   } finally {
     saving.value = false
+  }
+}
+
+function startDelete(rule: IngressRule) {
+  deleteTarget.value = rule
+  deleteDNS.value = true
+  showDelete.value = true
+}
+
+async function submitDelete() {
+  const hostname = deleteTarget.value?.hostname
+  if (!hostname) return
+  deleting.value = true
+  try {
+    const { data } = await deleteIngressRule(route.params.id as string, hostname, deleteDNS.value)
+    if (data.dns_warning) {
+      message.warning(`路由已删除，但 DNS 记录未清理: ${data.dns_warning}`)
+    } else if (deleteDNS.value) {
+      message.success(`路由已删除，同时清理了 ${data.dns_deleted ?? 0} 条 DNS 记录`)
+    } else {
+      message.success('路由已删除')
+    }
+    showDelete.value = false
+    await load()
+  } catch (e: any) {
+    message.error('删除失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -393,4 +448,38 @@ onMounted(() => { load() })
   color: var(--color-ink);
 }
 .btn-icon:active { transform: scale(0.96); }
+
+.route-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.btn-icon-danger:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.btn-danger {
+  background: var(--color-error);
+  color: #fff;
+  border: 1px solid var(--color-error);
+}
+.btn-danger:hover:not(:disabled) { opacity: 0.88; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.delete-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-body);
+}
+.delete-hint code {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-ink);
+  background: var(--color-canvas-soft-2);
+  border-radius: 4px;
+  word-break: break-all;
+}
 </style>

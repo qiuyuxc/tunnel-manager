@@ -61,6 +61,26 @@ type Tunnel struct {
 	Status string `json:"status"`
 }
 
+// CreateTunnelRequest names a new tunnel.
+type CreateTunnelRequest struct {
+	Name string `json:"name"`
+}
+
+// CreateTunnelResponse describes a new tunnel and how to attach cloudflared to it.
+type CreateTunnelResponse struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Token      string `json:"token,omitempty"`
+	RunCommand string `json:"run_command,omitempty"`
+	Warning    string `json:"warning,omitempty"`
+}
+
+// DeleteIngressRequest removes a tunnel route and optionally its DNS record.
+type DeleteIngressRequest struct {
+	Hostname  string `json:"hostname"`
+	DeleteDNS bool   `json:"delete_dns"`
+}
+
 // Zone represents a Cloudflare Zone
 type Zone struct {
 	ID   string `json:"id"`

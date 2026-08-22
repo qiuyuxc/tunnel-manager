@@ -21,7 +21,7 @@ import (
 )
 
 // Version is the current application version, kept in sync with UPDATE.md.
-const Version = "v1.13.0"
+const Version = "v1.14.0"
 
 func main() {
 	// CLI flags for password management
@@ -98,7 +98,7 @@ func main() {
 
 	// Initialize handlers
 	configHandler := handlers.NewConfigHandler(st)
-	tunnelHandler := handlers.NewTunnelHandler(cf)
+	tunnelHandler := handlers.NewTunnelHandler(cf, st)
 	domainHandler := handlers.NewDomainHandler(domainService)
 	dnsHandler := handlers.NewDNSHandler(cf)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
@@ -153,9 +153,12 @@ func main() {
 
 		// Tunnel endpoints
 		r.Get("/tunnels", mw.Auth(tunnelHandler.ListTunnels))
+		r.Post("/tunnels", mw.Auth(tunnelHandler.CreateTunnel))
 		r.Get("/tunnels/{tunnelID}", mw.Auth(tunnelHandler.GetTunnelDetail))
+		r.Delete("/tunnels/{tunnelID}", mw.Auth(tunnelHandler.DeleteTunnel))
 		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.AddIngressRule))
 		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.UpdateIngressRule))
+		r.Delete("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.DeleteIngressRule))
 		r.Get("/zones", mw.Auth(tunnelHandler.ListZones))
 		r.Get("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.List))
 		r.Post("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.Create))

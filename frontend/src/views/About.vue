@@ -73,10 +73,10 @@
         <div class="changelog-note">
           <div class="changelog-note-title">本版本亮点（{{ currentVersion }}）</div>
           <ul>
-            <li>DNS 批量修改：勾选多条记录，弹窗中批量修改解析类型、解析值、TTL 和代理状态</li>
-            <li>区域选择器改为非原生下拉，支持搜索过滤</li>
-            <li>单条 DNS 编辑改为弹窗式，与批量修改交互一致</li>
-            <li>Telegram Bot 新增 /选择区域，选定后 DNS 命令可省略区域参数</li>
+            <li>在线新建与删除隧道：创建后直接给出连接令牌、cloudflared 运行命令与 Debian / Ubuntu 安装脚本</li>
+            <li>支持删除应用程序路由，确认时可勾选一并清理该主机名对应的 DNS 记录</li>
+            <li>DNS 批量删除：多选后一次性删除并实时显示进度，失败项自动保留供重试</li>
+            <li>DNS 操作按钮补上边框，编辑与删除入口更易辨认</li>
           </ul>
         </div>
       </section>
@@ -91,7 +91,7 @@
         <div class="feature-grid">
           <div class="feature-item">
             <strong>隧道管理</strong>
-            <p>列出与选择 Cloudflare Tunnel，查看和管理应用路由（Ingress）</p>
+            <p>新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS</p>
           </div>
           <div class="feature-item">
             <strong>域名绑定</strong>
@@ -99,7 +99,7 @@
           </div>
           <div class="feature-item">
             <strong>DNS 管理</strong>
-            <p>按 Zone 查询、新增、编辑、删除 A / AAAA / CNAME / TXT / MX 记录</p>
+            <p>按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除</p>
           </div>
           <div class="feature-item">
             <strong>Telegram Bot</strong>

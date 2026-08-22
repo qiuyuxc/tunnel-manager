@@ -31,6 +31,10 @@
         <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         刷新列表
       </button>
+      <button class="btn btn-secondary" @click="startCreate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建隧道
+      </button>
     </div>
 
     <div v-if="tunnels.length > 0" class="tunnel-list section">
@@ -55,6 +59,7 @@
           >
             {{ config.tunnel_id === tunnel.id ? '已选' : '选择' }}
           </button>
+          <button class="btn-sm btn-delete" title="删除隧道" @click="confirmDelete(tunnel)">删除</button>
         </div>
       </div>
     </div>
@@ -64,22 +69,100 @@
       <span class="empty-text">暂无隧道数据</span>
       <span class="empty-hint">请检查 Cloudflare API Token 是否正确配置</span>
     </div>
+
+    <!-- Create Tunnel -->
+    <n-modal v-model:show="showCreate" preset="card" title="新建隧道" class="tunnel-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false" :mask-closable="!creating">
+      <div class="modal-form">
+        <div class="form-field">
+          <label class="form-label">隧道名称</label>
+          <input v-model="createName" placeholder="例如 home-server" class="vercel-input" @keyup.enter="submitCreate" />
+        </div>
+        <p class="modal-hint">创建为「远程管理」模式，之后可直接在本面板编辑应用程序路由。</p>
+      </div>
+      <template #footer>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" :disabled="creating" @click="showCreate = false">取消</button>
+          <button class="btn btn-primary" :disabled="creating || !createName.trim()" @click="submitCreate">
+            {{ creating ? '创建中...' : '创建' }}
+          </button>
+        </div>
+      </template>
+    </n-modal>
+
+    <!-- Connector Token -->
+    <n-modal v-model:show="showToken" preset="card" :title="`隧道「${created?.name}」已创建`" class="tunnel-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false">
+      <div class="modal-form">
+        <p class="modal-hint">在需要接入的机器上运行下面的命令即可连上隧道。连接令牌等同于凭据，请妥善保存、不要外传。</p>
+        <div v-if="created?.warning" class="token-warning">{{ created.warning }}</div>
+
+        <div class="install-guide">
+          <button class="install-toggle" @click="showInstall = !showInstall">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" :class="{ open: showInstall }"><polyline points="9 18 15 12 9 6"/></svg>
+            还没装 cloudflared？查看 Debian / Ubuntu 安装命令
+          </button>
+          <div v-if="showInstall" class="copy-row">
+            <code class="token-box install-script">{{ installScript }}</code>
+            <button class="btn-sm btn-select" @click="copy(installScript)">复制</button>
+          </div>
+        </div>
+        <template v-if="created?.run_command">
+          <div class="form-field">
+            <label class="form-label">运行命令</label>
+            <div class="copy-row">
+              <code class="token-box">{{ created.run_command }}</code>
+              <button class="btn-sm btn-select" @click="copy(created!.run_command!)">复制</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label class="form-label">连接令牌</label>
+            <div class="copy-row">
+              <code class="token-box">{{ created.token }}</code>
+              <button class="btn-sm btn-select" @click="copy(created!.token!)">复制</button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <template #footer>
+        <div class="modal-footer">
+          <button class="btn btn-primary" @click="showToken = false">完成</button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useMessage } from 'naive-ui'
-import { listTunnels, setTunnelSelection, type Tunnel } from '../api'
+import { useMessage, useDialog, NModal } from 'naive-ui'
+import { listTunnels, setTunnelSelection, createTunnel, deleteTunnel, type Tunnel, type CreateTunnelResponse } from '../api'
 import { useConfigStore } from '../stores/config'
 
 const message = useMessage()
+const dialog = useDialog()
 const configStore = useConfigStore()
 const config = configStore.config
 
 const tunnels = ref<Tunnel[]>([])
 const loading = ref(false)
 const listVisible = ref(false)
+
+// Create / token state
+const showCreate = ref(false)
+const creating = ref(false)
+const createName = ref('')
+const showToken = ref(false)
+const created = ref<CreateTunnelResponse | null>(null)
+const showInstall = ref(false)
+
+const installScript = `# 添加 Cloudflare GPG 密钥
+sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
+
+# 添加 apt 软件源
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+# 安装 cloudflared
+sudo apt-get update && sudo apt-get install cloudflared`
 
 async function loadTunnels() {
   loading.value = true
@@ -119,6 +202,61 @@ async function clearTunnel() {
   }
 }
 
+function startCreate() {
+  createName.value = ''
+  showCreate.value = true
+}
+
+async function submitCreate() {
+  const name = createName.value.trim()
+  if (!name || creating.value) return
+  creating.value = true
+  try {
+    const { data } = await createTunnel(name)
+    created.value = data
+    showCreate.value = false
+    showInstall.value = false
+    showToken.value = true
+    await loadTunnels()
+  } catch (e: any) {
+    message.error('创建失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    creating.value = false
+  }
+}
+
+function confirmDelete(tunnel: Tunnel) {
+  dialog.warning({
+    title: '删除隧道',
+    content: `确定删除隧道「${tunnel.name}」吗？此操作无法撤销。若该隧道仍有活动连接，Cloudflare 会拒绝删除。`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    async onPositiveClick() {
+      try {
+        await deleteTunnel(tunnel.id)
+        if (config.tunnel_id === tunnel.id) {
+          config.tunnel_id = ''
+          config.tunnel_name = ''
+        }
+        message.success('隧道已删除')
+        await loadTunnels()
+      } catch (e: any) {
+        message.error('删除失败: ' + (e.response?.data?.error || e.message))
+        return false
+      }
+    },
+  })
+}
+
+async function copy(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success('已复制')
+  } catch {
+    message.warning('复制失败，请手动选择文本')
+  }
+}
+
 onMounted(() => { loadTunnels() })
 </script>
 
@@ -140,7 +278,7 @@ onMounted(() => { loadTunnels() })
 .selected-tunnel { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .selected-tunnel strong { color: var(--color-ink); font-size: 15px; }
 .selection-empty { color: var(--color-mute); font-size: 14px; }
-.toolbar { display: flex; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
 
 .tunnel-list {
   display: flex;
@@ -200,6 +338,7 @@ onMounted(() => { loadTunnels() })
   align-items: center;
   gap: var(--spacing-sm);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .status-tag {
@@ -247,6 +386,8 @@ onMounted(() => { loadTunnels() })
 .btn-select { background: transparent; color: var(--color-ink); border: 1px solid var(--color-hairline); }
 .btn-select:hover { border-color: var(--color-hairline-strong); background: var(--color-canvas-soft); }
 .btn-active { background: var(--color-canvas-soft-2); color: var(--color-mute); cursor: default; }
+.btn-delete { background: transparent; color: var(--color-mute); border: 1px solid var(--color-hairline); }
+.btn-delete:hover { color: var(--color-error); border-color: var(--color-error); }
 .btn-ghost-sm { background: transparent; color: var(--color-ink); border: none; cursor: pointer; }
 .btn-ghost-sm:hover { opacity: 0.6; }
 
@@ -277,5 +418,101 @@ onMounted(() => { loadTunnels() })
   .tunnel-card-left,
   .tunnel-card-right { width: 100%; }
   .tunnel-card-right { justify-content: flex-end; }
+}
+
+.tunnel-modal {
+  max-width: 520px;
+  width: 100%;
+}
+@media (max-width: 768px) {
+  .tunnel-modal { max-width: calc(100vw - 2 * var(--spacing-md)); }
+}
+:deep(.n-modal) { --n-duration: 0.15s; }
+:deep(.n-mask) { --n-duration: 0.15s; }
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.modal-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
+.copy-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.token-box {
+  flex: 1;
+  min-width: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-canvas-soft-2);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+.copy-row .btn-sm { height: 34px; flex-shrink: 0; }
+.token-warning {
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-error);
+  background: var(--color-canvas-soft);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+}
+
+.install-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.install-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--color-link);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.install-toggle:hover { opacity: 0.75; }
+.install-toggle svg {
+  flex-shrink: 0;
+  transition: transform 160ms ease-out;
+}
+.install-toggle svg.open { transform: rotate(90deg); }
+.install-script {
+  max-height: 260px;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 </style>

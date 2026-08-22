@@ -133,6 +133,60 @@ func (c *CloudflareClient) ListTunnels() ([]models.Tunnel, error) {
 	return tunnels, nil
 }
 
+// CreateTunnel creates a remotely-managed tunnel so its ingress can be edited through this API.
+func (c *CloudflareClient) CreateTunnel(name string) (*models.Tunnel, error) {
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(map[string]string{"name": name, "config_src": "cloudflare"})
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel", accountID)
+	req, err := c.newRequest(http.MethodPost, path, strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+	var tunnel models.Tunnel
+	if err := c.do(req, &tunnel); err != nil {
+		return nil, err
+	}
+	return &tunnel, nil
+}
+
+// DeleteTunnel removes a tunnel. Cloudflare rejects deletion while connections stay active.
+func (c *CloudflareClient) DeleteTunnel(tunnelID string) error {
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s", accountID, tunnelID)
+	req, err := c.newRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+	return c.do(req, nil)
+}
+
+// GetTunnelToken returns the connector token cloudflared needs to run the tunnel.
+func (c *CloudflareClient) GetTunnelToken(tunnelID string) (string, error) {
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return "", err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/token", accountID, tunnelID)
+	req, err := c.newRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return "", err
+	}
+	var token string
+	if err := c.do(req, &token); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
 // GetTunnelConfig fetches the current tunnel configuration
 func (c *CloudflareClient) GetTunnelConfig(tunnelID string) (*models.TunnelConfigResponse, error) {
 	accountID, err := c.currentAccountID()
