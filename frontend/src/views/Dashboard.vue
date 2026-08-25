@@ -2,242 +2,156 @@
   <div class="page-container">
     <div class="page-header">
       <h2>控制面板</h2>
-      <p>当前配置概览与快速操作</p>
+      <p>系统概览与快捷操作</p>
     </div>
-
-    <!-- Status Summary -->
-    <div class="status-banner" :class="[isReady ? 'ready' : 'pending', { 'stagger-item': visible }]" style="animation-delay: 0s;">
-      <div class="status-banner-dot" :class="isReady ? 'ready' : 'pending'" />
-      <span>{{ isReady ? '所有参数已就绪，可以绑定域名' : '部分参数未配置，请完成以下步骤' }}</span>
-    </div>
-
-    <!-- Config Cards Grid -->
-    <div class="card-grid card-grid-3 section">
-      <div class="config-card card-transition card-hover-lift" :class="{ 'stagger-item': visible }" style="animation-delay: 0.08s;">
-        <div class="config-card-top">
-          <span class="config-label caption-mono">隧道</span>
-          <span class="config-badge" :class="config.tunnel_id ? 'active' : 'inactive'">
-            {{ config.tunnel_id ? '已锁定' : '未配置' }}
-          </span>
+    <!-- Status Cards -->
+    <div class="card-grid card-grid-4 section">
+      <div class="metric-card">
+        <span class="metric-label">当前隧道</span>
+        <div class="metric-value">
+          <template v-if="config.tunnel_id">{{ config.tunnel_name || '已选隧道' }}</template>
+          <span v-else class="text-muted">未配置</span>
         </div>
-        <div class="config-value">
-          <div v-if="config.tunnel_id" class="tunnel-display">
-            <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
-            <code>{{ config.tunnel_id }}</code>
-          </div>
-          <span v-else class="config-empty">尚未锁定隧道</span>
-        </div>
-        <div class="config-action">
-          <router-link to="/tunnels" class="action-link">{{ config.tunnel_id ? '切换' : '选择隧道' }}</router-link>
+        <div class="metric-foot">
+          <router-link to="/tunnels" class="link">管理隧道</router-link>
         </div>
       </div>
-
-      <div class="config-card card-transition card-hover-lift" :class="{ 'stagger-item': visible }" style="animation-delay: 0.16s;">
-        <div class="config-card-top">
-          <span class="config-label caption-mono">转发地址</span>
-          <span class="config-badge" :class="config.service_url ? 'active' : 'inactive'">
-            {{ config.service_url ? '已锁定' : '未配置' }}
-          </span>
-        </div>
-        <div class="config-value">
+      <div class="metric-card">
+        <span class="metric-label">转发地址</span>
+        <div class="metric-value">
           <code v-if="config.service_url" class="inline-code">{{ config.service_url }}</code>
-          <span v-else class="config-empty">尚未设置转发地址</span>
+          <span v-else class="text-muted">未配置</span>
         </div>
-        <div class="config-action">
-          <router-link to="/domain" class="action-link">{{ config.service_url ? '修改' : '设置地址' }}</router-link>
+        <div class="metric-foot">
+          <router-link to="/domain" class="link">设置地址</router-link>
         </div>
       </div>
-
-      <div class="config-card card-transition card-hover-lift" :class="{ 'stagger-item': visible }" style="animation-delay: 0.24s;">
-        <div class="config-card-top">
-          <span class="config-label caption-mono">优选 CNAME</span>
-          <span class="config-badge active">已配置</span>
-        </div>
-        <div class="config-value">
+      <div class="metric-card">
+        <span class="metric-label">默认优选 CNAME</span>
+        <div class="metric-value">
           <code class="inline-code">{{ config.preferred_cname }}</code>
         </div>
-        <div class="config-action">
-          <router-link to="/settings" class="action-link">修改</router-link>
+        <div class="metric-foot">
+          <router-link to="/settings" class="link">修改默认</router-link>
+        </div>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">运行状态</span>
+        <div class="metric-value">
+          <span class="status-tag" :class="isReady ? 'healthy' : 'down'">
+            {{ isReady ? '配置就绪' : '配置未就绪' }}
+          </span>
+        </div>
+        <div class="metric-foot text-muted">
+          {{ isReady ? '可以进行域名绑定' : '缺少必要配置' }}
         </div>
       </div>
     </div>
-
     <!-- Quick Actions -->
-    <div class="section">
-      <div class="actions-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.32s;">
-        <span class="actions-label caption-mono">快速操作</span>
-        <div class="actions-row">
-          <router-link to="/tunnels" class="btn btn-primary">
-            管理隧道
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </router-link>
-          <router-link to="/domain" class="btn btn-secondary" :class="{ disabled: !isReady }">
-            绑定域名
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </router-link>
-          <router-link to="/settings" class="btn btn-ghost">
-            全局设置
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </router-link>
-        </div>
+        <div class="card section">
+      <div class="card-header">
+        <span class="caption-mono">快捷操作</span>
+      </div>
+      <div class="quick-actions">
+        <router-link to="/tunnels" class="action-tile">
+          <div class="action-icon" v-html="icons.tunnel" />
+          <div class="action-body">
+            <strong>隧道管理</strong>
+            <span>查看、创建和选择 Cloudflare Tunnel</span>
+          </div>
+        </router-link>
+        <router-link to="/domain" class="action-tile" :class="{ disabled: !isReady }">
+          <div class="action-icon" v-html="icons.domain" />
+          <div class="action-body">
+            <strong>域名绑定</strong>
+            <span>将域名绑定到已选隧道</span>
+          </div>
+        </router-link>
+        <router-link to="/dns" class="action-tile">
+          <div class="action-icon" v-html="icons.dns" />
+          <div class="action-body">
+            <strong>DNS 管理</strong>
+            <span>管理 Cloudflare DNS 记录</span>
+          </div>
+        </router-link>
+        <router-link to="/settings" class="action-tile">
+          <div class="action-icon" v-html="icons.settings" />
+          <div class="action-body">
+            <strong>全局设置</strong>
+            <span>站点品牌、CNAME 预设、回退源</span>
+          </div>
+        </router-link>
       </div>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useConfigStore } from '../stores/config'
 
+const icons = {
+  tunnel: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  domain: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  dns: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.89 15.14C3.63 13.75 3 12 3 12s.63-1.75 1.89-3.14C6.4 7.33 8.4 6 10.8 6h.41c.49 0 .68.64.34 1.05l-.6.7c-.23.27-.28.64-.13.96.15.32.47.53.82.53h1.36c.35 0 .64-.29.64-.64v-1.3c0-.35-.29-.64-.64-.64h-.09c-.55 0-.82-.66-.44-1.05l.6-.7c.23-.27.28-.64.13-.96a.92.92 0 0 0-.82-.53H10.8C8.4 3 6.4 4.33 4.89 6.14 3.63 7.53 3 9.25 3 12s.63 4.47 1.89 5.86C6.4 19.67 8.4 21 10.8 21h.41c.49 0 .68-.64.34-1.05l-.6-.7a.95.95 0 0 1-.13-.96c.15-.32.47-.53.82-.53h1.36c.35 0 .64.29.64.64v1.3c0 .35-.29.64-.64.64h-.09c-.55 0-.82.66-.44 1.05l.6.7c.23.27.28.64.13.96a.92.92 0 0 1-.82.53H10.8C8.4 21 6.4 19.67 4.89 17.86z"/></svg>',
+  settings: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+}
 const configStore = useConfigStore()
-const config = computed(() => configStore.config)
-const isReady = computed(() => !!(config.value.tunnel_id && config.value.service_url))
-
-const visible = ref(false)
-
+const config = configStore.config
+const isReady = computed(() => !!(config.tunnel_id && config.service_url))
 onMounted(() => {
   configStore.fetchConfig()
-  requestAnimationFrame(() => { visible.value = true })
 })
 </script>
-
 <style scoped>
-.status-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 16px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: var(--spacing-lg);
-  border: 1px solid transparent;
-}
-.status-banner.ready {
-  background: var(--color-banner-info-bg);
-  border-color: var(--color-banner-info-border);
-  color: var(--color-banner-info-text);
-}
-.status-banner.pending {
-  background: var(--color-banner-warning-bg);
-  border-color: var(--color-banner-warning-border);
-  color: var(--color-banner-warning-text);
-}
-.status-banner-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition: background-color 180ms ease-out;
-}
-.status-banner-dot.ready { background: var(--color-success); }
-.status-banner-dot.pending {
-  background: var(--color-warning);
-  animation: pulse-subtle 2.5s ease-in-out infinite;
-}
+.section { margin-bottom: var(--spacing-xl); }
 
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-
-.config-card,
-.actions-card {
-  background: var(--color-canvas);
+.metric-card {
+  background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-}
-.config-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-height: 164px;
+  gap: 8px;
 }
-.config-card:hover,
-.actions-card:hover {
-  border-color: var(--color-hairline-strong);
-  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
-}
-.config-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-}
-.config-label { color: var(--color-mute); }
-.config-badge {
-  font-size: 12px;
-  padding: 0 8px;
-  border-radius: 999px;
-  min-height: 22px;
-  line-height: 20px;
-  font-weight: 600;
-  font-family: var(--font-sans);
-  border: 1px solid transparent;
-}
-.config-badge.active {
-  background: var(--color-status-healthy-bg);
-  color: var(--color-status-healthy-text);
-  border-color: var(--color-status-healthy-border);
-}
-.config-badge.inactive {
-  background: var(--color-banner-warning-bg);
-  color: var(--color-banner-warning-text);
-  border-color: var(--color-banner-warning-border);
-}
-.config-value {
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-}
-.tunnel-display { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.tunnel-display strong { font-size: 15px; color: var(--color-ink); }
-.tunnel-display code { color: var(--color-mute); font: 12px/1.4 var(--font-mono); overflow-wrap: anywhere; }
-.config-empty { color: var(--color-mute); font-size: 14px; }
-.config-action {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-hairline);
-}
-.action-link {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-link);
-  text-decoration: none;
-}
-.action-link:hover { color: var(--color-ink); }
+.metric-label { font-size: 12px; color: var(--color-mute); font-weight: 500; }
+.metric-value { min-height: 24px; font-size: 15px; font-weight: 600; color: var(--color-ink); word-break: break-all; }
+.metric-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--color-hairline); font-size: 12px; }
+.link { color: var(--color-link); text-decoration: none; font-weight: 500; }
+.link:hover { color: var(--color-link-hover); text-decoration: underline; }
+.text-muted { color: var(--color-mute); font-weight: 400; }
 
-.actions-card { overflow: hidden; }
-.actions-label {
-  display: block;
-  color: var(--color-mute);
-  margin-bottom: var(--spacing-md);
+.card {
+  background: var(--color-canvas-raised);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
-.actions-row {
+.card-header { padding: var(--spacing-md) var(--spacing-lg); border-bottom: 1px solid var(--color-hairline); background: var(--color-canvas-soft); }
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-hairline);
+}
+.action-tile {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
-  flex-wrap: wrap;
+  padding: var(--spacing-lg);
+  background: var(--color-canvas-raised);
+  text-decoration: none;
+  color: var(--color-ink);
+  transition: background-color 120ms ease;
 }
+.action-tile:hover { background: var(--color-canvas-soft); }
+.action-tile.disabled { opacity: 0.5; pointer-events: none; }
+.action-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--color-canvas-soft); color: var(--color-link); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.action-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.action-body strong { font-size: 14px; font-weight: 600; }
+.action-body span { font-size: 12px; color: var(--color-body); line-height: 1.5; }
 
-.btn-secondary.disabled {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-@media (max-width: 768px) {
-  .actions-row {
-    flex-direction: column;
-  }
-  .actions-row .btn,
-  .actions-row .btn-primary,
-  .actions-row .btn-secondary,
-  .actions-row .btn-ghost {
-    width: 100%;
-    max-width: 100%;
-    justify-content: center;
-    box-sizing: border-box;
-  }
-}
+@media (max-width: 1024px) { .card-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .card-grid-4 { grid-template-columns: 1fr; } .quick-actions { grid-template-columns: 1fr; } }
 </style>

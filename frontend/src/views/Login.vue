@@ -1,6 +1,6 @@
 <template>
   <div class="login-page">
-    <div class="login-card" :class="{ 'login-card-enter': mounted, 'login-card-shake': shaking }">
+    <div class="login-card" :class="{ 'login-card-shake': shaking }">
       <div class="login-logo">
         <span class="logo-mark" aria-hidden="true">
           <img v-if="store.config.site_icon" :src="store.config.site_icon" alt="" class="brand-icon" />
@@ -11,11 +11,10 @@
         </span>
       </div>
       <h1 class="login-title">{{ store.config.site_name }}</h1>
-
+      <p class="login-subtitle">{{ store.config.site_description || '登录以继续' }}</p>
       <Transition name="step-fade" mode="out-in">
         <div :key="step">
           <template v-if="step === 'credentials'">
-            <p class="login-subtitle">{{ store.config.site_description || '登录以继续' }}</p>
             <form class="login-form" @submit.prevent="handleLogin">
               <div class="field">
                 <label class="field-label" for="login-username">用户名</label>
@@ -43,16 +42,13 @@
                   autocomplete="current-password"
                 />
               </div>
-
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
-
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '登录中...' : '登录' }}
               </button>
             </form>
           </template>
-
           <template v-else>
             <div class="factor-heading">
               <span class="security-stamp">2FA REQUIRED</span>
@@ -79,14 +75,12 @@
                   maxlength="32"
                 />
               </div>
-
               <div v-if="error" class="login-error" role="alert" aria-live="polite">{{ error }}</div>
-
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '验证中...' : '验证并登录' }}
               </button>
-              <button type="button" class="btn btn-ghost login-btn secondary-action" :disabled="loading" @click="resetChallenge()">
+              <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="resetChallenge()">
                 返回密码登录
               </button>
             </form>
@@ -96,16 +90,13 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { completeTwoFactorLogin, login as loginApi } from '../api'
 import { useConfigStore } from '../stores/config'
-
 const router = useRouter()
 const store = useConfigStore()
-
 const step = ref<'credentials' | 'factor'>('credentials')
 const form = reactive({ username: '', password: '' })
 const factorCode = ref('')
@@ -125,9 +116,7 @@ let entranceFrame: number | undefined
 let shakeFrame: number | undefined
 let shakeTimer: number | undefined
 let disposed = false
-
 const countdown = ref('05:00')
-
 onMounted(() => {
   entranceFrame = requestAnimationFrame(() => {
     entranceFrame = undefined
@@ -137,7 +126,6 @@ onMounted(() => {
     if (!disposed) usernameInput.value?.focus()
   })
 })
-
 onBeforeUnmount(() => {
   disposed = true
   clearChallengeTimer()
@@ -145,7 +133,6 @@ onBeforeUnmount(() => {
   if (shakeFrame !== undefined) cancelAnimationFrame(shakeFrame)
   if (shakeTimer !== undefined) window.clearTimeout(shakeTimer)
 })
-
 async function handleLogin() {
   if (!form.username || !form.password) {
     error.value = '请输入用户名和密码'
@@ -191,7 +178,6 @@ async function handleLogin() {
     loading.value = false
   }
 }
-
 async function handleFactorLogin() {
   const code = factorCode.value.trim()
   if (!code) {
@@ -227,20 +213,17 @@ async function handleFactorLogin() {
     loading.value = false
   }
 }
-
 function startChallengeTimer() {
   clearChallengeTimer()
   updateCountdown()
   countdownTimer = window.setInterval(updateCountdown, 1000)
 }
-
 function updateCountdown() {
   const seconds = Math.max(0, Math.ceil((challengeExpiresAt.value - Date.now()) / 1000))
   remainingSeconds.value = seconds
   countdown.value = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
   if (seconds === 0) resetChallenge('验证请求已过期，请重新输入密码')
 }
-
 function resetChallenge(message = '') {
   clearChallengeTimer()
   step.value = 'credentials'
@@ -251,14 +234,12 @@ function resetChallenge(message = '') {
   error.value = message
   nextTick(() => passwordInput.value?.focus())
 }
-
 function clearChallengeTimer() {
   if (countdownTimer !== undefined) {
     window.clearInterval(countdownTimer)
     countdownTimer = undefined
   }
 }
-
 function triggerShake() {
   if (shakeFrame !== undefined) cancelAnimationFrame(shakeFrame)
   if (shakeTimer !== undefined) window.clearTimeout(shakeTimer)
@@ -274,7 +255,6 @@ function triggerShake() {
   })
 }
 </script>
-
 <style scoped>
 .login-page {
   min-height: 100vh;
@@ -282,66 +262,65 @@ function triggerShake() {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-lg);
-  background:
-    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--color-link) 12%, transparent), transparent 28%),
-    linear-gradient(135deg, var(--color-canvas-soft), var(--color-canvas));
+  background: var(--color-canvas-soft);
   box-sizing: border-box;
 }
 
 .login-card {
   width: 100%;
-  max-width: 408px;
-  background: var(--color-canvas);
+  max-width: 400px;
+  background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
   text-align: center;
-  box-shadow: 0 24px 60px rgba(58, 47, 34, 0.12);
-  opacity: 0;
-  transform: translateY(16px) scale(0.98);
-  transition: opacity 420ms ease-out, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.login-card-enter { opacity: 1; transform: translateY(0) scale(1); }
 .login-card-shake { animation: shake 0.45s ease-out; }
+
 .login-logo { margin-bottom: var(--spacing-md); display: flex; justify-content: center; }
 
 .logo-mark {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
-  background: var(--color-ink);
-  color: var(--color-canvas);
+  border-radius: var(--radius-md);
+  background: var(--color-link);
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .login-title {
-  font-family: var(--font-display);
-  font-size: 25px;
+  font-size: 22px;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
   color: var(--color-ink);
   margin: 0 0 6px;
 }
 
 .login-subtitle { font-size: 14px; color: var(--color-mute); margin: 0 0 var(--spacing-xl); }
+
 .login-form { display: flex; flex-direction: column; gap: var(--spacing-md); text-align: left; }
+
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: 13px; font-weight: 700; color: var(--color-ink); }
+
+.field-label { font-size: 13px; font-weight: 500; color: var(--color-ink); }
 
 .factor-heading { margin-top: var(--spacing-md); }
+
 .security-stamp {
   display: inline-flex;
   padding: 5px 9px;
   margin-bottom: var(--spacing-sm);
-  border: 1px solid var(--color-banner-warning-border);
+  border: 1px solid var(--color-status-degraded-border);
   border-radius: var(--radius-sm);
-  color: var(--color-banner-warning-text);
-  background: var(--color-banner-warning-bg);
+  color: var(--color-status-degraded-text);
+  background: var(--color-status-degraded-bg);
   font: 700 11px/1 var(--font-mono);
   letter-spacing: 0.08em;
 }
@@ -357,22 +336,21 @@ function triggerShake() {
 }
 
 .factor-meta strong { color: var(--color-ink); font: 700 13px/1 var(--font-mono); }
-.factor-meta .countdown-warning { color: var(--color-banner-warning-text); }
+.factor-meta .countdown-warning { color: var(--color-warning); }
 .factor-input { font-family: var(--font-mono); letter-spacing: 0.04em; }
 
 .login-error {
-  font-size: 14px;
-  color: var(--color-result-error-text);
+  font-size: 13px;
+  color: var(--color-error);
   text-align: center;
-  padding: 9px 10px;
-  background: var(--color-result-error-bg);
-  border: 1px solid var(--color-result-error-border);
+  padding: 8px 10px;
+  background: var(--color-status-down-bg);
+  border: 1px solid var(--color-status-down-border);
   border-radius: var(--radius-md);
-  animation: fadeIn 180ms ease-out;
 }
 
 .login-btn { width: 100%; justify-content: center; margin-top: var(--spacing-xs); }
-.secondary-action { margin-top: calc(var(--spacing-sm) * -1); }
+
 .spinner {
   width: 14px;
   height: 14px;
@@ -384,8 +362,16 @@ function triggerShake() {
 
 .step-fade-enter-active, .step-fade-leave-active { transition: opacity 160ms ease; }
 .step-fade-enter-from, .step-fade-leave-to { opacity: 0; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
 
 @media (max-width: 480px) {
   .login-card { padding: var(--spacing-xl) var(--spacing-lg); }

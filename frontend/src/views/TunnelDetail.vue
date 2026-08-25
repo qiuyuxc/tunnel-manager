@@ -5,33 +5,35 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         返回隧道列表
       </router-link>
-      <h2>隧道详情</h2>
+      <div class="detail-title-row">
+        <div>
+          <h2>隧道详情</h2>
+          <p v-if="detail" class="detail-subtitle">{{ detail.name }}</p>
+        </div>
+      </div>
     </div>
-
     <div v-if="loading" class="empty-state">
       <svg class="spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       <span class="empty-text">加载中...</span>
     </div>
-
     <template v-else-if="detail">
       <!-- Tunnel Info -->
       <div class="info-grid section">
-        <div class="info-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.08s;">
+        <div class="info-card" :class="{ '': visible }" style="animation-delay: 0.08s;">
           <span class="info-label caption-mono">名称</span>
           <span class="info-value">{{ detail.name }}</span>
         </div>
-        <div class="info-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.12s;">
+        <div class="info-card" :class="{ '': visible }" style="animation-delay: 0.12s;">
           <span class="info-label caption-mono">隧道 ID</span>
           <code class="inline-code">{{ detail.id }}</code>
         </div>
-        <div class="info-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.16s;">
+        <div class="info-card" :class="{ '': visible }" style="animation-delay: 0.16s;">
           <span class="info-label caption-mono">状态</span>
           <span class="status-tag" :class="detail.status">{{ detail.status }}</span>
         </div>
       </div>
-
       <!-- Ingress Routes -->
-      <div class="section">
+      <div class="section route-section">
         <div class="section-header">
           <span class="caption-mono section-label">已发布应用程序路由</span>
           <div class="section-actions">
@@ -42,7 +44,6 @@
             </button>
           </div>
         </div>
-
         <!-- Add/Edit Modal -->
         <n-modal v-model:show="showForm" preset="card" :title="editing ? '修改路由' : '新增路由'" class="route-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false">
           <div class="modal-form">
@@ -64,7 +65,6 @@
             </div>
           </template>
         </n-modal>
-
         <!-- Delete Confirmation -->
         <n-modal v-model:show="showDelete" preset="card" title="删除路由" class="route-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false" :mask-closable="!deleting">
           <div class="modal-form">
@@ -80,9 +80,8 @@
             </div>
           </template>
         </n-modal>
-
         <div v-if="routes.length > 0" class="route-grid">
-          <div v-for="(rule, idx) in routes" :key="idx" class="route-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: `${0.2 + idx * 0.04}s` }">
+          <div v-for="(rule, idx) in routes" :key="idx" class="route-card" :class="{ '': visible }" :style="{ animationDelay: `${0.2 + idx * 0.04}s` }">
             <div class="route-icon">
               <svg v-if="rule.hostname" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
               <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h6"/></svg>
@@ -107,49 +106,40 @@
             </div>
           </div>
         </div>
-
         <div v-else class="empty-state">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h6"/></svg>
           <span class="empty-text">暂无路由规则</span>
         </div>
       </div>
     </template>
-
     <div v-else class="empty-state">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
       <span class="empty-text">无法加载隧道详情</span>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage, NModal, NCheckbox } from 'naive-ui'
 import { getTunnelDetail, addIngressRule, updateIngressRule, deleteIngressRule, type TunnelDetail as TunnelDetailType, type IngressRule } from '../api'
-
 const route = useRoute()
 const message = useMessage()
-
 const detail = ref<TunnelDetailType | null>(null)
 const loading = ref(true)
 const visible = ref(false)
-
 const routes = computed(() => detail.value?.ingress ?? [])
-
 // Form state
 const showForm = ref(false)
 const editing = ref(false)
 const saving = ref(false)
 const editOldHostname = ref('')
 const form = ref({ hostname: '', service: '' })
-
 // Delete state
 const showDelete = ref(false)
 const deleting = ref(false)
 const deleteDNS = ref(true)
 const deleteTarget = ref<IngressRule | null>(null)
-
 async function load() {
   loading.value = true
   try {
@@ -162,21 +152,18 @@ async function load() {
     loading.value = false
   }
 }
-
 function startAdd() {
   editing.value = false
   editOldHostname.value = ''
   form.value = { hostname: '', service: '' }
   showForm.value = true
 }
-
 function startEdit(rule: IngressRule) {
   editing.value = true
   editOldHostname.value = rule.hostname || ''
   form.value = { hostname: rule.hostname || '', service: rule.service }
   showForm.value = true
 }
-
 async function submitForm() {
   saving.value = true
   const tunnelID = route.params.id as string
@@ -196,13 +183,11 @@ async function submitForm() {
     saving.value = false
   }
 }
-
 function startDelete(rule: IngressRule) {
   deleteTarget.value = rule
   deleteDNS.value = true
   showDelete.value = true
 }
-
 async function submitDelete() {
   const hostname = deleteTarget.value?.hostname
   if (!hostname) return
@@ -224,262 +209,70 @@ async function submitDelete() {
     deleting.value = false
   }
 }
-
 onMounted(() => { load() })
 </script>
-
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: var(--spacing-md); }
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--spacing-md);
-}
-.info-card {
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.info-label {
-  color: var(--color-mute);
-}
-.info-value {
-  font-weight: 500;
-  color: var(--color-ink);
-  word-break: break-all;
-}
-
-.section-label { color: var(--color-mute); }
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-md);
-}
-.route-count {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-mute);
-  background: var(--color-canvas-soft-2);
-  padding: 0 8px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 9999px;
-}
-
-.route-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-}
-.route-card {
-  position: relative;
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-md);
-  transition: border-color 160ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out;
-}
-.route-card:hover {
-  border-color: var(--color-hairline-strong);
-  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
-  transform: translateY(-1px);
-}
-.route-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--color-canvas-soft-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--color-body);
-}
-.route-body { min-width: 0; flex: 1; }
-.route-hostname {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ink);
-  margin-bottom: 4px;
-  word-break: break-all;
-}
-.route-catchall {
-  color: var(--color-mute);
-  font-style: italic;
-}
-.route-service {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-}
-.route-service code {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-mute);
-  word-break: break-all;
-}
-
-.status-tag {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 0 8px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 9999px;
-  text-transform: uppercase;
-  align-self: flex-start;
-}
-.status-tag.healthy {
-  background: var(--color-status-healthy-bg);
-  color: var(--color-status-healthy-text);
-  border: 1px solid var(--color-status-healthy-border);
-}
-.status-tag.degraded {
-  background: var(--color-status-degraded-bg);
-  color: var(--color-status-degraded-text);
-  border: 1px solid var(--color-status-degraded-border);
-}
-.status-tag.down,
-.status-tag.inactive {
-  background: var(--color-status-down-bg);
-  color: var(--color-status-down-text);
-  border: 1px solid var(--color-status-down-border);
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-3xl) var(--spacing-lg);
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  gap: var(--spacing-sm);
-}
+.page-header { margin-bottom: var(--spacing-xl); }
+.back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; color: var(--color-mute); font-size: 12px; font-weight: 500; text-decoration: none; }
+.back-link:hover { color: var(--color-link); }
+.detail-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-lg); }
+.detail-title-row h2 { margin-bottom: 4px; }
+.detail-subtitle { margin: 0; color: var(--color-body); font-size: 13px; }
+.section { margin-bottom: var(--spacing-xl); }
+.info-grid { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(280px, 1.5fr) minmax(160px, 0.7fr); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl); }
+.info-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: var(--spacing-lg); background: var(--color-canvas-raised); border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
+.info-label { color: var(--color-mute); font-size: 12px; font-weight: 500; }
+.info-value { color: var(--color-ink); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.info-card .inline-code { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.section-header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+.section-label { color: var(--color-ink); font-size: 14px; font-weight: 600; }
+.section-actions { display: flex; align-items: center; gap: var(--spacing-sm); }
+.route-count { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; color: var(--color-mute); background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: 999px; font-family: var(--font-mono); font-size: 12px; }
+.route-grid { display: flex; flex-direction: column; gap: 1px; overflow: hidden; background: var(--color-hairline); border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.route-card { display: grid; grid-template-columns: 40px minmax(180px, 0.7fr) minmax(240px, 1fr) auto; align-items: center; gap: var(--spacing-md); min-width: 0; padding: 14px 16px; background: var(--color-canvas-raised); transition: background-color 140ms ease-out; }
+.route-card:hover { background: var(--color-canvas-soft); }
+.route-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; color: var(--color-link); background: color-mix(in srgb, var(--color-link) 9%, var(--color-canvas-raised)); border: 1px solid color-mix(in srgb, var(--color-link) 18%, var(--color-hairline)); border-radius: var(--radius-md); }
+.route-body { display: contents; }
+.route-hostname { min-width: 0; color: var(--color-ink); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.route-catchall { color: var(--color-mute); font-style: italic; }
+.route-service { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--color-mute); font-size: 12px; }
+.route-service code { min-width: 0; overflow: hidden; color: var(--color-body); font-family: var(--font-mono); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.route-service svg { flex-shrink: 0; color: var(--color-mute); }
+.route-actions { display: flex; align-items: center; gap: 6px; }
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--color-mute); background: transparent; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); cursor: pointer; transition: transform 120ms ease-out, background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out; }
+.btn-icon:hover { color: var(--color-ink); background: var(--color-canvas-soft); border-color: var(--color-hairline-strong); }
+.btn-icon:active { transform: scale(0.96); }
+.btn-icon-danger:hover { color: var(--color-error); border-color: var(--color-error); background: var(--color-status-down-bg); }
+.status-tag { display: inline-flex; align-items: center; align-self: flex-start; height: 24px; padding: 0 10px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; }
+.status-tag.healthy { color: var(--color-status-healthy-text); background: var(--color-status-healthy-bg); border: 1px solid var(--color-status-healthy-border); }
+.status-tag.degraded { color: var(--color-status-degraded-text); background: var(--color-status-degraded-bg); border: 1px solid var(--color-status-degraded-border); }
+.status-tag.down, .status-tag.inactive { color: var(--color-status-down-text); background: var(--color-status-down-bg); border: 1px solid var(--color-status-down-border); }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-sm); padding: var(--spacing-3xl) var(--spacing-lg); background: var(--color-canvas-raised); border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); }
 .empty-text { color: var(--color-body); font-size: 16px; font-weight: 500; }
-
+.modal-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.form-label { display: block; margin-bottom: 6px; color: var(--color-mute); font-size: 12px; font-weight: 500; }
+.vercel-input { width: 100%; height: 36px; box-sizing: border-box; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.route-modal { width: 100%; max-width: 480px; }
+.delete-hint { margin: 0; color: var(--color-body); font-size: 14px; line-height: 1.7; }
+.delete-hint code { padding: 1px 5px; color: var(--color-ink); background: var(--color-canvas-soft-2); border-radius: 4px; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
-
-@media (max-width: 768px) {
+@media (max-width: 860px) {
+  .info-grid { grid-template-columns: 1fr 1fr; }
+  .info-card:nth-child(2) { grid-column: span 2; }
+  .route-card { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .route-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .route-service { grid-column: 2 / -1; }
+}
+@media (max-width: 600px) {
   .info-grid { grid-template-columns: 1fr; }
-  .route-grid { grid-template-columns: 1fr; }
-  .route-card { padding: var(--spacing-md); }
-  .section-actions { flex-wrap: wrap; }
-}
-
-.section-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-.form-label {
-  display: block;
-  font-size: 12px;
-  color: var(--color-mute);
-  margin-bottom: 6px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* Modal size */
-.route-modal {
-  max-width: 480px;
-  width: 100%;
-}
-@media (max-width: 768px) {
-  .route-modal {
-    max-width: calc(100vw - 2 * var(--spacing-md));
-  }
-}
-
-/* Speed up modal transition */
-:deep(.n-modal) {
-  --n-duration: 0.15s;
-}
-:deep(.n-mask) {
-  --n-duration: 0.15s;
-}
-
-.btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline);
-  background: transparent;
-  color: var(--color-mute);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform 120ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
-}
-.btn-icon:hover {
-  border-color: var(--color-hairline-strong);
-  background: var(--color-canvas-soft);
-  color: var(--color-ink);
-}
-.btn-icon:active { transform: scale(0.96); }
-
-.route-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.btn-icon-danger:hover {
-  color: var(--color-error);
-  border-color: var(--color-error);
-}
-
-.btn-danger {
-  background: var(--color-error);
-  color: #fff;
-  border: 1px solid var(--color-error);
-}
-.btn-danger:hover:not(:disabled) { opacity: 0.88; }
-.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.delete-hint {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--color-body);
-}
-.delete-hint code {
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--color-ink);
-  background: var(--color-canvas-soft-2);
-  border-radius: 4px;
-  word-break: break-all;
+  .info-card:nth-child(2) { grid-column: auto; }
+  .detail-title-row { align-items: flex-start; flex-direction: column; }
+  .section-header { align-items: flex-start; flex-direction: column; }
+  .section-actions { width: 100%; justify-content: space-between; }
+  .route-card { grid-template-columns: 34px minmax(0, 1fr) auto; padding: 13px 12px; }
+  .route-service { grid-column: 2 / -1; }
+  .route-service code { white-space: normal; overflow-wrap: anywhere; }
 }
 </style>

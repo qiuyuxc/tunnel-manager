@@ -1,19 +1,9 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <router-link to="/" class="back-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回控制面板
-      </router-link>
-      <div class="page-header-row">
-        <div>
-          <h2>域名绑定</h2>
-          <p>将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源</p>
-        </div>
-        <router-link to="/domain/batch" class="btn btn-secondary batch-link">批量绑定</router-link>
-      </div>
+      <h2>域名绑定</h2>
+      <p>将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源</p>
     </div>
-
     <div v-if="!config.tunnel_id || !config.service_url" class="prereq-banner section">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-banner-warning-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
@@ -21,7 +11,6 @@
         <div class="prereq-desc">请先在「隧道管理」选择隧道，并配置转发地址。</div>
       </div>
     </div>
-
     <div class="config-summary section">
       <div class="summary-row">
         <span class="summary-label caption-mono">当前隧道</span>
@@ -44,7 +33,6 @@
         <code class="inline-code">{{ config.preferred_cname }}</code>
       </div>
     </div>
-
     <div class="form-card section">
       <div class="form-card-header">
         <span class="caption-mono form-card-label">绑定新域名</span>
@@ -106,7 +94,6 @@
         </button>
       </div>
     </div>
-
     <transition name="result-slide">
       <div v-if="result" class="result-card section" :class="result.success ? 'success' : 'error'">
       <div class="result-header">
@@ -119,34 +106,28 @@
     </transition>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomain, setServiceURL, type BindRequest } from '../api'
 import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
-
 const message = useMessage()
 const configStore = useConfigStore()
 const config = configStore.config
-
 const form = ref<BindRequest>({ mode: 'simple', preferred_cname: '', main_domain: '', aux_domain: '' })
 const errors = ref<Record<string, string>>({})
 const binding = ref(false)
 const result = ref<{ success: boolean; message: string } | null>(null)
 const serviceURL = ref(config.service_url)
 const savingService = ref(false)
-
 const isValid = computed(() => serviceURL.value.trim() && form.value.main_domain.trim() && (form.value.mode === 'simple' || form.value.aux_domain.trim()))
-
 function validate(field: string) {
   const value = form.value[field as keyof BindRequest]
   const v = typeof value === 'string' ? value.trim() : value
   errors.value[field] = field === 'main_domain' || (field === 'aux_domain' && form.value.mode === 'preferred')
     ? (!v ? '此字段不能为空' : '') : ''
 }
-
 async function saveServiceURL() {
   savingService.value = true
   try {
@@ -159,7 +140,6 @@ async function saveServiceURL() {
     savingService.value = false
   }
 }
-
 async function handleBind() {
   if (!isValid.value) return
   binding.value = true
@@ -181,141 +161,157 @@ async function handleBind() {
     binding.value = false
   }
 }
-
 onMounted(async () => {
   await configStore.fetchConfig()
   serviceURL.value = config.service_url
 })
 </script>
-
 <style scoped>
-.page-header { max-width: none; margin-bottom: var(--spacing-lg); }
-.page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
-.batch-link { flex: none; margin-top: 2px; text-decoration: none; }
-.section { margin-bottom: var(--spacing-md); }
+.section { margin-bottom: var(--spacing-xl); }
+.page-header { margin-bottom: var(--spacing-lg); }
 
 .prereq-banner {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  background: var(--color-banner-warning-bg);
-  border: 1px solid var(--color-banner-warning-border);
+  background: var(--color-status-degraded-bg);
+  border: 1px solid var(--color-status-degraded-border);
   border-radius: var(--radius-md);
+  color: var(--color-status-degraded-text);
+  margin-bottom: var(--spacing-lg);
 }
-.prereq-title { font-size: 14px; font-weight: 600; color: var(--color-banner-warning-text); }
-.prereq-desc { font-size: 14px; color: var(--color-banner-warning-text); opacity: 0.84; margin-top: 2px; }
+.prereq-title { font-size: 14px; font-weight: 600; }
+.prereq-desc { margin-top: 2px; font-size: 13px; opacity: 0.84; }
 
 .config-summary,
 .form-card {
-  background: var(--color-canvas);
+  background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
 }
-.config-summary { overflow: hidden; }
+
+.config-summary {
+  overflow: hidden;
+  margin-bottom: var(--spacing-xl);
+}
 .summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: 14px var(--spacing-lg);
   border-bottom: 1px solid var(--color-hairline);
 }
 .summary-row:last-child { border-bottom: none; }
-.summary-label,
-.form-card-label { color: var(--color-mute); }
+.summary-label { color: var(--color-mute); font-size: 12px; font-weight: 500; }
 .summary-empty { color: var(--color-mute); font-size: 14px; }
 .summary-row-edit { flex-wrap: wrap; }
-.summary-edit { display: flex; gap: var(--spacing-xs); align-items: center; flex: 1; min-width: 0; justify-content: flex-end; }
-.summary-input { min-height: 32px; font-size: 13px; max-width: 280px; }
-.btn-sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.summary-edit {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+.summary-input { height: 36px; font-size: 13px; max-width: 320px; }
+.btn-sm { height: 36px; padding: 0 14px; font-size: 13px; }
 .summary-tunnel { display: flex; min-width: 0; align-items: flex-end; flex-direction: column; gap: 2px; text-align: right; }
 .summary-tunnel strong { color: var(--color-ink); font-size: 14px; }
 
-.form-card { padding: var(--spacing-lg); }
-.form-card-header { margin-bottom: var(--spacing-md); }
-.mode-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-xs); margin-bottom: var(--spacing-lg); padding: 4px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: var(--color-canvas-soft); }
-.mode-option { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: 10px 12px; color: var(--color-body); text-align: left; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out, transform 120ms ease-out; }
+.form-card {
+  padding: var(--spacing-xl);
+}
+.form-card-header {
+  margin-bottom: var(--spacing-lg);
+}
+.form-card-label { color: var(--color-mute); font-size: 12px; font-weight: 500; }
+
+.mode-selector {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: var(--spacing-xl);
+  padding: 4px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 180px;
+  padding: 12px 16px;
+  color: var(--color-body);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
 .mode-option strong { color: var(--color-ink); font-size: 14px; }
 .mode-option span { font-size: 12px; line-height: 1.5; }
-.mode-option.active { background: var(--color-canvas); border-color: var(--color-hairline); box-shadow: 0 1px 2px rgba(58, 47, 34, 0.06); }
-.mode-option:active { transform: scale(0.99); }
-.form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
+.mode-option.active {
+  background: var(--color-canvas-raised);
+  border-color: var(--color-link);
+  color: var(--color-ink);
+}
+.mode-option:hover:not(.active) { background: rgba(37, 99, 235, 0.05); }
+
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
 .cname-field { grid-column: 1 / -1; }
 .simple-fields { grid-template-columns: 1fr; }
-.field { display: flex; flex-direction: column; gap: 4px; }
-.field-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ink);
-  margin-bottom: 4px;
-}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 14px; font-weight: 500; color: var(--color-ink); }
 .field-note { font-weight: 400; color: var(--color-mute); margin-left: 4px; }
 .input-wrapper { display: flex; flex-direction: column; gap: 4px; }
 .field-error { font-size: 12px; color: var(--color-error); }
-.field-hint { font-size: 12px; color: var(--color-mute); }
+.field-hint { font-size: 12px; color: var(--color-mute); margin-top: 4px; }
+
 .form-action {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-xl);
   border-top: 1px solid var(--color-hairline);
 }
 
 .result-card {
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
+  margin-top: var(--spacing-xl);
 }
 .result-card.success {
-  background: var(--color-result-success-bg);
-  border: 1px solid var(--color-result-success-border);
+  background: var(--color-status-healthy-bg);
+  border: 1px solid var(--color-status-healthy-border);
 }
 .result-card.error {
-  background: var(--color-result-error-bg);
-  border: 1px solid var(--color-result-error-border);
+  background: var(--color-status-down-bg);
+  border: 1px solid var(--color-status-down-border);
 }
-.result-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: var(--spacing-xs);
-}
-.result-card.success .result-header { color: var(--color-result-success-text); }
-.result-card.error .result-header { color: var(--color-result-error-text); }
+.result-header { display: flex; align-items: center; gap: var(--spacing-xs); font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-xs); }
+.result-card.success .result-header { color: var(--color-status-healthy-text); }
+.result-card.error .result-header { color: var(--color-status-down-text); }
 .result-body { font-size: 14px; color: var(--color-body); overflow-wrap: anywhere; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
 
-.result-slide-enter-active { animation: fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1); }
-.result-slide-leave-active { animation: fadeIn 200ms ease-in reverse; }
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
 @media (max-width: 768px) {
-  .page-header-row { flex-direction: column; }
-  .batch-link { margin-top: 0; }
   .summary-row { align-items: flex-start; flex-direction: column; }
   .summary-edit { width: 100%; justify-content: stretch; }
-  .summary-input { max-width: none; flex: 1; }
-  .mode-selector { grid-template-columns: 1fr; }
+  .summary-input { max-width: none; }
   .form-fields { grid-template-columns: 1fr; }
   .cname-field { grid-column: auto; }
   .summary-tunnel { align-items: flex-start; text-align: left; }
-}
-
-@media (max-width: 480px) {
-  .summary-edit { align-items: stretch; flex-direction: column; }
-  .summary-edit .btn { width: 100%; justify-content: center; }
-  .field-label { display: flex; flex-direction: column; gap: 2px; }
-  .field-note { margin-left: 0; }
-  .form-action .btn { width: 100%; justify-content: center; }
+  .mode-selector { width: 100%; flex-direction: column; }
+  .mode-option { width: 100%; box-sizing: border-box; }
 }
 </style>

@@ -21,7 +21,7 @@ import (
 )
 
 // Version is the current application version, kept in sync with UPDATE.md.
-const Version = "v1.14.0"
+const Version = "v1.15.0"
 
 func main() {
 	// CLI flags for password management

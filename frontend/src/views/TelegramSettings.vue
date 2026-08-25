@@ -1,18 +1,12 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <router-link to="/" class="back-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回控制面板
-      </router-link>
-      <h2>TG 机器人设置</h2>
+            <h2>TG 机器人设置</h2>
       <p>通过 Telegram Bot 远程管理隧道配置</p>
     </div>
-
     <div class="settings-list section">
-
       <!-- Status card -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.08s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.08s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">Bot 状态</div>
         </div>
@@ -36,9 +30,8 @@
         <div v-if="status.last_error" class="status-error">{{ status.last_error }}</div>
         <div v-if="status.last_update_at" class="status-meta">最近更新: {{ formatTime(status.last_update_at) }}</div>
       </div>
-
       <!-- Enable toggle -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.16s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.16s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">启用 Bot</div>
           <div class="settings-card-desc">开启后 Bot 将在后台运行（长轮询模式），或注册 Webhook 接收消息。</div>
@@ -51,9 +44,8 @@
           <span class="toggle-label">{{ settings.enabled ? '已启用' : '已禁用' }}</span>
         </div>
       </div>
-
       <!-- Bot Token -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.24s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.24s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">Bot Token</div>
           <div class="settings-card-desc">
@@ -72,9 +64,8 @@
           </div>
         </div>
       </div>
-
       <!-- Admin TG IDs -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.32s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.32s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">管理员 TG ID</div>
           <div class="settings-card-desc">
@@ -91,9 +82,8 @@
           </div>
         </div>
       </div>
-
       <!-- API Endpoint -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.40s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.40s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">API 端点</div>
           <div class="settings-card-desc">默认使用 Telegram 官方 API。如果你有自建 Bot API 服务器，可在此指定地址。</div>
@@ -108,9 +98,8 @@
           </div>
         </div>
       </div>
-
       <!-- Mode -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.48s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.48s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">运行模式</div>
           <div class="settings-card-desc">长轮询无需公网地址，适合内网环境。Webhook 需要服务器有公网 HTTPS 地址。</div>
@@ -138,9 +127,8 @@
           <span class="webhook-note">后端将自动追加 /api/telegram/webhook</span>
         </div>
       </div>
-
       <!-- Actions -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.56s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.56s' }">
         <div class="actions-row">
           <button class="btn btn-primary" :disabled="saving" @click="handleSave">
             <svg v-if="saving" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -151,9 +139,8 @@
           </button>
         </div>
       </div>
-
       <!-- Setup guide -->
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.64s' }">
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.64s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">设置教程</div>
         </div>
@@ -172,11 +159,9 @@
         </div>
         <p class="guide-note">Bot 与面板共享同一配置，两边操作实时同步。</p>
       </div>
-
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMessage } from 'naive-ui'
@@ -188,10 +173,8 @@ import {
   type TelegramSettings,
   type TelegramStatus,
 } from '../api'
-
 const message = useMessage()
 const visible = ref(false)
-
 const settings = ref({
   enabled: false,
   bot_token: '',
@@ -202,7 +185,6 @@ const settings = ref({
   bot_token_set: false,
   bot_token_hint: '',
 })
-
 const status = ref<TelegramStatus>({
   enabled: false,
   running: false,
@@ -211,15 +193,12 @@ const status = ref<TelegramStatus>({
   last_error: '',
   last_update_at: '',
 })
-
 const saving = ref(false)
 const testing = ref(false)
 let statusTimer: ReturnType<typeof setInterval> | null = null
-
 const modeLabel = computed(() => {
   return status.value.mode === 'webhook' ? 'Webhook 模式' : '长轮询模式'
 })
-
 function formatTime(ts: string): string {
   try {
     const d = new Date(ts)
@@ -228,7 +207,6 @@ function formatTime(ts: string): string {
     return ts
   }
 }
-
 async function fetchSettings() {
   try {
     const { data } = await getTelegramSettings()
@@ -244,7 +222,6 @@ async function fetchSettings() {
     // settings may not be available
   }
 }
-
 async function fetchStatus() {
   try {
     const { data } = await getTelegramStatus()
@@ -253,7 +230,6 @@ async function fetchStatus() {
     // ignore
   }
 }
-
 async function handleSave() {
   saving.value = true
   try {
@@ -279,7 +255,6 @@ async function handleSave() {
     saving.value = false
   }
 }
-
 async function handleTest() {
   testing.value = true
   try {
@@ -291,226 +266,161 @@ async function handleTest() {
     testing.value = false
   }
 }
-
 onMounted(() => {
   fetchSettings()
   fetchStatus()
   statusTimer = setInterval(fetchStatus, 10000)
   requestAnimationFrame(() => { visible.value = true })
 })
-
 onUnmounted(() => {
   if (statusTimer) clearInterval(statusTimer)
 })
 </script>
-
 <style scoped>
 .page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: 0; }
+.section { margin-bottom: var(--spacing-xl); }
 
 .settings-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
 }
 
 .settings-card {
-  background: var(--color-canvas);
+  background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  transition: border-color 160ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out;
-}
-.settings-card:hover {
-  border-color: var(--color-hairline-strong);
-  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
-  transform: translateY(-1px);
+  padding: var(--spacing-xl);
 }
 
-.settings-card-header { margin-bottom: var(--spacing-md); }
+.settings-card-header {
+  margin-bottom: var(--spacing-lg);
+}
+
 .settings-card-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--color-ink);
-  margin-bottom: 4px;
+  margin: 0 0 4px;
 }
+
 .settings-card-desc {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-mute);
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
-.settings-input-row {
-  display: flex;
-  gap: var(--spacing-sm);
-  align-items: flex-start;
-}
-.input-wrapper { flex: 1; min-width: 0; }
-
-.token-hint {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-success);
-  margin-top: 4px;
-}
-
-/* Status */
 .status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
 }
+
 .status-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
+  background: var(--color-error);
 }
-.status-dot.on {
-  background: var(--color-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent);
-}
-.status-dot.off {
-  background: var(--color-mute);
-}
-.status-text { font-size: 14px; }
-.status-error {
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--color-error);
-  font-family: var(--font-mono);
-}
-.status-meta {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--color-mute);
-}
-.btn-sm { height: 30px; padding: 0 10px; font-size: 12px; }
 
-/* Toggle switch */
-.toggle-row {
+.status-dot.on { background: var(--color-success); }
+.status-dot.off { background: var(--color-error); }
+
+.status-text { font-size: 14px; color: var(--color-ink); }
+
+.field-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
 }
-.toggle-label {
-  font-size: 14px;
+
+.field-row:last-child { margin-bottom: 0; }
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--color-ink);
 }
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-}
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.switch-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-hairline-strong);
-  border-radius: 22px;
-  transition: background-color 160ms ease-out;
-}
-.switch-slider::before {
-  content: '';
-  position: absolute;
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background: var(--color-canvas);
-  border-radius: 50%;
-  transition: transform 160ms ease-out;
-}
-.switch input:checked + .switch-slider {
-  background: var(--color-ink);
-}
-.switch input:checked + .switch-slider::before {
-  transform: translateX(18px);
+
+.field-desc {
+  font-size: 12px;
+  color: var(--color-mute);
+  line-height: 1.5;
 }
 
-/* Mode radio */
-.mode-row {
+.radio-group {
   display: flex;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
 }
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 160ms ease-out;
-}
-.radio-item.active { opacity: 1; }
-.radio-item input { display: none; }
-.radio-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-hairline-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 160ms ease-out;
-}
-.radio-item.active .radio-dot {
-  border-color: var(--color-ink);
-}
-.radio-item.active .radio-dot::after {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-ink);
-}
-.radio-label { font-size: 14px; }
 
-.webhook-url-row {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-hairline);
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 10px 14px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-raised);
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
+
+.radio-option.active {
+  border-color: var(--color-link);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.radio-option input { margin: 0; width: 16px; height: 16px; accent-color: var(--color-link); }
+.radio-option span { font-size: 14px; color: var(--color-ink); }
+
+.vercel-input {
+  height: 36px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .webhook-note {
-  display: block;
   font-size: 12px;
   color: var(--color-mute);
   margin-top: 4px;
 }
 
-/* Actions */
 .actions-row {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-sm);
 }
 
-/* Guide */
+.actions-row .btn {
+  min-width: 120px;
+}
+
 .guide-list {
   margin: 0;
   padding-left: 18px;
   font-size: 14px;
   color: var(--color-body);
-  line-height: 24px;
+  line-height: 1.6;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .guide-list code {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -519,6 +429,7 @@ onUnmounted(() => {
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-hairline);
 }
+
 .command-list {
   margin-top: 12px;
   display: flex;
@@ -526,10 +437,12 @@ onUnmounted(() => {
   gap: 6px;
   align-items: center;
 }
+
 .command-label {
   font-size: 13px;
   color: var(--color-mute);
 }
+
 .command-list code {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -538,24 +451,17 @@ onUnmounted(() => {
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-hairline);
 }
+
 .guide-note {
   margin-top: 12px;
   font-size: 13px;
   color: var(--color-mute);
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin 1s linear infinite; }
-
-@media (max-width: 768px) {
-  .mode-row { flex-direction: column; gap: var(--spacing-sm); }
+@media (max-width: 640px) {
+  .status-row { align-items: flex-start; flex-direction: column; }
+  .radio-group { flex-direction: column; }
   .actions-row { flex-direction: column; }
-  .actions-row .btn { width: 100%; justify-content: center; box-sizing: border-box; }
-}
-
-@media (max-width: 480px) {
-  .status-row { align-items: flex-start; flex-direction: column; gap: var(--spacing-sm); }
-  .status-row .btn { width: 100%; justify-content: center; }
-  .toggle-row { justify-content: space-between; }
+  .actions-row .btn { width: 100%; justify-content: center; }
 }
 </style>

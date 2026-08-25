@@ -1,16 +1,11 @@
 <template>
   <div class="page-container">
     <div class="page-header settings-heading">
-      <router-link to="/" class="back-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回控制面板
-      </router-link>
-      <h2>全局设置</h2>
+            <h2>全局设置</h2>
       <p>集中管理站点品牌、域名绑定偏好、回退源与隧道设置。</p>
     </div>
-
     <div class="settings-grid section">
-      <section class="settings-card settings-card-wide card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.04s;">
+      <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.04s;">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">站点信息</div>
@@ -20,7 +15,6 @@
             {{ savingSite ? '保存中...' : '保存站点信息' }}
           </button>
         </div>
-
         <div class="brand-editor">
           <div class="brand-preview">
             <span class="brand-preview-label caption-mono">实时预览</span>
@@ -38,7 +32,6 @@
               </div>
             </div>
           </div>
-
           <div class="brand-fields">
             <label class="field">
               <span class="field-label">站点名称</span>
@@ -61,8 +54,7 @@
           </div>
         </div>
       </section>
-
-      <section class="settings-card settings-card-wide card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.1s;">
+      <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.1s;">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">常用 CNAME 组</div>
@@ -72,7 +64,6 @@
             {{ savingPresets ? '保存中...' : '保存 CNAME 组' }}
           </button>
         </div>
-
         <div class="default-cname-row">
           <div class="field">
             <span class="field-label">默认优选 CNAME</span>
@@ -83,7 +74,6 @@
             {{ savingCNAME ? '保存中...' : '保存默认值' }}
           </button>
         </div>
-
         <div class="preset-list">
           <div v-for="(item, index) in cnamePresets" :key="index" class="preset-row">
             <span class="preset-index">{{ index + 1 }}</span>
@@ -105,8 +95,7 @@
           添加常用 CNAME
         </button>
       </section>
-
-      <section class="settings-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.16s;">
+      <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.16s;">
         <div class="settings-card-header compact">
           <div>
             <div class="settings-card-title">回退源设置</div>
@@ -120,8 +109,7 @@
           </button>
         </div>
       </section>
-
-      <section class="settings-card card-transition" :class="{ 'stagger-item': visible }" style="animation-delay: 0.22s;">
+      <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.22s;">
         <div class="settings-card-header compact">
           <div>
             <div class="settings-card-title">当前隧道</div>
@@ -143,7 +131,6 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useMessage } from 'naive-ui'
@@ -156,13 +143,11 @@ import {
 } from '../api'
 import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
-
 const message = useMessage()
 const store = useConfigStore()
 const config = store.config
 const visible = ref(false)
 const iconInput = ref<HTMLInputElement | null>(null)
-
 const site = reactive({ name: '', description: '', icon: '' })
 const cnamePresets = ref<CNAMEPreset[]>([])
 const preferredCNAME = ref('')
@@ -171,7 +156,6 @@ const savingSite = ref(false)
 const savingCNAME = ref(false)
 const savingPresets = ref(false)
 const savingFallback = ref(false)
-
 function syncFormFromConfig() {
   site.name = config.site_name
   site.description = config.site_description
@@ -179,7 +163,6 @@ function syncFormFromConfig() {
   preferredCNAME.value = config.preferred_cname
   cnamePresets.value = config.cname_presets.map((item) => ({ ...item }))
 }
-
 async function saveSite() {
   if (!site.name.trim()) {
     message.error('请输入站点名称')
@@ -200,7 +183,6 @@ async function saveSite() {
     savingSite.value = false
   }
 }
-
 function handleIconUpload(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -219,7 +201,6 @@ function handleIconUpload(event: Event) {
   reader.onerror = () => message.error('读取图片失败')
   reader.readAsDataURL(file)
 }
-
 async function savePreferredCNAME() {
   const value = preferredCNAME.value.trim()
   if (!value) {
@@ -238,17 +219,14 @@ async function savePreferredCNAME() {
     savingCNAME.value = false
   }
 }
-
 function addPreset() {
   if (cnamePresets.value.length >= 20) return
   cnamePresets.value.push({ name: '', value: '' })
 }
-
 function removePreset(index: number) {
   if (cnamePresets.value.length === 1) return
   cnamePresets.value.splice(index, 1)
 }
-
 async function savePresets() {
   const items = cnamePresets.value.map((item) => ({ name: item.name.trim(), value: item.value.trim() }))
   if (items.some((item) => !item.name || !item.value)) {
@@ -267,7 +245,6 @@ async function savePresets() {
     savingPresets.value = false
   }
 }
-
 async function saveFallback() {
   const domain = fallbackDomain.value.trim()
   if (!domain) {
@@ -284,75 +261,278 @@ async function saveFallback() {
     savingFallback.value = false
   }
 }
-
 onMounted(async () => {
   await store.fetchConfig()
   syncFormFromConfig()
   requestAnimationFrame(() => { visible.value = true })
 })
 </script>
-
 <style scoped>
-.settings-heading { max-width: 760px; }
-.section { margin-bottom: 0; }
-.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
+.page-header { margin-bottom: var(--spacing-lg); }
+.section { margin-bottom: var(--spacing-xl); }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
 .settings-card {
   min-width: 0;
   padding: var(--spacing-lg);
-  background: var(--color-canvas);
+  background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
 }
-.settings-card:hover { border-color: var(--color-hairline-strong); box-shadow: 0 14px 32px rgba(58, 47, 34, 0.07); }
+
 .settings-card-wide { grid-column: 1 / -1; }
-.settings-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-lg); margin-bottom: var(--spacing-lg); }
+
+.settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
 .settings-card-header.compact { margin-bottom: var(--spacing-md); }
-.settings-card-title { margin-bottom: 4px; color: var(--color-ink); font-size: 17px; font-weight: 700; }
-.settings-card-desc { max-width: 700px; color: var(--color-mute); font-size: 14px; line-height: 1.65; }
-.brand-editor { display: grid; grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.5fr); gap: var(--spacing-lg); }
-.brand-preview { min-height: 190px; padding: var(--spacing-lg); border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: linear-gradient(145deg, var(--color-canvas-soft), var(--color-canvas)); }
-.brand-preview-label { color: var(--color-mute); }
-.brand-preview-content { display: flex; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xl); }
-.brand-preview-content strong { display: block; max-width: 240px; color: var(--color-ink); font-family: var(--font-display); font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
-.brand-preview-content p { margin: 5px 0 0; color: var(--color-mute); font-size: 13px; }
-.brand-preview-icon { display: inline-flex; width: 54px; height: 54px; flex: none; align-items: center; justify-content: center; overflow: hidden; border-radius: 14px; background: var(--color-ink); color: var(--color-canvas); }
+
+.settings-card-title {
+  margin-bottom: 4px;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-card-desc {
+  max-width: 700px;
+  color: var(--color-mute);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: normal;
+  word-break: normal;
+  writing-mode: horizontal-tb;
+}
+
+.field-help {
+  color: var(--color-mute);
+  font-size: 12px;
+}
+
+/* Brand editor */
+.brand-editor {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.6fr) minmax(0, 1.4fr);
+  gap: var(--spacing-lg);
+}
+
+.brand-preview {
+  min-height: 160px;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-soft);
+}
+
+.brand-preview-label { color: var(--color-mute); font-size: 12px; }
+
+.brand-preview-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.brand-preview-content strong {
+  display: block;
+  max-width: 240px;
+  color: var(--color-ink);
+  font-size: 18px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.brand-preview-content p {
+  margin: 5px 0 0;
+  color: var(--color-mute);
+  font-size: 13px;
+}
+
+.brand-preview-icon {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-ink);
+  color: var(--color-canvas-raised);
+}
+
 .brand-preview-icon img { width: 100%; height: 100%; object-fit: cover; }
-.brand-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
-.brand-fields .field:nth-child(2), .brand-fields .field:nth-child(3), .icon-actions { grid-column: 1 / -1; }
-.field { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
-.field-label { color: var(--color-ink); font-size: 13px; font-weight: 700; }
-.field-help { margin-top: -3px; color: var(--color-mute); font-size: 12px; }
-.icon-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-xs); }
+
+.brand-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.brand-fields .field:nth-child(2),
+.brand-fields .field:nth-child(3),
+.brand-fields .icon-actions {
+  grid-column: 1 / -1;
+}
+
+.icon-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
 .icon-actions span { color: var(--color-mute); font-size: 12px; }
+
 .file-input { display: none; }
-.default-cname-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--spacing-sm); padding: var(--spacing-md); margin-bottom: var(--spacing-md); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); background: var(--color-canvas-soft); }
-.preset-list { display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.preset-row { display: grid; grid-template-columns: 28px minmax(150px, 0.65fr) minmax(220px, 1.35fr) 34px; align-items: end; gap: var(--spacing-sm); padding: var(--spacing-sm); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
-.preset-index { display: grid; width: 28px; height: 40px; place-items: center; color: var(--color-mute); font: 700 12px/1 var(--font-mono); }
-.remove-button { display: grid; width: 34px; height: 40px; place-items: center; color: var(--color-mute); background: transparent; border: 0; border-radius: var(--radius-md); cursor: pointer; }
-.remove-button:hover:not(:disabled) { color: var(--color-error); background: var(--color-result-error-bg); }
+
+/* CNAME presets */
+.default-cname-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.preset-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 40px;
+  align-items: end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-raised);
+}
+
+.preset-index {
+  display: grid;
+  width: 28px;
+  height: 32px;
+  place-items: center;
+  color: var(--color-mute);
+  font: 600 12px/1 var(--font-mono);
+}
+
+.remove-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--color-mute);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.remove-button:hover:not(:disabled) {
+  color: var(--color-error);
+  background: var(--color-status-down-bg);
+}
+
 .remove-button:disabled { opacity: 0.3; cursor: not-allowed; }
-.add-preset { display: inline-flex; align-items: center; gap: 7px; margin-top: var(--spacing-sm); padding: 8px 0; color: var(--color-link); background: transparent; border: 0; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+.add-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--spacing-sm);
+  padding: 8px 0;
+  color: var(--color-link);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
 .add-preset:disabled { color: var(--color-mute); cursor: not-allowed; }
-.settings-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--spacing-sm); }
-.tunnel-summary, .tunnel-empty { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: var(--spacing-md); }
-.tunnel-summary > div { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+
+.settings-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tunnel-summary,
+.tunnel-empty {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.tunnel-summary > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .tunnel-summary strong { color: var(--color-ink); font-size: 15px; }
 .tunnel-summary code { color: var(--color-mute); font: 12px/1.4 var(--font-mono); overflow-wrap: anywhere; }
 .tunnel-empty span { color: var(--color-mute); font-size: 14px; }
+
 @media (max-width: 900px) {
   .settings-grid, .brand-editor { grid-template-columns: 1fr; }
   .settings-card-wide { grid-column: auto; }
 }
+
 @media (max-width: 680px) {
-  .settings-card-header, .default-cname-row, .settings-input-row { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; }
-  .settings-card-header .btn, .default-cname-row .btn, .settings-input-row .btn { width: 100%; justify-content: center; }
+  .settings-card-header,
+  .default-cname-row,
+  .settings-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-card-header .btn,
+  .default-cname-row .btn,
+  .settings-input-row .btn { width: 100%; justify-content: center; }
   .brand-fields { grid-template-columns: 1fr; }
-  .brand-fields .field, .icon-actions { grid-column: auto !important; }
-  .preset-row { grid-template-columns: 28px minmax(0, 1fr) 34px; align-items: center; }
-  .preset-value { grid-column: 2 / 3; }
-  .remove-button { grid-column: 3; grid-row: 1 / span 2; }
+  .brand-fields .field,
+  .brand-fields .icon-actions { grid-column: auto !important; }
+  .preset-row { grid-template-columns: 1fr 40px; gap: var(--spacing-xs); }
+  .preset-index { display: none; }
+  .preset-row .field { grid-column: 1 / -1; }
+  .remove-button { grid-column: 2; grid-row: 1 / span 2; }
   .tunnel-summary, .tunnel-empty { align-items: stretch; flex-direction: column; }
   .tunnel-summary .btn, .tunnel-empty .btn { width: 100%; justify-content: center; }
 }

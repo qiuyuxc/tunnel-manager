@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cloudflare Tunnel Manager</title>
+  <script>
+    (function () {
+      var root = document.documentElement
+      var visualTheme = localStorage.getItem('visual_theme')
+      var darkMode = localStorage.getItem('dark_mode') === 'true'
+      root.setAttribute('data-visual-theme', visualTheme === 'warm' ? 'warm' : 'enterprise')
+      root.setAttribute('data-theme', darkMode ? 'dark' : '')
+    })()
+  </script>
 </head>
 <body>
   <div id="app"></div>

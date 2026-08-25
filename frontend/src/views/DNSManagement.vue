@@ -1,6 +1,6 @@
 <template>
 <div class="page-container dns-page">
-  <header class="page-header dns-header"><div><router-link to="/" class="back-link">‹ 返回控制面板</router-link><h2>DNS 管理</h2><p>集中查看和维护 Cloudflare 区域中的 DNS 记录。</p></div><button class="btn btn-primary" :disabled="!zoneID" @click="openCreate">＋ 添加记录</button></header>
+  <header class="page-header dns-header"><div><h2>DNS 管理</h2><p>集中查看和维护 Cloudflare 区域中的 DNS 记录。</p></div><button class="btn btn-primary" :disabled="!zoneID" @click="openCreate">＋ 添加记录</button></header>
   <section class="workspace">
     <div class="toolbar"><label><span class="caption-mono">区域</span><n-select v-model:value="zoneID" :options="zoneOptions" :loading="zonesLoading" placeholder="选择一个区域" clearable filterable /></label><label><span class="caption-mono">搜索记录</span><input v-model="search" class="vercel-input" placeholder="名称、内容或类型" :disabled="!zoneID"></label><button class="btn btn-secondary batch-trigger" :disabled="selectedCount === 0 || batchDeleting" @click="openBatchEdit">批量修改<span v-if="selectedCount"> ({{ selectedCount }})</span></button><button class="btn btn-secondary batch-trigger batch-delete" :disabled="selectedCount === 0 || batchDeleting" @click="confirmBatchDelete">{{ batchDeleting ? `正在删除 ${batchProgress}` : '批量删除' }}<span v-if="!batchDeleting && selectedCount"> ({{ selectedCount }})</span></button><button class="refresh" :disabled="!zoneID||loading" title="刷新" @click="loadRecords">↻</button></div>
     <div v-if="loading" class="state"><i class="loader"></i><strong>正在读取 DNS 记录</strong><span>这通常只需几秒钟</span></div>

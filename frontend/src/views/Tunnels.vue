@@ -1,126 +1,100 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <router-link to="/" class="back-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回控制面板
-      </router-link>
-      <h2>隧道管理</h2>
-      <p>浏览并选择您的 Cloudflare Tunnel</p>
-    </div>
-
-    <div class="selection-card section">
-      <div class="selection-header">
-        <span class="caption-mono selection-label">当前已选隧道</span>
+    <div class="page-heading-row section">
+      <div class="page-header">
+        <h2>隧道管理</h2>
+        <p>浏览 Cloudflare Tunnel，并锁定当前要管理的隧道</p>
       </div>
-      <div v-if="config.tunnel_id" class="selection-body">
-        <div class="selected-tunnel">
-          <strong>{{ config.tunnel_name || '当前隧道' }}</strong>
-          <code class="tunnel-id">{{ config.tunnel_id }}</code>
-        </div>
-        <button class="btn-ghost-sm" @click="clearTunnel">清除</button>
-      </div>
-      <div v-else class="selection-empty">
-        <span>未选择隧道</span>
+      <div class="toolbar">
+        <button class="btn btn-secondary" :disabled="loading" @click="loadTunnels">
+          <svg :class="{ spin: loading }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <span>{{ loading ? '刷新中' : '刷新' }}</span>
+        </button>
+        <button class="btn btn-primary" @click="startCreate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>新建隧道</span>
+        </button>
       </div>
     </div>
-
-    <div class="toolbar section">
-      <button class="btn btn-primary" :disabled="loading" @click="loadTunnels">
-        <svg v-if="loading" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        刷新列表
-      </button>
-      <button class="btn btn-secondary" @click="startCreate">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        新建隧道
-      </button>
-    </div>
-
-    <div v-if="tunnels.length > 0" class="tunnel-list section">
-      <div v-for="(tunnel, idx) in tunnels" :key="tunnel.id" class="tunnel-card card-transition" :class="{ 'stagger-item': listVisible }" :style="{ animationDelay: `${0.05 * idx}s` }">
-        <div class="tunnel-card-left">
-          <div class="tunnel-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          </div>
-          <div class="tunnel-info">
-            <div class="tunnel-name">{{ tunnel.name }}</div>
-            <code class="tunnel-id">{{ tunnel.id }}</code>
-          </div>
-        </div>
-        <div class="tunnel-card-right">
-          <span class="status-tag" :class="tunnel.status">{{ tunnel.status }}</span>
-          <router-link :to="`/tunnels/${tunnel.id}`" class="btn-sm btn-select">详情</router-link>
-          <button
-            class="btn-sm"
-            :class="config.tunnel_id === tunnel.id ? 'btn-active' : 'btn-select'"
-            :disabled="config.tunnel_id === tunnel.id"
-            @click="selectTunnel(tunnel)"
-          >
-            {{ config.tunnel_id === tunnel.id ? '已选' : '选择' }}
-          </button>
-          <button class="btn-sm btn-delete" title="删除隧道" @click="confirmDelete(tunnel)">删除</button>
-        </div>
+    <div class="card section tunnel-table-card">
+      <div v-if="loading" class="empty-state">
+        <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="empty-text">加载中...</span>
+      </div>
+      <div v-else-if="tunnels.length > 0" class="table-scroll">
+        <table class="data-table" aria-label="Cloudflare 隧道列表">
+          <colgroup>
+            <col class="col-name" />
+            <col class="col-id" />
+            <col class="col-status" />
+            <col class="col-selection" />
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>隧道 ID</th>
+              <th>状态</th>
+              <th>当前选择</th>
+              <th class="action-column">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tunnel in tunnels" :key="tunnel.id" :class="{ 'row-selected': config.tunnel_id === tunnel.id }">
+              <td class="cell-name" data-label="名称">{{ tunnel.name }}</td>
+              <td data-label="隧道 ID"><code class="tunnel-id-code">{{ tunnel.id }}</code></td>
+              <td data-label="状态"><span class="status-tag" :class="tunnel.status">{{ tunnel.status }}</span></td>
+              <td data-label="当前选择">
+                <span v-if="config.tunnel_id === tunnel.id" class="selected-mark"><span class="selected-dot"></span>已选中</span>
+                <span v-else class="text-muted">未选择</span>
+              </td>
+              <td class="action-column" data-label="操作">
+                <div class="row-actions">
+                  <router-link :to="`/tunnels/${tunnel.id}`" class="btn btn-secondary btn-sm">详情</router-link>
+                  <button class="btn btn-primary btn-sm" :disabled="config.tunnel_id === tunnel.id" @click="selectTunnel(tunnel)">
+                    {{ config.tunnel_id === tunnel.id ? '已选中' : '选择' }}
+                  </button>
+                  <button class="btn btn-ghost btn-sm btn-text-danger" @click="confirmDelete(tunnel)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-state">
+        <span class="empty-text">暂无隧道</span>
+        <span class="text-muted">点击"新建隧道"创建第一条隧道</span>
       </div>
     </div>
-
-    <div v-else-if="!loading" class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      <span class="empty-text">暂无隧道数据</span>
-      <span class="empty-hint">请检查 Cloudflare API Token 是否正确配置</span>
-    </div>
-
-    <!-- Create Tunnel -->
-    <n-modal v-model:show="showCreate" preset="card" title="新建隧道" class="tunnel-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false" :mask-closable="!creating">
+    <n-modal v-model:show="showCreate" preset="card" title="新建隧道" class="tunnel-modal" :bordered="false">
       <div class="modal-form">
-        <div class="form-field">
-          <label class="form-label">隧道名称</label>
-          <input v-model="createName" placeholder="例如 home-server" class="vercel-input" @keyup.enter="submitCreate" />
-        </div>
-        <p class="modal-hint">创建为「远程管理」模式，之后可直接在本面板编辑应用程序路由。</p>
+        <label class="form-label">隧道名称</label>
+        <input v-model="createName" placeholder="例如：prod-tunnel" class="vercel-input" @keyup.enter="submitCreate" />
       </div>
       <template #footer>
         <div class="modal-footer">
-          <button class="btn btn-ghost" :disabled="creating" @click="showCreate = false">取消</button>
+          <button class="btn btn-ghost" @click="showCreate = false">取消</button>
           <button class="btn btn-primary" :disabled="creating || !createName.trim()" @click="submitCreate">
             {{ creating ? '创建中...' : '创建' }}
           </button>
         </div>
       </template>
     </n-modal>
-
-    <!-- Connector Token -->
-    <n-modal v-model:show="showToken" preset="card" :title="`隧道「${created?.name}」已创建`" class="tunnel-modal" :bordered="false" :segmented="{ content: true, footer: true }" :auto-focus="false">
+    <n-modal v-model:show="showToken" preset="card" title="隧道创建成功" class="tunnel-modal" :bordered="false">
       <div class="modal-form">
-        <p class="modal-hint">在需要接入的机器上运行下面的命令即可连上隧道。连接令牌等同于凭据，请妥善保存、不要外传。</p>
+        <p class="modal-hint">保存以下连接令牌，或复制运行命令到安装了 cloudflared 的服务器执行。</p>
+        <div class="copy-row">
+          <code class="token-box">{{ created?.run_command || created?.token }}</code>
+          <button class="btn btn-secondary btn-sm" @click="copyText(created?.run_command || created?.token || '')">复制</button>
+        </div>
         <div v-if="created?.warning" class="token-warning">{{ created.warning }}</div>
-
         <div class="install-guide">
           <button class="install-toggle" @click="showInstall = !showInstall">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" :class="{ open: showInstall }"><polyline points="9 18 15 12 9 6"/></svg>
-            还没装 cloudflared？查看 Debian / Ubuntu 安装命令
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            查看 cloudflared 安装脚本
           </button>
-          <div v-if="showInstall" class="copy-row">
-            <code class="token-box install-script">{{ installScript }}</code>
-            <button class="btn-sm btn-select" @click="copy(installScript)">复制</button>
-          </div>
+          <pre v-if="showInstall" class="token-box install-script">{{ installScript }}</pre>
         </div>
-        <template v-if="created?.run_command">
-          <div class="form-field">
-            <label class="form-label">运行命令</label>
-            <div class="copy-row">
-              <code class="token-box">{{ created.run_command }}</code>
-              <button class="btn-sm btn-select" @click="copy(created!.run_command!)">复制</button>
-            </div>
-          </div>
-          <div class="form-field">
-            <label class="form-label">连接令牌</label>
-            <div class="copy-row">
-              <code class="token-box">{{ created.token }}</code>
-              <button class="btn-sm btn-select" @click="copy(created!.token!)">复制</button>
-            </div>
-          </div>
-        </template>
       </div>
       <template #footer>
         <div class="modal-footer">
@@ -130,22 +104,18 @@
     </n-modal>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMessage, useDialog, NModal } from 'naive-ui'
 import { listTunnels, setTunnelSelection, createTunnel, deleteTunnel, type Tunnel, type CreateTunnelResponse } from '../api'
 import { useConfigStore } from '../stores/config'
-
 const message = useMessage()
 const dialog = useDialog()
 const configStore = useConfigStore()
 const config = configStore.config
-
 const tunnels = ref<Tunnel[]>([])
 const loading = ref(false)
 const listVisible = ref(false)
-
 // Create / token state
 const showCreate = ref(false)
 const creating = ref(false)
@@ -153,17 +123,21 @@ const createName = ref('')
 const showToken = ref(false)
 const created = ref<CreateTunnelResponse | null>(null)
 const showInstall = ref(false)
-
 const installScript = `# 添加 Cloudflare GPG 密钥
 sudo mkdir -p --mode=0755 /usr/share/keyrings
 curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
-
 # 添加 apt 软件源
 echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
-
 # 安装 cloudflared
 sudo apt-get update && sudo apt-get install cloudflared`
-
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success('已复制')
+  } catch {
+    message.warning('复制失败，请手动选择文本')
+  }
+}
 async function loadTunnels() {
   loading.value = true
   listVisible.value = false
@@ -179,7 +153,6 @@ async function loadTunnels() {
     loading.value = false
   }
 }
-
 async function selectTunnel(tunnel: Tunnel) {
   try {
     await setTunnelSelection(tunnel.id, tunnel.name)
@@ -190,7 +163,6 @@ async function selectTunnel(tunnel: Tunnel) {
     message.error('选择失败: ' + (e.response?.data?.error || e.message))
   }
 }
-
 async function clearTunnel() {
   try {
     await setTunnelSelection('', '')
@@ -201,12 +173,10 @@ async function clearTunnel() {
     message.error('清除失败')
   }
 }
-
 function startCreate() {
   createName.value = ''
   showCreate.value = true
 }
-
 async function submitCreate() {
   const name = createName.value.trim()
   if (!name || creating.value) return
@@ -224,7 +194,6 @@ async function submitCreate() {
     creating.value = false
   }
 }
-
 function confirmDelete(tunnel: Tunnel) {
   dialog.warning({
     title: '删除隧道',
@@ -247,7 +216,6 @@ function confirmDelete(tunnel: Tunnel) {
     },
   })
 }
-
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -256,263 +224,61 @@ async function copy(text: string) {
     message.warning('复制失败，请手动选择文本')
   }
 }
-
 onMounted(() => { loadTunnels() })
 </script>
-
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: var(--spacing-md); }
-
-.selection-card {
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-}
-.selection-label { color: var(--color-mute); }
-.selection-header { margin-bottom: 10px; }
-.selection-body { display: flex; align-items: center; gap: 10px; }
-.selection-body { justify-content: space-between; }
-.selected-tunnel { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.selected-tunnel strong { color: var(--color-ink); font-size: 15px; }
-.selection-empty { color: var(--color-mute); font-size: 14px; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
-
-.tunnel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: var(--color-hairline);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  overflow: hidden;
-}
-.tunnel-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-canvas);
-  gap: var(--spacing-md);
-  transition: background-color 160ms ease-out, transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.tunnel-card:hover {
-  background: var(--color-canvas-soft);
-  transform: translateX(2px);
-}
-.tunnel-card-left {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  min-width: 0;
-}
-.tunnel-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--color-canvas-soft-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--color-body);
-}
-.tunnel-info { min-width: 0; }
-.tunnel-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ink);
-  overflow-wrap: anywhere;
-}
-.tunnel-id {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-mute);
-  overflow-wrap: anywhere;
-}
-.tunnel-card-right {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.status-tag {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 0 8px;
-  height: 22px;
-  line-height: 20px;
-  border-radius: 999px;
-  text-transform: uppercase;
-}
-.status-tag.healthy {
-  background: var(--color-status-healthy-bg);
-  color: var(--color-status-healthy-text);
-  border: 1px solid var(--color-status-healthy-border);
-}
-.status-tag.degraded {
-  background: var(--color-status-degraded-bg);
-  color: var(--color-status-degraded-text);
-  border: 1px solid var(--color-status-degraded-border);
-}
-.status-tag.down,
-.status-tag.inactive {
-  background: var(--color-status-down-bg);
-  color: var(--color-status-down-text);
-  border: 1px solid var(--color-status-down-border);
-}
-
-.btn-sm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 120ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
-  border: none;
-  text-decoration: none;
-  box-sizing: border-box;
-}
-.btn-sm:active:not(:disabled) { transform: scale(0.97); }
-.btn-select { background: transparent; color: var(--color-ink); border: 1px solid var(--color-hairline); }
-.btn-select:hover { border-color: var(--color-hairline-strong); background: var(--color-canvas-soft); }
-.btn-active { background: var(--color-canvas-soft-2); color: var(--color-mute); cursor: default; }
-.btn-delete { background: transparent; color: var(--color-mute); border: 1px solid var(--color-hairline); }
-.btn-delete:hover { color: var(--color-error); border-color: var(--color-error); }
-.btn-ghost-sm { background: transparent; color: var(--color-ink); border: none; cursor: pointer; }
-.btn-ghost-sm:hover { opacity: 0.6; }
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-3xl) var(--spacing-lg);
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
-  gap: var(--spacing-sm);
-}
-.empty-text { color: var(--color-body); font-size: 16px; font-weight: 600; }
-.empty-hint { color: var(--color-mute); font-size: 14px; text-align: center; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin 1s linear infinite; }
-
+.section { margin-bottom: var(--spacing-xl); }
+.page-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-xl); }
+.page-header { margin-bottom: 0; }
+.toolbar { display: flex; gap: var(--spacing-sm); flex-shrink: 0; }
+.tunnel-table-card { overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.col-name { width: 18%; }
+.col-id { width: auto; }
+.col-status { width: 112px; }
+.col-selection { width: 126px; }
+.col-actions { width: 214px; }
+.data-table th, .data-table td { padding: 13px 16px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--color-hairline); }
+.data-table th { background: var(--color-canvas-soft); color: var(--color-mute); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.data-table tbody tr { background: var(--color-canvas-raised); transition: background-color 140ms ease-out; }
+.data-table tbody tr:hover { background: var(--color-canvas-soft); }
+.data-table tbody tr.row-selected { background: color-mix(in srgb, var(--color-link) 5%, var(--color-canvas-raised)); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.cell-name { color: var(--color-ink); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.tunnel-id-code { display: inline-block; max-width: 100%; overflow: hidden; color: var(--color-body); font-family: var(--font-mono); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.selected-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--color-status-healthy-text); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.selected-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-success); box-shadow: 0 0 0 3px var(--color-status-healthy-bg); }
+.text-muted { color: var(--color-mute); font-size: 12px; }
+.action-column { text-align: right !important; }
+.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.btn-text-danger:hover:not(:disabled) { color: var(--color-error); background: var(--color-status-down-bg); }
+.modal-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.form-label { font-size: 12px; color: var(--color-mute); font-weight: 500; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.modal-hint { margin: 0; font-size: 13px; color: var(--color-body); line-height: 1.7; }
+.copy-row { display: flex; align-items: flex-start; gap: 8px; }
+.token-box { flex: 1; min-width: 0; max-height: 160px; overflow-y: auto; padding: 10px 12px; color: var(--color-ink); background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; word-break: break-all; }
+.token-warning { padding: 10px 12px; color: var(--color-error); background: var(--color-status-down-bg); border: 1px solid var(--color-status-down-border); border-radius: var(--radius-md); font-size: 13px; }
+.install-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 0; color: var(--color-link); background: none; border: 0; font-size: 13px; cursor: pointer; }
+.install-script { max-height: 260px; white-space: pre-wrap; }
+.tunnel-modal { width: 100%; max-width: 520px; }
 @media (max-width: 768px) {
-  .tunnel-card { padding: var(--spacing-sm) var(--spacing-md); }
-}
-@media (max-width: 480px) {
-  .selection-body { align-items: flex-start; flex-direction: column; }
-  .tunnel-card { align-items: flex-start; flex-direction: column; gap: var(--spacing-sm); }
-  .tunnel-card-left,
-  .tunnel-card-right { width: 100%; }
-  .tunnel-card-right { justify-content: flex-end; }
-}
-
-.tunnel-modal {
-  max-width: 520px;
-  width: 100%;
-}
-@media (max-width: 768px) {
-  .tunnel-modal { max-width: calc(100vw - 2 * var(--spacing-md)); }
-}
-:deep(.n-modal) { --n-duration: 0.15s; }
-:deep(.n-mask) { --n-duration: 0.15s; }
-
-.modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-mute);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.modal-hint {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--color-mute);
-}
-.copy-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-.token-box {
-  flex: 1;
-  min-width: 0;
-  max-height: 120px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--color-ink);
-  background: var(--color-canvas-soft-2);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  word-break: break-all;
-}
-.copy-row .btn-sm { height: 34px; flex-shrink: 0; }
-.token-warning {
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--color-error);
-  background: var(--color-canvas-soft);
-  border: 1px solid var(--color-error);
-  border-radius: var(--radius-md);
-}
-
-.install-guide {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.install-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  font-size: 13px;
-  color: var(--color-link);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
-.install-toggle:hover { opacity: 0.75; }
-.install-toggle svg {
-  flex-shrink: 0;
-  transition: transform 160ms ease-out;
-}
-.install-toggle svg.open { transform: rotate(90deg); }
-.install-script {
-  max-height: 260px;
-  white-space: pre-wrap;
-  word-break: normal;
-  overflow-wrap: anywhere;
+.page-heading-row { align-items: stretch; flex-direction: column; gap: var(--spacing-lg); }
+.toolbar { justify-content: flex-end; }
+.table-scroll { overflow: visible; }
+.tunnel-table-card { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+.data-table { display: block; min-width: 0; }
+.data-table colgroup, .data-table thead { display: none; }
+.data-table tbody { display: grid; gap: var(--spacing-md); }
+.data-table tr { display: grid; overflow: hidden; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.data-table td { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--spacing-md); padding: 11px 14px; border-bottom: 1px solid var(--color-hairline); }
+.data-table td::before { content: attr(data-label); color: var(--color-mute); font-size: 12px; font-weight: 500; }
+.data-table .action-column { display: block; padding: 12px 14px; text-align: left !important; }
+.data-table .action-column::before { display: none; }
+.tunnel-id-code { white-space: normal; overflow-wrap: anywhere; }
+.row-actions { flex-wrap: wrap; }
+.copy-row { flex-direction: column; }
+.copy-row .btn { align-self: flex-end; }
 }
 </style>

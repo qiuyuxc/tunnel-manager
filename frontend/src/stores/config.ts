@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { getConfig, getSiteSettings, listTunnels, setTunnelSelection, type Config } from '../api'
 
+export type VisualTheme = 'enterprise' | 'warm'
+
 export const useConfigStore = defineStore('config', () => {
   const config = ref<Config>({
     tunnel_id: '',
@@ -14,6 +16,8 @@ export const useConfigStore = defineStore('config', () => {
     site_icon: '',
   })
   const darkMode = ref(localStorage.getItem('dark_mode') === 'true')
+  const savedVisualTheme = localStorage.getItem('visual_theme')
+  const visualTheme = ref<VisualTheme>(savedVisualTheme === 'warm' ? 'warm' : 'enterprise')
   const loading = ref(false)
 
   // Auth state
@@ -25,6 +29,11 @@ export const useConfigStore = defineStore('config', () => {
   watch(darkMode, (val) => {
     localStorage.setItem('dark_mode', String(val))
     document.documentElement.setAttribute('data-theme', val ? 'dark' : '')
+  }, { immediate: true })
+
+  watch(visualTheme, (val) => {
+    localStorage.setItem('visual_theme', val)
+    document.documentElement.setAttribute('data-visual-theme', val)
   }, { immediate: true })
 
   watch(() => [config.value.site_name, config.value.site_icon], applySiteBranding, { immediate: true })
@@ -57,6 +66,10 @@ export const useConfigStore = defineStore('config', () => {
 
   function toggleDarkMode() {
     darkMode.value = !darkMode.value
+  }
+
+  function toggleVisualTheme() {
+    visualTheme.value = visualTheme.value === 'warm' ? 'enterprise' : 'warm'
   }
 
   function setAuth(tokenVal: string, usernameVal: string) {
@@ -102,7 +115,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   return {
-    config, darkMode, loading, token, username, isAuthenticated,
-    fetchConfig, fetchSiteSettings, toggleDarkMode, setAuth, clearAuth,
+    config, darkMode, visualTheme, loading, token, username, isAuthenticated,
+    fetchConfig, fetchSiteSettings, toggleDarkMode, toggleVisualTheme, setAuth, clearAuth,
   }
 })

@@ -1,11 +1,7 @@
 <template>
   <div class="page-container account-page">
     <div class="page-header">
-      <router-link to="/" class="back-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回控制面板
-      </router-link>
-      <h2>账户设置</h2>
+            <h2>账户设置</h2>
       <p>管理登录凭据、Cloudflare 账户连接与账户安全</p>
     </div>
 
@@ -232,18 +228,20 @@
           <div class="settings-card-title">修改用户名</div>
           <div class="settings-card-desc">当前用户名: <strong>{{ store.username }}</strong></div>
         </div>
-        <div class="settings-input-row">
-          <div class="input-wrapper">
-            <input v-model="newUsername" placeholder="新用户名" class="vercel-input" />
-          </div>
-        </div>
-        <div class="settings-input-row settings-action-row">
-          <div class="input-wrapper">
+        <div class="form-stack">
+          <label class="field">
+            <span class="field-label">新用户名</span>
+            <input v-model="newUsername" placeholder="输入新用户名" class="vercel-input" />
+          </label>
+          <label class="field">
+            <span class="field-label">当前密码确认</span>
             <input v-model="usernamePassword" type="password" placeholder="输入当前密码确认" class="vercel-input" />
+          </label>
+          <div class="form-actions">
+            <button class="btn btn-secondary" :disabled="savingUsername" @click="saveUsername">
+              {{ savingUsername ? '保存中...' : '更新用户名' }}
+            </button>
           </div>
-          <button class="btn btn-secondary" :disabled="savingUsername" @click="saveUsername">
-            {{ savingUsername ? '保存中...' : '更新用户名' }}
-          </button>
         </div>
       </div>
 
@@ -252,18 +250,20 @@
           <div class="settings-card-title">修改密码</div>
           <div class="settings-card-desc">密码长度不少于 6 位</div>
         </div>
-        <div class="settings-input-row">
-          <div class="input-wrapper">
+        <div class="form-stack">
+          <label class="field">
+            <span class="field-label">当前密码</span>
             <input v-model="currentPassword" type="password" placeholder="当前密码" class="vercel-input" />
-          </div>
-        </div>
-        <div class="settings-input-row settings-action-row">
-          <div class="input-wrapper">
+          </label>
+          <label class="field">
+            <span class="field-label">新密码</span>
             <input v-model="newPassword" type="password" placeholder="新密码" class="vercel-input" />
+          </label>
+          <div class="form-actions">
+            <button class="btn btn-primary" :disabled="savingPassword" @click="savePassword">
+              {{ savingPassword ? '保存中...' : '更新密码' }}
+            </button>
           </div>
-          <button class="btn btn-primary" :disabled="savingPassword" @click="savePassword">
-            {{ savingPassword ? '保存中...' : '更新密码' }}
-          </button>
         </div>
       </div>
     </div>

@@ -1,17 +1,13 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="currentThemeOverrides">
     <n-message-provider>
       <n-dialog-provider>
-        <n-layout class="app-layout">
+        <div class="app-shell">
           <nav-bar v-if="$route.path !== '/login'" />
-          <main class="main-content">
-            <router-view v-slot="{ Component }">
-              <transition name="page">
-                <component :is="Component" :key="$route.fullPath" />
-              </transition>
-            </router-view>
+          <main class="app-main" :class="{ 'app-main-login': route.path === '/login' }">
+            <router-view />
           </main>
-        </n-layout>
+        </div>
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>
@@ -19,57 +15,57 @@
 
 <script setup lang="ts">
 import { darkTheme } from 'naive-ui'
-import { NConfigProvider, NDialogProvider, NLayout, NMessageProvider } from 'naive-ui'
+import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
 import { useConfigStore } from './stores/config'
-import { warmDarkThemeOverrides, warmThemeOverrides } from './theme'
+import {
+  darkThemeOverrides,
+  themeOverrides,
+  warmDarkThemeOverrides,
+  warmThemeOverrides,
+} from './theme'
 
+const route = useRoute()
 const configStore = useConfigStore()
 const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)
-const themeOverrides = computed(() => configStore.darkMode ? warmDarkThemeOverrides : warmThemeOverrides)
+const currentThemeOverrides = computed(() => {
+  if (configStore.visualTheme === 'warm') {
+    return configStore.darkMode ? warmDarkThemeOverrides : warmThemeOverrides
+  }
+  return configStore.darkMode ? darkThemeOverrides : themeOverrides
+})
 
 configStore.fetchSiteSettings()
-
-// Sync dark mode to data-theme attribute on mount
-if (configStore.darkMode) {
-  document.documentElement.setAttribute('data-theme', 'dark')
-}
 </script>
 
-<style scoped>
-.app-layout {
+<style>
+.app-shell {
+  display: flex;
   min-height: 100vh;
-  background-color: var(--color-canvas-soft);
 }
 
-.main-content {
-  position: relative;
-  width: 100%;
+.app-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  background: var(--color-canvas-soft);
+  min-height: 100vh;
 }
 
-/* Page route transitions — only the leaving page overlays, enter stays in flow */
-.page-enter-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+.app-main-login {
+  margin-left: 0;
 }
 
-.page-leave-active {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1;
-  pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
+@media (max-width: 768px) {
+  .app-main {
+    margin-left: 0;
+    padding-top: 56px;
+  }
 
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
+  .app-main-login {
+    padding-top: 0;
+  }
 }
 </style>

@@ -1,94 +1,108 @@
 <template>
-  <div class="nav-bar">
-    <div class="nav-inner">
-      <div class="nav-brand">
-        <router-link to="/" class="logo">
-          <span class="logo-mark" aria-hidden="true">
-            <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" class="brand-icon" />
+  <!-- Desktop sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <router-link to="/" class="brand">
+        <span class="brand-icon" aria-hidden="true">
+          <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" />
+          <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
+            <path d="M49 26H27v24l22-24z" fill="currentColor"/>
+            <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
+          </svg>
+        </span>
+        <span class="brand-text">{{ configStore.config.site_name }}</span>
+      </router-link>
+    </div>
+
+    <nav class="sidebar-nav">
+      <router-link
+        v-for="item in navItems"
+        :key="item.path"
+        :to="item.path"
+        class="nav-item"
+        :class="{ active: isActive(item.path) }"
+      >
+        <span class="nav-icon" aria-hidden="true" v-html="item.icon" />
+        <span class="nav-label">{{ item.label }}</span>
+      </router-link>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="footer-btn" @click="configStore.toggleVisualTheme()">
+        <span class="nav-icon" aria-hidden="true" v-html="icons.palette" />
+        <span>{{ configStore.visualTheme === 'warm' ? '切换专业蓝主题' : '切换暖纸主题' }}</span>
+      </button>
+      <button class="footer-btn" @click="configStore.toggleDarkMode()">
+        <span class="nav-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
+        <span>{{ configStore.darkMode ? '亮色模式' : '暗色模式' }}</span>
+      </button>
+      <button class="footer-btn" @click="handleLogout">
+        <span class="nav-icon" v-html="icons.logout" />
+        <span>退出登录</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile header -->
+  <header class="mobile-header">
+    <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="打开菜单">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <span class="mobile-title">{{ configStore.config.site_name }}</span>
+  </header>
+
+  <!-- Mobile drawer -->
+  <Transition name="fade">
+    <div v-if="mobileOpen" class="mobile-overlay" @click="mobileOpen = false"></div>
+  </Transition>
+  <Transition name="slide">
+    <aside v-if="mobileOpen" class="mobile-drawer">
+      <div class="drawer-header">
+        <router-link to="/" class="brand" @click="mobileOpen = false">
+          <span class="brand-icon" aria-hidden="true">
+            <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" />
             <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
               <path d="M49 26H27v24l22-24z" fill="currentColor"/>
               <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
             </svg>
           </span>
-          <span class="logo-text">{{ configStore.config.site_name }}</span>
+          <span class="brand-text">{{ configStore.config.site_name }}</span>
         </router-link>
-        <span class="nav-context">{{ configStore.config.site_description }}</span>
+        <button class="close-btn" @click="mobileOpen = false" aria-label="关闭菜单">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-
-      <div class="nav-center">
+      <nav class="drawer-nav">
         <router-link
           v-for="item in navItems"
           :key="item.path"
           :to="item.path"
-          class="nav-link"
-          :class="{ active: route.path === item.path }"
-        >
-          {{ item.label }}
-        </router-link>
-      </div>
-
-      <div class="nav-right">
-        <button class="hamburger" @click="mobileOpen = !mobileOpen" :aria-label="mobileOpen ? '关闭菜单' : '打开菜单'">
-          <span class="hamburger-line" :class="{ open: mobileOpen }"></span>
-          <span class="hamburger-line" :class="{ open: mobileOpen }"></span>
-          <span class="hamburger-line" :class="{ open: mobileOpen }"></span>
-        </button>
-        <button class="icon-button" @click="configStore.toggleDarkMode()" :title="configStore.darkMode ? '亮色模式' : '暗色模式'">
-          <svg v-if="configStore.darkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-        <button v-if="configStore.isAuthenticated" class="icon-button logout-btn" @click="handleLogout" title="退出登录">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile menu overlay -->
-    <transition name="fade">
-      <div v-if="mobileOpen" class="mobile-overlay" @click="mobileOpen = false"></div>
-    </transition>
-
-    <!-- Mobile menu panel -->
-    <transition name="slide">
-      <div v-if="mobileOpen" class="mobile-menu">
-        <router-link
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          class="mobile-nav-link"
-          :class="{ active: route.path === item.path }"
+          class="drawer-item"
+          :class="{ active: isActive(item.path) }"
           @click="mobileOpen = false"
         >
-          {{ item.label }}
+          <span class="nav-icon" aria-hidden="true" v-html="item.icon" />
+          <span>{{ item.label }}</span>
         </router-link>
-        <div class="mobile-menu-divider"></div>
-        <button class="mobile-logout-btn" @click="handleLogout">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          退出登录
+      </nav>
+      <div class="drawer-footer">
+        <button class="footer-btn" @click="configStore.toggleVisualTheme(); mobileOpen = false">
+          <span class="nav-icon" aria-hidden="true" v-html="icons.palette" />
+          <span>{{ configStore.visualTheme === 'warm' ? '切换专业蓝主题' : '切换暖纸主题' }}</span>
+        </button>
+        <button class="footer-btn" @click="configStore.toggleDarkMode(); mobileOpen = false">
+          <span class="nav-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
+          <span>{{ configStore.darkMode ? '亮色模式' : '暗色模式' }}</span>
+        </button>
+        <button class="footer-btn" @click="handleLogout">
+          <span class="nav-icon" v-html="icons.logout" />
+          <span>退出登录</span>
         </button>
       </div>
-    </transition>
-  </div>
+    </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -102,272 +116,290 @@ const router = useRouter()
 const configStore = useConfigStore()
 const mobileOpen = ref(false)
 
+const icons = {
+  dashboard: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+  tunnels: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  domain: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  dns: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  telegram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.198 2.433a2.216 2.216 0 0 0-2.4.557L2.49 14.97a2.216 2.216 0 0 0 1.674 3.716h.003a2.216 2.216 0 0 0 .84-.167l3.59-1.49-2.15-2.15 10.32-6.654-7.66 7.66 6.36 3.84a2.216 2.216 0 0 0 2.15.167l.003-.001a2.216 2.216 0 0 0 1.04-1.36l3.39-15.18a2.217 2.217 0 0 0-.557-2.4z"/></svg>',
+  account: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  about: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  moon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  palette: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2a10 10 0 0 0 0 20h1.7a1.8 1.8 0 0 0 1.3-3l-.5-.5a1.8 1.8 0 0 1 1.3-3H18a4 4 0 0 0 4-4A10 10 0 0 0 12 2z"/></svg>',
+  logout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+}
+
 const navItems = [
-  { path: '/', label: '控制面板' },
-  { path: '/tunnels', label: '隧道管理' },
-  { path: '/domain', label: '域名绑定' },
-  { path: '/dns', label: 'DNS 管理' },
-  { path: '/settings', label: '全局设置' },
-  { path: '/telegram', label: 'TG 机器人' },
-  { path: '/account', label: '账户' },
-  { path: '/about', label: '关于' },
+  { path: '/', label: '控制面板', icon: icons.dashboard },
+  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels },
+  { path: '/domain', label: '域名绑定', icon: icons.domain },
+  { path: '/dns', label: 'DNS 管理', icon: icons.dns },
+  { path: '/settings', label: '全局设置', icon: icons.settings },
+  { path: '/telegram', label: 'TG 机器人', icon: icons.telegram },
+  { path: '/account', label: '账户', icon: icons.account },
+  { path: '/about', label: '关于', icon: icons.about },
 ]
+
+function isActive(path: string) {
+  if (path === '/') return route.path === '/'
+  return route.path === path || route.path.startsWith(path + '/')
+}
 
 async function handleLogout() {
   try { await logoutApi() } catch (_) { /* ignore */ }
   configStore.clearAuth()
-  mobileOpen.value = false
   router.push('/login')
 }
 </script>
-
 <style scoped>
-.nav-bar {
-  position: sticky;
+.sidebar {
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-text);
+  display: flex;
+  flex-direction: column;
   z-index: 100;
-  min-height: var(--header-height);
-  background: color-mix(in srgb, var(--color-canvas) 92%, transparent);
-  border-bottom: 1px solid var(--color-hairline);
-  backdrop-filter: blur(18px);
+  border-right: 1px solid var(--color-hairline);
 }
 
-.brand-icon {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
+.sidebar-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-sidebar-divider);
 }
 
-.nav-inner {
-  max-width: var(--max-width);
-  min-height: var(--header-height);
-  margin: 0 auto;
-  padding: 0 var(--spacing-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-lg);
-}
-
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 220px;
-}
-
-.logo {
+.brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  color: var(--color-sidebar-text-active);
   text-decoration: none;
-  color: var(--color-ink);
+  font-weight: 600;
+  font-size: 15px;
 }
 
-.logo-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-lg);
-  background: var(--color-ink);
-  color: var(--color-canvas);
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-brand-icon);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-canvas) 10%, transparent);
 }
 
-.logo-text {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1;
-}
+.brand-icon svg { color: var(--color-sidebar-text-active); }
+.brand-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
-.nav-context {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--color-mute);
-  padding-left: 12px;
-  border-left: 1px solid var(--color-hairline);
-}
-
-.nav-center {
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 2px;
-  padding: 4px;
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  background: var(--color-canvas-soft);
+  overflow-y: auto;
 }
 
-.nav-link {
-  position: relative;
-  padding: 7px 11px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  color: var(--color-body);
-  text-decoration: none;
-  transition: color 160ms ease-out, background-color 160ms ease-out;
-}
-
-.nav-link:hover {
-  color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-canvas) 76%, transparent);
-}
-
-.nav-link.active {
-  color: var(--color-ink);
-  background: var(--color-canvas);
-  box-shadow: 0 1px 2px rgba(38, 31, 22, 0.08);
-}
-
-.nav-right {
+.nav-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.icon-button {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline);
-  background: var(--color-canvas);
-  color: var(--color-body);
-  cursor: pointer;
-  display: flex;
+.nav-item:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-sidebar-hover-text);
+}
+
+.nav-item.active {
+  background: var(--color-sidebar-active);
+  color: var(--color-sidebar-text-active);
+}
+
+.nav-icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 120ms ease-out, border-color 160ms ease-out, color 160ms ease-out, background-color 160ms ease-out;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
-.icon-button:hover {
-  color: var(--color-ink);
-  border-color: var(--color-hairline-strong);
-  background: var(--color-canvas-soft);
+.sidebar-footer {
+  padding: 12px 10px;
+  border-top: 1px solid var(--color-sidebar-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.icon-button:active { transform: scale(0.96); }
+.footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--color-sidebar-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease, color 120ms ease;
+}
 
-.logout-btn:hover {
-  color: var(--color-error);
-  border-color: var(--color-error);
+.footer-btn:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-sidebar-hover-text);
+}
+
+/* Mobile header */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-header-border);
+  z-index: 99;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
 }
 
 .hamburger {
-  display: none;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline);
-  background: var(--color-canvas);
-  cursor: pointer;
+  display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
   gap: 4px;
+  width: 36px;
+  height: 36px;
   padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
-.hamburger-line {
+.hamburger span {
   display: block;
-  width: 16px;
+  width: 18px;
   height: 2px;
   background: var(--color-ink);
   border-radius: 1px;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease-out;
 }
 
-.hamburger-line.open:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-.hamburger-line.open:nth-child(2) { opacity: 0; }
-.hamburger-line.open:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.mobile-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
 
+/* Mobile drawer */
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(29, 24, 18, 0.38);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 99;
 }
 
-.mobile-menu {
+.mobile-drawer {
   position: fixed;
-  top: var(--header-height);
+  top: 0;
   left: 0;
-  right: 0;
-  background: var(--color-canvas);
-  border-bottom: 1px solid var(--color-hairline);
-  padding: var(--spacing-sm);
+  bottom: 0;
+  width: 260px;
+  background: var(--color-sidebar);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  box-shadow: 0 16px 36px rgba(38, 31, 22, 0.14);
+  overflow-y: auto;
 }
 
-.mobile-nav-link,
-.mobile-logout-btn {
+.drawer-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px var(--spacing-md);
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-body);
-  text-decoration: none;
-  transition: color 160ms ease-out, background-color 160ms ease-out;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-sidebar-divider);
 }
 
-.mobile-nav-link:hover,
-.mobile-nav-link.active {
-  color: var(--color-ink);
-  background: var(--color-canvas-soft);
-}
+.drawer-header .brand { color: var(--color-sidebar-text-active); }
 
-.mobile-menu-divider {
-  height: 1px;
-  background: var(--color-hairline);
-  margin: var(--spacing-xs) 0;
-}
-
-.mobile-logout-btn {
-  background: transparent;
+.close-btn {
+  width: 32px;
+  height: 32px;
   border: none;
+  background: transparent;
+  color: var(--color-sidebar-text);
   cursor: pointer;
-  width: 100%;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.mobile-logout-btn:hover {
-  color: var(--color-error);
-  background: var(--color-canvas-soft);
+.drawer-nav {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.fade-enter-active { transition: opacity 180ms ease-out; }
-.fade-leave-active { transition: opacity 140ms ease-in; }
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.drawer-item:hover, .drawer-item.active {
+  background: var(--color-sidebar-hover);
+  color: var(--color-sidebar-hover-text);
+}
+
+.drawer-item.active {
+  background: var(--color-sidebar-active);
+}
+
+.drawer-footer {
+  padding: 12px 10px;
+  border-top: 1px solid var(--color-sidebar-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 200ms ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+.slide-enter-active { transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1); }
+.slide-leave-active { transition: transform 200ms ease-in; }
+.slide-enter-from { transform: translateX(-100%); }
+.slide-leave-to { transform: translateX(-100%); }
 
-.slide-enter-active { transition: opacity 240ms ease-out, transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
-.slide-leave-active { transition: opacity 160ms ease-in, transform 160ms ease-in; }
-.slide-enter-from { opacity: 0; transform: translateY(-8px); }
-.slide-leave-to { opacity: 0; transform: translateY(-4px); }
-
-@media (max-width: 1120px) {
-  .nav-context { display: none; }
-  .nav-brand { min-width: auto; }
-}
-
-@media (max-width: 900px) {
-  .nav-center { display: none; }
-  .hamburger { display: flex; }
-  .nav-inner { padding: 0 var(--spacing-md); }
-  .logo-text { font-size: 16px; }
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .mobile-header { display: flex; }
 }
 </style>
