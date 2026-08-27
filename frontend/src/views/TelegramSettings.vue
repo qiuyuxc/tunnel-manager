@@ -381,10 +381,10 @@ onUnmounted(() => {
 
 .radio-option.active {
   border-color: var(--color-link);
-  background: rgba(37, 99, 235, 0.05);
+  background: color-mix(in srgb, var(--color-link) 5%, transparent);
 }
 
-.radio-option input { margin: 0; width: 16px; height: 16px; accent-color: var(--color-link); }
+.radio-option input { margin: 0; width: 16px; height: 16px; accent-color: var(--color-focus); }
 .radio-option span { font-size: 14px; color: var(--color-ink); }
 
 .vercel-input {

@@ -970,7 +970,7 @@ onBeforeUnmount(() => {
 
 .recovery-panel { outline: none; }
 .recovery-panel:focus {
-  outline: 3px solid color-mix(in srgb, var(--color-link) 42%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 42%, transparent);
   outline-offset: -3px;
 }
 .recovery-actions { display: flex; gap: var(--spacing-xs); margin: var(--spacing-md) 0; }
@@ -987,7 +987,7 @@ onBeforeUnmount(() => {
 .recovery-grid li { padding-left: 3px; color: var(--color-mute); font-family: var(--font-mono); font-size: 11px; }
 .recovery-grid code { color: var(--color-ink); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
 .completion-check { display: flex; align-items: flex-start; gap: 9px; margin: var(--spacing-md) 0 var(--spacing-sm); color: var(--color-body); font-size: 13px; cursor: pointer; }
-.completion-check input { flex: 0 0 auto; margin-top: 4px; accent-color: var(--color-link); }
+.completion-check input { flex: 0 0 auto; margin-top: 4px; accent-color: var(--color-focus); }
 .finish-button { min-width: 210px; }
 
 .settings-input-row {

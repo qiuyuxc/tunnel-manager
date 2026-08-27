@@ -62,11 +62,11 @@
           </div>
         </div>
         <ul class="changelog-list">
-          <li>重新设计整体界面：桌面端改用侧边导航，移动端使用抽屉菜单，页面层级和操作入口更清晰</li>
-          <li>重构隧道管理与隧道详情：桌面端采用稳定表格和路由列表，移动端自适应为易读卡片</li>
-          <li>统一控制面板、域名绑定、全局设置、账户与 Telegram 设置等页面的视觉和响应式布局</li>
-          <li>新增专业蓝与暖纸主题切换，两套主题均可独立使用亮色或暗色模式，并自动保存当前选择</li>
-          <li>关于页面支持安全的 Markdown 更新日志，并将版本亮点和 GitHub Release 发布说明独立展示</li>
+          <li>新增服务监控模块：HTTP / TCP / ICMP 三种探测方式，可配置检测间隔，支持 GET / POST 探测请求</li>
+          <li>公开状态页上线：自定义短路径（/status/你起的名字）、标题、公告与顶部品牌图标（支持上传动图）</li>
+          <li>公开状态页主题与主面板完全隔离，访客可在科技蓝 / 暖米金色系内独立切换明暗</li>
+          <li>监控目标支持二次编辑与外链跳转开关，公开页服务卡可直接点击跳转</li>
+          <li>站点图标支持自定义上传，浏览器标签页同步展示</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

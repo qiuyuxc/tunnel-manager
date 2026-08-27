@@ -21,3 +21,16 @@ backend/data/
 # Stray shell artifacts
 -exec
 -not
+
+# Local binaries and artifacts
+tunnel-server
+tunnel-web/
+design-preview.html
+*.tar.gz
+
+# Unused MiSans weights (only Bold/Medium/Regular/Semibold are referenced)
+frontend/src/assets/fonts/*
+!frontend/src/assets/fonts/MiSans-Bold.woff2
+!frontend/src/assets/fonts/MiSans-Medium.woff2
+!frontend/src/assets/fonts/MiSans-Regular.woff2
+!frontend/src/assets/fonts/MiSans-Semibold.woff2

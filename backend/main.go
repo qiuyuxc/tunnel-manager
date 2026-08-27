@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -20,8 +22,8 @@ import (
 	"tunnel-manager/store"
 )
 
-// Version is the current application version, kept in sync with UPDATE.md.
-const Version = "v1.15.0"
+// Version is the current application version.
+const Version = "v1.16.0"
 
 func main() {
 	// CLI flags for password management
@@ -96,11 +98,23 @@ func main() {
 	// Initialize services
 	domainService := services.NewDomainService(cf, st)
 
+	// Service monitoring heartbeat storage and scheduler
+	heartbeatLog := services.NewHeartbeatLog(filepath.Join(filepath.Dir(storePath), "heartbeats.json"))
+	monitorRunner := services.NewRunner(st, heartbeatLog)
+	go monitorRunner.Start(context.Background())
+	heartbeatLog.StartFlusher(10 * time.Second)
+
+	// Monitors management
+	monitorsHandler := handlers.NewMonitorsHandler(st, heartbeatLog, monitorRunner)
+	uploadsDir := filepath.Join(filepath.Dir(storePath), "uploads")
+	uploadsHandler := handlers.NewUploadsHandler(uploadsDir)
+
 	// Initialize handlers
 	configHandler := handlers.NewConfigHandler(st)
 	tunnelHandler := handlers.NewTunnelHandler(cf, st)
 	domainHandler := handlers.NewDomainHandler(domainService)
 	dnsHandler := handlers.NewDNSHandler(cf)
+	monitorHandler := handlers.NewMonitorHandler(cf, st)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
@@ -165,6 +179,27 @@ func main() {
 		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Update))
 		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Delete))
 
+		// Service health monitoring
+		r.Get("/monitor/services", mw.Auth(monitorHandler.ServiceStatus))
+
+		// Monitor projects (uptime-style)
+		r.Get("/monitors", mw.Auth(monitorsHandler.List))
+		r.Post("/monitors", mw.Auth(monitorsHandler.Create))
+		r.Get("/monitors/overview", mw.Auth(monitorsHandler.Overview))
+		r.Get("/monitors/{monitorID}", mw.Auth(monitorsHandler.Get))
+		r.Put("/monitors/{monitorID}", mw.Auth(monitorsHandler.Update))
+		r.Delete("/monitors/{monitorID}", mw.Auth(monitorsHandler.Delete))
+		r.Post("/monitors/{monitorID}/check", mw.Auth(monitorsHandler.CheckNow))
+		r.Post("/monitors/{monitorID}/targets", mw.Auth(monitorsHandler.AddTarget))
+		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(monitorsHandler.EditTarget))
+		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(monitorsHandler.RemoveTarget))
+
+		// Status-page icon uploads
+		r.Post("/uploads", mw.Auth(uploadsHandler.UploadImage))
+
+		// Public status page payload (token-scoped, unauthenticated)
+		r.Get("/public/status/{token}", monitorsHandler.PublicStatus)
+
 		// Domain endpoints
 		r.Post("/domain/bind", mw.Auth(domainHandler.BindDomain))
 		r.Post("/domain/bind-batch", mw.Auth(domainHandler.BindDomainsBatch))
@@ -197,6 +232,9 @@ func main() {
 	if staticDir == "" {
 		staticDir = "frontend/dist"
 	}
+	// Uploaded status-page images (before the SPA catch-all)
+	r.Get("/uploads/*", uploadsHandler.Serve)
+
 	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
 		fs := http.FileServer(http.Dir(staticDir))
 		r.Get("/*", func(w http.ResponseWriter, req *http.Request) {

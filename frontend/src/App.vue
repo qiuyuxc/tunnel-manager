@@ -2,12 +2,13 @@
   <n-config-provider :theme="naiveTheme" :theme-overrides="currentThemeOverrides">
     <n-message-provider>
       <n-dialog-provider>
-        <div class="app-shell">
+        <div class="app-shell" v-if="!route.meta.public">
           <nav-bar v-if="$route.path !== '/login'" />
           <main class="app-main" :class="{ 'app-main-login': route.path === '/login' }">
             <router-view />
           </main>
         </div>
+        <router-view v-else />
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>

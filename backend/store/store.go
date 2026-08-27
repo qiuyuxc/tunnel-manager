@@ -195,7 +195,71 @@ func (s *Store) GetConfig() models.Config {
 	config := s.config
 	config.TOTPRecoveryCodeHashes = append([]string(nil), s.config.TOTPRecoveryCodeHashes...)
 	config.CNAMEPresets = append([]models.CNAMEPreset(nil), s.config.CNAMEPresets...)
+	config.Monitors = append([]models.Monitor(nil), s.config.Monitors...)
 	return config
+}
+
+// AddMonitor appends a monitor project.
+func (s *Store) AddMonitor(m models.Monitor) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m.CreatedAt = time.Now().Unix()
+	if m.IntervalSec == 0 {
+		m.IntervalSec = 60
+	}
+	previous := s.config
+	s.config.Monitors = append(s.config.Monitors, m)
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// ErrMonitorNotFound is returned when a monitor id does not exist.
+var ErrMonitorNotFound = errors.New("monitor not found")
+
+// MutateMonitor applies fn to one stored monitor under the lock; fn returns
+// false when the id is unknown. Saving failures roll the change back.
+func (s *Store) MutateMonitor(id string, fn func(*models.Monitor) bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	idx := -1
+	for i := range s.config.Monitors {
+		if s.config.Monitors[i].ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return ErrMonitorNotFound
+	}
+	if !fn(&s.config.Monitors[idx]) {
+		return ErrMonitorNotFound
+	}
+	previous := s.config
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// RemoveMonitor deletes a monitor project by id.
+func (s *Store) RemoveMonitor(id string) error {
+	return s.MutateMonitor(id, func(*models.Monitor) bool { return true })
+}
+
+// FindMonitorByToken locates a published monitor by its public token.
+func (s *Store) FindMonitorByToken(token string) (models.Monitor, bool) {
+	cfg := s.GetConfig()
+	for _, m := range cfg.Monitors {
+		slugHit := m.PublicSlug != "" && m.PublicSlug == token
+		if m.PublishEnabled && ((m.PublicToken != "" && m.PublicToken == token) || slugHit) {
+			return m, true
+		}
+	}
+	return models.Monitor{}, false
 }
 
 // SetTunnelSelection sets the active tunnel and its display name.

@@ -39,6 +39,38 @@ type Config struct {
 	// Selected zone used by Telegram DNS commands
 	SelectedZoneID   string `json:"selected_zone_id,omitempty"`
 	SelectedZoneName string `json:"selected_zone_name,omitempty"`
+
+	// Service monitor projects (uptime-style)
+	Monitors []Monitor `json:"monitors,omitempty"`
+}
+
+// MonitorTarget is one probed endpoint inside a monitor project.
+type MonitorTarget struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
+	// Type picks the probe method: http (default), tcp or icmp.
+	Type        string `json:"type,omitempty"`
+	Method      string `json:"method,omitempty"` // http only: GET (default) or POST
+	CreatedAt   int64  `json:"created_at,omitempty"`
+	LinkEnabled bool   `json:"link_enabled,omitempty"`
+}
+
+// Monitor groups targets checked on a schedule and publishable on a
+// token-protected public status page.
+type Monitor struct {
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	IntervalSec    int             `json:"interval_sec,omitempty"` // default 60
+	PublicToken    string          `json:"public_token,omitempty"`
+	PublicSlug     string          `json:"public_slug,omitempty"`
+	PublishEnabled bool            `json:"publish_enabled"`
+	Targets        []MonitorTarget `json:"targets,omitempty"`
+	PublicTitle    string          `json:"public_title,omitempty"` // status page display title
+	PublicIcon     string          `json:"public_icon,omitempty"`
+	PublicTheme    string          `json:"public_theme,omitempty"`
+	Announcement   string          `json:"announcement,omitempty"` // banner text on the status page
+	CreatedAt      int64           `json:"created_at,omitempty"`
 }
 
 // CNAMEPreset is a reusable preferred CNAME option.

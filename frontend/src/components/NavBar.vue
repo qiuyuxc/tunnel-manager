@@ -1,6 +1,6 @@
 <template>
   <!-- Desktop sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-header">
       <router-link to="/" class="brand">
         <span class="brand-icon" aria-hidden="true">
@@ -21,6 +21,7 @@
         :to="item.path"
         class="nav-item"
         :class="{ active: isActive(item.path) }"
+        :title="item.label"
       >
         <span class="nav-icon" aria-hidden="true" v-html="item.icon" />
         <span class="nav-label">{{ item.label }}</span>
@@ -28,15 +29,19 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="footer-btn" @click="configStore.toggleVisualTheme()">
+      <button class="footer-btn" :title="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="toggleSidebar">
+        <span class="nav-icon" aria-hidden="true" v-html="collapsed ? icons.expand : icons.collapse" />
+        <span>{{ collapsed ? '' : '收起侧边栏' }}</span>
+      </button>
+      <button class="footer-btn" title="切换视觉主题" @click="configStore.toggleVisualTheme()">
         <span class="nav-icon" aria-hidden="true" v-html="icons.palette" />
         <span>{{ configStore.visualTheme === 'warm' ? '切换专业蓝主题' : '切换暖纸主题' }}</span>
       </button>
-      <button class="footer-btn" @click="configStore.toggleDarkMode()">
+      <button class="footer-btn" title="切换明暗模式" @click="configStore.toggleDarkMode()">
         <span class="nav-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
         <span>{{ configStore.darkMode ? '亮色模式' : '暗色模式' }}</span>
       </button>
-      <button class="footer-btn" @click="handleLogout">
+      <button class="footer-btn" title="退出登录" @click="handleLogout">
         <span class="nav-icon" v-html="icons.logout" />
         <span>退出登录</span>
       </button>
@@ -106,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConfigStore } from '../stores/config'
 import { logout as logoutApi } from '../api'
@@ -116,10 +121,21 @@ const router = useRouter()
 const configStore = useConfigStore()
 const mobileOpen = ref(false)
 
+const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
+watch(collapsed, (val) => {
+  localStorage.setItem('sidebar_collapsed', String(val))
+  document.documentElement.dataset.sidebar = val ? 'collapsed' : ''
+}, { immediate: true })
+
+function toggleSidebar() {
+  collapsed.value = !collapsed.value
+}
+
 const icons = {
+  monitor: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   dashboard: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
   tunnels: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
-  domain: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  domain: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
   dns: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   telegram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.198 2.433a2.216 2.216 0 0 0-2.4.557L2.49 14.97a2.216 2.216 0 0 0 1.674 3.716h.003a2.216 2.216 0 0 0 .84-.167l3.59-1.49-2.15-2.15 10.32-6.654-7.66 7.66 6.36 3.84a2.216 2.216 0 0 0 2.15.167l.003-.001a2.216 2.216 0 0 0 1.04-1.36l3.39-15.18a2.217 2.217 0 0 0-.557-2.4z"/></svg>',
@@ -129,11 +145,14 @@ const icons = {
   sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
   palette: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2a10 10 0 0 0 0 20h1.7a1.8 1.8 0 0 0 1.3-3l-.5-.5a1.8 1.8 0 0 1 1.3-3H18a4 4 0 0 0 4-4A10 10 0 0 0 12 2z"/></svg>',
   logout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+  collapse: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="14 9 12 12 14 15"/></svg>',
+  expand: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="11 9 13 12 11 15"/></svg>',
 }
 
 const navItems = [
   { path: '/', label: '控制面板', icon: icons.dashboard },
   { path: '/tunnels', label: '隧道管理', icon: icons.tunnels },
+  { path: '/monitors', label: '服务监控', icon: icons.monitor },
   { path: '/domain', label: '域名绑定', icon: icons.domain },
   { path: '/dns', label: 'DNS 管理', icon: icons.dns },
   { path: '/settings', label: '全局设置', icon: icons.settings },
@@ -166,11 +185,14 @@ async function handleLogout() {
   flex-direction: column;
   z-index: 100;
   border-right: 1px solid var(--color-hairline);
+  transition: width 180ms ease;
+  overflow: hidden;
 }
 
 .sidebar-header {
   padding: 16px 18px;
   border-bottom: 1px solid var(--color-sidebar-divider);
+  white-space: nowrap;
 }
 
 .brand {
@@ -402,4 +424,14 @@ async function handleLogout() {
   .sidebar { display: none; }
   .mobile-header { display: flex; }
 }
+
+/* Collapsed rail (desktop only) */
+.sidebar.collapsed .sidebar-header { padding: 16px 10px; display: flex; justify-content: center; }
+.sidebar.collapsed .brand { gap: 0; }
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .footer-btn > span:not(.nav-icon) { display: none; }
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .footer-btn { justify-content: center; padding: 9px 0; gap: 0; width: auto; margin: 0 auto; }
+
 </style>

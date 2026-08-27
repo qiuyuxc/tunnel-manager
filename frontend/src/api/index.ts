@@ -393,3 +393,192 @@ export function getTelegramStatus() {
 export function testTelegram() {
   return api.post<ApiResponse>('/telegram/test')
 }
+
+// Service monitor
+export interface ServiceProbe {
+  hostname: string
+  service: string
+  state: 'ok' | 'warn' | 'down'
+  http_code?: number
+  latency_ms: number
+  error?: string
+}
+
+export interface ServicesHealth {
+  tunnel_id?: string
+  tunnel_name?: string
+  checked_at: string
+  services: ServiceProbe[]
+}
+
+export function getServicesHealth() {
+  return api.get<ServicesHealth>('/monitor/services', { timeout: 20000 })
+}
+
+// ---- Monitor projects (uptime-style) ----
+export interface Heartbeat {
+  t: number
+  s: 'ok' | 'warn' | 'down'
+  ms?: number
+  c?: number
+  e?: string
+}
+
+export interface TargetStatus {
+  id: string
+  name: string
+  url: string
+  type?: 'http' | 'tcp' | 'icmp'
+  link_enabled?: boolean
+  method?: '' | 'GET' | 'POST'
+  state?: '' | 'ok' | 'warn' | 'down'
+  latency_ms?: number
+  http_code?: number
+  error?: string
+  uptime_24h: number
+  bars?: Heartbeat[]
+}
+
+export interface MonitorView {
+  id: string
+  name: string
+  interval_sec: number
+  publish_enabled: boolean
+  public_token?: string
+  public_slug?: string
+  public_title?: string
+  public_icon?: string
+  public_theme?: '' | 'blue' | 'warm'
+  announcement?: string
+  created_at?: number
+  targets: TargetStatus[]
+}
+
+export function listMonitors() {
+  return api.get<MonitorView[]>('/monitors')
+}
+
+export function createMonitor(name: string) {
+  return api.post<MonitorView>('/monitors', { name })
+}
+
+export function getMonitor(id: string) {
+  return api.get<MonitorView>(`/monitors/${id}`)
+}
+
+export interface MonitorUpdate {
+  name?: string
+  interval_sec?: number
+  publish_enabled?: boolean
+  regenerate_token?: boolean
+  public_title?: string
+  public_slug?: string
+  public_icon?: string
+  public_theme?: '' | 'blue' | 'warm'
+  announcement?: string
+}
+
+export function updateMonitor(id: string, patch: MonitorUpdate) {
+  return api.put<MonitorView>(`/monitors/${id}`, patch)
+}
+
+export function deleteMonitor(id: string) {
+  return api.delete<ApiResponse>(`/monitors/${id}`)
+}
+
+export interface ProbeOutcome {
+  target_id: string
+  name: string
+  url: string
+  state: string
+  http_code?: number
+  latency_ms: number
+  error?: string
+}
+
+export function checkMonitorNow(id: string) {
+  return api.post<{ outcomes: ProbeOutcome[] }>(`/monitors/${id}/check`)
+}
+
+export function addMonitorTarget(id: string, name: string, url: string, probeType?: string, method?: string, linkEnabled?: boolean) {
+  return api.post<MonitorView>(`/monitors/${id}/targets`, { name, url, type: probeType, method, link_enabled: linkEnabled })
+}
+
+export function editMonitorTarget(
+  id: string,
+  targetId: string,
+  payload: { name: string; url: string; type?: string; method?: string; link_enabled?: boolean }
+) {
+  return api.put<MonitorView>(`/monitors/${id}/targets/${targetId}`, payload)
+}
+
+export function uploadImage(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('filename', file.name)
+  return api.post<{ url: string }>('/uploads', fd)
+}
+
+export function removeMonitorTarget(id: string, targetId: string) {
+  return api.delete<MonitorView>(`/monitors/${id}/targets/${targetId}`)
+}
+
+export interface BucketStat {
+  hour: number
+  avg_ms: number
+  peak_ms: number
+  total: number
+  warn: number
+  down: number
+}
+
+export interface OverviewResp {
+  targets: number
+  ok: number
+  warn: number
+  down: number
+  uptime_24h: number
+  avg_latency_ms: number
+  peak_latency_ms: number
+  buckets: BucketStat[]
+}
+
+export function getMonitorOverview() {
+  return api.get<OverviewResp>('/monitors/overview', { timeout: 20000 })
+}
+
+/** 公开状态页的页面路由（给浏览器地址栏 / 复制分享用） */
+export function publicStatusPath(token: string) {
+  return `/status/${token}`
+}
+
+/** 公开状态数据的接口地址（仅供页面内部拉取） */
+export function publicStatusApiUrl(token: string) {
+  return `/api/public/status/${token}`
+}
+
+export async function fetchPublicStatus(token: string): Promise<PublicStatusData> {
+  const res = await fetch(publicStatusApiUrl(token))
+  if (!res.ok) throw new Error('status page unavailable')
+  return res.json() as Promise<PublicStatusData>
+}
+
+export interface PublicStatusData {
+  name: string
+  public_title?: string
+  public_icon?: string
+  public_theme?: 'blue' | 'warm'
+  announcement?: string
+  updated_at: number
+  interval_sec: number
+  targets: Array<{
+    name: string
+    state: string
+    latency_ms: number
+    http_code?: number
+    error?: string
+    uptime_24h: number
+    link?: string
+    bars: Heartbeat[]
+  }>
+}

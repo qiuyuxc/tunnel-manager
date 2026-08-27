@@ -1,6 +1,8 @@
+<div align="center"><img src="frontend/public/icon.webp" width="72" alt="Tunnel Manager" /></div>
+
 # Tunnel Manager
 
-Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，并提供 Telegram Bot 和管理员双重身份验证。
+Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理和管理员双重身份验证。
 
 ## 架构
 
@@ -17,9 +19,11 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 - 域名绑定：可选择简化直连或优选模式；简化模式只配置主域名 Tunnel 路由和代理 CNAME，优选模式继续配置辅助域名与 SaaS Custom Hostname
 - 批量绑定：一次提交多个绑定组，每组可独立选择绑定模式、转发地址与优选 CNAME
 - DNS 管理：独立页面按 Zone 查询、新增、编辑和删除 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态与 MX 优先级，并可多选批量修改或批量删除
-- 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题
+- 站点品牌：自定义站点名称、描述、导航/登录页图标与浏览器标题，站点图标（favicon）可自定义上传
 - 优选 CNAME：自定义全局默认值并维护常用 CNAME 组，绑定时可直接选择
 - 回退源设置：一键配置 fallback origin
+- 服务监控（v1.16 新增）：HTTP / TCP / ICMP 三种探测方式，HTTP 可选 GET/POST；每个监控可挂多个目标，支持二次编辑、外链跳转开关，仪表盘展示近 24 小时延迟柱图
+- 公开状态页（v1.16 新增）：免登录分享检测结果；系统令牌或自定义短路径任一有效；标题、公告、顶部图标与主题均可自定义，访客明暗切换不影响管理面板配色
 - Cloudflare OAuth 2.0：管理员授权后自动获取并刷新访问令牌，可选择授权账户，无需手动复制 API Token
 - Telegram Bot：远程管理隧道、简化/优选域名绑定与 DNS 记录，支持长轮询、Webhook、自定义 API 端点和 DNS 删除二次确认
 - 关于页面：展示版本号与 GitHub 仓库地址，自动检查线上最新 Release 并展示更新内容
@@ -35,6 +39,15 @@ Web 端的单个与批量域名绑定支持两种模式，批量操作时每组�
 - **优选模式**：沿用优选 CNAME、辅助域名与 Cloudflare for SaaS Custom Hostname 的完整流程。优选 CNAME 留空时使用全局默认值。
 
 为兼容旧客户端，未提交 `mode` 的 API 请求仍按优选模式处理。Telegram Bot 当前也继续使用优选模式。
+
+## 服务监控与公开状态页
+
+在监控项目里添加探测目标后，系统按设定间隔自动检测并在仪表盘汇总；开启「公开页面」即可把结果发布为免登录状态页。
+
+- **探测方式**：HTTP（GET / POST）、TCP 端口、ICMP Ping；修改目标的地址 / 类型 / 方法会清空该目标历史数据重新统计
+- **自定义短路径**：「公开页设置」中填写 1–32 位小写字母、数字、`-` 或 `_`，保存后通过 `/status/你的名字` 访问；留空时使用系统令牌，两种链接长期并存
+- **页面自定义**：标题、公告条、顶部品牌图标（PNG / JPG / GIF / WebP 上传，≤ 4MB，或外链）与科技蓝 / 暖米金主题；访客的明暗切换仅作用于状态页自身
+- **外链跳转**：勾选「跳转」的目标在公开页上可直接点击访问
 
 ## 技术栈
 
@@ -169,6 +182,16 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 | POST | `/api/domain/bind` | 绑定单组域名 | 需要 |
 | POST | `/api/domain/bind-batch` | 批量绑定域名 | 需要 |
 | POST | `/api/domain/fallback` | 设置回退源 | 需要 |
+| GET | `/api/monitors` | 列出监控与目标状态 | 需要 |
+| POST | `/api/monitors` | 新建监控 | 需要 |
+| PUT | `/api/monitors/{monitorID}` | 更新监控配置（公开标题 / 公告 / 主题 / 短路径等） | 需要 |
+| DELETE | `/api/monitors/{monitorID}` | 删除监控 | 需要 |
+| POST | `/api/monitors/{monitorID}/check` | 立即执行一次检测 | 需要 |
+| POST | `/api/monitors/{monitorID}/targets` | 添加探测目标 | 需要 |
+| PUT | `/api/monitors/{monitorID}/targets/{targetID}` | 编辑探测目标 | 需要 |
+| DELETE | `/api/monitors/{monitorID}/targets/{targetID}` | 删除探测目标 | 需要 |
+| GET | `/api/public/status/{token}` | 公开状态数据，token 可为系统令牌或短路径 | 无 |
+| POST | `/api/uploads` | 上传公开状态页图片 | 需要 |
 | GET | `/api/telegram/settings` | 获取 Bot 设置 | 需要 |
 | PUT | `/api/telegram/settings` | 保存 Bot 设置 | 需要 |
 | GET | `/api/telegram/status` | 获取 Bot 状态 | 需要 |
