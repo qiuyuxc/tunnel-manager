@@ -4,8 +4,8 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'Tunnel Manager',
   description: 'Cloudflare Tunnel 可视化管理面板：隧道管理、域名绑定、DNS、服务监控与公开状态页',
-  // 部署到子路径时改这里（如 GitHub Pages 同仓库部署用 '/tunnel-manager/'）
-  base: '/',
+  // 默认根路径（本地预览、未来绑定自定义域名）；GitHub Pages 项目子路径由 CI 注入 DOCS_BASE 覆盖
+  base: process.env.DOCS_BASE ?? '/',
   cleanUrls: true,
   lastUpdated: true,
   ignoreDeadLinks: false,
