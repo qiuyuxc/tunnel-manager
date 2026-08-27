@@ -23,7 +23,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v1.16.1"
+const Version = "v1.16.2"
 
 func main() {
 	// CLI flags for password management

@@ -4,6 +4,8 @@
 
 Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理和管理员双重身份验证。
 
+> 📖 详细文档：基于 VitePress 的文档站位于 [`docs/`](./docs/index.md)。进入 `docs/` 目录后运行 `npm install && npm run dev` 本地预览，`npm run build` 构建静态站点。
+
 ## 架构
 
 ```text

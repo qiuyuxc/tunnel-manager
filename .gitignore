@@ -23,6 +23,7 @@ backend/data/
 -not
 
 # Local binaries and artifacts
+release/
 tunnel-server
 tunnel-web/
 design-preview.html
