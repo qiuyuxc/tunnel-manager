@@ -1,0 +1,48 @@
+name: Release binaries
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci --loglevel verbose
+          npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: Build backend binary (linux amd64)
+        working-directory: backend
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -ldflags "-s -w" -o ../tunnel-manager .
+
+      - name: Package
+        run: |
+          DIR="tunnel-manager_${GITHUB_REF_NAME}_linux_amd64"
+          mkdir -p "$DIR/frontend"
+          mv tunnel-manager "$DIR/"
+          cp -r frontend/dist "$DIR/frontend/dist"
+          tar czf "${DIR}.tar.gz" "$DIR"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: tunnel-manager_*.tar.gz
