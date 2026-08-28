@@ -146,16 +146,41 @@
         </div>
       </div>
     </section>
+
+    <section v-show="activeTab === 'smtp'" class="admin-section">
+      <div class="admin-card">
+        <h3>SMTP 邮件服务</h3>
+        <p class="admin-hint">用于注册验证码与监控告警邮件。密码留空表示保持原值不变。</p>
+        <div class="admin-form smtp-form">
+          <input v-model="smtp.host" type="text" placeholder="SMTP 主机，如 smtp.example.com" class="vercel-input" />
+          <input v-model.number="smtp.port" type="number" placeholder="端口（587）" class="vercel-input narrow" />
+          <input v-model="smtp.username" type="text" placeholder="用户名（通常为邮箱）" class="vercel-input" />
+          <input v-model="smtp.password" type="password" placeholder="密码 / 授权码（留空保持不变）" class="vercel-input" />
+          <input v-model="smtp.from" type="text" placeholder="发件人，如 panel@example.com" class="vercel-input" />
+          <select v-model="smtp.tlsMode" class="vercel-input narrow">
+            <option value="starttls">STARTTLS（587 常用）</option>
+            <option value="none">不加密（25，不推荐）</option>
+          </select>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">保存设置</button>
+        </div>
+        <div class="admin-form">
+          <input v-model="testMailTo" type="email" placeholder="发送测试邮件到：你的邮箱" class="vercel-input" />
+          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? '发送中…' : '发送测试邮件' }}</button>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useMessage } from 'naive-ui'
 import {
   listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser,
   listGroups, createGroup, updateGroup, deleteGroup,
   listInvites, createInvite, updateInvite, deleteInvite,
   getAppSettings, updateAppSettings,
+  getSMTP, updateSMTP, testSMTP,
   ALL_PERMISSIONS, PERMISSION_LABELS,
   type UserView, type UserGroup, type Invite, type AppSettings,
 } from '../api/admin'
@@ -165,11 +190,13 @@ const tabs = [
   { key: 'groups', label: '用户组' },
   { key: 'invites', label: '邀请码' },
   { key: 'settings', label: '系统设置' },
+  { key: 'smtp', label: '邮件服务' },
 ]
 const activeTab = ref('users')
 const busy = ref(false)
 const message = ref('')
 const messageIsError = ref(false)
+const toast = useMessage()
 
 const users = ref<UserView[]>([])
 const groups = ref<UserGroup[]>([])
@@ -184,6 +211,9 @@ const showCreateInvite = ref(false)
 const newUser = ref({ username: '', email: '', password: '', groupId: '', admin: false })
 const newGroupName = ref('')
 const newInvite = ref({ groupId: '', maxUses: 0, expireDays: 0 })
+const smtp = ref({ host: '', port: 587, username: '', password: '', from: '', tlsMode: 'starttls' })
+const testMailTo = ref('')
+const testingMail = ref(false)
 
 function notify(text: string, isError = false) {
   message.value = text
@@ -325,7 +355,53 @@ function saveSettings() {
   void run(() => updateAppSettings(settings.value), '设置已保存')
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  void loadAll()
+  getSMTP().then(({ data }) => {
+    smtp.value.host = data.host
+    smtp.value.port = data.port || 587
+    smtp.value.username = data.username
+    smtp.value.from = data.from
+    smtp.value.tlsMode = data.tls_mode || 'starttls'
+  }).catch(() => {})
+})
+
+async function saveSmtp() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const { data } = await updateSMTP({
+      host: smtp.value.host.trim(),
+      port: smtp.value.port,
+      username: smtp.value.username.trim(),
+      password: smtp.value.password || undefined,
+      from: smtp.value.from.trim(),
+      tls_mode: smtp.value.tlsMode,
+    })
+    toast.success(data.configured ? 'SMTP 设置已保存' : 'SMTP 设置已保存（尚未完整配置）')
+    smtp.value.password = ''
+  } catch (e: any) {
+    toast.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function sendTestMail() {
+  if (!testMailTo.value.trim()) {
+    toast.error('请先填写收件邮箱')
+    return
+  }
+  testingMail.value = true
+  try {
+    const { data } = await testSMTP(testMailTo.value.trim())
+    toast.success(data.message || '测试邮件已发送')
+  } catch (e: any) {
+    toast.error(e.response?.data?.error || '发送失败')
+  } finally {
+    testingMail.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -389,5 +465,7 @@ onMounted(loadAll)
 .setting-label { font-size: 13px; color: var(--color-ink); min-width: 96px; }
 .vercel-input.narrow { max-width: 240px; }
 .btn.danger { color: var(--color-error); }
+.admin-hint { font-size: 12px; color: var(--color-mute); margin: 0 0 var(--spacing-sm); }
+.smtp-form { border-bottom: none; margin-bottom: 0; }
 </style>
 

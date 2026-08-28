@@ -150,11 +150,11 @@ func TestSetupConfirmStatusAndDisable(t *testing.T) {
 	// Another user must not be able to confirm someone else's setup; a
 	// second session of the same user still may (asserted below).
 	if err := h.store.CreateUser(models.User{
-		Username:       "member",
-		PasswordHash:   store.HashPassword("password"),
-		Role:           models.RoleUser,
-		Status:         models.UserActive,
-		EmailVerified:  true,
+		Username:      "member",
+		PasswordHash:  store.HashPassword("password"),
+		Role:          models.RoleUser,
+		Status:        models.UserActive,
+		EmailVerified: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -213,11 +213,11 @@ func TestLogoutDeletesPendingSetupsOwnedByUser(t *testing.T) {
 	h := newTestAdminHandler(t, bytes.Repeat([]byte{7}, 32))
 	// A second regular account so ownership boundaries are exercised.
 	if err := h.store.CreateUser(models.User{
-		Username:       "member",
-		PasswordHash:   store.HashPassword("password"),
-		Role:           models.RoleUser,
-		Status:         models.UserActive,
-		EmailVerified:  true,
+		Username:      "member",
+		PasswordHash:  store.HashPassword("password"),
+		Role:          models.RoleUser,
+		Status:        models.UserActive,
+		EmailVerified: true,
 	}); err != nil {
 		t.Fatal(err)
 	}

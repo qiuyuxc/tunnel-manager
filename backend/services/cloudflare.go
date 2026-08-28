@@ -19,7 +19,9 @@ type CloudflareClient struct {
 	baseURL    string
 	httpClient *http.Client
 	oauth      *CloudflareOAuth
-	store      interface{ ActiveCFConnection(string) (models.CFConnection, bool) }
+	store      interface {
+		ActiveCFConnection(string) (models.CFConnection, bool)
+	}
 	userID     string
 	pinnedConn *models.CFConnection
 }
@@ -40,7 +42,9 @@ func (c *CloudflareClient) SetOAuth(oauth *CloudflareOAuth) {
 }
 
 // SetSessionStore wires the store used to resolve per-user connections.
-func (c *CloudflareClient) SetSessionStore(st interface{ ActiveCFConnection(string) (models.CFConnection, bool) }) {
+func (c *CloudflareClient) SetSessionStore(st interface {
+	ActiveCFConnection(string) (models.CFConnection, bool)
+}) {
 	c.store = st
 }
 

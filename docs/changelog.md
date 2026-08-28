@@ -2,6 +2,15 @@
 
 整理自仓库发布提交，更早的版本细节见 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)。
 
+## v1.17.0
+
+- 多用户体系：邮箱注册（可配邀请码与邮箱验证码）、用户组权限、会话入库重启不掉线
+- 管理后台：用户 / 用户组 / 邀请码 / 注册策略管理
+- 数据存储迁移到 SQLite，旧 config.json 自动导入并保留备份
+- Cloudflare OAuth 多账户：一个账号可授权多个 Cloudflare 账户并随时切换
+- 服务监控告警：仅在状态变化时发送邮件通知，支持多收件人与告警记录
+- SMTP 邮件服务配置与测试发送
+
 ## v1.16.0
 
 - 服务监控模块：HTTP / TCP / ICMP 三种探测方式，多目标挂载与延迟柱图

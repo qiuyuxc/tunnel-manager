@@ -130,6 +130,29 @@ type migration struct {
 	stmts   string
 }
 
+// schemaV4 adds monitor alerting: per-monitor alert configuration, the
+// persisted last probe state per target (edge detection across restarts)
+// and an alert delivery log.
+const schemaV4 = `ALTER TABLE monitors ADD COLUMN alert_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE monitors ADD COLUMN alert_emails TEXT NOT NULL DEFAULT '';
+ALTER TABLE monitor_targets ADD COLUMN last_state TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE alert_logs (
+	id          INTEGER PRIMARY KEY AUTOINCREMENT,
+	monitor_id  TEXT NOT NULL,
+	target_id   TEXT NOT NULL,
+	target_name TEXT NOT NULL DEFAULT '',
+	state       TEXT NOT NULL DEFAULT '',
+	http_code   INTEGER NOT NULL DEFAULT 0,
+	error       TEXT NOT NULL DEFAULT '',
+	notified    INTEGER NOT NULL DEFAULT 0,
+	detail      TEXT NOT NULL DEFAULT '',
+	created_at  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_alert_logs_monitor ON alert_logs(monitor_id, created_at);
+`
+
 // schemaV3 adds per-user Cloudflare OAuth connections so one account can
 // authorize several Cloudflare accounts and switch between them.
 const schemaV3 = `CREATE TABLE cf_connections (
@@ -156,6 +179,7 @@ var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
 	{version: 3, stmts: schemaV3},
+	{version: 4, stmts: schemaV4},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

@@ -469,8 +469,27 @@ export interface MonitorView {
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string
+  alert_enabled?: boolean
+  alert_emails?: string
   created_at?: number
   targets: TargetStatus[]
+}
+
+export interface AlertLog {
+  id: number
+  monitor_id: string
+  target_id: string
+  target_name: string
+  state: string
+  http_code: number
+  error: string
+  notified: boolean
+  detail: string
+  created_at: number
+}
+
+export function listMonitorAlerts(id: string) {
+  return api.get<AlertLog[]>(`/monitors/${id}/alerts`)
 }
 
 export function listMonitors() {
@@ -495,6 +514,8 @@ export interface MonitorUpdate {
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string
+  alert_enabled?: boolean
+  alert_emails?: string
 }
 
 export function updateMonitor(id: string, patch: MonitorUpdate) {

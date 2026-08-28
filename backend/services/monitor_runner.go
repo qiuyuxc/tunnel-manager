@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +42,7 @@ type ProbeOutcome struct {
 type Runner struct {
 	st       *store.Store
 	hb       *HeartbeatLog
+	mailer   func() *Mailer
 	mu       sync.Mutex
 	lastRun  map[string]time.Time
 	inflight map[string]bool
@@ -47,6 +51,11 @@ type Runner struct {
 // NewRunner wires a scheduler over the store and heartbeat log.
 func NewRunner(st *store.Store, hb *HeartbeatLog) *Runner {
 	return &Runner{st: st, hb: hb, lastRun: map[string]time.Time{}, inflight: map[string]bool{}}
+}
+
+// SetMailer wires the alert email provider, built lazily per notification.
+func (r *Runner) SetMailer(provider func() *Mailer) {
+	r.mailer = provider
 }
 
 // NewMonitorID returns a random hex identifier.
@@ -127,6 +136,16 @@ func (r *Runner) RunNow(ctx context.Context, m models.Monitor) []ProbeOutcome {
 				C: res.HTTPCode,
 				E: errText,
 			})
+
+			// Alert on OK<->down state changes only; the previous state is
+			// persisted so restarts never trigger duplicate alerts.
+			previous := t.LastState
+			if previous != res.State {
+				_ = r.st.UpdateTargetLastState(m.ID, t.ID, res.State)
+				if m.AlertEnabled && previous != "" {
+					go r.notifyStateChange(m, t, outcomes[i], previous)
+				}
+			}
 		}(i, t)
 	}
 	wg.Wait()
@@ -163,4 +182,87 @@ func Downsample(hbs []Heartbeat, n int) []Heartbeat {
 		out = append(out, hbs[idx])
 	}
 	return out
+}
+
+// notifyStateChange sends one alert email for a target state change and
+// records the delivery attempt. Failures never affect the probe loop.
+func (r *Runner) notifyStateChange(m models.Monitor, t models.MonitorTarget, outcome ProbeOutcome, previous string) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("monitor alert panic: %v", rec)
+		}
+	}()
+
+	entry := models.AlertLog{
+		MonitorID:  m.ID,
+		TargetID:   t.ID,
+		TargetName: t.Name,
+		State:      outcome.State,
+		HTTPCode:   outcome.HTTPCode,
+		Error:      outcome.Error,
+	}
+
+	mailer := r.mailer()
+	if mailer == nil {
+		entry.Detail = "SMTP 未配置，告警未发送"
+		r.st.AddAlertLog(entry)
+		return
+	}
+	recipients := alertRecipients(r.st, m)
+	if len(recipients) == 0 {
+		entry.Detail = "未配置收件邮箱"
+		r.st.AddAlertLog(entry)
+		return
+	}
+
+	stateLabel := "状态异常"
+	if outcome.State == "ok" {
+		stateLabel = "已恢复"
+	}
+	subject := fmt.Sprintf("[Tunnel Manager] %s · %s", m.Name, stateLabel)
+	var body strings.Builder
+	body.WriteString(fmt.Sprintf("监控项目：%s\n", m.Name))
+	body.WriteString(fmt.Sprintf("探测目标：%s（%s）\n", t.Name, t.URL))
+	body.WriteString(fmt.Sprintf("状态变化：%s -> %s\n", previous, outcome.State))
+	if outcome.HTTPCode > 0 {
+		body.WriteString(fmt.Sprintf("HTTP 状态码：%d\n", outcome.HTTPCode))
+	}
+	if outcome.Error != "" {
+		body.WriteString(fmt.Sprintf("错误信息：%s\n", outcome.Error))
+	}
+	body.WriteString(fmt.Sprintf("时间：%s\n", time.Now().Format("2006-01-02 15:04:05")))
+
+	var sendErrors []string
+	for _, to := range recipients {
+		if err := mailer.Send(to, subject, body.String()); err != nil {
+			sendErrors = append(sendErrors, to+": "+err.Error())
+		}
+	}
+	if len(sendErrors) > 0 {
+		entry.Notified = false
+		entry.Detail = strings.Join(sendErrors, "; ")
+		log.Printf("monitor alert mail failed: %v", entry.Detail)
+	} else {
+		entry.Notified = true
+		entry.Detail = "已发送至 " + strings.Join(recipients, ", ")
+	}
+	r.st.AddAlertLog(entry)
+}
+
+// alertRecipients resolves the notification addresses: per-monitor emails
+// when configured, otherwise the owner account email.
+func alertRecipients(st *store.Store, m models.Monitor) []string {
+	if emails := strings.TrimSpace(m.AlertEmails); emails != "" {
+		out := make([]string, 0, 4)
+		for _, piece := range strings.Split(emails, ",") {
+			if piece = strings.TrimSpace(piece); piece != "" {
+				out = append(out, piece)
+			}
+		}
+		return out
+	}
+	if owner, ok := st.GetUserByID(m.UserID); ok && owner.Email != "" {
+		return []string{owner.Email}
+	}
+	return nil
 }

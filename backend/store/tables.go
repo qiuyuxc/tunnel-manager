@@ -269,6 +269,42 @@ func replaceCFConnections(tx *sql.Tx, conns []models.CFConnection) error {
 	return nil
 }
 
+// replaceAlertLogs syncs the alert_logs table.
+func replaceAlertLogs(tx *sql.Tx, logs []models.AlertLog) error {
+	if _, err := tx.Exec(`DELETE FROM alert_logs`); err != nil {
+		return fmt.Errorf("clear alert logs: %w", err)
+	}
+	for _, entry := range logs {
+		if _, err := tx.Exec(`INSERT INTO alert_logs(monitor_id, target_id, target_name, state, http_code, error, notified, detail, created_at)
+			VALUES(?,?,?,?,?,?,?,?,?)`,
+			entry.MonitorID, entry.TargetID, entry.TargetName, entry.State, entry.HTTPCode, entry.Error,
+			boolInt(entry.Notified), entry.Detail, entry.CreatedAt); err != nil {
+			return fmt.Errorf("save alert log: %w", err)
+		}
+	}
+	return nil
+}
+
+// loadAlertLogs reads the alert_logs table.
+func loadAlertLogs(handle *sql.DB) ([]models.AlertLog, error) {
+	rows, err := handle.Query(`SELECT monitor_id, target_id, target_name, state, http_code, error, notified, detail, created_at FROM alert_logs`)
+	if err != nil {
+		return nil, fmt.Errorf("load alert logs: %w", err)
+	}
+	defer rows.Close()
+	logs := []models.AlertLog{}
+	for rows.Next() {
+		var entry models.AlertLog
+		var notified int
+		if err := rows.Scan(&entry.MonitorID, &entry.TargetID, &entry.TargetName, &entry.State, &entry.HTTPCode, &entry.Error, &notified, &entry.Detail, &entry.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan alert log: %w", err)
+		}
+		entry.Notified = notified != 0
+		logs = append(logs, entry)
+	}
+	return logs, rows.Err()
+}
+
 // loadCFConnections reads the cf_connections table.
 func loadCFConnections(handle *sql.DB) ([]models.CFConnection, error) {
 	rows, err := handle.Query(`SELECT id, user_id, label, account_id, account_name,

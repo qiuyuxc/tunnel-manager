@@ -65,6 +65,8 @@ type monitorView struct {
 	PublicSlug     string         `json:"public_slug,omitempty"`
 	PublicTheme    string         `json:"public_theme,omitempty"`
 	Announcement   string         `json:"announcement,omitempty"`
+	AlertEnabled   bool           `json:"alert_enabled"`
+	AlertEmails    string         `json:"alert_emails,omitempty"`
 	CreatedAt      int64          `json:"created_at,omitempty"`
 	Targets        []targetStatus `json:"targets"`
 }
@@ -78,6 +80,8 @@ func (h *MonitorsHandler) enrich(m models.Monitor, withBars bool) monitorView {
 		PublicToken:    m.PublicToken,
 		PublicTitle:    m.PublicTitle,
 		Announcement:   m.Announcement,
+		AlertEnabled:   m.AlertEnabled,
+		AlertEmails:    m.AlertEmails,
 		PublicIcon:     m.PublicIcon,
 		PublicSlug:     m.PublicSlug,
 		PublicTheme:    m.PublicTheme,
@@ -154,6 +158,8 @@ type createReq struct {
 	Name           string `json:"name"`
 	IntervalSec    int    `json:"interval_sec"`
 	PublishEnabled bool   `json:"publish_enabled"`
+	AlertEnabled   bool   `json:"alert_enabled"`
+	AlertEmails    string `json:"alert_emails"`
 }
 
 // Create handles POST /api/monitors.
@@ -178,6 +184,8 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:           name,
 		IntervalSec:    req.IntervalSec,
 		PublishEnabled: req.PublishEnabled,
+		AlertEnabled:   req.AlertEnabled,
+		AlertEmails:    strings.TrimSpace(req.AlertEmails),
 		PublicToken:    newAPIToken(),
 		CreatedAt:      time.Now().Unix(),
 	}
@@ -222,6 +230,8 @@ type updateReq struct {
 	PublicTheme     *string `json:"public_theme"`
 	PublicSlug      *string `json:"public_slug"`
 	Announcement    *string `json:"announcement"`
+	AlertEnabled    *bool   `json:"alert_enabled"`
+	AlertEmails     *string `json:"alert_emails"`
 }
 
 // Update handles PUT /api/monitors/{monitorID}.
@@ -250,6 +260,12 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.PublishEnabled != nil {
 		current.PublishEnabled = *req.PublishEnabled
+	}
+	if req.AlertEnabled != nil {
+		current.AlertEnabled = *req.AlertEnabled
+	}
+	if req.AlertEmails != nil {
+		current.AlertEmails = strings.TrimSpace(*req.AlertEmails)
 	}
 	if req.RegenerateToken {
 		current.PublicToken = newAPIToken()
@@ -684,6 +700,17 @@ type publicBar struct {
 	S string `json:"s"`
 	M int64  `json:"ms,omitempty"`
 	C int    `json:"c,omitempty"`
+}
+
+// AlertLogs handles GET /api/monitors/{monitorID}/alerts and returns the
+// newest alert delivery records of one owned monitor.
+func (h *MonitorsHandler) AlertLogs(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "monitorID")
+	if _, ok := h.lookupVisible(r, id); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, h.st.ListAlertLogs(id, 100))
 }
 
 // PublicStatus serves the token-or-slug scoped public payload.

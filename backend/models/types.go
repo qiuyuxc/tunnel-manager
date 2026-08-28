@@ -54,6 +54,7 @@ type MonitorTarget struct {
 	Method      string `json:"method,omitempty"` // http only: GET (default) or POST
 	CreatedAt   int64  `json:"created_at,omitempty"`
 	LinkEnabled bool   `json:"link_enabled,omitempty"`
+	LastState   string `json:"last_state,omitempty"`
 }
 
 // Monitor groups targets checked on a schedule and publishable on a
@@ -66,6 +67,8 @@ type Monitor struct {
 	PublicToken    string          `json:"public_token,omitempty"`
 	PublicSlug     string          `json:"public_slug,omitempty"`
 	PublishEnabled bool            `json:"publish_enabled"`
+	AlertEnabled   bool            `json:"alert_enabled,omitempty"`
+	AlertEmails    string          `json:"alert_emails,omitempty"`
 	Targets        []MonitorTarget `json:"targets,omitempty"`
 	PublicTitle    string          `json:"public_title,omitempty"` // status page display title
 	PublicIcon     string          `json:"public_icon,omitempty"`

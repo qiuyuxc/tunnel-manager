@@ -77,6 +77,7 @@ type Store struct {
 	appSettings models.AppSettings
 	smtp        models.SMTPSettings
 	cfConns     []models.CFConnection
+	alertLogs   []models.AlertLog
 	adminID     string
 }
 
@@ -292,6 +293,9 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	if s.cfConns, err = loadCFConnections(handle); err != nil {
 		return false, err
 	}
+	if s.alertLogs, err = loadAlertLogs(handle); err != nil {
+		return false, err
+	}
 	if appDoc, ok, loadErr := loadSetting(handle, "app"); loadErr != nil {
 		return false, loadErr
 	} else if ok {
@@ -353,6 +357,9 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	if err := replaceCFConnections(tx, s.cfConns); err != nil {
+		return err
+	}
+	if err := replaceAlertLogs(tx, s.alertLogs); err != nil {
 		return err
 	}
 	appJSON, err := json.Marshal(s.appSettings)
@@ -745,7 +752,7 @@ func replaceCNAMEPresets(tx *sql.Tx, presets []models.CNAMEPreset) error {
 	return nil
 }
 
-const monitorColumns = `id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at`
+const monitorColumns = `id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at, alert_enabled, alert_emails`
 
 func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 	rows, err := handle.Query(`SELECT ` + monitorColumns + ` FROM monitors ORDER BY position`)
@@ -756,20 +763,21 @@ func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 	monitors := []models.Monitor{}
 	for rows.Next() {
 		var m models.Monitor
-		var publishEnabled int
+		var publishEnabled, alertEnabled int
 		if err := rows.Scan(&m.ID, new(int), &m.Name, &m.IntervalSec, &publishEnabled,
 			&m.PublicToken, &m.PublicSlug, &m.PublicTitle, &m.PublicIcon, &m.PublicTheme,
-			&m.Announcement, &m.CreatedAt); err != nil {
+			&m.Announcement, &m.CreatedAt, &alertEnabled, &m.AlertEmails); err != nil {
 			return nil, fmt.Errorf("scan monitor: %w", err)
 		}
 		m.PublishEnabled = publishEnabled != 0
+		m.AlertEnabled = alertEnabled != 0
 		monitors = append(monitors, m)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate monitors: %w", err)
 	}
 
-	targetRows, err := handle.Query(`SELECT monitor_id, id, position, name, url, type, method, created_at, link_enabled
+	targetRows, err := handle.Query(`SELECT monitor_id, id, position, name, url, type, method, created_at, link_enabled, last_state
 		FROM monitor_targets ORDER BY monitor_id, position`)
 	if err != nil {
 		return nil, fmt.Errorf("load monitor targets: %w", err)
@@ -784,7 +792,7 @@ func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 		var monitorID string
 		var t models.MonitorTarget
 		var linkEnabled int
-		if err := targetRows.Scan(&monitorID, &t.ID, new(int), &t.Name, &t.URL, &t.Type, &t.Method, &t.CreatedAt, &linkEnabled); err != nil {
+		if err := targetRows.Scan(&monitorID, &t.ID, new(int), &t.Name, &t.URL, &t.Type, &t.Method, &t.CreatedAt, &linkEnabled, &t.LastState); err != nil {
 			return nil, fmt.Errorf("scan monitor target: %w", err)
 		}
 		t.LinkEnabled = linkEnabled != 0
@@ -806,15 +814,15 @@ func replaceMonitors(tx *sql.Tx, monitors []models.Monitor) error {
 		return fmt.Errorf("clear monitors: %w", err)
 	}
 	for i, m := range monitors {
-		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			m.ID, i, m.Name, m.IntervalSec, boolInt(m.PublishEnabled), m.PublicToken, m.PublicSlug,
-			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt); err != nil {
+			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt, boolInt(m.AlertEnabled), m.AlertEmails); err != nil {
 			return fmt.Errorf("save monitor %s: %w", m.ID, err)
 		}
 		for j, t := range m.Targets {
-			if _, err := tx.Exec(`INSERT INTO monitor_targets(id, monitor_id, position, name, url, type, method, created_at, link_enabled)
-				VALUES(?,?,?,?,?,?,?,?,?)`,
-				t.ID, m.ID, j, t.Name, t.URL, t.Type, t.Method, t.CreatedAt, boolInt(t.LinkEnabled)); err != nil {
+			if _, err := tx.Exec(`INSERT INTO monitor_targets(id, monitor_id, position, name, url, type, method, created_at, link_enabled, last_state)
+				VALUES(?,?,?,?,?,?,?,?,?,?)`,
+				t.ID, m.ID, j, t.Name, t.URL, t.Type, t.Method, t.CreatedAt, boolInt(t.LinkEnabled), t.LastState); err != nil {
 				return fmt.Errorf("save monitor target %s: %w", t.ID, err)
 			}
 		}

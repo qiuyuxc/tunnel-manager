@@ -24,7 +24,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v1.16.2"
+const Version = "v1.17.0"
 
 func main() {
 	// CLI flags for password management
@@ -103,6 +103,18 @@ func main() {
 	// Service monitoring heartbeat storage and scheduler
 	heartbeatLog := services.NewHeartbeatLog(filepath.Join(filepath.Dir(storePath), "heartbeats.json"))
 	monitorRunner := services.NewRunner(st, heartbeatLog)
+	monitorRunner.SetMailer(func() *services.Mailer {
+		settings := st.GetSMTPSettings()
+		if !settings.Configured() || settings.Password == "" {
+			return nil
+		}
+		plain, err := auth.DecryptSecret(encryptionKey, "smtp-password", settings.Password)
+		if err != nil {
+			log.Printf("decrypt SMTP password: %v", err)
+			return nil
+		}
+		return services.NewMailer(settings, string(plain))
+	})
 	go monitorRunner.Start(context.Background())
 	heartbeatLog.StartFlusher(10 * time.Second)
 
@@ -235,6 +247,7 @@ func main() {
 		r.Get("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Get)))
 		r.Put("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Update)))
 		r.Delete("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Delete)))
+		r.Get("/monitors/{monitorID}/alerts", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.AlertLogs)))
 		r.Post("/monitors/{monitorID}/check", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.CheckNow)))
 		r.Post("/monitors/{monitorID}/targets", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.AddTarget)))
 		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.EditTarget)))

@@ -56,6 +56,32 @@
       </div>
     </details>
 
+    <!-- 告警设置 -->
+    <details v-if="monitor" class="card section pub-set">
+      <summary>告警设置<span class="ps-sub">仅在服务状态变化时发送邮件通知</span></summary>
+      <div class="ps-body">
+        <label class="fld alert-switch"><input v-model="alertEnabled" type="checkbox" /> 启用状态变化邮件告警</label>
+        <label class="fld"><span>收件邮箱（多个用英文逗号分隔，留空发送到注册邮箱）</span>
+          <input v-model="alertEmails" placeholder="ops@example.com, boss@example.com" /></label>
+        <div class="ps-actions"><button class="btn btn-secondary btn-sm" :disabled="savingAlert" @click="saveAlertSettings">{{ savingAlert ? '保存中…' : '保存告警设置' }}</button></div>
+        <div v-if="alertLogs.length" class="alert-log">
+          <span class="caption-mono">最近告警记录</span>
+          <table class="alert-table">
+            <thead><tr><th>时间</th><th>目标</th><th>状态</th><th>通知</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr v-for="log in alertLogs" :key="log.id">
+                <td>{{ new Date(log.created_at * 1000).toLocaleString() }}</td>
+                <td>{{ log.target_name || log.target_id }}</td>
+                <td>{{ log.state }}</td>
+                <td>{{ log.notified ? '已发送' : '失败' }}</td>
+                <td class="text-muted">{{ log.detail }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+
     <!-- 添加服务 -->
     <div class="card section add-card">
       <div class="add-row">
@@ -160,6 +186,8 @@ import {
   publicStatusPath,
   removeMonitorTarget,
   updateMonitor,
+  listMonitorAlerts,
+  type AlertLog,
   type Heartbeat,
   type MonitorView,
   type TargetStatus,
@@ -230,6 +258,9 @@ async function load() {
     pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
     pubSlug.value = data.public_slug || ''
     announcement.value = data.announcement || ''
+    alertEnabled.value = Boolean(data.alert_enabled)
+    alertEmails.value = data.alert_emails || ''
+    void loadAlertLogs()
   } finally {
     loading.value = false
   }
@@ -297,6 +328,37 @@ async function loadRoutes() {
     routeHosts.value = Array.from(new Set(hosts))
   } catch (_) {
     // 隧道路由读取失败不阻塞主流程
+  }
+}
+
+const alertEnabled = ref(false)
+const alertEmails = ref('')
+const savingAlert = ref(false)
+const alertLogs = ref<AlertLog[]>([])
+
+async function saveAlertSettings() {
+  if (savingAlert.value) return
+  savingAlert.value = true
+  try {
+    const { data } = await updateMonitor(monitorId, {
+      alert_enabled: alertEnabled.value,
+      alert_emails: alertEmails.value.trim(),
+    })
+    monitor.value = data
+    message.success(alertEnabled.value ? '告警已开启' : '告警已关闭')
+  } catch (_) {
+    message.error('保存失败')
+  } finally {
+    savingAlert.value = false
+  }
+}
+
+async function loadAlertLogs() {
+  try {
+    const { data } = await listMonitorAlerts(monitorId)
+    alertLogs.value = data || []
+  } catch (_) {
+    alertLogs.value = []
   }
 }
 
