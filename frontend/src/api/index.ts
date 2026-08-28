@@ -10,7 +10,7 @@ declare module 'axios' {
   }
 }
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
 })
@@ -135,6 +135,7 @@ export interface ApiResponse {
 export interface LoginResponse {
   token: string
   username: string
+  role?: string
 }
 
 export interface TwoFactorChallengeResponse {
@@ -163,8 +164,8 @@ export interface TOTPConfirmResponse {
   recovery_codes: string[]
 }
 
-export function login(username: string, password: string) {
-  return api.post<LoginResult>('/admin/login', { username, password })
+export function login(account: string, password: string) {
+  return api.post<LoginResult>('/admin/login', { account, password })
 }
 
 export function completeTwoFactorLogin(challengeToken: string, code: string) {

@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConfigStore } from '../stores/config'
 import { logout as logoutApi } from '../api'
@@ -149,17 +149,25 @@ const icons = {
   expand: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="11 9 13 12 11 15"/></svg>',
 }
 
-const navItems = [
-  { path: '/', label: '控制面板', icon: icons.dashboard },
-  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels },
-  { path: '/monitors', label: '服务监控', icon: icons.monitor },
-  { path: '/domain', label: '域名绑定', icon: icons.domain },
-  { path: '/dns', label: 'DNS 管理', icon: icons.dns },
-  { path: '/settings', label: '全局设置', icon: icons.settings },
-  { path: '/telegram', label: 'TG 机器人', icon: icons.telegram },
-  { path: '/account', label: '账户', icon: icons.account },
-  { path: '/about', label: '关于', icon: icons.about },
-]
+const navItems = computed(() => {
+  const items = [
+    { path: '/', label: '控制面板', icon: icons.dashboard, perm: '', admin: false },
+    { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, perm: 'tunnels', admin: false },
+    { path: '/monitors', label: '服务监控', icon: icons.monitor, perm: 'monitors', admin: false },
+    { path: '/domain', label: '域名绑定', icon: icons.domain, perm: 'domain_bind', admin: false },
+    { path: '/dns', label: 'DNS 管理', icon: icons.dns, perm: 'dns', admin: false },
+    { path: '/settings', label: '全局设置', icon: icons.settings, perm: '', admin: true },
+    { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, perm: '', admin: true },
+    { path: '/admin', label: '管理后台', icon: icons.account, perm: '', admin: true },
+    { path: '/account', label: '账户', icon: icons.account, perm: '', admin: false },
+    { path: '/about', label: '关于', icon: icons.about, perm: '', admin: false },
+  ]
+  return items.filter((item) => {
+    if (item.admin) return configStore.isAdmin()
+    if (item.perm) return configStore.hasPerm(item.perm)
+    return true
+  })
+})
 
 function isActive(path: string) {
   if (path === '/') return route.path === '/'
