@@ -230,11 +230,14 @@ func (r *Runner) notifyStateChange(m models.Monitor, t models.MonitorTarget, out
 	if outcome.Error != "" {
 		body.WriteString(fmt.Sprintf("错误信息：%s\n", outcome.Error))
 	}
-	body.WriteString(fmt.Sprintf("时间：%s\n", time.Now().Format("2006-01-02 15:04:05")))
+	when := time.Now().Format("2006-01-02 15:04:05")
+	body.WriteString(fmt.Sprintf("时间：%s\n", when))
+
+	plain, htmlBody := AlertEmail(m.Name, t.Name, t.URL, previous, outcome.State, outcome.HTTPCode, outcome.Error, when)
 
 	var sendErrors []string
 	for _, to := range recipients {
-		if err := mailer.Send(to, subject, body.String()); err != nil {
+		if err := mailer.Send(to, subject, plain, htmlBody); err != nil {
 			sendErrors = append(sendErrors, to+": "+err.Error())
 		}
 	}

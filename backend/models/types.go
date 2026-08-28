@@ -362,6 +362,13 @@ type ChangeUsernameRequest struct {
 	NewUsername     string `json:"new_username"`
 }
 
+// ChangeEmailRequest binds or replaces the account email. Password
+// confirmation is required.
+type ChangeEmailRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewEmail        string `json:"new_email"`
+}
+
 // TelegramSettingsRequest is the request body for saving bot settings
 type TelegramSettingsRequest struct {
 	Enabled     bool   `json:"enabled"`

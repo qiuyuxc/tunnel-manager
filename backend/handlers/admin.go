@@ -485,7 +485,46 @@ func (h *AdminHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "username updated successfully"})
 }
 
-// ValidateSession resolves a session token to the authenticated identity.
+// ChangeEmail handles PUT /api/admin/email: binds or replaces the account
+// email (password confirmation required).
+func (h *AdminHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
+	var req models.ChangeEmailRequest
+	if err := readAdminJSON(w, r, &req); err != nil || len(req.CurrentPassword) > maxPasswordLength || len(req.NewEmail) > maxUsernameLength {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if !h.acquirePasswordVerify() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
+		return
+	}
+	stored, _ := h.store.GetUserByID(userID)
+	passwordValid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
+	h.releasePasswordVerify()
+	if !passwordValid {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "password is incorrect"})
+		return
+	}
+	email := strings.TrimSpace(strings.ToLower(req.NewEmail))
+	if email != "" && !validEmail(email) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
+		return
+	}
+	if err := h.store.SetUserEmail(userID, email, email != ""); err != nil {
+		if errors.Is(err, store.ErrEmailTaken) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "邮箱已被其他账号使用"})
+		} else {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update email"})
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "邮箱已更新"})
+}
+
 func (h *AdminHandler) ValidateSession(token string) (models.SessionUser, bool) {
 	if !validOpaqueToken(token) {
 		return models.SessionUser{}, false

@@ -168,6 +168,8 @@ func main() {
 		// Account management (any authenticated user)
 		r.Put("/admin/password", mw.Auth(adminHandler.ChangePassword))
 		r.Put("/admin/username", mw.Auth(adminHandler.ChangeUsername))
+		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
+		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
 		r.Post("/admin/2fa/setup", mw.SessionOnly(adminHandler.SetupTOTP))
 		r.Post("/admin/2fa/confirm", mw.SessionOnly(adminHandler.ConfirmTOTP))
 		r.Get("/admin/2fa/status", mw.SessionOnly(adminHandler.TOTPStatus))

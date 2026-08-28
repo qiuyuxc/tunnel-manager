@@ -1272,3 +1272,26 @@ func (s *Store) ClearTunnelSelectionIfUsed(tunnelID string) error {
 	}
 	return s.saveLocked()
 }
+
+// SetUserEmail binds or replaces one account's email address. Uniqueness is
+// enforced case-insensitively; pass verified=false to mark it pending.
+func (s *Store) SetUserEmail(id, email string, verified bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user := s.findUserLocked(id)
+	if user == nil {
+		return ErrUserNotFound
+	}
+	email = strings.TrimSpace(strings.ToLower(email))
+	if err := s.emailFreeLocked(email, id); err != nil {
+		return err
+	}
+	prevEmail, prevVerified := user.Email, user.EmailVerified
+	user.Email = email
+	user.EmailVerified = verified
+	if err := s.saveLocked(); err != nil {
+		user.Email, user.EmailVerified = prevEmail, prevVerified
+		return err
+	}
+	return nil
+}

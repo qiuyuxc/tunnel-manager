@@ -436,7 +436,8 @@ func (h *ManagementHandler) TestSMTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mailer := services.NewMailer(settings, password)
-	if err := mailer.Send(to, "Tunnel Manager 测试邮件", "这是一封来自 Tunnel Manager 的测试邮件，收到即表示 SMTP 配置有效。"); err != nil {
+	plain, htmlBody := services.TestEmail()
+	if err := mailer.Send(to, "Tunnel Manager SMTP 测试邮件", plain, htmlBody); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "发送失败: " + err.Error()})
 		return
 	}
