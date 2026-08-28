@@ -55,13 +55,20 @@ func (m *Mailer) Send(to, subject, body string) error {
 		{"Subject", encodeHeader(subject)},
 		{"MIME-Version", "1.0"},
 		{"Content-Type", "text/plain; charset=\"utf-8\""},
+		{"Content-Transfer-Encoding", "base64"},
 		{"Date", time.Now().Format(time.RFC1123Z)},
 	}
 	var message strings.Builder
 	for _, header := range headers {
 		message.WriteString(header.key + ": " + header.value + "\r\n")
 	}
-	message.WriteString("\r\n" + base64.StdEncoding.EncodeToString([]byte(body)))
+	encoded := base64.StdEncoding.EncodeToString([]byte(body))
+	// RFC 2045: base64 行不得超过 76 字符
+	for len(encoded) > 76 {
+		message.WriteString(encoded[:76] + "\r\n")
+		encoded = encoded[76:]
+	}
+	message.WriteString("\r\n" + encoded)
 
 	client, err := m.connect()
 	if err != nil {

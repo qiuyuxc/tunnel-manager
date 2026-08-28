@@ -97,7 +97,7 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	h.store.PutVerifyCode(email, "register", hex.EncodeToString(sum[:]), verifyCodeTTL)
 
 	subject := "注册验证码"
-	body := fmt.Sprintf("您的注册验证码是：%s\n\n%v 分钟内有效。若非本人操作请忽略本邮件。", code, verifyCodeTTL/time.Minute)
+	body := fmt.Sprintf("您的注册验证码是：%s\n\n%v 分钟内有效。若非本人操作请忽略本邮件。", code, int(verifyCodeTTL/time.Minute))
 	if err := mailer.Send(email, subject, body); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "邮件发送失败: " + err.Error()})
 		return
@@ -331,7 +331,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(code))
 	h.store.PutVerifyCode(email, "reset", hex.EncodeToString(sum[:]), verifyCodeTTL)
 	subject := "密码重置验证码"
-	body := fmt.Sprintf("您的密码重置验证码是：%s\n\n%v 分钟内有效。若非本人操作请忽略本邮件。", code, verifyCodeTTL/time.Minute)
+	body := fmt.Sprintf("您的密码重置验证码是：%s\n\n%v 分钟内有效。若非本人操作请忽略本邮件。", code, int(verifyCodeTTL/time.Minute))
 	if err := mailer.Send(email, subject, body); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "邮件发送失败: " + err.Error()})
 		return
