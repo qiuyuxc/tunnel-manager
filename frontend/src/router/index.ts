@@ -19,6 +19,7 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
     { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
+    { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/about', name: 'about', component: () => import('../views/About.vue'), meta: { requiresAuth: true } },
   ],
 })
@@ -27,6 +28,9 @@ router.beforeEach((to, _from) => {
   const store = useConfigStore()
   if (to.meta.requiresAuth && !store.isAuthenticated) {
     return '/login'
+  }
+  if (to.meta.requiresAdmin && !store.isAdmin()) {
+    return '/'
   }
   if (to.path === '/login' && store.isAuthenticated) {
     return '/'

@@ -10,7 +10,7 @@ declare module 'axios' {
   }
 }
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
 })
@@ -87,6 +87,16 @@ export interface CloudflareAccount {
   name: string
 }
 
+export interface CFConnectionView {
+  id: string
+  label: string
+  account_id: string
+  account_name: string
+  active: boolean
+  expires_at: number
+  created_at: number
+}
+
 export interface CloudflareOAuthStatus {
   configured: boolean
   connected: boolean
@@ -97,6 +107,8 @@ export interface CloudflareOAuthStatus {
   expires_at?: string
   redirect_uri: string
   error?: string
+  connections?: CFConnectionView[]
+  active_connection_id?: string
 }
 
 export type BindMode = 'simple' | 'preferred'
@@ -135,6 +147,7 @@ export interface ApiResponse {
 export interface LoginResponse {
   token: string
   username: string
+  role?: string
 }
 
 export interface TwoFactorChallengeResponse {
@@ -163,8 +176,8 @@ export interface TOTPConfirmResponse {
   recovery_codes: string[]
 }
 
-export function login(username: string, password: string) {
-  return api.post<LoginResult>('/admin/login', { username, password })
+export function login(account: string, password: string) {
+  return api.post<LoginResult>('/admin/login', { account, password })
 }
 
 export function completeTwoFactorLogin(challengeToken: string, code: string) {
@@ -245,8 +258,14 @@ export function selectCloudflareAccount(accountID: string) {
   return api.put<CloudflareAccount>('/cloudflare/oauth/account', { account_id: accountID })
 }
 
-export function disconnectCloudflareOAuth() {
-  return api.delete<{ status: string; warning?: string }>('/cloudflare/oauth')
+export function activateCloudflareConnection(connectionID: string) {
+  return api.put<{ status: string; account_id: string; account_name: string }>('/cloudflare/oauth/connection', { connection_id: connectionID })
+}
+
+export function disconnectCloudflareOAuth(connectionID?: string) {
+  return api.delete<{ status: string; warning?: string }>('/cloudflare/oauth', {
+    params: connectionID ? { connection_id: connectionID } : undefined,
+  })
 }
 
 // Tunnels
@@ -450,8 +469,27 @@ export interface MonitorView {
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string
+  alert_enabled?: boolean
+  alert_emails?: string
   created_at?: number
   targets: TargetStatus[]
+}
+
+export interface AlertLog {
+  id: number
+  monitor_id: string
+  target_id: string
+  target_name: string
+  state: string
+  http_code: number
+  error: string
+  notified: boolean
+  detail: string
+  created_at: number
+}
+
+export function listMonitorAlerts(id: string) {
+  return api.get<AlertLog[]>(`/monitors/${id}/alerts`)
 }
 
 export function listMonitors() {
@@ -476,6 +514,8 @@ export interface MonitorUpdate {
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string
+  alert_enabled?: boolean
+  alert_emails?: string
 }
 
 export function updateMonitor(id: string, patch: MonitorUpdate) {

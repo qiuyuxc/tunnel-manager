@@ -21,7 +21,7 @@
           </span>
           <div class="about-app-text">
             <strong>Cloudflare Tunnel 可视化管理面板</strong>
-            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，并提供 Telegram Bot 和管理员双重身份验证。</p>
+            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、服务状态变化邮件告警，并提供 Telegram Bot 和双重身份验证。</p>
             <a class="about-repo" :href="REPO_URL" target="_blank" rel="noopener">
               仓库地址：{{ REPO_URL }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -66,11 +66,12 @@
           </div>
         </div>
         <ul class="changelog-list">
-          <li>新增服务监控模块：HTTP / TCP / ICMP 三种探测方式，可配置检测间隔，支持 GET / POST 探测请求</li>
-          <li>公开状态页上线：自定义短路径（/status/你起的名字）、标题、公告与顶部品牌图标（支持上传动图）</li>
-          <li>公开状态页主题与主面板完全隔离，访客可在科技蓝 / 暖米金色系内独立切换明暗</li>
-          <li>监控目标支持二次编辑与外链跳转开关，公开页服务卡可直接点击跳转</li>
-          <li>站点图标支持自定义上传，浏览器标签页同步展示</li>
+          <li>多用户体系上线：邮箱注册、用户组权限、管理后台统一管理用户与邀请码</li>
+          <li>数据存储迁移至 SQLite，旧配置自动导入，重启后会话不再丢失</li>
+          <li>Cloudflare OAuth 支持多账户：一个面板可授权多个 Cloudflare 账户并随时切换</li>
+          <li>服务监控告警：仅在状态变化时发送邮件通知，支持多收件人与告警记录</li>
+          <li>SMTP 邮件服务可视化配置，支持 465 / 587 加密连接与测试发送</li>
+          <li>注册策略可组合：开放注册、邀请码（选填 / 必填）、邮箱验证码独立开关</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">
@@ -109,11 +110,19 @@
           </div>
           <div class="feature-item">
             <strong>Cloudflare OAuth</strong>
-            <p>授权连接 Cloudflare 账户，免去手动复制 API Token</p>
+            <p>授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token</p>
+          </div>
+          <div class="feature-item">
+            <strong>多用户与管理后台</strong>
+            <p>邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略</p>
+          </div>
+          <div class="feature-item">
+            <strong>邮件告警</strong>
+            <p>服务状态变化时自动发送告警邮件（仅状态变化触发），SMTP 可视化配置并支持测试发送</p>
           </div>
           <div class="feature-item">
             <strong>安全认证</strong>
-            <p>Argon2id 密码哈希与 TOTP 双重验证，恢复码防丢失</p>
+            <p>Argon2id 密码哈希、TOTP 双重验证与恢复码，密钥与令牌加密存储</p>
           </div>
         </div>
       </section>
@@ -125,7 +134,7 @@
           </div>
         </div>
         <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
-        <div class="stack-row"><span>后端</span><code>Go · chi · JSON 文件存储</code></div>
+        <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
         <div class="stack-row"><span>集成</span><code>Cloudflare API · Telegram Bot API · GitHub Actions</code></div>
       </section>
     </div>

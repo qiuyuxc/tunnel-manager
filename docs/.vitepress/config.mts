@@ -30,6 +30,7 @@ export default defineConfig({
         {
           text: '账号与安全',
           items: [
+            { text: '多用户与管理后台', link: '/guide/multi-user-alerts' },
             { text: 'Cloudflare OAuth 连接', link: '/guide/cloudflare-oauth' },
             { text: '管理员认证与双因素', link: '/guide/security' }
           ]

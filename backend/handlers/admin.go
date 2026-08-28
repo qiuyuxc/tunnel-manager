@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ const (
 )
 
 type loginChallenge struct {
+	userID    string
 	expiresAt time.Time
 	epoch     uint64
 	attempts  int
@@ -38,19 +40,19 @@ type loginChallenge struct {
 }
 
 type pendingTOTPSetup struct {
-	ownerToken string
-	secret     []byte
-	expiresAt  time.Time
-	epoch      uint64
-	attempts   int
-	inUse      bool
+	ownerUserID      string
+	ownerSessionHash string
+	secret           []byte
+	expiresAt        time.Time
+	epoch            uint64
+	attempts         int
+	inUse            bool
 }
 
-// AdminHandler handles admin authentication and account management.
+// AdminHandler handles authentication and account management for every user.
 type AdminHandler struct {
 	store            *store.Store
 	encryptionKey    []byte
-	sessions         map[string]time.Time
 	challenges       map[string]*loginChallenge
 	setups           map[string]*pendingTOTPSetup
 	mu               sync.RWMutex
@@ -70,7 +72,6 @@ func NewAdminHandler(st *store.Store, encryptionKey ...[]byte) *AdminHandler {
 	return &AdminHandler{
 		store:            st,
 		encryptionKey:    key,
-		sessions:         make(map[string]time.Time),
 		challenges:       make(map[string]*loginChallenge),
 		setups:           make(map[string]*pendingTOTPSetup),
 		passwordVerifies: make(chan struct{}, maxPasswordVerifies),
@@ -79,19 +80,49 @@ func NewAdminHandler(st *store.Store, encryptionKey ...[]byte) *AdminHandler {
 	}
 }
 
-// Login handles POST /api/admin/login.
+// hashToken derives the stored form of a session token.
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// userIDFromToken resolves the authenticated user behind a session token.
+func (h *AdminHandler) userIDFromToken(token string) (string, models.SessionUser, bool) {
+	su, ok := h.ValidateSession(token)
+	if !ok {
+		return "", models.SessionUser{}, false
+	}
+	return su.ID, su, true
+}
+
+// Login handles POST /api/admin/login and authenticates any account by
+// username or email.
 func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := readAdminJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
-	if req.Username == "" || req.Password == "" {
+	account := req.Account
+	if account == "" {
+		account = req.Username
+	}
+	if account == "" || req.Password == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "username and password are required"})
 		return
 	}
-	if len(req.Username) > maxUsernameLength || len(req.Password) > maxPasswordLength {
+	if len(account) > maxUsernameLength || len(req.Password) > maxPasswordLength {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	user, found := h.lookupUser(account)
+	if !found {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+		return
+	}
+	if user.Status != models.UserActive {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "account is disabled"})
 		return
 	}
 
@@ -100,22 +131,20 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	username, passwordHash := h.store.GetAdminCredentials()
-	passwordValid := h.store.ValidatePassword(req.Password, passwordHash)
+	passwordValid := h.store.ValidateUserPassword(user.ID, req.Password, user.PasswordHash)
 	h.releasePasswordVerify()
-	usernameValid := subtle.ConstantTimeCompare([]byte(req.Username), []byte(username)) == 1
-	if !passwordValid || !usernameValid {
+	if !passwordValid {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
 	}
 
-	enabled, encryptedSecret, _, _ := h.store.GetTOTPState()
+	enabled, encryptedSecret, _, _ := h.store.GetTOTPState(user.ID)
 	if enabled {
 		if _, err := auth.DecryptTOTPSecret(h.encryptionKey, encryptedSecret); err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor authentication unavailable"})
 			return
 		}
-		token, expiresAt, err := h.newChallenge(epoch)
+		token, expiresAt, err := h.newChallenge(user.ID, epoch)
 		if err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 			return
@@ -128,12 +157,31 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.createSession(epoch)
+	token, err := h.createSession(user.ID, epoch)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: username})
+	h.store.UpdateUserLogin(user.ID)
+	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: user.Username, Role: user.Role})
+}
+
+// lookupUser finds an account by email (when the input contains @) or name.
+func (h *AdminHandler) lookupUser(account string) (models.User, bool) {
+	if strings.Contains(account, "@") {
+		if user, ok := h.store.GetUserByEmail(account); ok {
+			return user, true
+		}
+	}
+	if user, ok := h.store.GetUserByUsername(account); ok {
+		return user, true
+	}
+	if !strings.Contains(account, "@") {
+		if user, ok := h.store.GetUserByEmail(account); ok {
+			return user, true
+		}
+	}
+	return models.User{}, false
 }
 
 // LoginTwoFactor handles POST /api/admin/login/2fa.
@@ -155,7 +203,7 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	prepared, internalErr := h.prepareFactor(req.Code)
+	prepared, internalErr := h.prepareFactor(challenge.userID, req.Code)
 	if internalErr != nil {
 		h.releaseChallenge(req.ChallengeToken, challenge)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor authentication unavailable"})
@@ -167,7 +215,6 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, _ := h.store.GetAdminCredentials()
 	valid, internalErr := h.finishChallenge(req.ChallengeToken, challenge, token, prepared)
 	if internalErr != nil {
 		h.releaseChallenge(req.ChallengeToken, challenge)
@@ -178,7 +225,13 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 		writeInvalidFactor(w)
 		return
 	}
-	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: username})
+	username := ""
+	role := ""
+	if user, ok := h.store.GetUserByID(challenge.userID); ok {
+		username, role = user.Username, user.Role
+		h.store.UpdateUserLogin(user.ID)
+	}
+	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: username, Role: role})
 }
 
 // SetupTOTP handles POST /api/admin/2fa/setup.
@@ -187,12 +240,16 @@ func (h *AdminHandler) SetupTOTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
-	owner := r.Header.Get("X-Auth-Token")
+	owner, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	if len(h.encryptionKey) != 32 {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor setup unavailable"})
 		return
 	}
-	enabled, _, _, _ := h.store.GetTOTPState()
+	enabled, _, _, _ := h.store.GetTOTPState(owner)
 	if enabled {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "two-factor authentication is already enabled"})
 		return
@@ -203,12 +260,17 @@ func (h *AdminHandler) SetupTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username, _ := h.store.GetAdminCredentials()
-	uri, err := auth.BuildOTPAuthURI(username, encodedSecret)
+	_ = username
+	displayName := owner
+	if user, found := h.store.GetUserByID(owner); found {
+		displayName = user.Username
+	}
+	uri, err := auth.BuildOTPAuthURI(displayName, encodedSecret)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor setup unavailable"})
 		return
 	}
-	token, expiresAt, err := h.addSetup(owner, secret)
+	token, expiresAt, err := h.addSetup(owner, hashToken(r.Header.Get("X-Auth-Token")), secret)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor setup unavailable"})
 		return
@@ -223,7 +285,11 @@ func (h *AdminHandler) ConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 		writeInvalidFactor(w)
 		return
 	}
-	owner := r.Header.Get("X-Auth-Token")
+	owner, _, ownerOK := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ownerOK {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	secret, ok := h.claimSetup(req.SetupToken, owner)
 	if !ok {
 		writeInvalidFactor(w)
@@ -262,7 +328,12 @@ func (h *AdminHandler) ConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 
 // TOTPStatus handles GET /api/admin/2fa/status.
 func (h *AdminHandler) TOTPStatus(w http.ResponseWriter, r *http.Request) {
-	enabled, _, _, count := h.store.GetTOTPState()
+	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	enabled, _, _, count := h.store.GetTOTPState(userID)
 	writeJSON(w, http.StatusOK, models.TOTPStatusResponse{
 		Enabled:                enabled,
 		RecoveryCodesRemaining: count,
@@ -277,18 +348,23 @@ func (h *AdminHandler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
+	userID, _, tokenOK := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !tokenOK {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	if !h.acquirePasswordVerify() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	_, passwordHash := h.store.GetAdminCredentials()
-	passwordValid := h.store.ValidatePassword(req.CurrentPassword, passwordHash)
+	stored, _ := h.store.GetUserByID(userID)
+	passwordValid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
 	h.releasePasswordVerify()
 	if !passwordValid {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
 	}
-	enabled, encryptedSecret, _, _ := h.store.GetTOTPState()
+	enabled, encryptedSecret, _, _ := h.store.GetTOTPState(userID)
 	if !enabled {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "two-factor authentication is not enabled"})
 		return
@@ -300,9 +376,9 @@ func (h *AdminHandler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if step, ok := auth.MatchTOTPCode(secret, req.Code, h.now()); ok {
-		err = h.store.DisableTOTPWithStep(step)
+		err = h.store.DisableTOTPWithStep(userID, step)
 	} else if normalized, normalizeErr := auth.NormalizeRecoveryCode(req.Code); normalizeErr == nil {
-		err = h.store.DisableTOTPWithRecovery(auth.HashRecoveryCode(normalized))
+		err = h.store.DisableTOTPWithRecovery(userID, auth.HashRecoveryCode(normalized))
 	} else {
 		writeInvalidFactor(w)
 		return
@@ -315,6 +391,8 @@ func (h *AdminHandler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// Revoking sessions after a 2FA change matches the password-change policy.
+	_ = h.store.DeleteUserSessions(userID)
 	h.revokeAllAuthState()
 	writeJSON(w, http.StatusOK, models.TOTPDisableResponse{Enabled: false})
 }
@@ -322,12 +400,12 @@ func (h *AdminHandler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
 // Status handles GET /api/admin/status.
 func (h *AdminHandler) Status(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("X-Auth-Token")
-	if !h.ValidateToken(token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"authenticated": "false"})
+	su, ok := h.ValidateSession(token)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]interface{}{"authenticated": false})
 		return
 	}
-	username, _ := h.store.GetAdminCredentials()
-	writeJSON(w, http.StatusOK, map[string]interface{}{"authenticated": true, "username": username})
+	writeJSON(w, http.StatusOK, map[string]interface{}{"authenticated": true, "username": su.Username, "role": su.Role})
 }
 
 // ChangePassword handles PUT /api/admin/password.
@@ -337,12 +415,17 @@ func (h *AdminHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
+	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	if !h.acquirePasswordVerify() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	_, passwordHash := h.store.GetAdminCredentials()
-	passwordValid := h.store.ValidatePassword(req.CurrentPassword, passwordHash)
+	stored, _ := h.store.GetUserByID(userID)
+	passwordValid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
 	h.releasePasswordVerify()
 	if !passwordValid {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "current password is incorrect"})
@@ -352,10 +435,12 @@ func (h *AdminHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "new password must be at least 6 characters"})
 		return
 	}
-	if err := h.store.SetAdminPasswordHash(store.HashPassword(req.NewPassword)); err != nil {
+	if err := h.store.SetUserPasswordHash(userID, store.HashPassword(req.NewPassword)); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update password"})
 		return
 	}
+	// Every session of this account is revoked after a password change.
+	_ = h.store.DeleteUserSessions(userID)
 	h.revokeAllAuthState()
 	writeJSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
 }
@@ -367,12 +452,17 @@ func (h *AdminHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
+	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	if !h.acquirePasswordVerify() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	_, passwordHash := h.store.GetAdminCredentials()
-	passwordValid := h.store.ValidatePassword(req.CurrentPassword, passwordHash)
+	stored, _ := h.store.GetUserByID(userID)
+	passwordValid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
 	h.releasePasswordVerify()
 	if !passwordValid {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "password is incorrect"})
@@ -382,44 +472,43 @@ func (h *AdminHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "new username cannot be empty"})
 		return
 	}
-	if err := h.store.SetAdminUsername(req.NewUsername); err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update username"})
+	if err := h.store.SetUsername(userID, req.NewUsername); err != nil {
+		if errors.Is(err, store.ErrUsernameTaken) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "username already taken"})
+		} else {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update username"})
+		}
 		return
 	}
+	_ = h.store.DeleteUserSessions(userID)
 	h.revokeAllAuthState()
 	writeJSON(w, http.StatusOK, map[string]string{"message": "username updated successfully"})
 }
 
-// ValidateToken checks whether a well-formed, unexpired session token is valid.
-func (h *AdminHandler) ValidateToken(token string) bool {
+// ValidateSession resolves a session token to the authenticated identity.
+func (h *AdminHandler) ValidateSession(token string) (models.SessionUser, bool) {
 	if !validOpaqueToken(token) {
-		return false
+		return models.SessionUser{}, false
 	}
-	now := h.now()
-	h.mu.RLock()
-	expiresAt, ok := h.sessions[token]
-	h.mu.RUnlock()
-	if ok && now.Before(expiresAt) {
-		return true
-	}
-	if ok {
-		h.mu.Lock()
-		if expiresAt, exists := h.sessions[token]; exists && !h.now().Before(expiresAt) {
-			delete(h.sessions, token)
-		}
-		h.mu.Unlock()
-	}
-	return false
+	return h.store.GetSessionUser(hashToken(token), h.now().Unix())
+}
+
+// ValidateToken reports whether a session token is valid.
+func (h *AdminHandler) ValidateToken(token string) bool {
+	_, ok := h.ValidateSession(token)
+	return ok
 }
 
 // Logout handles POST /api/admin/logout.
 func (h *AdminHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("X-Auth-Token")
 	if token != "" {
+		tokenHash := hashToken(token)
+		su, _ := h.store.GetSessionUser(tokenHash, h.now().Unix())
+		_ = h.store.DeleteSession(tokenHash)
 		h.mu.Lock()
-		delete(h.sessions, token)
 		for setupToken, setup := range h.setups {
-			if subtle.ConstantTimeCompare([]byte(setup.ownerToken), []byte(token)) == 1 {
+			if su.ID != "" && setup.ownerUserID == su.ID {
 				delete(h.setups, setupToken)
 			}
 		}
@@ -435,8 +524,8 @@ type preparedFactor struct {
 
 var errInvalidAuthState = errors.New("authentication state changed")
 
-func (h *AdminHandler) prepareFactor(code string) (*preparedFactor, error) {
-	enabled, encryptedSecret, _, _ := h.store.GetTOTPState()
+func (h *AdminHandler) prepareFactor(userID, code string) (*preparedFactor, error) {
+	enabled, encryptedSecret, _, _ := h.store.GetTOTPState(userID)
 	if !enabled {
 		return nil, nil
 	}
@@ -454,39 +543,33 @@ func (h *AdminHandler) prepareFactor(code string) (*preparedFactor, error) {
 	return &preparedFactor{recoveryHash: auth.HashRecoveryCode(normalized)}, nil
 }
 
-func (h *AdminHandler) consumeFactor(prepared *preparedFactor) error {
+func (h *AdminHandler) consumeFactor(userID string, prepared *preparedFactor) error {
 	if prepared.step != nil {
-		return h.store.AdvanceTOTPStep(*prepared.step)
+		return h.store.AdvanceTOTPStep(userID, *prepared.step)
 	}
-	return h.store.ConsumeRecoveryCode(prepared.recoveryHash)
+	return h.store.ConsumeRecoveryCode(userID, prepared.recoveryHash)
 }
 
-func (h *AdminHandler) createSession(epoch uint64) (string, error) {
+// createSession persists a database-backed session for the account.
+func (h *AdminHandler) createSession(userID string, epoch uint64) (string, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", err
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	if h.authEpoch != epoch {
+		h.mu.Unlock()
 		return "", errInvalidAuthState
 	}
-	if !h.issueSessionLocked(token, h.now()) {
-		return "", errors.New("session capacity reached")
+	h.mu.Unlock()
+	expiresAt := h.now().Add(h.tokenTTL)
+	if err := h.store.CreateSession(hashToken(token), userID, expiresAt.Unix()); err != nil {
+		return "", err
 	}
 	return token, nil
 }
 
-func (h *AdminHandler) issueSessionLocked(token string, now time.Time) bool {
-	h.pruneSessionsLocked(now)
-	if len(h.sessions) >= maxSessions {
-		return false
-	}
-	h.sessions[token] = now.Add(h.tokenTTL)
-	return true
-}
-
-func (h *AdminHandler) newChallenge(epoch uint64) (string, time.Time, error) {
+func (h *AdminHandler) newChallenge(userID string, epoch uint64) (string, time.Time, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", time.Time{}, err
@@ -502,11 +585,11 @@ func (h *AdminHandler) newChallenge(epoch uint64) (string, time.Time, error) {
 		return "", time.Time{}, errors.New("challenge capacity reached")
 	}
 	expiresAt := now.Add(twoFactorTTL)
-	h.challenges[token] = &loginChallenge{expiresAt: expiresAt, epoch: epoch}
+	h.challenges[token] = &loginChallenge{userID: userID, expiresAt: expiresAt, epoch: epoch}
 	return token, expiresAt, nil
 }
 
-func (h *AdminHandler) addSetup(owner string, secret []byte) (string, time.Time, error) {
+func (h *AdminHandler) addSetup(ownerUserID, ownerSessionHash string, secret []byte) (string, time.Time, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", time.Time{}, err
@@ -516,7 +599,7 @@ func (h *AdminHandler) addSetup(owner string, secret []byte) (string, time.Time,
 	now := h.now()
 	h.pruneLocked(now)
 	for setupToken, setup := range h.setups {
-		if subtle.ConstantTimeCompare([]byte(setup.ownerToken), []byte(owner)) == 1 {
+		if setup.ownerUserID == ownerUserID {
 			delete(h.setups, setupToken)
 		}
 	}
@@ -525,10 +608,11 @@ func (h *AdminHandler) addSetup(owner string, secret []byte) (string, time.Time,
 	}
 	expiresAt := now.Add(twoFactorTTL)
 	h.setups[token] = &pendingTOTPSetup{
-		ownerToken: owner,
-		secret:     append([]byte(nil), secret...),
-		expiresAt:  expiresAt,
-		epoch:      h.authEpoch,
+		ownerUserID:      ownerUserID,
+		ownerSessionHash: ownerSessionHash,
+		secret:           append([]byte(nil), secret...),
+		expiresAt:        expiresAt,
+		epoch:            h.authEpoch,
 	}
 	return token, expiresAt, nil
 }
@@ -568,26 +652,27 @@ func (h *AdminHandler) failChallenge(token string, claimed *loginChallenge) {
 
 func (h *AdminHandler) finishChallenge(token string, claimed *loginChallenge, sessionToken string, factor *preparedFactor) (bool, error) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	challenge := h.challenges[token]
 	now := h.now()
 	if challenge != claimed || !challenge.inUse || challenge.epoch != h.authEpoch || !now.Before(challenge.expiresAt) {
+		h.mu.Unlock()
 		return false, nil
 	}
-	h.pruneSessionsLocked(now)
-	if len(h.sessions) >= maxSessions {
-		return false, errors.New("session capacity reached")
-	}
-	if err := h.consumeFactor(factor); err != nil {
+	userID := challenge.userID
+	h.mu.Unlock()
+
+	if err := h.consumeFactor(userID, factor); err != nil {
 		if errors.Is(err, store.ErrTOTPReplay) || errors.Is(err, store.ErrRecoveryCodeNotFound) || errors.Is(err, store.ErrTOTPDisabled) {
 			return false, nil
 		}
 		return false, err
 	}
-	delete(h.challenges, token)
-	if !h.issueSessionLocked(sessionToken, now) {
-		return false, errors.New("session capacity reached after factor consumption")
+	if err := h.store.CreateSession(hashToken(sessionToken), userID, h.now().Add(h.tokenTTL).Unix()); err != nil {
+		return false, err
 	}
+	h.mu.Lock()
+	delete(h.challenges, token)
+	h.mu.Unlock()
 	return true, nil
 }
 
@@ -597,7 +682,7 @@ func (h *AdminHandler) claimSetup(token, owner string) ([]byte, bool) {
 	now := h.now()
 	h.pruneLocked(now)
 	setup, ok := h.setups[token]
-	if !ok || setup.inUse || setup.attempts >= maxFactorAttempts || setup.epoch != h.authEpoch || !now.Before(setup.expiresAt) || subtle.ConstantTimeCompare([]byte(setup.ownerToken), []byte(owner)) != 1 {
+	if !ok || setup.inUse || setup.attempts >= maxFactorAttempts || setup.epoch != h.authEpoch || !now.Before(setup.expiresAt) || setup.ownerUserID != owner {
 		return nil, false
 	}
 	setup.inUse = true
@@ -609,14 +694,21 @@ func (h *AdminHandler) finalizeSetup(token, owner, encrypted string, hashes []st
 	defer h.mu.Unlock()
 	setup := h.setups[token]
 	now := h.now()
-	ownerExpiry, ownerValid := h.sessions[owner]
-	if setup == nil || !setup.inUse || setup.epoch != h.authEpoch || !now.Before(setup.expiresAt) || !ownerValid || !now.Before(ownerExpiry) || subtle.ConstantTimeCompare([]byte(setup.ownerToken), []byte(owner)) != 1 {
+	if setup == nil || !setup.inUse || setup.epoch != h.authEpoch || !now.Before(setup.expiresAt) || setup.ownerUserID != owner {
 		return errInvalidAuthState
 	}
-	if err := h.store.EnableTOTP(encrypted, hashes, step); err != nil {
+	// The originating session must still be alive.
+	if _, alive := h.store.GetSessionUser(setup.ownerSessionHash, now.Unix()); !alive {
+		delete(h.setups, token)
+		return errInvalidAuthState
+	}
+	if err := h.store.EnableTOTP(owner, encrypted, hashes, step); err != nil {
 		setup.inUse = false
 		return err
 	}
+	// Enabling a second factor revokes existing sessions, like the original
+	// single-admin flow did.
+	_ = h.store.DeleteUserSessions(owner)
 	h.revokeAllAuthStateLocked()
 	return nil
 }
@@ -641,16 +733,7 @@ func (h *AdminHandler) failSetup(token string) {
 	h.mu.Unlock()
 }
 
-func (h *AdminHandler) pruneSessionsLocked(now time.Time) {
-	for token, expiresAt := range h.sessions {
-		if !now.Before(expiresAt) {
-			delete(h.sessions, token)
-		}
-	}
-}
-
 func (h *AdminHandler) pruneLocked(now time.Time) {
-	h.pruneSessionsLocked(now)
 	for token, challenge := range h.challenges {
 		if (!now.Before(challenge.expiresAt) || challenge.epoch != h.authEpoch) && !challenge.inUse {
 			delete(h.challenges, token)
@@ -690,7 +773,6 @@ func (h *AdminHandler) revokeAllAuthState() {
 
 func (h *AdminHandler) revokeAllAuthStateLocked() {
 	h.authEpoch++
-	h.sessions = make(map[string]time.Time)
 	h.challenges = make(map[string]*loginChallenge)
 	h.setups = make(map[string]*pendingTOTPSetup)
 }

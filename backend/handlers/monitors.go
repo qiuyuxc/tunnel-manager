@@ -65,6 +65,8 @@ type monitorView struct {
 	PublicSlug     string         `json:"public_slug,omitempty"`
 	PublicTheme    string         `json:"public_theme,omitempty"`
 	Announcement   string         `json:"announcement,omitempty"`
+	AlertEnabled   bool           `json:"alert_enabled"`
+	AlertEmails    string         `json:"alert_emails,omitempty"`
 	CreatedAt      int64          `json:"created_at,omitempty"`
 	Targets        []targetStatus `json:"targets"`
 }
@@ -78,6 +80,8 @@ func (h *MonitorsHandler) enrich(m models.Monitor, withBars bool) monitorView {
 		PublicToken:    m.PublicToken,
 		PublicTitle:    m.PublicTitle,
 		Announcement:   m.Announcement,
+		AlertEnabled:   m.AlertEnabled,
+		AlertEmails:    m.AlertEmails,
 		PublicIcon:     m.PublicIcon,
 		PublicSlug:     m.PublicSlug,
 		PublicTheme:    m.PublicTheme,
@@ -128,10 +132,34 @@ func (h *MonitorsHandler) lookup(id string) (models.Monitor, bool) {
 	return models.Monitor{}, false
 }
 
+// visibleTo reports whether the requesting session may see this monitor.
+// Administrators see every project; other users only their own.
+func (h *MonitorsHandler) visibleTo(r *http.Request, m models.Monitor) bool {
+	user := SessionUser(r)
+	if user == nil {
+		return false
+	}
+	if user.IsAdmin() {
+		return true
+	}
+	return m.UserID == "" || m.UserID == user.ID
+}
+
+// lookupVisible fetches the monitor only when the session may access it.
+func (h *MonitorsHandler) lookupVisible(r *http.Request, id string) (models.Monitor, bool) {
+	m, ok := h.lookup(id)
+	if !ok || !h.visibleTo(r, m) {
+		return models.Monitor{}, false
+	}
+	return m, true
+}
+
 type createReq struct {
 	Name           string `json:"name"`
 	IntervalSec    int    `json:"interval_sec"`
 	PublishEnabled bool   `json:"publish_enabled"`
+	AlertEnabled   bool   `json:"alert_enabled"`
+	AlertEmails    string `json:"alert_emails"`
 }
 
 // Create handles POST /api/monitors.
@@ -146,11 +174,18 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
 		return
 	}
+	ownerID := ""
+	if user := SessionUser(r); user != nil {
+		ownerID = user.ID
+	}
 	m := models.Monitor{
 		ID:             services.NewMonitorID(),
+		UserID:         ownerID,
 		Name:           name,
 		IntervalSec:    req.IntervalSec,
 		PublishEnabled: req.PublishEnabled,
+		AlertEnabled:   req.AlertEnabled,
+		AlertEmails:    strings.TrimSpace(req.AlertEmails),
 		PublicToken:    newAPIToken(),
 		CreatedAt:      time.Now().Unix(),
 	}
@@ -166,6 +201,9 @@ func (h *MonitorsHandler) List(w http.ResponseWriter, r *http.Request) {
 	all := h.st.GetConfig().Monitors
 	out := make([]monitorView, 0, len(all))
 	for _, m := range all {
+		if !h.visibleTo(r, m) {
+			continue
+		}
 		out = append(out, h.enrich(m, true))
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -174,7 +212,7 @@ func (h *MonitorsHandler) List(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/monitors/{monitorID}.
 func (h *MonitorsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
-	m, ok := h.lookup(id)
+	m, ok := h.lookupVisible(r, id)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
@@ -192,12 +230,14 @@ type updateReq struct {
 	PublicTheme     *string `json:"public_theme"`
 	PublicSlug      *string `json:"public_slug"`
 	Announcement    *string `json:"announcement"`
+	AlertEnabled    *bool   `json:"alert_enabled"`
+	AlertEmails     *string `json:"alert_emails"`
 }
 
 // Update handles PUT /api/monitors/{monitorID}.
 func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
-	current, ok := h.lookup(id)
+	current, ok := h.lookupVisible(r, id)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
@@ -220,6 +260,12 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.PublishEnabled != nil {
 		current.PublishEnabled = *req.PublishEnabled
+	}
+	if req.AlertEnabled != nil {
+		current.AlertEnabled = *req.AlertEnabled
+	}
+	if req.AlertEmails != nil {
+		current.AlertEmails = strings.TrimSpace(*req.AlertEmails)
 	}
 	if req.RegenerateToken {
 		current.PublicToken = newAPIToken()
@@ -301,6 +347,10 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/monitors/{monitorID}.
 func (h *MonitorsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
+	if _, ok := h.lookupVisible(r, id); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
 	if err := h.st.RemoveMonitor(id); err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
@@ -357,6 +407,10 @@ func probeSpec(rawName, rawURL, rawType, rawMethod string) (name, url, pType, pM
 // AddTarget handles POST /api/monitors/{monitorID}/targets.
 func (h *MonitorsHandler) AddTarget(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
+	if _, ok := h.lookupVisible(r, id); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
 	var req addTargetReq
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -394,6 +448,10 @@ func (h *MonitorsHandler) AddTarget(w http.ResponseWriter, r *http.Request) {
 func (h *MonitorsHandler) EditTarget(w http.ResponseWriter, r *http.Request) {
 	monitorID := chi.URLParam(r, "monitorID")
 	targetID := chi.URLParam(r, "targetID")
+	if _, ok := h.lookupVisible(r, monitorID); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
 	var req addTargetReq
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -444,6 +502,10 @@ func (h *MonitorsHandler) EditTarget(w http.ResponseWriter, r *http.Request) {
 func (h *MonitorsHandler) RemoveTarget(w http.ResponseWriter, r *http.Request) {
 	monitorID := chi.URLParam(r, "monitorID")
 	targetID := chi.URLParam(r, "targetID")
+	if _, ok := h.lookupVisible(r, monitorID); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
 	removed := false
 	err := h.st.MutateMonitor(monitorID, func(m *models.Monitor) bool {
 		kept := make([]models.MonitorTarget, 0, len(m.Targets))
@@ -472,7 +534,7 @@ func (h *MonitorsHandler) RemoveTarget(w http.ResponseWriter, r *http.Request) {
 // CheckNow handles POST /api/monitors/{monitorID}/check.
 func (h *MonitorsHandler) CheckNow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
-	m, ok := h.lookup(id)
+	m, ok := h.lookupVisible(r, id)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
@@ -506,6 +568,13 @@ type bucketStat struct {
 func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
 	all := h.st.GetConfig().Monitors
+	visible := make([]models.Monitor, 0, len(all))
+	for _, m := range all {
+		if h.visibleTo(r, m) {
+			visible = append(visible, m)
+		}
+	}
+	all = visible
 	targets := 0
 	var okN, warnN, downN int
 	var latSum, peak int64
@@ -631,6 +700,17 @@ type publicBar struct {
 	S string `json:"s"`
 	M int64  `json:"ms,omitempty"`
 	C int    `json:"c,omitempty"`
+}
+
+// AlertLogs handles GET /api/monitors/{monitorID}/alerts and returns the
+// newest alert delivery records of one owned monitor.
+func (h *MonitorsHandler) AlertLogs(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "monitorID")
+	if _, ok := h.lookupVisible(r, id); !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, h.st.ListAlertLogs(id, 100))
 }
 
 // PublicStatus serves the token-or-slug scoped public payload.

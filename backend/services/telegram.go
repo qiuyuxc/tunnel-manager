@@ -94,10 +94,13 @@ type TelegramBot struct {
 
 // NewTelegramBot creates a new TelegramBot
 func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *TelegramBot {
+	// The Telegram bot is an administrator surface: it always operates on
+	// the administrator's active Cloudflare connection.
+	adminClient := cf.ForUser(st.AdminUserID())
 	return &TelegramBot{
 		store:         st,
-		cf:            cf,
-		domain:        ds,
+		cf:            adminClient,
+		domain:        ds.ForUser(st.AdminUserID()),
 		httpClient:    &http.Client{Timeout: 40 * time.Second},
 		confirmations: make(map[string]dnsDeleteConfirmation),
 	}
@@ -583,7 +586,7 @@ func (b *TelegramBot) handleSelectTunnel(chatID int64, arg string) {
 		b.sendMessage(cfg, chatID, "❌ "+err.Error())
 		return
 	}
-	if err := b.store.SetTunnelSelection(t.ID, t.Name); err != nil {
+	if err := b.store.SetUserTunnelSelection(b.store.AdminUserID(), t.ID, t.Name); err != nil {
 		cfg := b.store.GetConfig()
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存隧道选择失败: %s", err.Error()))
 		return

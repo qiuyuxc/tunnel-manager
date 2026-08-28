@@ -54,17 +54,21 @@ type MonitorTarget struct {
 	Method      string `json:"method,omitempty"` // http only: GET (default) or POST
 	CreatedAt   int64  `json:"created_at,omitempty"`
 	LinkEnabled bool   `json:"link_enabled,omitempty"`
+	LastState   string `json:"last_state,omitempty"`
 }
 
 // Monitor groups targets checked on a schedule and publishable on a
 // token-protected public status page.
 type Monitor struct {
 	ID             string          `json:"id"`
+	UserID         string          `json:"user_id,omitempty"`
 	Name           string          `json:"name"`
 	IntervalSec    int             `json:"interval_sec,omitempty"` // default 60
 	PublicToken    string          `json:"public_token,omitempty"`
 	PublicSlug     string          `json:"public_slug,omitempty"`
 	PublishEnabled bool            `json:"publish_enabled"`
+	AlertEnabled   bool            `json:"alert_enabled,omitempty"`
+	AlertEmails    string          `json:"alert_emails,omitempty"`
 	Targets        []MonitorTarget `json:"targets,omitempty"`
 	PublicTitle    string          `json:"public_title,omitempty"` // status page display title
 	PublicIcon     string          `json:"public_icon,omitempty"`
@@ -136,6 +140,9 @@ type CloudflareOAuthStatus struct {
 	ExpiresAt   string    `json:"expires_at,omitempty"`
 	RedirectURI string    `json:"redirect_uri"`
 	Error       string    `json:"error,omitempty"`
+	// Multi-account extension (v1.17+).
+	Connections        []CFConnectionView `json:"connections"`
+	ActiveConnectionID string             `json:"active_connection_id"`
 }
 
 // CloudflareOAuthStartResponse contains the URL for the authorization redirect.
@@ -280,6 +287,7 @@ type SetCNAMEPresetsRequest struct {
 
 // LoginRequest is the request body for admin login
 type LoginRequest struct {
+	Account  string `json:"account,omitempty"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -288,6 +296,7 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Token    string `json:"token"`
 	Username string `json:"username"`
+	Role     string `json:"role,omitempty"`
 }
 
 // TwoFactorChallengeResponse requests a second authentication factor.

@@ -36,7 +36,7 @@ func (h *DomainHandler) BindDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode, preferredCNAME, err := h.svc.BindDomainWithConfiguredService(mode, req.MainDomain, req.AuxDomain, req.PreferredCNAME)
+	mode, preferredCNAME, err := h.svc.ForUser(sessionUID(r)).BindDomainWithConfiguredService(mode, req.MainDomain, req.AuxDomain, req.PreferredCNAME)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -85,7 +85,7 @@ func (h *DomainHandler) BindDomainsBatch(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 
-		mode, preferredCNAME, err := h.svc.BindDomainWithMode(mode, item.MainDomain, item.AuxDomain, item.ServiceURL, item.PreferredCNAME)
+		mode, preferredCNAME, err := h.svc.ForUser(sessionUID(r)).BindDomainWithMode(mode, item.MainDomain, item.AuxDomain, item.ServiceURL, item.PreferredCNAME)
 		if err != nil {
 			result.Message = err.Error()
 		} else {
@@ -112,7 +112,7 @@ func (h *DomainHandler) SetFallbackOrigin(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.svc.SetFallbackOrigin(req.Domain); err != nil {
+	if err := h.svc.ForUser(sessionUID(r)).SetFallbackOrigin(req.Domain); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}

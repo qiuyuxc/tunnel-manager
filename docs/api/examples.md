@@ -2,30 +2,36 @@
 
 所有示例假设服务运行在 `http://localhost:8080`。
 
-## 两种鉴权方式
+## 鉴权方式
 
 | 方式 | 适用接口 | 用法 |
 | --- | --- | --- |
-| 管理员会话 | 全部受保护接口 | 登录后携带会话 Cookie |
-| API Key | 普通受保护接口（不含 2FA 管理） | 请求头 `X-API-Key`，或 URL 参数 `?api_key=` |
+| 用户会话 | 全部受保护接口 | 登录后携带 `X-Auth-Token` 请求头 |
+| API Key | 普通受保护接口（不含 2FA 管理），等同管理员权限 | 请求头 `X-API-Key`，或 URL 参数 `?api_key=` |
 
 ::: warning
-未设置环境变量 `API_KEY` 时，API Key 方式整体禁用，仅会话可用。2FA 相关接口从不接受 API Key。
+未设置环境变量 `API_KEY` 时，API Key 方式整体禁用，仅会话可用。2FA 管理接口从不接受 API Key。
 :::
 
-## 登录获取会话
+## 注册与登录获取会话
 
 ```bash
-# 第一步：密码登录
-curl -c cookies.txt -X POST http://localhost:8080/api/admin/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username": "admin", "password": "你的密码"}'
+# ① 查询注册策略（决定注册表单要填什么）
+curl http://localhost:8080/api/auth/config
 
-# 未启用 2FA 时：返回成功并写入会话 Cookie，后续请求加 -b cookies.txt 即可
-# 已启用 2FA 时：返回 challenge_token，继续第二步：
-curl -c cookies.txt -X POST http://localhost:8080/api/admin/login/2fa \
+# ② 注册（开放注册时可用；邀请码 / 邮箱验证码按策略提交）
+curl -X POST http://localhost:8080/api/auth/register \
   -H 'Content-Type: application/json' \
-  -d '{"challenge_token": "上一步返回的值", "code": "123456"}'
+  -d '{"username": "demo", "email": "demo@example.com", "password": "secret123"}'
+
+# ③ 或使用已有账号登录（account 支持邮箱或用户名）
+curl -X POST http://localhost:8080/api/admin/login \
+  -H 'Content-Type: application/json' \
+  -d '{"account": "admin", "password": "你的密码"}'
+
+# 返回 JSON 中的 token 即会话令牌，后续请求加请求头：
+#   X-Auth-Token: <token>
+# 开启 2FA 的账号会先返回 challenge_token，再调用 /api/admin/login/2fa 换取会话
 ```
 
 ## API Key 直调只读接口
@@ -51,6 +57,13 @@ curl -X POST -H 'X-API-Key: 你的KEY' \
   http://localhost:8080/api/monitors/<monitorID>/check
 ```
 
+## 查询告警记录
+
+```bash
+curl -H 'X-Auth-Token: <token>' \
+  http://localhost:8080/api/monitors/<monitorID>/alerts
+```
+
 ## 获取公开状态页数据
 
 无需任何鉴权，token 可为系统令牌或自定义短路径：
@@ -62,3 +75,4 @@ curl http://localhost:8080/api/public/status/<token>
 ::: tip
 写操作的请求体字段与面板前端提交的一致；不确定时可先 `GET` 对应资源查看现有结构。完整接口清单见 [接口列表](/api/endpoints)。
 :::
+

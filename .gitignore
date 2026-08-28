@@ -35,3 +35,6 @@ frontend/src/assets/fonts/*
 !frontend/src/assets/fonts/MiSans-Medium.woff2
 !frontend/src/assets/fonts/MiSans-Regular.woff2
 !frontend/src/assets/fonts/MiSans-Semibold.woff2
+backend/.accept/
+backend/.fix_key.py
+docs/.server.py

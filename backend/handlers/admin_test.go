@@ -27,7 +27,7 @@ func TestLegacyLoginReturnsExactSessionResponse(t *testing.T) {
 	}
 	var result map[string]interface{}
 	decodeResponse(t, resp, &result)
-	if len(result) != 2 || result["username"] != "admin" || !validOpaqueToken(result["token"].(string)) {
+	if len(result) != 3 || result["username"] != "admin" || result["role"] != "admin" || !validOpaqueToken(result["token"].(string)) {
 		t.Fatalf("Login() response = %#v, want exact LoginResponse", result)
 	}
 }
@@ -35,9 +35,6 @@ func TestLegacyLoginReturnsExactSessionResponse(t *testing.T) {
 func TestTOTPLoginChallengeAndSingleUse(t *testing.T) {
 	h, secret, _ := newEnabledAdminHandler(t)
 	challenge := beginChallenge(t, h)
-	if len(h.sessions) != 0 {
-		t.Fatal("password phase created a session")
-	}
 
 	wrong := performJSON(t, h.LoginTwoFactor, http.MethodPost, "/api/admin/login/2fa", `{"challenge_token":"`+challenge+`","code":"000000"}`, "")
 	if wrong.Code != http.StatusUnauthorized {
@@ -115,8 +112,8 @@ func TestLoginTwoFactorDoesNotIssueSessionAfterConcurrentRevocation(t *testing.T
 	if valid, err := h.finishChallenge(challengeToken, claimed, sessionToken, &preparedFactor{}); err != nil || valid {
 		t.Fatalf("finishChallenge after revocation = (%v, %v), want false, nil", valid, err)
 	}
-	if h.ValidateToken(sessionToken) || len(h.sessions) != 0 || len(h.challenges) != 0 {
-		t.Fatalf("post-revocation auth state: %d sessions, %d challenges", len(h.sessions), len(h.challenges))
+	if h.ValidateToken(sessionToken) || len(h.challenges) != 0 {
+		t.Fatalf("post-revocation auth state: %d challenges", len(h.challenges))
 	}
 }
 
@@ -150,9 +147,20 @@ func TestSetupConfirmStatusAndDisable(t *testing.T) {
 		t.Fatalf("setup secret = %q, err %v", setup.Secret, err)
 	}
 
-	otherSession := login(t, h, "admin", "password")
+	// Another user must not be able to confirm someone else's setup; a
+	// second session of the same user still may (asserted below).
+	if err := h.store.CreateUser(models.User{
+		Username:      "member",
+		PasswordHash:  store.HashPassword("password"),
+		Role:          models.RoleUser,
+		Status:        models.UserActive,
+		EmailVerified: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	memberSession := login(t, h, "member", "password")
 	code := auth.GenerateTOTPCode(secret, h.now().Unix()/30)
-	wrongOwner := performJSON(t, h.ConfirmTOTP, http.MethodPost, "", `{"setup_token":"`+setup.SetupToken+`","code":"`+code+`"}`, otherSession)
+	wrongOwner := performJSON(t, h.ConfirmTOTP, http.MethodPost, "", `{"setup_token":"`+setup.SetupToken+`","code":"`+code+`"}`, memberSession)
 	if wrongOwner.Code != http.StatusUnauthorized {
 		t.Fatalf("wrong owner confirm = %d", wrongOwner.Code)
 	}
@@ -165,8 +173,9 @@ func TestSetupConfirmStatusAndDisable(t *testing.T) {
 	if !confirmed.Enabled || len(confirmed.RecoveryCodes) != 10 {
 		t.Fatalf("confirm response = %#v", confirmed)
 	}
-	if h.ValidateToken(session) || h.ValidateToken(otherSession) || len(h.setups) != 0 || len(h.challenges) != 0 {
-		t.Fatal("confirmation did not revoke all auth state")
+	// The owner's sessions are revoked; other users stay logged in.
+	if h.ValidateToken(session) || !h.ValidateToken(memberSession) || len(h.setups) != 0 || len(h.challenges) != 0 {
+		t.Fatal("confirmation revoked sessions incorrectly")
 	}
 
 	session = completeTOTPLogin(t, h, secret)
@@ -184,65 +193,77 @@ func TestSetupConfirmStatusAndDisable(t *testing.T) {
 	if h.ValidateToken(session) {
 		t.Fatal("disable did not revoke session")
 	}
-	enabled, secretText, step, count := h.store.GetTOTPState()
+	enabled, secretText, step, count := h.store.GetTOTPState(h.store.AdminUserID())
 	if enabled || secretText != "" || step != 0 || count != 0 {
 		t.Fatalf("disabled state = %v %q %d %d", enabled, secretText, step, count)
 	}
 }
 
 func TestDisableRecoveryStillRequiresUsableEncryptionKey(t *testing.T) {
-	h, _, recovery := newEnabledAdminHandler(t)
+	h, secret, recovery := newEnabledAdminHandler(t)
+	session := completeTOTPLogin(t, h, secret)
 	h.encryptionKey = nil
-	resp := performJSON(t, h.DisableTOTP, http.MethodPost, "", `{"current_password":"password","code":"`+recovery+`"}`, strings.Repeat("a", 64))
+	resp := performJSON(t, h.DisableTOTP, http.MethodPost, "", `{"current_password":"password","code":"`+recovery+`"}`, session)
 	if resp.Code != http.StatusServiceUnavailable {
 		t.Fatalf("disable without key = %d: %s", resp.Code, resp.Body.String())
 	}
 }
 
-func TestLogoutDeletesPendingSetupsOwnedBySession(t *testing.T) {
+func TestLogoutDeletesPendingSetupsOwnedByUser(t *testing.T) {
 	h := newTestAdminHandler(t, bytes.Repeat([]byte{7}, 32))
-	owner := login(t, h, "admin", "password")
-	other := login(t, h, "admin", "password")
-	ownerSetup, _, err := h.addSetup(owner, bytes.Repeat([]byte{1}, 20))
+	// A second regular account so ownership boundaries are exercised.
+	if err := h.store.CreateUser(models.User{
+		Username:      "member",
+		PasswordHash:  store.HashPassword("password"),
+		Role:          models.RoleUser,
+		Status:        models.UserActive,
+		EmailVerified: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	adminToken := login(t, h, "admin", "password")
+	memberToken := login(t, h, "member", "password")
+	adminSetup, _, err := h.addSetup(h.store.AdminUserID(), hashToken(adminToken), bytes.Repeat([]byte{1}, 20))
 	if err != nil {
 		t.Fatal(err)
 	}
-	otherSetup, _, err := h.addSetup(other, bytes.Repeat([]byte{2}, 20))
+	member, _ := h.store.GetUserByUsername("member")
+	memberSetup, _, err := h.addSetup(member.ID, hashToken(memberToken), bytes.Repeat([]byte{2}, 20))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resp := performJSON(t, h.Logout, http.MethodPost, "", "", owner)
+	resp := performJSON(t, h.Logout, http.MethodPost, "", "", adminToken)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("logout = %d: %s", resp.Code, resp.Body.String())
 	}
-	if h.ValidateToken(owner) {
+	if h.ValidateToken(adminToken) {
 		t.Fatal("logged-out session remains valid")
 	}
-	if _, ok := h.setups[ownerSetup]; ok {
-		t.Fatal("logout preserved setup owned by logged-out session")
+	if _, ok := h.setups[adminSetup]; ok {
+		t.Fatal("logout preserved setup owned by logged-out user")
 	}
-	if _, ok := h.setups[otherSetup]; !ok {
-		t.Fatal("logout deleted setup owned by another session")
+	if _, ok := h.setups[memberSetup]; !ok {
+		t.Fatal("logout deleted setup owned by another user")
 	}
 }
 
 func TestAddSetupReplacesOwnersPreviousSetupBeforeCapacityCheck(t *testing.T) {
 	h := newTestAdminHandler(t)
 	owner := strings.Repeat("a", 64)
-	previous, _, err := h.addSetup(owner, bytes.Repeat([]byte{1}, 20))
+	previous, _, err := h.addSetup(owner, hashToken(strings.Repeat("c", 64)), bytes.Repeat([]byte{1}, 20))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i < maxPendingSetups; i++ {
 		h.setups[strings.Repeat("x", i)] = &pendingTOTPSetup{
-			ownerToken: strings.Repeat("b", 63) + string(rune('A'+i)),
-			secret:     bytes.Repeat([]byte{2}, 20),
-			expiresAt:  h.now().Add(time.Minute),
+			ownerUserID: strings.Repeat("b", 63) + string(rune('A'+i)),
+			secret:      bytes.Repeat([]byte{2}, 20),
+			expiresAt:   h.now().Add(time.Minute),
 		}
 	}
 
-	replacement, _, err := h.addSetup(owner, bytes.Repeat([]byte{3}, 20))
+	replacement, _, err := h.addSetup(owner, hashToken(strings.Repeat("c", 64)), bytes.Repeat([]byte{3}, 20))
 	if err != nil {
 		t.Fatalf("replacement at capacity: %v", err)
 	}
@@ -252,7 +273,7 @@ func TestAddSetupReplacesOwnersPreviousSetupBeforeCapacityCheck(t *testing.T) {
 	if _, ok := h.setups[previous]; ok {
 		t.Fatal("previous setup remains after replacement")
 	}
-	if setup := h.setups[replacement]; setup == nil || setup.ownerToken != owner {
+	if setup := h.setups[replacement]; setup == nil || setup.ownerUserID != owner {
 		t.Fatal("replacement setup was not added for owner")
 	}
 }
@@ -287,7 +308,8 @@ func TestChangeUsernamePreservesMigratedHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := NewAdminHandler(st)
-	resp := performJSON(t, h.ChangeUsername, http.MethodPut, "", `{"current_password":"password","new_username":"new-admin"}`, "")
+	session := login(t, h, "admin", "password")
+	resp := performJSON(t, h.ChangeUsername, http.MethodPut, "", `{"current_password":"password","new_username":"new-admin"}`, session)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("ChangeUsername() = %d: %s", resp.Code, resp.Body.String())
 	}
@@ -299,18 +321,19 @@ func TestChangeUsernamePreservesMigratedHash(t *testing.T) {
 
 func TestSessionExpiresAndCredentialChangesRevokeAllState(t *testing.T) {
 	h := newTestAdminHandler(t)
-	now := time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)
-	h.now = func() time.Time { return now }
+	// Anchor on the real clock: the store prunes sessions against it.
+	base := time.Now()
+	h.now = func() time.Time { return base }
 	h.tokenTTL = time.Hour
 	token := login(t, h, "admin", "password")
-	now = now.Add(time.Hour)
+	h.now = func() time.Time { return base.Add(time.Hour) }
 	if h.ValidateToken(token) {
 		t.Fatal("expired session remains valid")
 	}
 
 	first := login(t, h, "admin", "password")
 	second := login(t, h, "admin", "password")
-	h.challenges["pending"] = &loginChallenge{expiresAt: now.Add(time.Minute)}
+	h.challenges["pending"] = &loginChallenge{expiresAt: base.Add(2 * time.Hour)}
 	resp := performJSON(t, h.ChangePassword, http.MethodPut, "", `{"current_password":"password","new_password":"new-password"}`, first)
 	if resp.Code != http.StatusOK || h.ValidateToken(first) || h.ValidateToken(second) || len(h.challenges) != 0 {
 		t.Fatalf("password change did not revoke state: %d", resp.Code)
@@ -321,7 +344,7 @@ func TestLoginEpochPreventsSessionAfterRevocation(t *testing.T) {
 	h := newTestAdminHandler(t)
 	epoch := h.currentAuthEpoch()
 	h.revokeAllAuthState()
-	if token, err := h.createSession(epoch); !errors.Is(err, errInvalidAuthState) || token != "" {
+	if token, err := h.createSession(h.store.AdminUserID(), epoch); !errors.Is(err, errInvalidAuthState) || token != "" {
 		t.Fatalf("createSession with stale epoch = (%q, %v)", token, err)
 	}
 }
@@ -329,12 +352,13 @@ func TestLoginEpochPreventsSessionAfterRevocation(t *testing.T) {
 func TestConfirmCannotEnableAfterLogout(t *testing.T) {
 	h := newTestAdminHandler(t, bytes.Repeat([]byte{7}, 32))
 	owner := login(t, h, "admin", "password")
+	uid := h.store.AdminUserID()
 	secret := bytes.Repeat([]byte{2}, 20)
-	setupToken, _, err := h.addSetup(owner, secret)
+	setupToken, _, err := h.addSetup(uid, hashToken(owner), secret)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := h.claimSetup(setupToken, owner); !ok {
+	if _, ok := h.claimSetup(setupToken, uid); !ok {
 		t.Fatal("claimSetup failed")
 	}
 	performJSON(t, h.Logout, http.MethodPost, "", "", owner)
@@ -342,10 +366,10 @@ func TestConfirmCannotEnableAfterLogout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.finalizeSetup(setupToken, owner, encrypted, []string{"hash"}, 1); !errors.Is(err, errInvalidAuthState) {
+	if err := h.finalizeSetup(setupToken, uid, encrypted, []string{"hash"}, 1); !errors.Is(err, errInvalidAuthState) {
 		t.Fatalf("finalizeSetup after logout error = %v", err)
 	}
-	if enabled, _, _, _ := h.store.GetTOTPState(); enabled {
+	if enabled, _, _, _ := h.store.GetTOTPState(uid); enabled {
 		t.Fatal("TOTP enabled after setup owner logout")
 	}
 }
@@ -354,37 +378,15 @@ func TestLogoutDoesNotInvalidateOtherLoginChallenges(t *testing.T) {
 	h, secret, _ := newEnabledAdminHandler(t)
 	challenge := beginChallenge(t, h)
 	otherSession := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	h.sessions[otherSession] = h.now().Add(time.Hour)
+	if err := h.store.CreateSession(hashToken(otherSession), h.store.AdminUserID(), h.now().Add(time.Hour).Unix()); err != nil {
+		t.Fatal(err)
+	}
 
 	performJSON(t, h.Logout, http.MethodPost, "", "", otherSession)
 	code := auth.GenerateTOTPCode(secret, h.now().Unix()/30)
 	resp := performJSON(t, h.LoginTwoFactor, http.MethodPost, "", `{"challenge_token":"`+challenge+`","code":"`+code+`"}`, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("challenge after unrelated logout = %d: %s", resp.Code, resp.Body.String())
-	}
-}
-
-func TestSessionIssuancePrunesExpiredAndEnforcesCapacity(t *testing.T) {
-	h := newTestAdminHandler(t)
-	now := time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)
-	h.now = func() time.Time { return now }
-	for i := 0; i < maxSessions; i++ {
-		h.sessions[strings.Repeat("x", i+1)] = now.Add(time.Hour)
-	}
-	if _, err := h.createSession(h.currentAuthEpoch()); err == nil {
-		t.Fatal("createSession succeeded at capacity")
-	}
-	h.sessions["expired"] = now
-	delete(h.sessions, strings.Repeat("x", 1))
-	token, err := h.createSession(h.currentAuthEpoch())
-	if err != nil {
-		t.Fatalf("createSession after expiration = %v", err)
-	}
-	if _, ok := h.sessions["expired"]; ok {
-		t.Fatal("expired session was not pruned")
-	}
-	if !h.ValidateToken(token) || len(h.sessions) != maxSessions {
-		t.Fatalf("issued session state = valid %v, count %d", h.ValidateToken(token), len(h.sessions))
 	}
 }
 
@@ -415,10 +417,9 @@ func TestChangePasswordSaveFailureDoesNotRevokeOrReportSuccess(t *testing.T) {
 	}
 	h := NewAdminHandler(st)
 	token := login(t, h, "admin", "password")
-	if err := os.Remove(path); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(dir); err != nil {
+	// Removing the whole directory takes the SQLite database with it, so the
+	// next save fails exactly like the old JSON store losing its file.
+	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
 	resp := performJSON(t, h.ChangePassword, http.MethodPut, "", `{"current_password":"password","new_password":"new-password"}`, token)
@@ -457,7 +458,7 @@ func newEnabledAdminHandler(t *testing.T) (*AdminHandler, []byte, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.store.EnableTOTP(encrypted, hashes, h.now().Unix()/30-2); err != nil {
+	if err := h.store.EnableTOTP(h.store.AdminUserID(), encrypted, hashes, h.now().Unix()/30-2); err != nil {
 		t.Fatal(err)
 	}
 	return h, secret, codes[0]

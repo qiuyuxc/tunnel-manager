@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { getConfig, getSiteSettings, listTunnels, setTunnelSelection, type Config } from '../api'
+import { getMe } from '../api/admin'
 
 export type VisualTheme = 'enterprise' | 'warm'
 
@@ -23,7 +24,31 @@ export const useConfigStore = defineStore('config', () => {
   // Auth state
   const token = ref(localStorage.getItem('auth_token') || '')
   const username = ref(localStorage.getItem('auth_username') || '')
+  const role = ref(localStorage.getItem('auth_role') || '')
+  const permissions = ref<string[]>([])
   const isAuthenticated = ref(!!token.value)
+
+  function hasPerm(perm: string) {
+    if (role.value === 'admin') return true
+    return permissions.value.includes(perm)
+  }
+
+  function isAdmin() {
+    return role.value === 'admin'
+  }
+
+  async function fetchMe() {
+    if (!token.value) return
+    try {
+      const { data } = await getMe()
+      role.value = data.role
+      permissions.value = data.permissions || []
+      username.value = data.username
+      localStorage.setItem('auth_role', data.role)
+    } catch (_) {
+      // 401 is handled by the shared interceptor; keep cached state otherwise.
+    }
+  }
 
   // Persist darkMode
   watch(darkMode, (val) => {
@@ -72,20 +97,26 @@ export const useConfigStore = defineStore('config', () => {
     visualTheme.value = visualTheme.value === 'warm' ? 'enterprise' : 'warm'
   }
 
-  function setAuth(tokenVal: string, usernameVal: string) {
+  function setAuth(tokenVal: string, usernameVal: string, roleVal = '') {
     token.value = tokenVal
     username.value = usernameVal
+    role.value = roleVal
     isAuthenticated.value = true
     localStorage.setItem('auth_token', tokenVal)
     localStorage.setItem('auth_username', usernameVal)
+    localStorage.setItem('auth_role', roleVal)
+    fetchMe()
   }
 
   function clearAuth() {
     token.value = ''
     username.value = ''
+    role.value = ''
+    permissions.value = []
     isAuthenticated.value = false
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_username')
+    localStorage.removeItem('auth_role')
   }
 
   async function resolveLegacyTunnelName(tunnelID: string) {
@@ -115,7 +146,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   return {
-    config, darkMode, visualTheme, loading, token, username, isAuthenticated,
-    fetchConfig, fetchSiteSettings, toggleDarkMode, toggleVisualTheme, setAuth, clearAuth,
+    config, darkMode, visualTheme, loading, token, username, role, permissions, isAuthenticated,
+    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, toggleDarkMode, toggleVisualTheme, setAuth, clearAuth,
   }
 })

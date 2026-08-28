@@ -48,7 +48,7 @@ func TestValidatePasswordMigratesLegacySHA256(t *testing.T) {
 
 func TestLegacyConfigWithoutTOTPFieldsIsDisabled(t *testing.T) {
 	s := newTestStore(t, HashPassword("password"))
-	enabled, secret, step, count := s.GetTOTPState()
+	enabled, secret, step, count := s.GetTOTPState(s.AdminUserID())
 	if enabled || secret != "" || step != 0 || count != 0 {
 		t.Fatalf("GetTOTPState() = (%v, %q, %d, %d), want disabled zero state", enabled, secret, step, count)
 	}
@@ -60,16 +60,16 @@ func TestEnableTOTPPersistsState(t *testing.T) {
 		AdminPasswordHash: HashPassword("password"),
 	})
 	hashes := []string{sha256Hex("recovery-one"), sha256Hex("recovery-two")}
-	if err := s.EnableTOTP("v1:encrypted-secret", hashes, 123); err != nil {
+	if err := s.EnableTOTP(s.AdminUserID(), "v1:encrypted-secret", hashes, 123); err != nil {
 		t.Fatalf("EnableTOTP() error = %v", err)
 	}
 
 	reloaded := NewStore(path)
-	enabled, secret, step, count := reloaded.GetTOTPState()
+	enabled, secret, step, count := reloaded.GetTOTPState(reloaded.AdminUserID())
 	if !enabled || secret != "v1:encrypted-secret" || step != 123 || count != 2 {
 		t.Fatalf("persisted state = (%v, %q, %d, %d)", enabled, secret, step, count)
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(ResolveDBPath(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,11 +80,11 @@ func TestEnableTOTPPersistsState(t *testing.T) {
 
 func TestAdvanceTOTPStepRejectsReplay(t *testing.T) {
 	s := newEnabledTOTPStore(t, 50, []string{"hash"})
-	if err := s.AdvanceTOTPStep(51); err != nil {
+	if err := s.AdvanceTOTPStep(s.AdminUserID(), 51); err != nil {
 		t.Fatalf("AdvanceTOTPStep(51) error = %v", err)
 	}
 	for _, step := range []int64{51, 50, 49} {
-		if err := s.AdvanceTOTPStep(step); !errors.Is(err, ErrTOTPReplay) {
+		if err := s.AdvanceTOTPStep(s.AdminUserID(), step); !errors.Is(err, ErrTOTPReplay) {
 			t.Errorf("AdvanceTOTPStep(%d) error = %v, want ErrTOTPReplay", step, err)
 		}
 	}
@@ -93,41 +93,41 @@ func TestAdvanceTOTPStepRejectsReplay(t *testing.T) {
 func TestConsumeRecoveryCodeRejectsReuse(t *testing.T) {
 	candidate := sha256Hex("candidate")
 	s := newEnabledTOTPStore(t, 10, []string{sha256Hex("other"), candidate})
-	if err := s.ConsumeRecoveryCode(candidate); err != nil {
+	if err := s.ConsumeRecoveryCode(s.AdminUserID(), candidate); err != nil {
 		t.Fatalf("ConsumeRecoveryCode() error = %v", err)
 	}
-	if err := s.ConsumeRecoveryCode(candidate); !errors.Is(err, ErrRecoveryCodeNotFound) {
+	if err := s.ConsumeRecoveryCode(s.AdminUserID(), candidate); !errors.Is(err, ErrRecoveryCodeNotFound) {
 		t.Fatalf("reused ConsumeRecoveryCode() error = %v, want ErrRecoveryCodeNotFound", err)
 	}
-	_, _, _, count := s.GetTOTPState()
+	_, _, _, count := s.GetTOTPState(s.AdminUserID())
 	if count != 1 {
 		t.Fatalf("recovery count = %d, want 1", count)
 	}
 	reloaded := NewStore(s.filePath)
-	if err := reloaded.ConsumeRecoveryCode(candidate); !errors.Is(err, ErrRecoveryCodeNotFound) {
+	if err := reloaded.ConsumeRecoveryCode(reloaded.AdminUserID(), candidate); !errors.Is(err, ErrRecoveryCodeNotFound) {
 		t.Fatalf("reloaded ConsumeRecoveryCode() error = %v, want ErrRecoveryCodeNotFound", err)
 	}
 }
 
 func TestConcurrentSameTOTPStepExactlyOneSucceeds(t *testing.T) {
 	s := newEnabledTOTPStore(t, 100, []string{"hash"})
-	errs := runConcurrently(20, func() error { return s.AdvanceTOTPStep(101) })
+	errs := runConcurrently(20, func() error { return s.AdvanceTOTPStep(s.AdminUserID(), 101) })
 	assertExactlyOneSuccess(t, errs, ErrTOTPReplay)
 }
 
 func TestConcurrentSameRecoveryCodeExactlyOneSucceeds(t *testing.T) {
 	candidate := sha256Hex("one-time-code")
 	s := newEnabledTOTPStore(t, 100, []string{candidate})
-	errs := runConcurrently(20, func() error { return s.ConsumeRecoveryCode(candidate) })
+	errs := runConcurrently(20, func() error { return s.ConsumeRecoveryCode(s.AdminUserID(), candidate) })
 	assertExactlyOneSuccess(t, errs, ErrRecoveryCodeNotFound)
 }
 
 func TestDisableTOTPWithStepClearsAllState(t *testing.T) {
 	s := newEnabledTOTPStore(t, 20, []string{"hash-one", "hash-two"})
-	if err := s.DisableTOTPWithStep(20); !errors.Is(err, ErrTOTPReplay) {
+	if err := s.DisableTOTPWithStep(s.AdminUserID(), 20); !errors.Is(err, ErrTOTPReplay) {
 		t.Fatalf("DisableTOTPWithStep(replay) error = %v, want ErrTOTPReplay", err)
 	}
-	if err := s.DisableTOTPWithStep(21); err != nil {
+	if err := s.DisableTOTPWithStep(s.AdminUserID(), 21); err != nil {
 		t.Fatalf("DisableTOTPWithStep() error = %v", err)
 	}
 	assertTOTPDisabled(t, s)
@@ -136,10 +136,10 @@ func TestDisableTOTPWithStepClearsAllState(t *testing.T) {
 func TestDisableTOTPWithRecoveryClearsAllState(t *testing.T) {
 	candidate := sha256Hex("disable-code")
 	s := newEnabledTOTPStore(t, 20, []string{candidate})
-	if err := s.DisableTOTPWithRecovery(sha256Hex("wrong")); !errors.Is(err, ErrRecoveryCodeNotFound) {
+	if err := s.DisableTOTPWithRecovery(s.AdminUserID(), sha256Hex("wrong")); !errors.Is(err, ErrRecoveryCodeNotFound) {
 		t.Fatalf("DisableTOTPWithRecovery(wrong) error = %v, want ErrRecoveryCodeNotFound", err)
 	}
-	if err := s.DisableTOTPWithRecovery(candidate); err != nil {
+	if err := s.DisableTOTPWithRecovery(s.AdminUserID(), candidate); err != nil {
 		t.Fatalf("DisableTOTPWithRecovery() error = %v", err)
 	}
 	assertTOTPDisabled(t, s)
@@ -151,11 +151,11 @@ func TestAuthSensitiveSaveFailuresRollBack(t *testing.T) {
 		name   string
 		mutate func(*Store) error
 	}{
-		{"enable", func(s *Store) error { return s.EnableTOTP("encrypted", []string{candidate}, 7) }},
-		{"advance", func(s *Store) error { return s.AdvanceTOTPStep(8) }},
-		{"consume", func(s *Store) error { return s.ConsumeRecoveryCode(candidate) }},
-		{"disable step", func(s *Store) error { return s.DisableTOTPWithStep(8) }},
-		{"disable recovery", func(s *Store) error { return s.DisableTOTPWithRecovery(candidate) }},
+		{"enable", func(s *Store) error { return s.EnableTOTP(s.AdminUserID(), "encrypted", []string{candidate}, 7) }},
+		{"advance", func(s *Store) error { return s.AdvanceTOTPStep(s.AdminUserID(), 8) }},
+		{"consume", func(s *Store) error { return s.ConsumeRecoveryCode(s.AdminUserID(), candidate) }},
+		{"disable step", func(s *Store) error { return s.DisableTOTPWithStep(s.AdminUserID(), 8) }},
+		{"disable recovery", func(s *Store) error { return s.DisableTOTPWithRecovery(s.AdminUserID(), candidate) }},
 		{"username", func(s *Store) error { return s.SetAdminUsername("changed") }},
 	}
 
@@ -247,12 +247,19 @@ func TestVerifyPasswordRejectsUnsafeArgon2Parameters(t *testing.T) {
 	}
 }
 
-func TestGetConfigDeepCopiesRecoveryHashes(t *testing.T) {
+func TestGetUserByIDDeepCopiesRecoveryHashes(t *testing.T) {
 	s := newEnabledTOTPStore(t, 1, []string{"one", "two"})
-	config := s.GetConfig()
-	config.TOTPRecoveryCodeHashes[0] = "changed"
-	if got := s.GetConfig().TOTPRecoveryCodeHashes[0]; got != "one" {
-		t.Fatalf("stored recovery hash changed through GetConfig: %q", got)
+	user, ok := s.GetUserByID(s.AdminUserID())
+	if !ok {
+		t.Fatal("admin user missing")
+	}
+	user.TOTPRecoveryCodeHashes[0] = "changed"
+	again, ok := s.GetUserByID(s.AdminUserID())
+	if !ok {
+		t.Fatal("admin user missing")
+	}
+	if got := again.TOTPRecoveryCodeHashes[0]; got != "one" {
+		t.Fatalf("stored recovery hash changed through GetUserByID: %q", got)
 	}
 }
 
@@ -296,38 +303,38 @@ func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 	if err := s.SetCNAMEPresets(presets); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetTunnelSelection("tunnel-id", "Production"); err != nil {
+	if err := s.SetUserTunnelSelection(s.AdminUserID(), "tunnel-id", "Production"); err != nil {
 		t.Fatal(err)
 	}
 
-	config := NewStore(s.filePath).GetConfig()
+	reloaded := NewStore(s.filePath)
+	config := reloaded.GetConfig()
 	if config.SiteName != "My Panel" || config.SiteDescription != "Operations" || config.SiteIcon != "https://example.com/icon.png" {
 		t.Fatalf("persisted site settings = %#v", config)
 	}
-	if config.TunnelID != "tunnel-id" || config.TunnelName != "Production" {
-		t.Fatalf("persisted tunnel = (%q, %q)", config.TunnelID, config.TunnelName)
+	prefs := reloaded.GetUserPrefs(reloaded.AdminUserID())
+	if prefs.TunnelID != "tunnel-id" || prefs.TunnelName != "Production" {
+		t.Fatalf("persisted tunnel prefs = (%q, %q)", prefs.TunnelID, prefs.TunnelName)
 	}
 	if len(config.CNAMEPresets) != 1 || config.CNAMEPresets[0] != presets[0] {
 		t.Fatalf("persisted presets = %#v", config.CNAMEPresets)
 	}
 }
 
-func TestAtomicSaveReplacesFileWithPrivatePermissions(t *testing.T) {
+func TestDatabaseFileHasPrivatePermissions(t *testing.T) {
 	s, path := newStoreWithConfig(t, models.Config{AdminUsername: "admin", AdminPasswordHash: HashPassword("password")})
-	if err := os.Chmod(path, 0644); err != nil {
-		t.Fatal(err)
-	}
+	dbPath := ResolveDBPath(path)
 	if err := s.SetAdminUsername("new-admin"); err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if info.Mode().Perm() != 0600 {
-		t.Fatalf("config permissions = %o, want 600", info.Mode().Perm())
+		t.Fatalf("database permissions = %o, want 600", info.Mode().Perm())
 	}
-	matches, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".config-*"))
+	matches, err := filepath.Glob(filepath.Join(filepath.Dir(dbPath), ".config-*"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +380,7 @@ func TestChangingCloudflareAccountClearsTunnelSelection(t *testing.T) {
 	if err := s.SetCloudflareAccount("account-one", "One"); err != nil {
 		t.Fatalf("SetCloudflareAccount() error = %v", err)
 	}
-	if err := s.SetTunnelSelection("tunnel-one", "Tunnel One"); err != nil {
+	if err := s.SetUserTunnelSelection(s.AdminUserID(), "tunnel-one", "Tunnel One"); err != nil {
 		t.Fatalf("SetTunnelSelection() error = %v", err)
 	}
 	if err := s.SetCloudflareAccount("account-two", "Two"); err != nil {
@@ -425,6 +432,80 @@ func newStoreWithConfig(t *testing.T, config models.Config) (*Store, string) {
 	return NewStore(path), path
 }
 
+func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
+	s, path := newTestStoreWithMonitors(t)
+	monitors := s.GetConfig().Monitors
+	if len(monitors) != 2 {
+		t.Fatalf("monitor count = %d, want 2", len(monitors))
+	}
+
+	reloaded := NewStore(path).GetConfig().Monitors
+	if len(reloaded) != 2 {
+		t.Fatalf("reloaded monitor count = %d, want 2", len(reloaded))
+	}
+	for i := range monitors {
+		if monitors[i].ID != reloaded[i].ID || monitors[i].Name != reloaded[i].Name {
+			t.Fatalf("monitor %d = (%q, %q), want (%q, %q)", i, reloaded[i].ID, reloaded[i].Name, monitors[i].ID, monitors[i].Name)
+		}
+		if monitors[i].PublishEnabled != reloaded[i].PublishEnabled {
+			t.Fatalf("monitor %s publish = %v, want %v", monitors[i].ID, reloaded[i].PublishEnabled, monitors[i].PublishEnabled)
+		}
+		if len(reloaded[i].Targets) != len(monitors[i].Targets) {
+			t.Fatalf("monitor %s target count = %d, want %d", monitors[i].ID, len(reloaded[i].Targets), len(monitors[i].Targets))
+		}
+		for j, target := range monitors[i].Targets {
+			if reloaded[i].Targets[j] != target {
+				t.Fatalf("monitor %s target %d = %#v, want %#v", monitors[i].ID, j, reloaded[i].Targets[j], target)
+			}
+		}
+	}
+
+	// Mutating the reloaded store must not resurrect stale legacy state.
+	if err := reloadedStore(t, path).RemoveMonitor(monitors[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := NewStore(path).GetConfig().Monitors; len(got) != 1 || got[0].ID != monitors[1].ID {
+		t.Fatalf("monitors after removal = %#v", got)
+	}
+}
+
+func reloadedStore(t *testing.T, path string) *Store {
+	t.Helper()
+	return NewStore(path)
+}
+
+func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
+	t.Helper()
+	s := newTestStore(t, HashPassword("password"))
+	first := models.Monitor{
+		ID:             "mon-one",
+		Name:           "First",
+		IntervalSec:    60,
+		PublishEnabled: true,
+		PublicToken:    "token-one",
+		PublicSlug:     "first",
+		Targets: []models.MonitorTarget{
+			{ID: "t-one", Name: "A", URL: "https://a.example.com", Type: "http", CreatedAt: 11, LinkEnabled: true},
+			{ID: "t-two", Name: "B", URL: "https://b.example.com", Type: "tcp"},
+		},
+	}
+	second := models.Monitor{
+		ID:          "mon-two",
+		Name:        "Second",
+		IntervalSec: 120,
+		Targets: []models.MonitorTarget{
+			{ID: "t-three", Name: "C", URL: "10.0.0.1:22", Type: "tcp", CreatedAt: 33},
+		},
+	}
+	if err := s.AddMonitor(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMonitor(second); err != nil {
+		t.Fatal(err)
+	}
+	return s, s.filePath
+}
+
 func runConcurrently(count int, operation func() error) []error {
 	start := make(chan struct{})
 	errs := make([]error, count)
@@ -461,7 +542,7 @@ func assertExactlyOneSuccess(t *testing.T, errs []error, wantFailure error) {
 
 func assertTOTPDisabled(t *testing.T, s *Store) {
 	t.Helper()
-	enabled, secret, step, count := s.GetTOTPState()
+	enabled, secret, step, count := s.GetTOTPState(s.AdminUserID())
 	if enabled || secret != "" || step != 0 || count != 0 {
 		t.Fatalf("GetTOTPState() = (%v, %q, %d, %d), want disabled zero state", enabled, secret, step, count)
 	}

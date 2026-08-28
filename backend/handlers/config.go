@@ -19,13 +19,24 @@ func NewConfigHandler(s *store.Store) *ConfigHandler {
 	return &ConfigHandler{store: s}
 }
 
-// GetConfig returns the current configuration (sanitized)
+// resolveUserID returns the account whose preferences apply to this request.
+// API-key access (no individual account) falls back to the administrator.
+func (h *ConfigHandler) resolveUserID(r *http.Request) string {
+	if user := SessionUser(r); user != nil && !user.IsAPIKey() {
+		return user.ID
+	}
+	return h.store.AdminUserID()
+}
+
+// GetConfig returns the current configuration (sanitized): global branding and
+// presets merged with the requesting user's selections.
 func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := h.store.GetConfig()
+	prefs := h.store.GetUserPrefs(h.resolveUserID(r))
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"tunnel_id":        cfg.TunnelID,
-		"tunnel_name":      cfg.TunnelName,
-		"service_url":      cfg.ServiceURL,
+		"tunnel_id":        prefs.TunnelID,
+		"tunnel_name":      prefs.TunnelName,
+		"service_url":      prefs.ServiceURL,
 		"preferred_cname":  cfg.PreferredCNAME,
 		"cname_presets":    cfg.CNAMEPresets,
 		"site_name":        cfg.SiteName,
@@ -56,7 +67,7 @@ func (h *ConfigHandler) SetTunnelSelection(w http.ResponseWriter, r *http.Reques
 	}
 	req.ID = strings.TrimSpace(req.ID)
 	req.Name = strings.TrimSpace(req.Name)
-	if err := h.store.SetTunnelSelection(req.ID, req.Name); err != nil {
+	if err := h.store.SetUserTunnelSelection(h.resolveUserID(r), req.ID, req.Name); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save tunnel selection"})
 		return
 	}
@@ -160,7 +171,10 @@ func (h *ConfigHandler) SetServiceURL(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "value is required"})
 		return
 	}
-	h.store.SetServiceURL(req.Value)
+	if err := h.store.SetUserServiceURL(h.resolveUserID(r), req.Value); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save service URL"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service_url": req.Value})
 }
 

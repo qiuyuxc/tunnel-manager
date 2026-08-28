@@ -2,7 +2,7 @@
 
 # Tunnel Manager
 
-Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理和管理员双重身份验证。
+Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，支持多用户注册与管理后台、状态变化邮件告警，并支持 Telegram Bot 远程管理和管理员双重身份验证。
 
 > 📖 **在线文档**：**[https://docs.kukie.cn](https://docs.kukie.cn)**
 
@@ -16,6 +16,8 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 | 域名绑定 | 简化直连与 SaaS 优选双模式，批量绑定逐组独立配置 | [域名绑定模式](https://docs.kukie.cn/guide/domain-binding) · [批量绑定](https://docs.kukie.cn/guide/batch-binding) |
 | DNS 管理 | A / AAAA / CNAME / TXT / MX 增删改查，TTL、代理状态与优先级，支持批量操作 | [DNS 记录管理](https://docs.kukie.cn/guide/dns-management) |
 | 服务监控 | HTTP / TCP / ICMP 探测，多目标挂载，24 小时延迟柱图 | [服务监控](https://docs.kukie.cn/guide/monitors-status) |
+| 邮件告警 | 服务状态变化时自动发送邮件通知，SMTP 可视化配置 | [多用户与告警](https://docs.kukie.cn/guide/multi-user-alerts) |
+| 多用户 | 邮箱注册、用户组权限、管理后台统一管理用户与邀请码 | [多用户与告警](https://docs.kukie.cn/guide/multi-user-alerts) |
 | 公开状态页 | 免登录分享，自定义短路径、公告、品牌图标与主题 | [公开状态页](https://docs.kukie.cn/guide/monitors-status#公开状态页) |
 | Cloudflare 连接 | OAuth 2.0（PKCE）自动刷新令牌，多账户切换；兼容静态 Token | [OAuth 连接](https://docs.kukie.cn/guide/cloudflare-oauth) |
 | Telegram Bot | 远程管理隧道、绑定与 DNS 记录，删除二次确认 | [Telegram Bot](https://docs.kukie.cn/guide/telegram-bot) |
@@ -56,7 +58,7 @@ docker compose logs | grep 密
 | 层 | 技术 |
 | --- | --- |
 | 前端 | Vue 3, TypeScript, Naive UI, Vite, Pinia |
-| 后端 | Go, chi, JSON file store |
+| 后端 | Go, chi, SQLite |
 | 部署 | Docker multi-stage, GitHub Actions CI |
 
 ## 开发

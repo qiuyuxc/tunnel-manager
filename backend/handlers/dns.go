@@ -20,7 +20,7 @@ func (h *DNSHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "zone_id is required"})
 		return
 	}
-	records, err := h.cf.ListDNSRecords(zoneID, r.URL.Query().Get("type"), r.URL.Query().Get("name"))
+	records, err := UserCF(r).ListDNSRecords(zoneID, r.URL.Query().Get("type"), r.URL.Query().Get("name"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -37,7 +37,7 @@ func (h *DNSHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	record, err := h.cf.CreateDNSRecord(zoneID, payload)
+	record, err := UserCF(r).CreateDNSRecord(zoneID, payload)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -56,7 +56,7 @@ func (h *DNSHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	record, err := h.cf.UpdateDNSRecord(zoneID, recordID, payload)
+	record, err := UserCF(r).UpdateDNSRecord(zoneID, recordID, payload)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -71,7 +71,7 @@ func (h *DNSHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "zone_id and record_id are required"})
 		return
 	}
-	if err := h.cf.DeleteDNSRecord(zoneID, recordID); err != nil {
+	if err := UserCF(r).DeleteDNSRecord(zoneID, recordID); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}

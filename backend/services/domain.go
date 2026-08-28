@@ -22,6 +22,13 @@ func NewDomainService(cf *CloudflareClient, st *store.Store) *DomainService {
 	return &DomainService{cf: cf, store: st}
 }
 
+// ForUser returns a domain service bound to one account's connection.
+func (s *DomainService) ForUser(userID string) *DomainService {
+	clone := *s
+	clone.cf = s.cf.ForUser(userID)
+	return &clone
+}
+
 func NormalizeBindingMode(mode string) (string, error) {
 	mode = strings.ToLower(strings.TrimSpace(mode))
 	if mode == "" {

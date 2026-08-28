@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"tunnel-manager/auth"
+	"tunnel-manager/models"
 	"tunnel-manager/store"
 )
 
@@ -67,15 +68,40 @@ func NewCloudflareOAuth(st *store.Store, encryptionKey []byte, config Cloudflare
 	}
 }
 
+// effectiveConfig merges the admin-panel OAuth settings over the environment
+// variables: non-empty stored fields win.
+func (o *CloudflareOAuth) effectiveConfig() CloudflareOAuthConfig {
+	cfg := o.config
+	if o.store != nil {
+		if stored := o.store.GetOAuthSettings(); true {
+			if stored.ClientID != "" {
+				cfg.ClientID = stored.ClientID
+			}
+			if stored.ClientSecret != "" {
+				cfg.ClientSecret = stored.ClientSecret
+			}
+			if stored.RedirectURI != "" {
+				cfg.RedirectURI = stored.RedirectURI
+			}
+			if stored.Scopes != "" {
+				cfg.Scopes = stored.Scopes
+			}
+		}
+	}
+	return cfg
+}
+
 // Configured reports whether the server has all settings needed for OAuth.
 func (o *CloudflareOAuth) Configured() bool {
-	return o.config.ClientID != "" && o.config.ClientSecret != "" && len(o.encryptionKey) == 32
+	cfg := o.effectiveConfig()
+	return cfg.ClientID != "" && cfg.ClientSecret != "" && len(o.encryptionKey) == 32
 }
 
 // ConfigurationError explains why OAuth cannot currently be started.
 func (o *CloudflareOAuth) ConfigurationError() string {
-	if o.config.ClientID == "" || o.config.ClientSecret == "" {
-		return "CF_OAUTH_CLIENT_ID 和 CF_OAUTH_CLIENT_SECRET 未配置"
+	cfg := o.effectiveConfig()
+	if cfg.ClientID == "" || cfg.ClientSecret == "" {
+		return "Cloudflare OAuth 客户端配置不完整（需要 Client ID 与 Client Secret），请在管理后台的「Cloudflare 授权」中填写"
 	}
 	if len(o.encryptionKey) != 32 {
 		return "APP_ENCRYPTION_KEY 未配置或无效"
@@ -83,8 +109,12 @@ func (o *CloudflareOAuth) ConfigurationError() string {
 	return ""
 }
 
-// RedirectURI returns the configured callback URI, if one was explicitly set.
+// RedirectURI returns the effective callback URI, preferring the stored
+// setting, then the environment, then a per-request derivation.
 func (o *CloudflareOAuth) RedirectURI() string {
+	if cfg := o.effectiveConfig(); cfg.RedirectURI != "" {
+		return cfg.RedirectURI
+	}
 	return o.config.RedirectURI
 }
 
@@ -108,7 +138,7 @@ func (o *CloudflareOAuth) AuthorizationURL(redirectURI, state, codeChallenge str
 	}
 	query := url.Values{
 		"response_type":         {"code"},
-		"client_id":             {o.config.ClientID},
+		"client_id":             {o.effectiveConfig().ClientID},
 		"redirect_uri":          {redirectURI},
 		"state":                 {state},
 		"code_challenge":        {codeChallenge},
@@ -213,7 +243,7 @@ func (o *CloudflareOAuth) requestToken(values url.Values) (cloudflareOAuthToken,
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
+	req.SetBasicAuth(o.effectiveConfig().ClientID, o.effectiveConfig().ClientSecret)
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return cloudflareOAuthToken{}, fmt.Errorf("OAuth token request failed: %w", err)
@@ -268,7 +298,7 @@ func (o *CloudflareOAuth) revoke(token string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
+	req.SetBasicAuth(o.effectiveConfig().ClientID, o.effectiveConfig().ClientSecret)
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("revoke Cloudflare OAuth token: %w", err)
@@ -278,4 +308,129 @@ func (o *CloudflareOAuth) revoke(token string) error {
 		return fmt.Errorf("revoke Cloudflare OAuth token: %s", resp.Status)
 	}
 	return nil
+}
+
+// AccessTokenFor returns a usable access token for one connection, refreshing
+// and rotating the stored tokens when they are about to expire.
+func (o *CloudflareOAuth) AccessTokenFor(conn models.CFConnection) (string, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if conn.AccessToken == "" {
+		return "", ErrCloudflareOAuthNotConnected
+	}
+	accessToken, err := auth.DecryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, conn.AccessToken)
+	if err != nil {
+		return "", fmt.Errorf("decrypt Cloudflare OAuth access token: %w", err)
+	}
+	if conn.ExpiresAt == 0 || o.now().Add(time.Minute).Unix() < conn.ExpiresAt {
+		return string(accessToken), nil
+	}
+	if conn.RefreshToken == "" {
+		return "", errors.New("Cloudflare OAuth access token expired and no refresh token is available")
+	}
+	refreshToken, err := auth.DecryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, conn.RefreshToken)
+	if err != nil {
+		return "", fmt.Errorf("decrypt Cloudflare OAuth refresh token: %w", err)
+	}
+	token, err := o.requestToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {string(refreshToken)},
+	})
+	if err != nil {
+		return "", fmt.Errorf("refresh Cloudflare OAuth token: %w", err)
+	}
+	encAccess, err := auth.EncryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, []byte(token.AccessToken))
+	if err != nil {
+		return "", fmt.Errorf("encrypt Cloudflare OAuth access token: %w", err)
+	}
+	encRefresh := conn.RefreshToken
+	if token.RefreshToken != "" {
+		encRefresh, err = auth.EncryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, []byte(token.RefreshToken))
+		if err != nil {
+			return "", fmt.Errorf("encrypt Cloudflare OAuth refresh token: %w", err)
+		}
+	}
+	var expiresAt int64
+	if token.ExpiresIn > 0 {
+		expiresAt = o.now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
+	}
+	if err := o.store.UpdateCFConnectionTokens(conn.ID, encAccess, encRefresh, expiresAt, token.Scope); err != nil {
+		return "", fmt.Errorf("save Cloudflare OAuth token: %w", err)
+	}
+	return token.AccessToken, nil
+}
+
+// ExchangeCodeForUser exchanges an authorization code into a new connection
+// owned by userID and returns it.
+func (o *CloudflareOAuth) ExchangeCodeForUser(userID, code, redirectURI, codeVerifier string) (models.CFConnection, error) {
+	o.mu.Lock()
+	if !o.Configured() {
+		o.mu.Unlock()
+		return models.CFConnection{}, errors.New(o.ConfigurationError())
+	}
+	values := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"redirect_uri":  {redirectURI},
+		"code_verifier": {codeVerifier},
+	}
+	token, err := o.requestToken(values)
+	o.mu.Unlock()
+	if err != nil {
+		return models.CFConnection{}, err
+	}
+
+	encAccess, err := auth.EncryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, []byte(token.AccessToken))
+	if err != nil {
+		return models.CFConnection{}, fmt.Errorf("encrypt Cloudflare OAuth access token: %w", err)
+	}
+	encRefresh := ""
+	if token.RefreshToken != "" {
+		encRefresh, err = auth.EncryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, []byte(token.RefreshToken))
+		if err != nil {
+			return models.CFConnection{}, fmt.Errorf("encrypt Cloudflare OAuth refresh token: %w", err)
+		}
+	}
+	var expiresAt int64
+	if token.ExpiresIn > 0 {
+		expiresAt = o.now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
+	}
+	conn := models.CFConnection{
+		UserID:       userID,
+		Label:        "Cloudflare 账户",
+		AccessToken:  encAccess,
+		RefreshToken: encRefresh,
+		ExpiresAt:    expiresAt,
+		Scope:        token.Scope,
+	}
+	connID, err := o.store.CreateCFConnection(conn)
+	if err != nil {
+		return models.CFConnection{}, fmt.Errorf("save Cloudflare connection: %w", err)
+	}
+	conn.ID = connID
+	return conn, nil
+}
+
+// RevokeConnection revokes the grant behind a connection and deletes it.
+func (o *CloudflareOAuth) RevokeConnection(conn models.CFConnection) error {
+	var revokeErr error
+	if o.Configured() && (conn.RefreshToken != "" || conn.AccessToken != "") {
+		encrypted := conn.RefreshToken
+		purpose := cloudflareRefreshTokenPurpose
+		if encrypted == "" {
+			encrypted = conn.AccessToken
+			purpose = cloudflareAccessTokenPurpose
+		}
+		plain, err := auth.DecryptSecret(o.encryptionKey, purpose, encrypted)
+		if err != nil {
+			revokeErr = err
+		} else {
+			revokeErr = o.revoke(string(plain))
+		}
+	}
+	if err := o.store.DeleteCFConnection(conn.UserID, conn.ID); err != nil {
+		return err
+	}
+	return revokeErr
 }
