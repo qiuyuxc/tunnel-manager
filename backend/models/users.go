@@ -45,6 +45,7 @@ type User struct {
 	TOTPRecoveryCodeHashes []string
 	CreatedAt              int64
 	LastLoginAt            int64
+	ActiveCFConnectionID   string
 }
 
 // UserView is the API-safe projection of a user.

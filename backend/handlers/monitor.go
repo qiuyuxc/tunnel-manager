@@ -47,7 +47,7 @@ func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, ServicesHealthResponse{Services: []ServiceProbe{}, CheckedAt: nowRFC3339()})
 		return
 	}
-	detail, err := h.cf.GetTunnelConfig(cfg.TunnelID)
+	detail, err := UserCF(r).GetTunnelConfig(cfg.TunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return

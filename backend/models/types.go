@@ -137,6 +137,9 @@ type CloudflareOAuthStatus struct {
 	ExpiresAt   string    `json:"expires_at,omitempty"`
 	RedirectURI string    `json:"redirect_uri"`
 	Error       string    `json:"error,omitempty"`
+	// Multi-account extension (v1.17+).
+	Connections        []CFConnectionView `json:"connections"`
+	ActiveConnectionID string             `json:"active_connection_id"`
 }
 
 // CloudflareOAuthStartResponse contains the URL for the authorization redirect.

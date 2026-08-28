@@ -94,10 +94,13 @@ type TelegramBot struct {
 
 // NewTelegramBot creates a new TelegramBot
 func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *TelegramBot {
+	// The Telegram bot is an administrator surface: it always operates on
+	// the administrator's active Cloudflare connection.
+	adminClient := cf.ForUser(st.AdminUserID())
 	return &TelegramBot{
 		store:         st,
-		cf:            cf,
-		domain:        ds,
+		cf:            adminClient,
+		domain:        ds.ForUser(st.AdminUserID()),
 		httpClient:    &http.Client{Timeout: 40 * time.Second},
 		confirmations: make(map[string]dnsDeleteConfirmation),
 	}

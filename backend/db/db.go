@@ -130,11 +130,32 @@ type migration struct {
 	stmts   string
 }
 
+// schemaV3 adds per-user Cloudflare OAuth connections so one account can
+// authorize several Cloudflare accounts and switch between them.
+const schemaV3 = `CREATE TABLE cf_connections (
+	id            TEXT PRIMARY KEY,
+	user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	label         TEXT NOT NULL DEFAULT '',
+	account_id    TEXT NOT NULL DEFAULT '',
+	account_name  TEXT NOT NULL DEFAULT '',
+	access_token  TEXT NOT NULL DEFAULT '',
+	refresh_token TEXT NOT NULL DEFAULT '',
+	expires_at    INTEGER NOT NULL DEFAULT 0,
+	scope         TEXT NOT NULL DEFAULT '',
+	created_at    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_cf_connections_user ON cf_connections(user_id);
+
+ALTER TABLE users ADD COLUMN active_cf_connection_id TEXT NOT NULL DEFAULT '';
+`
+
 // migrations lists every schema version in order. Append new entries instead
 // of editing existing ones.
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
+	{version: 3, stmts: schemaV3},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

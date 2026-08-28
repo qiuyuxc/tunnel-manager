@@ -192,6 +192,19 @@
             </div>
           </div>
 
+          <div v-if="connections.length" class="connection-list">
+            <div v-for="conn in connections" :key="conn.id" class="connection-item" :class="{ active: conn.active }">
+              <div class="connection-info">
+                <strong>{{ conn.account_name || conn.label }}</strong>
+                <code v-if="conn.account_id">{{ conn.account_id }}</code>
+                <span v-if="conn.active" class="conn-badge">使用中</span>
+              </div>
+              <div class="connection-actions">
+                <button v-if="!conn.active" class="btn btn-ghost" type="button" :disabled="busyConnection === conn.id" @click="activateConnection(conn.id)">设为当前</button>
+                <button class="btn btn-ghost danger-outline" type="button" :disabled="busyConnection === conn.id" @click="removeConnection(conn)">删除</button>
+              </div>
+            </div>
+          </div>
           <label v-if="cloudflare.source === 'oauth' && cloudflare.accounts?.length" class="account-selector">
             <span class="field-label">切换 Cloudflare 账户</span>
             <select class="vercel-input" :value="cloudflare.account_id" :disabled="selectingAccount" @change="changeCloudflareAccount">
@@ -212,7 +225,7 @@
 
           <div class="cloudflare-actions">
             <button v-if="cloudflare.configured" class="btn btn-primary" type="button" :disabled="startingOAuth" @click="connectCloudflare">
-              {{ startingOAuth ? '正在跳转...' : cloudflare.source === 'oauth' ? '重新授权' : '连接 Cloudflare' }}
+              {{ startingOAuth ? '正在跳转...' : cloudflare.source === 'oauth' ? '新增账户授权' : '连接 Cloudflare' }}
             </button>
             <button v-if="cloudflare.source === 'oauth'" class="btn btn-secondary danger-outline" type="button" :disabled="disconnectingOAuth" @click="confirmDisconnectCloudflare">
               {{ disconnectingOAuth ? '断开中...' : '断开授权' }}
@@ -284,9 +297,11 @@ import {
   getCloudflareOAuthStatus,
   getTwoFactorStatus,
   selectCloudflareAccount,
+  activateCloudflareConnection,
   setupTwoFactor,
   startCloudflareOAuth,
   type CloudflareOAuthStatus,
+  type CFConnectionView,
   type TOTPSetupResponse,
   type TOTPStatusResponse,
 } from '../api'
@@ -430,6 +445,40 @@ async function disconnectCloudflare() {
     message.error('断开失败: ' + apiError(error, '请稍后重试'))
   } finally {
     disconnectingOAuth.value = false
+  }
+}
+
+const busyConnection = ref('')
+const connections = computed(() => cloudflare.connections || [])
+
+async function activateConnection(connectionID: string) {
+  if (busyConnection.value) return
+  busyConnection.value = connectionID
+  try {
+    const { data } = await activateCloudflareConnection(connectionID)
+    message.success('已切换到 ' + (data.account_name || data.account_id))
+    await loadCloudflareStatus()
+    await store.fetchConfig()
+  } catch (error: any) {
+    message.error('切换失败: ' + apiError(error, '请稍后重试'))
+  } finally {
+    busyConnection.value = ''
+  }
+}
+
+async function removeConnection(conn: CFConnectionView) {
+  if (busyConnection.value) return
+  if (!window.confirm('确定删除连接「' + (conn.account_name || conn.label) + '」？对应的 Cloudflare 授权将被撤销。')) return
+  busyConnection.value = conn.id
+  try {
+    const { data } = await disconnectCloudflareOAuth(conn.id)
+    if (data.warning) message.warning(data.warning)
+    else message.success('连接已删除')
+    await loadCloudflareStatus()
+  } catch (error: any) {
+    message.error('删除失败: ' + apiError(error, '请稍后重试'))
+  } finally {
+    busyConnection.value = ''
   }
 }
 
@@ -1045,4 +1094,29 @@ onBeforeUnmount(() => {
   .secret-row { align-items: flex-start; flex-direction: column; }
   .recovery-grid { padding-left: 34px; }
 }
+
+/* Cloudflare 多账户连接 */
+.connection-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: var(--spacing-md); }
+.connection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+}
+.connection-item.active { border-color: var(--color-link); }
+.connection-info { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-ink); flex-wrap: wrap; }
+.connection-info code { font-size: 12px; color: var(--color-mute); }
+.conn-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-link);
+  border: 1px solid currentColor;
+}
+.connection-actions { display: flex; gap: 4px; }
 </style>

@@ -19,6 +19,9 @@ type CloudflareClient struct {
 	baseURL    string
 	httpClient *http.Client
 	oauth      *CloudflareOAuth
+	store      interface{ ActiveCFConnection(string) (models.CFConnection, bool) }
+	userID     string
+	pinnedConn *models.CFConnection
 }
 
 // NewCloudflareClient creates a new Cloudflare API client
@@ -36,6 +39,28 @@ func (c *CloudflareClient) SetOAuth(oauth *CloudflareOAuth) {
 	c.oauth = oauth
 }
 
+// SetSessionStore wires the store used to resolve per-user connections.
+func (c *CloudflareClient) SetSessionStore(st interface{ ActiveCFConnection(string) (models.CFConnection, bool) }) {
+	c.store = st
+}
+
+// ForUser returns a shallow client bound to one account's active connection.
+func (c *CloudflareClient) ForUser(userID string) *CloudflareClient {
+	clone := *c
+	clone.userID = userID
+	clone.pinnedConn = nil
+	return &clone
+}
+
+// WithConnection returns a client that uses exactly this connection, even
+// before it becomes the account's active one.
+func (c *CloudflareClient) WithConnection(conn models.CFConnection) *CloudflareClient {
+	clone := *c
+	clone.userID = conn.UserID
+	clone.pinnedConn = &conn
+	return &clone
+}
+
 // DefaultAccountID returns the account configured through the environment.
 func (c *CloudflareClient) DefaultAccountID() string {
 	return c.accountID
@@ -47,6 +72,18 @@ func (c *CloudflareClient) HasStaticCredentials() bool {
 }
 
 func (c *CloudflareClient) accessToken() (string, error) {
+	if c.oauth != nil && c.pinnedConn != nil {
+		return c.oauth.AccessTokenFor(*c.pinnedConn)
+	}
+	if c.userID != "" && c.store != nil {
+		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.HasToken() {
+			return c.oauth.AccessTokenFor(conn)
+		}
+		if c.apiToken != "" {
+			return c.apiToken, nil
+		}
+		return "", fmt.Errorf("尚未授权 Cloudflare 账户，请先在账户页完成授权")
+	}
 	if c.oauth != nil && c.oauth.Connected() {
 		return c.oauth.AccessToken()
 	}
@@ -57,6 +94,11 @@ func (c *CloudflareClient) accessToken() (string, error) {
 }
 
 func (c *CloudflareClient) currentAccountID() (string, error) {
+	if c.store != nil && c.userID != "" {
+		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.AccountID != "" {
+			return conn.AccountID, nil
+		}
+	}
 	if c.oauth != nil && c.oauth.Connected() {
 		if accountID := c.oauth.AccountID(); accountID != "" {
 			return accountID, nil

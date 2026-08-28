@@ -26,7 +26,7 @@ func NewTunnelHandler(cf *services.CloudflareClient, s *store.Store) *TunnelHand
 
 // ListTunnels returns all Cloudflare tunnels
 func (h *TunnelHandler) ListTunnels(w http.ResponseWriter, r *http.Request) {
-	tunnels, err := h.cf.ListTunnels()
+	tunnels, err := UserCF(r).ListTunnels()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -47,14 +47,14 @@ func (h *TunnelHandler) CreateTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tunnel, err := h.cf.CreateTunnel(req.Name)
+	tunnel, err := UserCF(r).CreateTunnel(req.Name)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
 	response := models.CreateTunnelResponse{ID: tunnel.ID, Name: tunnel.Name}
-	token, err := h.cf.GetTunnelToken(tunnel.ID)
+	token, err := UserCF(r).GetTunnelToken(tunnel.ID)
 	if err != nil {
 		response.Warning = fmt.Sprintf("隧道已创建，但获取连接令牌失败：%s", err.Error())
 	} else {
@@ -72,7 +72,7 @@ func (h *TunnelHandler) DeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cf.DeleteTunnel(tunnelID); err != nil {
+	if err := UserCF(r).DeleteTunnel(tunnelID); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
@@ -87,7 +87,7 @@ func (h *TunnelHandler) DeleteTunnel(w http.ResponseWriter, r *http.Request) {
 func (h *TunnelHandler) GetTunnelDetail(w http.ResponseWriter, r *http.Request) {
 	tunnelID := chi.URLParam(r, "tunnelID")
 
-	tunnels, err := h.cf.ListTunnels()
+	tunnels, err := UserCF(r).ListTunnels()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -106,7 +106,7 @@ func (h *TunnelHandler) GetTunnelDetail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cfg, err := h.cf.GetTunnelConfig(tunnelID)
+	cfg, err := UserCF(r).GetTunnelConfig(tunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -122,7 +122,7 @@ func (h *TunnelHandler) GetTunnelDetail(w http.ResponseWriter, r *http.Request) 
 
 // ListZones returns all Cloudflare zones
 func (h *TunnelHandler) ListZones(w http.ResponseWriter, r *http.Request) {
-	zones, err := h.cf.ListZones()
+	zones, err := UserCF(r).ListZones()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -150,7 +150,7 @@ func (h *TunnelHandler) AddIngressRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := h.cf.GetTunnelConfig(tunnelID)
+	cfg, err := UserCF(r).GetTunnelConfig(tunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("get tunnel config: %s", err.Error())})
 		return
@@ -179,7 +179,7 @@ func (h *TunnelHandler) AddIngressRule(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.Result.Config.Ingress = ingress
 
-	if err := h.cf.UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
+	if err := UserCF(r).UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("update tunnel config: %s", err.Error())})
 		return
 	}
@@ -205,7 +205,7 @@ func (h *TunnelHandler) UpdateIngressRule(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	cfg, err := h.cf.GetTunnelConfig(tunnelID)
+	cfg, err := UserCF(r).GetTunnelConfig(tunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("get tunnel config: %s", err.Error())})
 		return
@@ -224,7 +224,7 @@ func (h *TunnelHandler) UpdateIngressRule(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.cf.UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
+	if err := UserCF(r).UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("update tunnel config: %s", err.Error())})
 		return
 	}
@@ -247,7 +247,7 @@ func (h *TunnelHandler) DeleteIngressRule(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	cfg, err := h.cf.GetTunnelConfig(tunnelID)
+	cfg, err := UserCF(r).GetTunnelConfig(tunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("get tunnel config: %s", err.Error())})
 		return
@@ -272,7 +272,7 @@ func (h *TunnelHandler) DeleteIngressRule(w http.ResponseWriter, r *http.Request
 	}
 	cfg.Result.Config.Ingress = remaining
 
-	if err := h.cf.UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
+	if err := UserCF(r).UpdateTunnelConfig(tunnelID, map[string]interface{}{"config": cfg.Result.Config}); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("update tunnel config: %s", err.Error())})
 		return
 	}
@@ -280,7 +280,7 @@ func (h *TunnelHandler) DeleteIngressRule(w http.ResponseWriter, r *http.Request
 	response := map[string]interface{}{"status": "ok", "message": "route deleted"}
 	if req.DeleteDNS {
 		// The route is already gone, so a DNS failure is reported as a warning rather than an error.
-		deleted, err := h.deleteHostnameDNS(req.Hostname)
+		deleted, err := h.deleteHostnameDNS(r, req.Hostname)
 		response["dns_deleted"] = deleted
 		if err != nil {
 			response["dns_warning"] = err.Error()
@@ -290,12 +290,12 @@ func (h *TunnelHandler) DeleteIngressRule(w http.ResponseWriter, r *http.Request
 }
 
 // deleteHostnameDNS removes address records that resolve exactly the given hostname.
-func (h *TunnelHandler) deleteHostnameDNS(hostname string) (int, error) {
-	zoneID, err := h.cf.GetZoneIDByHostname(hostname)
+func (h *TunnelHandler) deleteHostnameDNS(r *http.Request, hostname string) (int, error) {
+	zoneID, err := UserCF(r).GetZoneIDByHostname(hostname)
 	if err != nil {
 		return 0, err
 	}
-	records, err := h.cf.ListDNSRecords(zoneID, "", hostname)
+	records, err := UserCF(r).ListDNSRecords(zoneID, "", hostname)
 	if err != nil {
 		return 0, err
 	}
@@ -306,7 +306,7 @@ func (h *TunnelHandler) deleteHostnameDNS(hostname string) (int, error) {
 		default:
 			continue
 		}
-		if err := h.cf.DeleteDNSRecord(zoneID, record.ID); err != nil {
+		if err := UserCF(r).DeleteDNSRecord(zoneID, record.ID); err != nil {
 			return deleted, err
 		}
 		deleted++

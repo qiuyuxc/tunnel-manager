@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"tunnel-manager/auth"
+	"tunnel-manager/models"
 	"tunnel-manager/store"
 )
 
@@ -278,4 +279,129 @@ func (o *CloudflareOAuth) revoke(token string) error {
 		return fmt.Errorf("revoke Cloudflare OAuth token: %s", resp.Status)
 	}
 	return nil
+}
+
+// AccessTokenFor returns a usable access token for one connection, refreshing
+// and rotating the stored tokens when they are about to expire.
+func (o *CloudflareOAuth) AccessTokenFor(conn models.CFConnection) (string, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if conn.AccessToken == "" {
+		return "", ErrCloudflareOAuthNotConnected
+	}
+	accessToken, err := auth.DecryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, conn.AccessToken)
+	if err != nil {
+		return "", fmt.Errorf("decrypt Cloudflare OAuth access token: %w", err)
+	}
+	if conn.ExpiresAt == 0 || o.now().Add(time.Minute).Unix() < conn.ExpiresAt {
+		return string(accessToken), nil
+	}
+	if conn.RefreshToken == "" {
+		return "", errors.New("Cloudflare OAuth access token expired and no refresh token is available")
+	}
+	refreshToken, err := auth.DecryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, conn.RefreshToken)
+	if err != nil {
+		return "", fmt.Errorf("decrypt Cloudflare OAuth refresh token: %w", err)
+	}
+	token, err := o.requestToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {string(refreshToken)},
+	})
+	if err != nil {
+		return "", fmt.Errorf("refresh Cloudflare OAuth token: %w", err)
+	}
+	encAccess, err := auth.EncryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, []byte(token.AccessToken))
+	if err != nil {
+		return "", fmt.Errorf("encrypt Cloudflare OAuth access token: %w", err)
+	}
+	encRefresh := conn.RefreshToken
+	if token.RefreshToken != "" {
+		encRefresh, err = auth.EncryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, []byte(token.RefreshToken))
+		if err != nil {
+			return "", fmt.Errorf("encrypt Cloudflare OAuth refresh token: %w", err)
+		}
+	}
+	var expiresAt int64
+	if token.ExpiresIn > 0 {
+		expiresAt = o.now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
+	}
+	if err := o.store.UpdateCFConnectionTokens(conn.ID, encAccess, encRefresh, expiresAt, token.Scope); err != nil {
+		return "", fmt.Errorf("save Cloudflare OAuth token: %w", err)
+	}
+	return token.AccessToken, nil
+}
+
+// ExchangeCodeForUser exchanges an authorization code into a new connection
+// owned by userID and returns it.
+func (o *CloudflareOAuth) ExchangeCodeForUser(userID, code, redirectURI, codeVerifier string) (models.CFConnection, error) {
+	o.mu.Lock()
+	if !o.Configured() {
+		o.mu.Unlock()
+		return models.CFConnection{}, errors.New(o.ConfigurationError())
+	}
+	values := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"redirect_uri":  {redirectURI},
+		"code_verifier": {codeVerifier},
+	}
+	token, err := o.requestToken(values)
+	o.mu.Unlock()
+	if err != nil {
+		return models.CFConnection{}, err
+	}
+
+	encAccess, err := auth.EncryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, []byte(token.AccessToken))
+	if err != nil {
+		return models.CFConnection{}, fmt.Errorf("encrypt Cloudflare OAuth access token: %w", err)
+	}
+	encRefresh := ""
+	if token.RefreshToken != "" {
+		encRefresh, err = auth.EncryptSecret(o.encryptionKey, cloudflareRefreshTokenPurpose, []byte(token.RefreshToken))
+		if err != nil {
+			return models.CFConnection{}, fmt.Errorf("encrypt Cloudflare OAuth refresh token: %w", err)
+		}
+	}
+	var expiresAt int64
+	if token.ExpiresIn > 0 {
+		expiresAt = o.now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
+	}
+	conn := models.CFConnection{
+		UserID:       userID,
+		Label:        "Cloudflare 账户",
+		AccessToken:  encAccess,
+		RefreshToken: encRefresh,
+		ExpiresAt:    expiresAt,
+		Scope:        token.Scope,
+	}
+	connID, err := o.store.CreateCFConnection(conn)
+	if err != nil {
+		return models.CFConnection{}, fmt.Errorf("save Cloudflare connection: %w", err)
+	}
+	conn.ID = connID
+	return conn, nil
+}
+
+// RevokeConnection revokes the grant behind a connection and deletes it.
+func (o *CloudflareOAuth) RevokeConnection(conn models.CFConnection) error {
+	var revokeErr error
+	if o.Configured() && (conn.RefreshToken != "" || conn.AccessToken != "") {
+		encrypted := conn.RefreshToken
+		purpose := cloudflareRefreshTokenPurpose
+		if encrypted == "" {
+			encrypted = conn.AccessToken
+			purpose = cloudflareAccessTokenPurpose
+		}
+		plain, err := auth.DecryptSecret(o.encryptionKey, purpose, encrypted)
+		if err != nil {
+			revokeErr = err
+		} else {
+			revokeErr = o.revoke(string(plain))
+		}
+	}
+	if err := o.store.DeleteCFConnection(conn.UserID, conn.ID); err != nil {
+		return err
+	}
+	return revokeErr
 }

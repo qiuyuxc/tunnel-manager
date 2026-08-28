@@ -88,6 +88,7 @@ func main() {
 	// Initialize dependencies
 	st := store.NewStore(storePath)
 	cf := services.NewCloudflareClient(apiToken, accountID)
+	cf.SetSessionStore(st)
 	cloudflareOAuth := services.NewCloudflareOAuth(st, encryptionKey, services.CloudflareOAuthConfig{
 		ClientID:     oauthClientID,
 		ClientSecret: oauthClientSecret,
@@ -128,6 +129,7 @@ func main() {
 	mw := &handlers.Middleware{
 		APIKey:       apiKey,
 		AdminHandler: adminHandler,
+		CF:           cf,
 	}
 
 	// Setup router
@@ -191,6 +193,7 @@ func main() {
 		r.Post("/cloudflare/oauth/start", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.Start)))
 		r.Put("/cloudflare/oauth/account", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.SelectAccount)))
 		r.Delete("/cloudflare/oauth", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.Disconnect)))
+		r.Put("/cloudflare/oauth/connection", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.ActivateConnection)))
 		r.Get("/cloudflare/oauth/callback", cloudflareOAuthHandler.Callback)
 
 		// Config endpoints: user selections for everyone, branding for admins

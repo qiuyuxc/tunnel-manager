@@ -112,11 +112,22 @@ func TestCloudflareOAuthStatusUsesRefreshedExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncryptSecret(refresh token) error = %v", err)
 	}
-	if err := st.SetCloudflareOAuth(accessToken, refreshToken, initialExpiry, "account.read"); err != nil {
-		t.Fatalf("SetCloudflareOAuth() error = %v", err)
+	uid := st.AdminUserID()
+	connID, err := st.CreateCFConnection(models.CFConnection{
+		UserID:       uid,
+		Label:        "test",
+		AccountID:    "account-id",
+		AccountName:  "Account",
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    initialExpiry.Unix(),
+		Scope:        "account.read",
+	})
+	if err != nil {
+		t.Fatalf("CreateCFConnection() error = %v", err)
 	}
-	if err := st.SetCloudflareAccount("account-id", "Account"); err != nil {
-		t.Fatalf("SetCloudflareAccount() error = %v", err)
+	if err := st.SetActiveCFConnection(uid, connID); err != nil {
+		t.Fatalf("SetActiveCFConnection() error = %v", err)
 	}
 
 	oauth := services.NewCloudflareOAuth(st, key, services.CloudflareOAuthConfig{
@@ -125,8 +136,12 @@ func TestCloudflareOAuthStatusUsesRefreshedExpiry(t *testing.T) {
 	})
 	cf := services.NewCloudflareClient("", "")
 	cf.SetOAuth(oauth)
+	cf.SetSessionStore(st)
+	userCF := cf.ForUser(uid)
 	handler := NewCloudflareOAuthHandler(st, oauth, cf, nil)
 	request := httptest.NewRequest(http.MethodGet, "http://backend/api/cloudflare/oauth/status", nil)
+	request = withUser(request, models.SessionUser{ID: uid, Role: models.RoleAdmin})
+	request = withCF(request, userCF)
 	response := httptest.NewRecorder()
 
 	handler.Status(response, request)
@@ -138,13 +153,16 @@ func TestCloudflareOAuthStatusUsesRefreshedExpiry(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&status); err != nil {
 		t.Fatalf("Decode() error = %v", err)
 	}
-	storedConfig := st.GetConfig()
-	wantExpiry := time.Unix(storedConfig.CFOAuthExpiresAt, 0).Format(time.RFC3339)
+	stored, ok := st.ActiveCFConnection(uid)
+	if !ok {
+		t.Fatal("active connection disappeared")
+	}
+	wantExpiry := time.Unix(stored.ExpiresAt, 0).Format(time.RFC3339)
 	if status.ExpiresAt != wantExpiry {
 		t.Fatalf("expires_at = %q, want %q", status.ExpiresAt, wantExpiry)
 	}
-	if storedConfig.CFOAuthExpiresAt <= initialExpiry.Unix() {
-		t.Fatalf("stored expiry = %d, want later than %d", storedConfig.CFOAuthExpiresAt, initialExpiry.Unix())
+	if stored.ExpiresAt <= initialExpiry.Unix() {
+		t.Fatalf("stored expiry = %d, want later than %d", stored.ExpiresAt, initialExpiry.Unix())
 	}
 	if status.Source != "oauth" || len(status.Accounts) != 1 || status.Accounts[0].ID != "account-id" {
 		t.Fatalf("unexpected status: %+v", status)

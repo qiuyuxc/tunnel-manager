@@ -87,6 +87,16 @@ export interface CloudflareAccount {
   name: string
 }
 
+export interface CFConnectionView {
+  id: string
+  label: string
+  account_id: string
+  account_name: string
+  active: boolean
+  expires_at: number
+  created_at: number
+}
+
 export interface CloudflareOAuthStatus {
   configured: boolean
   connected: boolean
@@ -97,6 +107,8 @@ export interface CloudflareOAuthStatus {
   expires_at?: string
   redirect_uri: string
   error?: string
+  connections?: CFConnectionView[]
+  active_connection_id?: string
 }
 
 export type BindMode = 'simple' | 'preferred'
@@ -246,8 +258,14 @@ export function selectCloudflareAccount(accountID: string) {
   return api.put<CloudflareAccount>('/cloudflare/oauth/account', { account_id: accountID })
 }
 
-export function disconnectCloudflareOAuth() {
-  return api.delete<{ status: string; warning?: string }>('/cloudflare/oauth')
+export function activateCloudflareConnection(connectionID: string) {
+  return api.put<{ status: string; account_id: string; account_name: string }>('/cloudflare/oauth/connection', { connection_id: connectionID })
+}
+
+export function disconnectCloudflareOAuth(connectionID?: string) {
+  return api.delete<{ status: string; warning?: string }>('/cloudflare/oauth', {
+    params: connectionID ? { connection_id: connectionID } : undefined,
+  })
 }
 
 // Tunnels

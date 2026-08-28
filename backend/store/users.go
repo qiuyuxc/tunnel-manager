@@ -84,6 +84,23 @@ func (s *Store) seedUsers() {
 		TOTPRecoveryCodeHashes: append([]string(nil), s.config.TOTPRecoveryCodeHashes...),
 		CreatedAt:              now,
 	}
+	// Migrate the legacy global OAuth connection to the administrator.
+	if s.config.CFOAuthAccessToken != "" {
+		conn := models.CFConnection{
+			ID:           newID(),
+			UserID:       admin.ID,
+			Label:        "默认连接",
+			AccountID:    s.config.CFAccountID,
+			AccountName:  s.config.CFAccountName,
+			AccessToken:  s.config.CFOAuthAccessToken,
+			RefreshToken: s.config.CFOAuthRefreshToken,
+			ExpiresAt:    s.config.CFOAuthExpiresAt,
+			Scope:        s.config.CFOAuthScope,
+			CreatedAt:    now,
+		}
+		s.cfConns = append(s.cfConns, conn)
+		admin.ActiveCFConnectionID = conn.ID
+	}
 	s.users = append(s.users, admin)
 	s.adminID = admin.ID
 	s.prefs[admin.ID] = models.UserPrefs{
@@ -104,6 +121,12 @@ func (s *Store) seedUsers() {
 	s.config.TOTPSecretEncrypted = ""
 	s.config.TOTPLastAcceptedStep = 0
 	s.config.TOTPRecoveryCodeHashes = nil
+	s.config.CFOAuthAccessToken = ""
+	s.config.CFOAuthRefreshToken = ""
+	s.config.CFOAuthExpiresAt = 0
+	s.config.CFOAuthScope = ""
+	s.config.CFAccountID = ""
+	s.config.CFAccountName = ""
 
 	if err := s.saveLocked(); err != nil {
 		log.Printf("seed user tables: %v", err)

@@ -76,6 +76,7 @@ type Store struct {
 	prefs       map[string]models.UserPrefs
 	appSettings models.AppSettings
 	smtp        models.SMTPSettings
+	cfConns     []models.CFConnection
 	adminID     string
 }
 
@@ -288,6 +289,9 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	if s.verifyCodes, err = loadVerifyCodes(handle); err != nil {
 		return false, err
 	}
+	if s.cfConns, err = loadCFConnections(handle); err != nil {
+		return false, err
+	}
 	if appDoc, ok, loadErr := loadSetting(handle, "app"); loadErr != nil {
 		return false, loadErr
 	} else if ok {
@@ -346,6 +350,9 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	if err := replaceVerifyCodes(tx, s.verifyCodes); err != nil {
+		return err
+	}
+	if err := replaceCFConnections(tx, s.cfConns); err != nil {
 		return err
 	}
 	appJSON, err := json.Marshal(s.appSettings)

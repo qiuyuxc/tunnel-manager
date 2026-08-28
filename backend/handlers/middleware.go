@@ -7,16 +7,43 @@ import (
 	"strings"
 
 	"tunnel-manager/models"
+	"tunnel-manager/services"
 )
 
 // Middleware holds shared dependencies for handlers
 type Middleware struct {
 	APIKey       string
 	AdminHandler *AdminHandler
+	CF           *services.CloudflareClient
 }
 
 // contextKey carries the authenticated identity through a request.
 type contextKey struct{}
+
+// cfContextKey carries the per-user Cloudflare client.
+type cfContextKey struct{}
+
+// UserCF returns the Cloudflare client bound to the requesting account, or
+// nil on unauthenticated requests.
+func UserCF(r *http.Request) *services.CloudflareClient {
+	if cf, ok := r.Context().Value(cfContextKey{}).(*services.CloudflareClient); ok {
+		return cf
+	}
+	return nil
+}
+
+// sessionUID returns the authenticated account id, or "" when absent.
+func sessionUID(r *http.Request) string {
+	if user := SessionUser(r); user != nil {
+		return user.ID
+	}
+	return ""
+}
+
+// withCF attaches the per-user Cloudflare client to the request.
+func withCF(r *http.Request, cf *services.CloudflareClient) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), cfContextKey{}, cf))
+}
 
 // CORS wraps a handler with CORS headers
 func (m *Middleware) CORS(next http.Handler) http.Handler {
@@ -62,7 +89,7 @@ func SessionUser(r *http.Request) *models.SessionUser {
 func (m *Middleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if su, ok := m.sessionFromToken(r.Header.Get("X-Auth-Token")); ok {
-			next(w, withUser(r, su))
+			next(w, withCF(withUser(r, su), m.cfFor(su)))
 			return
 		}
 
@@ -78,13 +105,21 @@ func (m *Middleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 					Role:        models.RoleAdmin,
 					Permissions: append([]string(nil), models.AllPermissions...),
 				}
-				next(w, withUser(r, su))
+				next(w, withCF(withUser(r, su), m.cfFor(su)))
 				return
 			}
 		}
 
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 	}
+}
+
+// cfFor derives the account-scoped client for an identity.
+func (m *Middleware) cfFor(user models.SessionUser) *services.CloudflareClient {
+	if m.CF == nil {
+		return nil
+	}
+	return m.CF.ForUser(user.ID)
 }
 
 // SessionOnly wraps security-sensitive account management endpoints and

@@ -43,10 +43,10 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 	for _, u := range users {
 		if _, err := tx.Exec(`INSERT INTO users(id, username, email, password_hash, role, group_id, status,
 			email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
-			created_at, last_login_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			created_at, last_login_at, active_cf_connection_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			u.ID, u.Username, u.Email, u.PasswordHash, u.Role, u.GroupID, u.Status,
 			boolInt(u.EmailVerified), boolInt(u.TOTPEnabled), u.TOTPSecretEncrypted, u.TOTPLastAcceptedStep,
-			strings.Join(u.TOTPRecoveryCodeHashes, "\n"), u.CreatedAt, u.LastLoginAt); err != nil {
+			strings.Join(u.TOTPRecoveryCodeHashes, "\n"), u.CreatedAt, u.LastLoginAt, u.ActiveCFConnectionID); err != nil {
 			return fmt.Errorf("save user %s: %w", u.ID, err)
 		}
 		p := prefs[u.ID]
@@ -62,7 +62,7 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, error) {
 	rows, err := handle.Query(`SELECT id, username, email, password_hash, role, group_id, status,
 		email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
-		created_at, last_login_at FROM users`)
+		created_at, last_login_at, active_cf_connection_id FROM users`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load users: %w", err)
 	}
@@ -74,7 +74,7 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 		var recoveryHashes string
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &u.GroupID, &u.Status,
 			&emailVerified, &totpEnabled, &u.TOTPSecretEncrypted, &u.TOTPLastAcceptedStep, &recoveryHashes,
-			&u.CreatedAt, &u.LastLoginAt); err != nil {
+			&u.CreatedAt, &u.LastLoginAt, &u.ActiveCFConnectionID); err != nil {
 			return nil, nil, fmt.Errorf("scan user: %w", err)
 		}
 		u.EmailVerified = emailVerified != 0
@@ -251,4 +251,40 @@ func loadVerifyCodes(handle *sql.DB) ([]verifyCodeRecord, error) {
 		codes = append(codes, code)
 	}
 	return codes, rows.Err()
+}
+
+// replaceCFConnections syncs the cf_connections table.
+func replaceCFConnections(tx *sql.Tx, conns []models.CFConnection) error {
+	if _, err := tx.Exec(`DELETE FROM cf_connections`); err != nil {
+		return fmt.Errorf("clear cf connections: %w", err)
+	}
+	for _, conn := range conns {
+		if _, err := tx.Exec(`INSERT INTO cf_connections(id, user_id, label, account_id, account_name,
+			access_token, refresh_token, expires_at, scope, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+			conn.ID, conn.UserID, conn.Label, conn.AccountID, conn.AccountName,
+			conn.AccessToken, conn.RefreshToken, conn.ExpiresAt, conn.Scope, conn.CreatedAt); err != nil {
+			return fmt.Errorf("save cf connection %s: %w", conn.ID, err)
+		}
+	}
+	return nil
+}
+
+// loadCFConnections reads the cf_connections table.
+func loadCFConnections(handle *sql.DB) ([]models.CFConnection, error) {
+	rows, err := handle.Query(`SELECT id, user_id, label, account_id, account_name,
+		access_token, refresh_token, expires_at, scope, created_at FROM cf_connections`)
+	if err != nil {
+		return nil, fmt.Errorf("load cf connections: %w", err)
+	}
+	defer rows.Close()
+	conns := []models.CFConnection{}
+	for rows.Next() {
+		var conn models.CFConnection
+		if err := rows.Scan(&conn.ID, &conn.UserID, &conn.Label, &conn.AccountID, &conn.AccountName,
+			&conn.AccessToken, &conn.RefreshToken, &conn.ExpiresAt, &conn.Scope, &conn.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan cf connection: %w", err)
+		}
+		conns = append(conns, conn)
+	}
+	return conns, rows.Err()
 }
