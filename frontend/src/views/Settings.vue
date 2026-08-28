@@ -51,6 +51,13 @@
               <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">清除图标</button>
               <span>建议使用 1:1 图片，文件不超过 512 KB。</span>
             </div>
+            <div class="landing-toggle">
+              <div class="landing-toggle-text">
+                <span class="field-label">启用首页（落地页）</span>
+                <span class="landing-toggle-help">开启后，未登录用户访问站点将先看到首页，而不是直接进入登录页；关闭则保持原来的登录页。</span>
+              </div>
+              <n-switch v-model:value="site.landingEnabled" size="small" :disabled="savingSite" @update:value="saveSite" />
+            </div>
           </div>
         </div>
       </section>
@@ -133,7 +140,7 @@
 </template>
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useMessage } from 'naive-ui'
+import { NSwitch, useMessage } from 'naive-ui'
 import {
   setCNAMEPresets,
   setFallbackOrigin,
@@ -148,7 +155,7 @@ const store = useConfigStore()
 const config = store.config
 const visible = ref(false)
 const iconInput = ref<HTMLInputElement | null>(null)
-const site = reactive({ name: '', description: '', icon: '' })
+const site = reactive({ name: '', description: '', icon: '', landingEnabled: false })
 const cnamePresets = ref<CNAMEPreset[]>([])
 const preferredCNAME = ref('')
 const fallbackDomain = ref('')
@@ -160,6 +167,7 @@ function syncFormFromConfig() {
   site.name = config.site_name
   site.description = config.site_description
   site.icon = config.site_icon
+  site.landingEnabled = store.landingEnabled
   preferredCNAME.value = config.preferred_cname
   cnamePresets.value = config.cname_presets.map((item) => ({ ...item }))
 }
@@ -170,11 +178,12 @@ async function saveSite() {
   }
   savingSite.value = true
   try {
-    const payload = { name: site.name.trim(), description: site.description.trim(), icon: site.icon.trim() }
+    const payload = { name: site.name.trim(), description: site.description.trim(), icon: site.icon.trim(), landing_enabled: site.landingEnabled }
     const { data } = await setSiteSettings(payload)
     config.site_name = data.name
     config.site_description = data.description
     config.site_icon = data.icon
+    store.landingEnabled = data.landing_enabled
     Object.assign(site, data)
     message.success('站点信息已更新')
   } catch (e: any) {
@@ -406,6 +415,29 @@ onMounted(async () => {
 }
 
 .icon-actions span { color: var(--color-mute); font-size: 12px; }
+
+.landing-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.landing-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.landing-toggle-help {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
 
 .file-input { display: none; }
 

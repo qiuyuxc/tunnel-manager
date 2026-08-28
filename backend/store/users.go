@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -391,6 +392,8 @@ func (s *Store) userViewLocked(user *models.User) models.UserView {
 	view := models.UserView{
 		ID:            user.ID,
 		Username:      user.Username,
+		Nickname:      user.Nickname,
+		Avatar:        user.Avatar,
 		Email:         user.Email,
 		Role:          user.Role,
 		GroupID:       user.GroupID,
@@ -760,6 +763,8 @@ func (s *Store) sessionUserLocked(user *models.User) models.SessionUser {
 	su := models.SessionUser{
 		ID:          user.ID,
 		Username:    user.Username,
+		Nickname:    user.Nickname,
+		Avatar:      user.Avatar,
 		Email:       user.Email,
 		Role:        user.Role,
 		Permissions: []string{},
@@ -1253,6 +1258,167 @@ func (s *Store) SetUserServiceURL(userID, serviceURL string) error {
 	return nil
 }
 
+// GetUserNotifySettings returns the API-safe projection of one account's
+// notification preferences.
+func (s *Store) GetUserNotifySettings(userID string) (models.NotifySettingsView, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.findUserLocked(userID) == nil {
+		return models.NotifySettingsView{}, false
+	}
+	prefs := s.prefs[userID]
+	events := map[string]bool{}
+	for _, event := range models.AllNotifyEvents {
+		// First visit: default every event to on; an explicit save always
+		// records the user's choice.
+		events[event] = prefs.NotifyEvents == nil || prefs.NotifyEvents[event]
+	}
+	return models.NotifySettingsView{
+		Channels:       append([]string(nil), prefs.NotifyChannels...),
+		Events:         events,
+		Emails:         prefs.NotifyEmails,
+		TGBotTokenSet:  prefs.TGBotTokenEncrypted != "",
+		TGNotifyChatID: prefs.TGNotifyChatID,
+		TGRemoteBotSet: prefs.TGRemoteTokenEncrypted != "",
+	}, true
+}
+
+// SetUserNotifySettings stores one account's notification preferences.
+// tgBotTokenEncrypted must already be encrypted by the caller; pass the
+// previously stored value to keep an existing token unchanged.
+func (s *Store) SetUserNotifySettings(userID string, channels []string, events map[string]bool, emails, tgBotTokenEncrypted, tgNotifyChatID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	previous := prefs
+	prefs.NotifyChannels = append([]string(nil), channels...)
+	prefs.NotifyEvents = events
+	prefs.NotifyEmails = emails
+	prefs.TGBotTokenEncrypted = tgBotTokenEncrypted
+	prefs.TGNotifyChatID = tgNotifyChatID
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// SetUserRemoteSettings stores one account's Telegram remote-control bot
+// preferences. tgBotTokenEncrypted must already be encrypted by the caller;
+// pass the previously stored value to keep an existing token unchanged.
+func (s *Store) SetUserRemoteSettings(userID string, enabled bool, operatorIDs, tgBotTokenEncrypted string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	previous := prefs
+	prefs.TGRemoteEnabled = enabled
+	prefs.TGOperatorIDs = operatorIDs
+	if tgBotTokenEncrypted != "" {
+		prefs.TGRemoteTokenEncrypted = tgBotTokenEncrypted
+	}
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// ReuseTokenForRemote copies the notification bot token into the
+// remote-control slot, so one bot can power both features.
+func (s *Store) ReuseTokenForRemote(userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	if prefs.TGBotTokenEncrypted == "" {
+		return fmt.Errorf("通知尚未配置 Bot Token")
+	}
+	if prefs.TGRemoteTokenEncrypted != "" {
+		return fmt.Errorf("远程控制已配置 Bot Token")
+	}
+	previous := prefs
+	prefs.TGRemoteTokenEncrypted = prefs.TGBotTokenEncrypted
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// ReuseTokenForNotify copies the remote-control bot token into the
+// notification slot, so one bot can power both features.
+func (s *Store) ReuseTokenForNotify(userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	if prefs.TGRemoteTokenEncrypted == "" {
+		return fmt.Errorf("远程控制尚未配置 Bot Token")
+	}
+	if prefs.TGBotTokenEncrypted != "" {
+		return fmt.Errorf("通知已配置 Bot Token")
+	}
+	previous := prefs
+	prefs.TGBotTokenEncrypted = prefs.TGRemoteTokenEncrypted
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// SetUserZoneSelection stores one account's active zone used by Telegram DNS
+// commands.
+func (s *Store) SetUserZoneSelection(userID, id, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	previous := prefs
+	prefs.SelectedZoneID, prefs.SelectedZoneName = id, name
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// SetUserPreferredCNAME stores one account's preferred CNAME used by Telegram
+// domain binding commands.
+func (s *Store) SetUserPreferredCNAME(userID, cname string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	previous := prefs
+	prefs.PreferredCNAME = cname
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
 // ClearTunnelSelectionIfUsed drops the selection of every user pointing at
 // the deleted tunnel.
 func (s *Store) ClearTunnelSelectionIfUsed(tunnelID string) error {
@@ -1291,6 +1457,25 @@ func (s *Store) SetUserEmail(id, email string, verified bool) error {
 	user.EmailVerified = verified
 	if err := s.saveLocked(); err != nil {
 		user.Email, user.EmailVerified = prevEmail, prevVerified
+		return err
+	}
+	return nil
+}
+
+// SetUserProfile updates one account's display nickname and avatar URL.
+// Empty values clear the corresponding field.
+func (s *Store) SetUserProfile(id, nickname, avatar string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user := s.findUserLocked(id)
+	if user == nil {
+		return ErrUserNotFound
+	}
+	prevNickname, prevAvatar := user.Nickname, user.Avatar
+	user.Nickname = strings.TrimSpace(nickname)
+	user.Avatar = strings.TrimSpace(avatar)
+	if err := s.saveLocked(); err != nil {
+		user.Nickname, user.Avatar = prevNickname, prevAvatar
 		return err
 	}
 	return nil

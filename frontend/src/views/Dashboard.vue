@@ -9,7 +9,7 @@
       <div class="metric-card">
         <span class="metric-label">当前隧道</span>
         <div class="metric-value">
-          <template v-if="config.tunnel_id">{{ config.tunnel_name || '已选隧道' }}</template>
+          <template v-if="config.tunnel_id"><span class="metric-text" :title="config.tunnel_name">{{ config.tunnel_name || '已选隧道' }}</span></template>
           <span v-else class="text-muted">未配置</span>
         </div>
         <div class="metric-foot">
@@ -19,7 +19,7 @@
       <div class="metric-card">
         <span class="metric-label">转发地址</span>
         <div class="metric-value">
-          <code v-if="config.service_url" class="inline-code">{{ config.service_url }}</code>
+          <code v-if="config.service_url" class="inline-code" :title="config.service_url">{{ config.service_url }}</code>
           <span v-else class="text-muted">未配置</span>
         </div>
         <div class="metric-foot">
@@ -29,7 +29,7 @@
       <div class="metric-card">
         <span class="metric-label">默认优选 CNAME</span>
         <div class="metric-value">
-          <code class="inline-code">{{ config.preferred_cname }}</code>
+          <code class="inline-code" :title="config.preferred_cname">{{ config.preferred_cname }}</code>
         </div>
         <div class="metric-foot">
           <router-link to="/settings" class="link">修改默认</router-link>
@@ -234,8 +234,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .ov-empty-sub { color: var(--color-mute); opacity: .85; }
 
 .ov-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--color-hairline); border-bottom: 1px solid var(--color-hairline); }
-.stat { background: var(--color-canvas-raised); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
-.stat-num { font-size: 21px; font-weight: 600; color: var(--color-ink); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat { background: var(--color-canvas-raised); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.stat-num { font-size: 21px; font-weight: 600; color: var(--color-ink); line-height: 1.2; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 .stat-num em { font-style: normal; font-size: 12px; font-weight: 500; color: var(--color-mute); margin-left: 3px; }
 .stat-split i { font-style: normal; margin-right: 10px; }
 .okc { color: var(--color-success); }
@@ -246,8 +246,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .chart { position: relative; padding: 22px 18px 14px; background: var(--color-canvas-raised); }
 .chart-grid-lines { position: absolute; inset: 22px 18px 34px; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
 .chart-grid-lines i { border-top: 1px dashed var(--color-hairline); opacity: .5; }
-.bars { position: relative; display: flex; align-items: flex-end; gap: 10px; height: 140px; z-index: 1; padding-top: 4px; }
-.bar-col { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 10px; height: 140px; z-index: 1; padding-top: 4px; min-width: 0; overflow: hidden; }
+.bar-col { position: relative; flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
 .col-inner { position: relative; flex: 1; }
 .bar-peak { position: absolute; bottom: 0; left: 10%; right: 10%; border-radius: 3px 3px 0 0;
   background: color-mix(in srgb, var(--color-ink) 10%, transparent); border: 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent); border-bottom: 0; transition: height 300ms ease; }
@@ -256,7 +256,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .h-mid .bar-avg { background: var(--color-warning); }
 .h-bad .bar-avg { background: var(--color-error); }
 .h-bad .bar-peak { background: color-mix(in srgb, var(--color-error) 12%, transparent); border-color: color-mix(in srgb, var(--color-error) 25%, transparent); }
-.bar-label { margin-top: 8px; text-align: center; font-size: 10.5px; color: var(--color-mute); }
+.bar-label { margin-top: 8px; text-align: center; font-size: 10.5px; color: var(--color-mute); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .legend { display: flex; justify-content: flex-end; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--color-mute); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -281,7 +281,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 	display: flex; flex-direction: column; gap: 8px;
 }
 .metric-label { font-size: 12px; color: var(--color-mute); font-weight: 500; }
-.metric-value { min-height: 24px; font-size: 15px; font-weight: 600; color: var(--color-ink); word-break: break-all; display: flex; align-items: center; }
+.metric-value { min-height: 24px; min-width: 0; font-size: 15px; font-weight: 600; color: var(--color-ink); display: flex; align-items: center; }
+.metric-value .metric-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.metric-value .inline-code { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .metric-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--color-hairline); font-size: 12px; }
 .ov-card { overflow: hidden; }
 .quick-actions {

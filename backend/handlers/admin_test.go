@@ -319,6 +319,89 @@ func TestChangeUsernamePreservesMigratedHash(t *testing.T) {
 	}
 }
 
+func TestChangeProfileUpdatesNicknameAndAvatar(t *testing.T) {
+	h := newTestAdminHandler(t)
+	session := login(t, h, "admin", "password")
+	resp := performJSON(t, h.ChangeProfile, http.MethodPut, "", `{"nickname":"管理员小王","avatar":"/uploads/abc.png"}`, session)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("ChangeProfile() = %d: %s", resp.Code, resp.Body.String())
+	}
+	user, ok := h.store.GetUserByID(h.store.AdminUserID())
+	if !ok || user.Nickname != "管理员小王" || user.Avatar != "/uploads/abc.png" {
+		t.Fatalf("profile after update = %#v, ok=%v", user, ok)
+	}
+	// The session identity and /auth/me surface the new profile fields.
+	su, ok := h.ValidateSession(session)
+	if !ok || su.Nickname != "管理员小王" || su.Avatar != "/uploads/abc.png" {
+		t.Fatalf("session profile = %#v, ok=%v", su, ok)
+	}
+}
+
+func TestChangeProfileValidatesInput(t *testing.T) {
+	h := newTestAdminHandler(t)
+	session := login(t, h, "admin", "password")
+	for _, body := range []string{
+		`{"nickname":"bad\nname","avatar":""}`,
+		`{"nickname":"ok","avatar":"javascript:alert(1)"}`,
+		`{"nickname":"ok","avatar":"/uploads/../secret.png"}`,
+		`{"nickname":"ok","avatar":"ftp://host/x.png"}`,
+	} {
+		resp := performJSON(t, h.ChangeProfile, http.MethodPut, "", body, session)
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("ChangeProfile(%s) = %d: %s", body, resp.Code, resp.Body.String())
+		}
+	}
+	// Empty nickname and avatar are allowed (clears custom profile).
+	resp := performJSON(t, h.ChangeProfile, http.MethodPut, "", `{"nickname":"","avatar":""}`, session)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("clearing profile = %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestChangeProfileRequiresAuth(t *testing.T) {
+	h := newTestAdminHandler(t)
+	resp := performJSON(t, h.ChangeProfile, http.MethodPut, "", `{"nickname":"x","avatar":""}`, "")
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated ChangeProfile() = %d", resp.Code)
+	}
+}
+
+func TestLoginRequiresTurnstileWhenEnabled(t *testing.T) {
+	key := bytes.Repeat([]byte{5}, 32)
+	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := st.SetAdminCredentials("admin", store.HashPassword("password")); err != nil {
+		t.Fatal(err)
+	}
+	encrypted, err := auth.EncryptSecret(key, turnstileSecretPurpose, []byte("secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetAppSettings(models.AppSettings{
+		TurnstileEnabled: true,
+		TurnstileSiteKey: "1x00000000000000000000AA",
+		TurnstileSecret:  encrypted,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := NewAdminHandler(st, key)
+
+	// A login without a cf-turnstile-response token is rejected before any
+	// credential work (the empty token fails closed without network calls).
+	rejected := performJSON(t, h.Login, http.MethodPost, "", `{"username":"admin","password":"password"}`, "")
+	if rejected.Code != http.StatusBadRequest || !strings.Contains(rejected.Body.String(), "人机验证") {
+		t.Fatalf("login without token = %d: %s", rejected.Code, rejected.Body.String())
+	}
+
+	// Disabling verification restores the normal flow.
+	if err := st.SetAppSettings(models.AppSettings{TurnstileEnabled: false}); err != nil {
+		t.Fatal(err)
+	}
+	ok := performJSON(t, h.Login, http.MethodPost, "", `{"username":"admin","password":"password"}`, "")
+	if ok.Code != http.StatusOK {
+		t.Fatalf("login after disable = %d: %s", ok.Code, ok.Body.String())
+	}
+}
+
 func TestSessionExpiresAndCredentialChangesRevokeAllState(t *testing.T) {
 	h := newTestAdminHandler(t)
 	// Anchor on the real clock: the store prunes sessions against it.

@@ -1,14 +1,18 @@
 # Telegram Bot 远程管理
 
-配置 Bot Token 与管理员 Telegram ID 后，可通过 Telegram 远程管理隧道、域名绑定与 DNS 记录。
+v2.1.0 起，TG 机器人开放给**所有用户**：每个账号配置自己的 Bot，机器人只能操作该账号自己的隧道、DNS 与域名绑定，用户之间完全隔离。管理员旧版全局 Bot 会在服务启动时自动迁移为管理员的个人 Bot，无需重新配置。
 
-## 设置项
+## 开始使用
 
-- **长轮询 / Webhook** 两种运行方式，Webhook 入口支持 Secret Token 校验
-- 支持自定义 API 端点（可接入兼容服务）
-- DNS 删除操作需要二次确认，防止误删
-- 仅接受配置中的管理员 Telegram ID
-- 群组中使用命令时支持 `@botname` 后缀
+1. 在 Telegram 与 [@BotFather](https://t.me/BotFather) 对话，发送 `/newbot` 创建自己的 Bot，拿到 Token
+2. 与 [@userinfobot](https://t.me/userinfobot) 对话获取自己的数字 TG ID
+3. 打开面板左侧「TG 机器人」页面，填写 Bot Token 与「授权 TG ID」（允许向该 Bot 发送指令的 TG 账号，可多个，逗号分隔）并启用
+
+启用后 Bot 以**长轮询**方式运行，无需公网回调地址。发送 `/help` 可查看全部指令。
+
+## API 端点（管理员）
+
+面板级设置，位于「TG 机器人」页面：所有用户的远程控制 Bot 与通知发送统一走该端点。默认为官方 `api.telegram.org`；国内网络无法直连时，建议配置自建反向代理地址。
 
 ## 隧道与域名命令
 
@@ -36,3 +40,10 @@
 | `/DNS修改 [区域可选] [记录名或ID] [类型] [新内容] [TTL可选] [代理可选]` | 按记录名直接修改（如 `/DNS修改 bbs CNAME saas.com`），也兼容按 RecordID 的旧格式 |
 | `/DNS删除 [区域可选] [记录名或RecordID]` | 生成五分钟有效的一次性确认码 |
 | `/确认删除 [确认码]` | 凭确认码完成删除 |
+
+## 其他说明
+
+- DNS 删除操作需要二次确认，防止误删
+- 群组中使用命令时支持 `@botname` 后缀
+- [通知中心](/guide/multi-user#用户通知)可以另配一个 Bot 用于接收通知；某一侧未配置时，页面会提供「一键复用」按钮，直接把另一侧已配置的 Token 复制过来
+- Bot Token 通过 `APP_ENCRYPTION_KEY` 加密存储

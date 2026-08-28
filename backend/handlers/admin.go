@@ -14,6 +14,7 @@ import (
 
 	"tunnel-manager/auth"
 	"tunnel-manager/models"
+	"tunnel-manager/services"
 	"tunnel-manager/store"
 )
 
@@ -22,6 +23,8 @@ const (
 	twoFactorTTL        = 5 * time.Minute
 	maxRequestBodyBytes = 4 << 10
 	maxUsernameLength   = 128
+	maxNicknameLength   = 64
+	maxAvatarLength     = 2048
 	maxPasswordLength   = 1024
 	maxCodeLength       = 32
 	maxChallenges       = 1024
@@ -53,6 +56,7 @@ type pendingTOTPSetup struct {
 type AdminHandler struct {
 	store            *store.Store
 	encryptionKey    []byte
+	notifier         *services.Notifier
 	challenges       map[string]*loginChallenge
 	setups           map[string]*pendingTOTPSetup
 	mu               sync.RWMutex
@@ -60,6 +64,11 @@ type AdminHandler struct {
 	passwordVerifies chan struct{}
 	tokenTTL         time.Duration
 	now              func() time.Time
+}
+
+// SetNotifier wires per-user notification delivery (e.g. login events).
+func (h *AdminHandler) SetNotifier(notifier *services.Notifier) {
+	h.notifier = notifier
 }
 
 // NewAdminHandler creates a new AdminHandler. The optional encryption key keeps
@@ -116,6 +125,11 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "login"); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
+		return
+	}
+
 	user, found := h.lookupUser(account)
 	if !found {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
@@ -163,7 +177,16 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.store.UpdateUserLogin(user.ID)
+	h.notifyLogin(user.ID, user.Username, r)
 	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: user.Username, Role: user.Role})
+}
+
+// notifyLogin sends a per-user login notification (if enabled) without
+// blocking the login response.
+func (h *AdminHandler) notifyLogin(userID, username string, r *http.Request) {
+	if h.notifier != nil {
+		h.notifier.NotifyLogin(userID, username, clientIP(r))
+	}
 }
 
 // lookupUser finds an account by email (when the input contains @) or name.
@@ -230,6 +253,7 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 	if user, ok := h.store.GetUserByID(challenge.userID); ok {
 		username, role = user.Username, user.Role
 		h.store.UpdateUserLogin(user.ID)
+		h.notifyLogin(user.ID, user.Username, r)
 	}
 	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: username, Role: role})
 }
@@ -523,6 +547,50 @@ func (h *AdminHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "邮箱已更新"})
+}
+
+// ChangeProfile handles PUT /api/admin/profile: updates the account display
+// nickname and custom avatar URL. Password confirmation is not required for
+// these low-risk fields.
+func (h *AdminHandler) ChangeProfile(w http.ResponseWriter, r *http.Request) {
+	var req models.ChangeProfileRequest
+	if err := readAdminJSON(w, r, &req); err != nil || len(req.Nickname) > maxNicknameLength || len(req.Avatar) > maxAvatarLength {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	nickname := strings.TrimSpace(req.Nickname)
+	if strings.ContainsAny(nickname, "\r\n") || len([]rune(nickname)) > maxNicknameLength {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "昵称不能包含换行且长度不能超过 64 个字符"})
+		return
+	}
+	avatar := strings.TrimSpace(req.Avatar)
+	if !validAvatarURL(avatar) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "头像地址无效，仅支持 /uploads/ 路径或 http(s) 链接"})
+		return
+	}
+	if err := h.store.SetUserProfile(userID, nickname, avatar); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update profile"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "个人资料已更新"})
+}
+
+// validAvatarURL accepts an empty value (clears the avatar), a stored
+// /uploads/ path or an absolute http(s) URL.
+func validAvatarURL(value string) bool {
+	if value == "" {
+		return true
+	}
+	if strings.HasPrefix(value, "/uploads/") {
+		return !strings.Contains(value, "..") && !strings.ContainsAny(value, " \t\r\n")
+	}
+	lower := strings.ToLower(value)
+	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
 }
 
 func (h *AdminHandler) ValidateSession(token string) (models.SessionUser, bool) {

@@ -34,6 +34,27 @@ func TestEmail() (string, string) {
 	return plain, emailShell("Tunnel Manager", "SMTP 测试邮件", inner)
 }
 
+// LoginNotifyEmail renders the per-user login notification.
+func LoginNotifyEmail(username, when, remoteIP string) (string, string) {
+	plain := fmt.Sprintf("您的账户「%s」刚刚登录成功。\n时间：%s\nIP：%s\n\n如果这不是您本人的操作，请立即修改密码。", username, when, remoteIP)
+	inner := fmt.Sprintf(
+		"<table style=\"border-collapse:collapse;font-size:14px;width:100%%;\">"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">账户</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">时间</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">IP</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"</table>"+
+			"<p style=\"margin:16px 0 0;font-size:14px;color:#6b7280;\">如果这不是您本人的操作，请立即修改密码。</p>",
+		html.EscapeString(username), html.EscapeString(when), html.EscapeString(remoteIP))
+	return plain, emailShell("Tunnel Manager", "登录通知", inner)
+}
+
+// NotifyTestEmail renders the per-user channel test notification.
+func NotifyTestEmail() (string, string) {
+	plain := "这是一条来自 Tunnel Manager 的测试通知。如果收到本消息，说明通知配置正常。"
+	inner := "<p style=\"margin:0;font-size:14px;color:#374151;\">这是一条来自 Tunnel Manager 的测试通知，收到本消息说明当前通知渠道配置正常。</p>"
+	return plain, emailShell("Tunnel Manager", "通知测试", inner)
+}
+
 // AlertEmail renders the monitor state-change notification.
 func AlertEmail(monitorName, targetName, targetURL, previous, current string, httpCode int, errMsg, when string) (string, string) {
 	recovered := current == "ok"

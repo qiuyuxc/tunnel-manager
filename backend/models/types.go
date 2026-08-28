@@ -15,6 +15,7 @@ type Config struct {
 	SiteName               string        `json:"site_name"`
 	SiteDescription        string        `json:"site_description"`
 	SiteIcon               string        `json:"site_icon"`
+	LandingEnabled         bool          `json:"landing_enabled"`
 	AdminUsername          string        `json:"admin_username"`
 	AdminPasswordHash      string        `json:"admin_password_hash"`
 	TOTPEnabled            bool          `json:"totp_enabled,omitempty"`
@@ -85,9 +86,10 @@ type CNAMEPreset struct {
 
 // SiteSettings contains public-facing site branding.
 type SiteSettings struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Icon           string `json:"icon"`
+	LandingEnabled bool   `json:"landing_enabled"`
 }
 
 // Tunnel represents a Cloudflare Tunnel
@@ -275,9 +277,10 @@ type SetTunnelRequest struct {
 
 // SetSiteSettingsRequest updates public-facing site branding.
 type SetSiteSettingsRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Icon           string `json:"icon"`
+	LandingEnabled bool   `json:"landing_enabled"`
 }
 
 // SetCNAMEPresetsRequest replaces the reusable CNAME options.
@@ -287,9 +290,10 @@ type SetCNAMEPresetsRequest struct {
 
 // LoginRequest is the request body for admin login
 type LoginRequest struct {
-	Account  string `json:"account,omitempty"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Account           string `json:"account,omitempty"`
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	TurnstileResponse string `json:"cf_turnstile_response,omitempty"`
 }
 
 // LoginResponse is the response body for admin login
@@ -369,6 +373,13 @@ type ChangeEmailRequest struct {
 	NewEmail        string `json:"new_email"`
 }
 
+// ChangeProfileRequest updates the account display name and avatar URL.
+// Both fields are optional; an empty avatar clears the custom avatar.
+type ChangeProfileRequest struct {
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+}
+
 // TelegramSettingsRequest is the request body for saving bot settings
 type TelegramSettingsRequest struct {
 	Enabled     bool   `json:"enabled"`
@@ -388,6 +399,7 @@ type TelegramSettingsResponse struct {
 	Mode         string `json:"mode"`
 	WebhookURL   string `json:"webhook_url"`
 	ApiEndpoint  string `json:"api_endpoint"`
+	NotifyBotSet bool   `json:"notify_bot_set"`
 }
 
 // TelegramStatusResponse is the response body for bot status

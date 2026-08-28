@@ -31,6 +31,10 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !err.config?.skipAuthInvalidation && window.location.pathname !== '/login') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_username')
+      localStorage.removeItem('auth_role')
+      localStorage.removeItem('auth_nickname')
+      localStorage.removeItem('auth_avatar')
+      localStorage.removeItem('auth_email')
       window.location.href = '/login'
     }
     return Promise.reject(err)
@@ -69,6 +73,7 @@ export interface Config {
   site_name: string
   site_description: string
   site_icon: string
+  landing_enabled: boolean
 }
 
 export interface CNAMEPreset {
@@ -80,6 +85,7 @@ export interface SiteSettings {
   name: string
   description: string
   icon: string
+  landing_enabled: boolean
 }
 
 export interface CloudflareAccount {
@@ -176,8 +182,8 @@ export interface TOTPConfirmResponse {
   recovery_codes: string[]
 }
 
-export function login(account: string, password: string) {
-  return api.post<LoginResult>('/admin/login', { account, password })
+export function login(account: string, password: string, turnstileToken = '') {
+  return api.post<LoginResult>('/admin/login', { account, password, cf_turnstile_response: turnstileToken })
 }
 
 export function completeTwoFactorLogin(challengeToken: string, code: string) {
@@ -214,6 +220,21 @@ export function changePassword(currentPassword: string, newPassword: string) {
 
 export function changeUsername(currentPassword: string, newUsername: string) {
   return api.put('/admin/username', { current_password: currentPassword, new_username: newUsername })
+}
+
+export function changeEmail(currentPassword: string, newEmail: string) {
+  return api.put('/admin/email', { current_password: currentPassword, new_email: newEmail })
+}
+
+export function changeProfile(nickname: string, avatar: string) {
+  return api.put('/admin/profile', { nickname, avatar })
+}
+
+export function uploadAvatar(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('filename', file.name)
+  return api.post<{ url: string }>('/account/avatar', form)
 }
 
 // Config
@@ -377,6 +398,7 @@ export interface TelegramSettings {
   mode: string
   webhook_url: string
   api_endpoint: string
+  notify_bot_set: boolean
 }
 
 export interface TelegramStatus {
@@ -392,9 +414,6 @@ export interface TelegramSettingsRequest {
   enabled: boolean
   bot_token: string
   admin_tg_ids: string
-  mode: string
-  webhook_url: string
-  api_endpoint: string
 }
 
 export function getTelegramSettings() {
@@ -411,6 +430,16 @@ export function getTelegramStatus() {
 
 export function testTelegram() {
   return api.post<ApiResponse>('/telegram/test')
+}
+
+// Copies the notification bot token into the remote-control slot.
+export function reuseTelegramFromNotify() {
+  return api.post<ApiResponse>('/telegram/reuse')
+}
+
+// Updates the panel-wide Telegram Bot API endpoint (admin only).
+export function saveTelegramAPIEndpoint(endpoint: string) {
+  return api.put<{ status: string; api_endpoint: string }>('/telegram/endpoint', { api_endpoint: endpoint })
 }
 
 // Service monitor

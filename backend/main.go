@@ -25,9 +25,17 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.0.0"
+const Version = "v2.1.0"
 
 func main() {
+	// Pin the process timezone to Asia/Shanghai so every user-facing time
+	// (login/notification timestamps, bot status, logs) is shown in the
+	// panel's local time instead of UTC.
+	if loc, err := time.LoadLocation("Asia/Shanghai"); err == nil {
+		time.Local = loc
+	} else {
+		time.Local = time.FixedZone("UTC+8", 8*3600)
+	}
 	loadDotEnv(".env", "../.env")
 
 	// CLI flags for password management
@@ -119,6 +127,7 @@ func main() {
 	monitorsHandler := handlers.NewMonitorsHandler(st, heartbeatLog, monitorRunner)
 	uploadsDir := filepath.Join(filepath.Dir(storePath), "uploads")
 	uploadsHandler := handlers.NewUploadsHandler(uploadsDir)
+	uploadsHandler.SetStore(st)
 
 	// Initialize handlers
 	configHandler := handlers.NewConfigHandler(st)
@@ -130,10 +139,15 @@ func main() {
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
-	telegramHandler := handlers.NewTelegramHandler(st, telegramBot)
+	userTelegramManager := services.NewUserTelegramManager(st, cf, domainService, encryptionKey)
+	telegramHandler := handlers.NewTelegramHandler(st, telegramBot, userTelegramManager, encryptionKey)
 
 	authHandler := handlers.NewAuthHandler(st, encryptionKey)
 	managementHandler := handlers.NewManagementHandler(st, encryptionKey)
+
+	notifier := services.NewNotifier(st, encryptionKey)
+	adminHandler.SetNotifier(notifier)
+	notifyHandler := handlers.NewNotifyHandler(st, encryptionKey, notifier)
 
 	mw := &handlers.Middleware{
 		APIKey:       apiKey,
@@ -166,6 +180,8 @@ func main() {
 		r.Get("/admin/status", adminHandler.Status)
 
 		// Account management (any authenticated user)
+		r.Put("/admin/profile", mw.Auth(adminHandler.ChangeProfile))
+		r.Post("/account/avatar", mw.Auth(uploadsHandler.UploadAvatar))
 		r.Put("/admin/password", mw.Auth(adminHandler.ChangePassword))
 		r.Put("/admin/username", mw.Auth(adminHandler.ChangeUsername))
 		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
@@ -264,23 +280,33 @@ func main() {
 		// Public status page payload (token-scoped, unauthenticated)
 		r.Get("/public/status/{token}", monitorsHandler.PublicStatus)
 
-		// Telegram bot endpoints (administrator only)
-		r.Get("/telegram/settings", mw.Auth(mw.RequireAdmin(telegramHandler.GetSettings)))
-		r.Put("/telegram/settings", mw.Auth(mw.RequireAdmin(telegramHandler.SaveSettings)))
-		r.Get("/telegram/status", mw.Auth(mw.RequireAdmin(telegramHandler.GetStatus)))
-		r.Post("/telegram/test", mw.Auth(mw.RequireAdmin(telegramHandler.SendTest)))
+		// Per-user Telegram remote-control bot (any authenticated user; each
+		// account owns an isolated bot)
+		r.Get("/telegram/settings", mw.Auth(telegramHandler.GetSettings))
+		r.Put("/telegram/settings", mw.Auth(telegramHandler.SaveSettings))
+		r.Get("/telegram/status", mw.Auth(telegramHandler.GetStatus))
+		r.Post("/telegram/test", mw.Auth(telegramHandler.SendTest))
+		r.Post("/telegram/reuse", mw.Auth(telegramHandler.ReuseFromNotify))
+		r.Put("/telegram/endpoint", mw.Auth(mw.RequireAdmin(telegramHandler.SaveAPIEndpoint)))
 		r.Post("/telegram/webhook", telegramHandler.Webhook) // no auth: verified via secret token
+
+		// Per-user notification preferences (any authenticated user)
+		r.Get("/notify/settings", mw.Auth(notifyHandler.GetSettings))
+		r.Put("/notify/settings", mw.Auth(func(w http.ResponseWriter, req *http.Request) {
+			notifyHandler.SaveSettings(w, req)
+			userTelegramManager.Reconcile() // token may change via notifications
+		}))
+		r.Post("/notify/reuse", mw.Auth(notifyHandler.ReuseFromTelegram))
+		r.Post("/notify/test", mw.Auth(notifyHandler.TestNotify))
 
 		// Health check (no auth)
 		r.Get("/health", healthHandler)
 	})
 
-	// Auto-start Telegram bot if enabled
-	if st.GetConfig().TGBotEnabled {
-		if err := telegramBot.Start(); err != nil {
-			log.Printf("telegram bot auto-start failed: %v", err)
-		}
-	}
+	// Migrate the legacy global bot into the administrator's per-user
+	// preferences, then start one isolated bot per enabled account.
+	userTelegramManager.MigrateLegacyAdminBot()
+	userTelegramManager.Reconcile()
 
 	// Serve frontend static files (SPA fallback)
 	staticDir := os.Getenv("STATIC_DIR")

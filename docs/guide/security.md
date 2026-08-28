@@ -34,6 +34,16 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 重置密码不会绕过已启用的 2FA。若 TOTP 加密密钥遗失，需要在服务停止时恢复正确的 `APP_ENCRYPTION_KEY`。
 :::
 
+## 人机验证（Cloudflare Turnstile）
+
+登录、注册与找回密码可接入 Cloudflare Turnstile 人机验证（可选项）：
+
+1. 在 [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) 控制台创建 widget，将本站域名加入允许域名（本地调试需包含 `localhost`）。
+2. 打开 **管理后台 → 设置**，在「人机验证」卡片中启用并填写 Site Key 与 Secret Key（Secret 仅首次填写或修改时提交，留空表示保持不变）。
+3. 开启后，登录、注册、发送验证码与重置密码接口均需通过验证；验证令牌单次有效，每次提交后自动刷新。
+
+Turnstile Secret 通过 `APP_ENCRYPTION_KEY` 以 AES-GCM 加密存储，接口响应不会返回密钥本身。
+
 ## `APP_ENCRYPTION_KEY` 备份清单
 
 该密钥同时保护以下数据，必须与 `data/` 目录一起备份：

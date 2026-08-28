@@ -17,12 +17,12 @@
 
 | 方法 | 路径 | 说明 | 鉴权 |
 | --- | --- | --- | --- |
-| GET | `/api/auth/config` | 注册策略：是否开放注册、邀请码模式、是否需要邮箱验证码 | 无 |
+| GET | `/api/auth/config` | 注册策略：是否开放注册、邀请码模式、是否需要邮箱验证码，以及人机验证（Turnstile）开关与 Site Key | 无 |
 | POST | `/api/auth/register` | 注册并自动登录；邀请码与验证码按服务端策略校验 | 无 |
 | POST | `/api/auth/send-code` | 发送注册邮箱验证码（需已配置 SMTP，60 秒冷却） | 无 |
 | POST | `/api/auth/forgot-password` | 发送密码重置验证码（需已配置 SMTP） | 无 |
 | POST | `/api/auth/reset-password` | 使用重置验证码设置新密码，成功后踢掉所有会话 | 无 |
-| GET | `/api/auth/me` | 当前登录身份：ID、用户名、角色与权限列表 | 用户会话 |
+| GET | `/api/auth/me` | 当前登录身份：ID、用户名、昵称、头像、邮箱、角色与权限列表 | 用户会话 |
 
 ## 登录与会话
 
@@ -34,6 +34,12 @@
 | GET | `/api/admin/status` | 检查会话有效性，返回用户名与角色 | 用户会话 |
 | PUT | `/api/admin/password` | 修改当前用户密码（成功后撤销该用户全部会话） | 用户会话 |
 | PUT | `/api/admin/username` | 修改当前用户用户名（需密码确认） | 用户会话 |
+| PUT | `/api/admin/email` | 绑定或修改当前用户邮箱（需密码确认） | 用户会话 |
+| PUT | `/api/admin/profile` | 更新当前用户自定义名称与头像地址 | 用户会话 |
+| POST | `/api/account/avatar` | 上传头像图片（multipart `file`），自动保存到当前账户 | 用户会话 |
+| GET | `/api/notify/settings` | 当前用户的通知设置（渠道、事件、邮箱、Telegram 配置状态） | 用户会话 |
+| PUT | `/api/notify/settings` | 保存通知设置；`tg_bot_token` 留空表示保持不变，响应不返回 Token | 用户会话 |
+| POST | `/api/notify/test` | 按当前配置发送测试通知 | 用户会话 |
 | GET | `/api/admin/2fa/status` | 获取当前用户 2FA 状态 | 用户会话 |
 | POST | `/api/admin/2fa/setup` | 开始绑定验证器 | 用户会话 |
 | POST | `/api/admin/2fa/confirm` | 确认启用并生成恢复码 | 用户会话 |
@@ -74,7 +80,7 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关 |
+| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret） |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth 客户端（Client ID / Secret / 回调 / Scopes），优先于环境变量 |
 | GET / PUT | `/api/admin/encryption-key` | 应用加密密钥（环境变量优先；更换后需重启） |
 | GET / PUT | `/api/admin/smtp` | SMTP 邮件服务（加密 / 不加密两种模式） |
@@ -163,14 +169,15 @@
 
 ## 上传与 Telegram
 
-Telegram Bot 为管理员全局功能。
+Telegram 远程控制为每用户独立功能：每个账号配置自己的 Bot Token 与授权 TG ID，Bot 只操作该账号自己的资源。管理员历史全局 Bot 配置会在启动时自动迁移为管理员的个人配置。
 
 | 方法 | 路径 | 说明 | 鉴权 |
 | --- | --- | --- | --- |
 | POST | `/api/uploads` | 上传公开状态页图片 | 需要 `monitors` |
-| GET | `/api/telegram/settings` | 获取 Bot 设置 | 管理员 |
-| PUT | `/api/telegram/settings` | 保存 Bot 设置 | 管理员 |
-| GET | `/api/telegram/status` | 获取 Bot 状态 | 管理员 |
-| POST | `/api/telegram/test` | 发送测试消息 | 管理员 |
-| POST | `/api/telegram/webhook` | Webhook 入口 | Secret Token |
+| GET | `/api/telegram/settings` | 获取当前用户的 Bot 设置 | 用户会话 |
+| PUT | `/api/telegram/settings` | 保存当前用户的 Bot 设置并重启其 Bot | 用户会话 |
+| GET | `/api/telegram/status` | 获取当前用户的 Bot 状态 | 用户会话 |
+| POST | `/api/telegram/test` | 向当前用户的授权 TG ID 发送测试消息 | 用户会话 |
+| PUT | `/api/telegram/endpoint` | 设置面板级 Telegram API 端点（自定义反代），所有用户 Bot 生效 | 管理员 |
+| POST | `/api/telegram/webhook` | 旧全局 Bot 的 Webhook 入口（已停用） | Secret Token |
 

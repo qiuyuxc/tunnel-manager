@@ -55,7 +55,12 @@ func (b *TelegramBot) handleSelectZone(cfg models.Config, chatID int64, arg stri
 		b.sendMessage(cfg, chatID, "❌ "+err.Error())
 		return
 	}
-	if err := b.store.SetZoneSelection(zoneID, zoneName); err != nil {
+	if b.isPerUser() {
+		if err := b.store.SetUserZoneSelection(b.userID, zoneID, zoneName); err != nil {
+			b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存区域选择失败: %s", err))
+			return
+		}
+	} else if err := b.store.SetZoneSelection(zoneID, zoneName); err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存区域选择失败: %s", err))
 		return
 	}

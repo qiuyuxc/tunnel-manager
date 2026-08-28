@@ -548,13 +548,14 @@ func (s *Store) SetPreferredCNAME(cname string) {
 }
 
 // SetSiteSettings updates public-facing site branding.
-func (s *Store) SetSiteSettings(name, description, icon string) error {
+func (s *Store) SetSiteSettings(name, description, icon string, landingEnabled bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	previous := s.config
 	s.config.SiteName = name
 	s.config.SiteDescription = description
 	s.config.SiteIcon = icon
+	s.config.LandingEnabled = landingEnabled
 	if err := s.saveLocked(); err != nil {
 		s.config = previous
 		return err
@@ -707,6 +708,17 @@ func (s *Store) ClearCloudflareOAuth() error {
 		return err
 	}
 	return nil
+}
+
+// SetTelegramAPIEndpoint updates the panel-wide Telegram Bot API endpoint
+// used by every per-user bot (custom reverse proxy for regions where the
+// official endpoint is unreachable).
+func (s *Store) SetTelegramAPIEndpoint(apiEndpoint string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.config
+	s.config.TGApiEndpoint = apiEndpoint
+	s.restoreAndLog(previous, "save Telegram API endpoint")
 }
 
 // SetTelegramSettings saves all bot settings atomically

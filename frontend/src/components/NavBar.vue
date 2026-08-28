@@ -2,7 +2,7 @@
   <!-- Desktop sidebar -->
   <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-header">
-      <router-link to="/" class="brand">
+      <router-link to="/dashboard" class="brand">
         <span class="brand-icon" aria-hidden="true">
           <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" />
           <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
@@ -29,6 +29,13 @@
     </nav>
 
     <div class="sidebar-footer">
+      <router-link to="/account" class="footer-btn user-chip" :title="configStore.displayName">
+        <span class="user-avatar" aria-hidden="true">
+          <img v-if="configStore.avatar" :src="configStore.avatar" alt="" />
+          <span v-else>{{ (configStore.displayName || '?').charAt(0).toUpperCase() }}</span>
+        </span>
+        <span class="user-name">{{ configStore.displayName }}</span>
+      </router-link>
       <button class="footer-btn" :title="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="toggleSidebar">
         <span class="nav-icon" aria-hidden="true" v-html="collapsed ? icons.expand : icons.collapse" />
         <span>{{ collapsed ? '' : '收起侧边栏' }}</span>
@@ -65,7 +72,7 @@
   <Transition name="slide">
     <aside v-if="mobileOpen" class="mobile-drawer">
       <div class="drawer-header">
-        <router-link to="/" class="brand" @click="mobileOpen = false">
+        <router-link to="/dashboard" class="brand" @click="mobileOpen = false">
           <span class="brand-icon" aria-hidden="true">
             <img v-if="configStore.config.site_icon" :src="configStore.config.site_icon" alt="" />
             <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
@@ -93,6 +100,13 @@
         </router-link>
       </nav>
       <div class="drawer-footer">
+        <router-link to="/account" class="footer-btn user-chip" @click="mobileOpen = false">
+          <span class="user-avatar" aria-hidden="true">
+            <img v-if="configStore.avatar" :src="configStore.avatar" alt="" />
+            <span v-else>{{ (configStore.displayName || '?').charAt(0).toUpperCase() }}</span>
+          </span>
+          <span class="user-name">{{ configStore.displayName }}</span>
+        </router-link>
         <button class="footer-btn" @click="configStore.toggleVisualTheme(); mobileOpen = false">
           <span class="nav-icon" aria-hidden="true" v-html="icons.palette" />
           <span>{{ configStore.visualTheme === 'warm' ? '切换专业蓝主题' : '切换暖纸主题' }}</span>
@@ -140,6 +154,7 @@ const icons = {
   settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   telegram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.198 2.433a2.216 2.216 0 0 0-2.4.557L2.49 14.97a2.216 2.216 0 0 0 1.674 3.716h.003a2.216 2.216 0 0 0 .84-.167l3.59-1.49-2.15-2.15 10.32-6.654-7.66 7.66 6.36 3.84a2.216 2.216 0 0 0 2.15.167l.003-.001a2.216 2.216 0 0 0 1.04-1.36l3.39-15.18a2.217 2.217 0 0 0-.557-2.4z"/></svg>',
   account: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  bell: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   about: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
   moon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
   sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
@@ -151,15 +166,16 @@ const icons = {
 
 const navItems = computed(() => {
   const items = [
-    { path: '/', label: '控制面板', icon: icons.dashboard, perm: '', admin: false },
+    { path: '/dashboard', label: '控制面板', icon: icons.dashboard, perm: '', admin: false },
     { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, perm: 'tunnels', admin: false },
     { path: '/monitors', label: '服务监控', icon: icons.monitor, perm: 'monitors', admin: false },
     { path: '/domain', label: '域名绑定', icon: icons.domain, perm: 'domain_bind', admin: false },
     { path: '/dns', label: 'DNS 管理', icon: icons.dns, perm: 'dns', admin: false },
     { path: '/settings', label: '全局设置', icon: icons.settings, perm: '', admin: true },
-    { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, perm: '', admin: true },
+    { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, perm: '', admin: false },
     { path: '/admin', label: '管理后台', icon: icons.account, perm: '', admin: true },
     { path: '/account', label: '账户', icon: icons.account, perm: '', admin: false },
+    { path: '/notifications', label: '通知', icon: icons.bell, perm: '', admin: false },
     { path: '/about', label: '关于', icon: icons.about, perm: '', admin: false },
   ]
   return items.filter((item) => {
@@ -170,14 +186,14 @@ const navItems = computed(() => {
 })
 
 function isActive(path: string) {
-  if (path === '/') return route.path === '/'
+  if (path === '/dashboard') return route.path === '/dashboard'
   return route.path === path || route.path.startsWith(path + '/')
 }
 
 async function handleLogout() {
   try { await logoutApi() } catch (_) { /* ignore */ }
   configStore.clearAuth()
-  router.push('/login')
+  router.push('/')
 }
 </script>
 <style scoped>
@@ -296,6 +312,43 @@ async function handleLogout() {
   background: var(--color-sidebar-hover);
   color: var(--color-sidebar-hover-text);
 }
+
+.user-chip {
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-sidebar-divider);
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-sidebar-active);
+  color: var(--color-sidebar-text-active);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .user-name { display: none; }
+.sidebar.collapsed .user-chip { justify-content: center; padding-left: 6px; padding-right: 6px; }
 
 /* Mobile header */
 .mobile-header {

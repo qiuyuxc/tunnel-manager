@@ -41,17 +41,23 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 		return fmt.Errorf("clear users: %w", err)
 	}
 	for _, u := range users {
-		if _, err := tx.Exec(`INSERT INTO users(id, username, email, password_hash, role, group_id, status,
+		if _, err := tx.Exec(`INSERT INTO users(id, username, nickname, avatar, email, password_hash, role, group_id, status,
 			email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
-			created_at, last_login_at, active_cf_connection_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			u.ID, u.Username, u.Email, u.PasswordHash, u.Role, u.GroupID, u.Status,
+			created_at, last_login_at, active_cf_connection_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			u.ID, u.Username, u.Nickname, u.Avatar, u.Email, u.PasswordHash, u.Role, u.GroupID, u.Status,
 			boolInt(u.EmailVerified), boolInt(u.TOTPEnabled), u.TOTPSecretEncrypted, u.TOTPLastAcceptedStep,
 			strings.Join(u.TOTPRecoveryCodeHashes, "\n"), u.CreatedAt, u.LastLoginAt, u.ActiveCFConnectionID); err != nil {
 			return fmt.Errorf("save user %s: %w", u.ID, err)
 		}
 		p := prefs[u.ID]
-		if _, err := tx.Exec(`INSERT INTO user_prefs(user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name)
-			VALUES(?,?,?,?,?,?)`, u.ID, p.TunnelID, p.TunnelName, p.ServiceURL, p.SelectedZoneID, p.SelectedZoneName); err != nil {
+		if _, err := tx.Exec(`INSERT INTO user_prefs(user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name,
+			notify_channels, notify_events, notify_emails, tg_bot_token_encrypted, tg_notify_chat_id,
+			tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			u.ID, p.TunnelID, p.TunnelName, p.ServiceURL, p.SelectedZoneID, p.SelectedZoneName,
+			jsonMarshalPrefs(p.NotifyChannels), jsonMarshalPrefs(p.NotifyEvents), p.NotifyEmails,
+			p.TGBotTokenEncrypted, p.TGNotifyChatID,
+			boolInt(p.TGRemoteEnabled), p.TGOperatorIDs, p.PreferredCNAME, p.TGRemoteTokenEncrypted); err != nil {
 			return fmt.Errorf("save prefs %s: %w", u.ID, err)
 		}
 	}
@@ -60,7 +66,7 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 
 // loadUsers reads users and their preferences.
 func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, error) {
-	rows, err := handle.Query(`SELECT id, username, email, password_hash, role, group_id, status,
+	rows, err := handle.Query(`SELECT id, username, nickname, avatar, email, password_hash, role, group_id, status,
 		email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
 		created_at, last_login_at, active_cf_connection_id FROM users`)
 	if err != nil {
@@ -72,7 +78,7 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 		var u models.User
 		var emailVerified, totpEnabled int
 		var recoveryHashes string
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &u.GroupID, &u.Status,
+		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Email, &u.PasswordHash, &u.Role, &u.GroupID, &u.Status,
 			&emailVerified, &totpEnabled, &u.TOTPSecretEncrypted, &u.TOTPLastAcceptedStep, &recoveryHashes,
 			&u.CreatedAt, &u.LastLoginAt, &u.ActiveCFConnectionID); err != nil {
 			return nil, nil, fmt.Errorf("scan user: %w", err)
@@ -89,7 +95,9 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 	}
 
 	prefs := map[string]models.UserPrefs{}
-	prefRows, err := handle.Query(`SELECT user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name FROM user_prefs`)
+	prefRows, err := handle.Query(`SELECT user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name,
+		notify_channels, notify_events, notify_emails, tg_bot_token_encrypted, tg_notify_chat_id,
+		tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted FROM user_prefs`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load user prefs: %w", err)
 	}
@@ -97,12 +105,33 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 	for prefRows.Next() {
 		var userID string
 		var p models.UserPrefs
-		if err := prefRows.Scan(&userID, &p.TunnelID, &p.TunnelName, &p.ServiceURL, &p.SelectedZoneID, &p.SelectedZoneName); err != nil {
+		var channelsJSON, eventsJSON string
+		var remoteEnabled int
+		if err := prefRows.Scan(&userID, &p.TunnelID, &p.TunnelName, &p.ServiceURL, &p.SelectedZoneID, &p.SelectedZoneName,
+			&channelsJSON, &eventsJSON, &p.NotifyEmails, &p.TGBotTokenEncrypted, &p.TGNotifyChatID,
+			&remoteEnabled, &p.TGOperatorIDs, &p.PreferredCNAME, &p.TGRemoteTokenEncrypted); err != nil {
 			return nil, nil, fmt.Errorf("scan user prefs: %w", err)
 		}
+		if channelsJSON != "" {
+			_ = json.Unmarshal([]byte(channelsJSON), &p.NotifyChannels)
+		}
+		if eventsJSON != "" {
+			_ = json.Unmarshal([]byte(eventsJSON), &p.NotifyEvents)
+		}
+		p.TGRemoteEnabled = remoteEnabled != 0
 		prefs[userID] = p
 	}
 	return users, prefs, prefRows.Err()
+}
+
+// jsonMarshalPrefs encodes one prefs JSON column; failures yield an empty
+// string so a broken value never blocks persistence.
+func jsonMarshalPrefs(value interface{}) string {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // replaceGroups syncs the user_groups table.

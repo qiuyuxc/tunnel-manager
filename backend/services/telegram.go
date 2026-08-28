@@ -90,12 +90,17 @@ type TelegramBot struct {
 
 	confirmMu     sync.Mutex
 	confirmations map[string]dnsDeleteConfirmation
+
+	// Per-user instance state (empty userID means legacy global admin bot).
+	userID      string
+	token       string
+	operatorIDs string
 }
 
-// NewTelegramBot creates a new TelegramBot
+// NewTelegramBot creates the legacy administrator bot operating on the
+// administrator's active Cloudflare connection and the global Telegram
+// configuration.
 func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *TelegramBot {
-	// The Telegram bot is an administrator surface: it always operates on
-	// the administrator's active Cloudflare connection.
 	adminClient := cf.ForUser(st.AdminUserID())
 	return &TelegramBot{
 		store:         st,
@@ -106,17 +111,69 @@ func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *T
 	}
 }
 
+// NewUserTelegramBot creates a per-user Telegram bot. Each account owns its
+// bot token and operator IDs; commands run against that account's own
+// Cloudflare connection and selections, isolated from every other user.
+func NewUserTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService, userID, token, operatorIDs string) *TelegramBot {
+	return &TelegramBot{
+		store:         st,
+		cf:            cf.ForUser(userID),
+		domain:        ds.ForUser(userID),
+		userID:        userID,
+		token:         token,
+		operatorIDs:   operatorIDs,
+		httpClient:    &http.Client{Timeout: 40 * time.Second},
+		confirmations: make(map[string]dnsDeleteConfirmation),
+	}
+}
+
+// isPerUser reports whether this bot instance is scoped to one account.
+func (b *TelegramBot) isPerUser() bool {
+	return b.userID != ""
+}
+
+// ownerID returns the account this bot operates for.
+func (b *TelegramBot) ownerID() string {
+	if b.isPerUser() {
+		return b.userID
+	}
+	return b.store.AdminUserID()
+}
+
+// settings returns the effective configuration for this bot. Legacy
+// instances read the global configuration; per-user instances read the
+// account's own token, operator IDs and selections.
+func (b *TelegramBot) settings() models.Config {
+	if !b.isPerUser() {
+		return b.store.GetConfig()
+	}
+	cfg := b.store.GetConfig()
+	prefs := b.store.GetUserPrefs(b.userID)
+	cfg.TGBotToken = b.token
+	cfg.TGAdminIDs = b.operatorIDs
+	cfg.TGMode = "polling"
+	cfg.TGWebhookURL = ""
+	cfg.TGWebhookSecret = ""
+	cfg.SelectedZoneID = prefs.SelectedZoneID
+	cfg.SelectedZoneName = prefs.SelectedZoneName
+	cfg.TunnelID = prefs.TunnelID
+	cfg.TunnelName = prefs.TunnelName
+	cfg.ServiceURL = prefs.ServiceURL
+	cfg.PreferredCNAME = prefs.PreferredCNAME
+	return cfg
+}
+
 // Start validates config and starts the bot
 func (b *TelegramBot) Start() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 	if cfg.TGBotToken == "" {
 		return fmt.Errorf("Bot Token 未设置")
 	}
 	if cfg.TGAdminIDs == "" {
-		return fmt.Errorf("管理员 TG ID 未设置")
+		return fmt.Errorf("授权 TG ID 未设置")
 	}
 
 	username, err := b.getMe(cfg)
@@ -141,7 +198,7 @@ func (b *TelegramBot) Start() error {
 		log.Printf("[telegram] set commands failed: %v", err)
 	}
 
-	if b.mode == "webhook" {
+	if b.mode == "webhook" && !b.isPerUser() {
 		if cfg.TGWebhookSecret == "" {
 			secret := generateRandomHex(32)
 			b.store.SetTelegramWebhookSecret(secret)
@@ -173,8 +230,7 @@ func (b *TelegramBot) Stop() {
 		b.cancel = nil
 	}
 	if b.mode == "webhook" {
-		cfg := b.store.GetConfig()
-		b.deleteWebhook(cfg)
+		b.deleteWebhook(b.settings())
 	}
 	b.running = false
 	b.botUsername = ""
@@ -186,7 +242,7 @@ func (b *TelegramBot) Status() BotStatus {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 	lastAt := ""
 	if !b.lastUpdateAt.IsZero() {
 		lastAt = b.lastUpdateAt.Format(time.RFC3339)
@@ -287,7 +343,7 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 
 	chatID := u.Message.Chat.ID
 	userID := u.Message.From.ID
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 
 	// Auth check
 	adminIDs := strings.Split(cfg.TGAdminIDs, ",")
@@ -509,7 +565,7 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 		"🔍 状态查询",
 		"• /当前配置",
 		"",
-		"💡 提示：本 Bot 与面板共享同一配置。",
+		"💡 提示：本 Bot 只操作你自己的账户资源，与其他用户隔离。",
 	}, "\n")
 
 	b.sendMessage(cfg, chatID, msg1)
@@ -517,7 +573,7 @@ func (b *TelegramBot) handleHelp(cfg models.Config, chatID int64) {
 }
 
 func (b *TelegramBot) handleCurrentConfig(cfg models.Config, chatID int64) {
-	cfg = b.store.GetConfig()
+	cfg = b.settings()
 
 	globalPref := cfg.PreferredCNAME
 	if globalPref == "" {
@@ -582,29 +638,45 @@ func (b *TelegramBot) handleListTunnels(cfg models.Config, chatID int64) {
 func (b *TelegramBot) handleSelectTunnel(chatID int64, arg string) {
 	t, err := b.resolveTunnelArg(arg)
 	if err != nil {
-		cfg := b.store.GetConfig()
+		cfg := b.settings()
 		b.sendMessage(cfg, chatID, "❌ "+err.Error())
 		return
 	}
-	if err := b.store.SetUserTunnelSelection(b.store.AdminUserID(), t.ID, t.Name); err != nil {
-		cfg := b.store.GetConfig()
+	if err := b.store.SetUserTunnelSelection(b.ownerID(), t.ID, t.Name); err != nil {
+		cfg := b.settings()
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存隧道选择失败: %s", err.Error()))
 		return
 	}
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 已锁定隧道: %s\n\n下一步：设置本地转发地址。\n例如: /转发 http://localhost:3000", t.Name))
 }
 
 func (b *TelegramBot) handleSetService(chatID int64, url string) {
-	b.store.SetServiceURL(url)
-	cfg := b.store.GetConfig()
+	if b.isPerUser() {
+		if err := b.store.SetUserServiceURL(b.userID, url); err != nil {
+			cfg := b.settings()
+			b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存转发配置失败: %s", err.Error()))
+			return
+		}
+	} else {
+		b.store.SetServiceURL(url)
+	}
+	cfg := b.settings()
 	b.sendMessage(cfg, chatID, fmt.Sprintf("✅ 转发源站已锁定: %s\n\n下一步：绑定域名。\n直连: /直连域名 [主域名]\n优选: /优选绑定 [主域名] [辅助域名]", url))
 }
 
 func (b *TelegramBot) handleSetPreferredCNAME(chatID int64, cname string) {
-	b.store.SetPreferredCNAME(cname)
-	cfg := b.store.GetConfig()
-	b.sendMessage(cfg, chatID, fmt.Sprintf("🎯 全局优选 CNAME 已变更为: %s", cname))
+	if b.isPerUser() {
+		if err := b.store.SetUserPreferredCNAME(b.userID, cname); err != nil {
+			cfg := b.settings()
+			b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存优选 CNAME 失败: %s", err.Error()))
+			return
+		}
+	} else {
+		b.store.SetPreferredCNAME(cname)
+	}
+	cfg := b.settings()
+	b.sendMessage(cfg, chatID, fmt.Sprintf("🎯 优选 CNAME 已变更为: %s", cname))
 }
 
 func (b *TelegramBot) handleSetFallback(cfg models.Config, chatID int64, domain string) {
@@ -681,7 +753,7 @@ func (b *TelegramBot) VerifyWebhookSecret(header string) bool {
 	if header == "" {
 		return false
 	}
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 	return cfg.TGWebhookSecret != "" && header == cfg.TGWebhookSecret
 }
 
@@ -689,12 +761,12 @@ func (b *TelegramBot) VerifyWebhookSecret(header string) bool {
 
 // SendTestMessage sends a test message to all admin IDs
 func (b *TelegramBot) SendTestMessage() error {
-	cfg := b.store.GetConfig()
+	cfg := b.settings()
 	if cfg.TGBotToken == "" {
 		return fmt.Errorf("Bot Token 未设置")
 	}
 	if cfg.TGAdminIDs == "" {
-		return fmt.Errorf("管理员 TG ID 未设置")
+		return fmt.Errorf("授权 TG ID 未设置")
 	}
 
 	adminIDs := strings.Split(cfg.TGAdminIDs, ",")

@@ -6,6 +6,81 @@
     </div>
 
     <div class="settings-list">
+      <section class="settings-card profile-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0s' }" aria-labelledby="profile-title">
+        <div class="profile-heading">
+          <div>
+            <p class="security-kicker">Personal profile</p>
+            <h3 id="profile-title" class="settings-card-title">个人主页</h3>
+            <p class="settings-card-desc">设置展示名称与自定义头像，并管理账户邮箱。</p>
+          </div>
+        </div>
+
+        <div class="profile-main">
+          <div class="avatar-block">
+            <div class="avatar-preview" aria-hidden="true">
+              <img v-if="store.avatar" :src="store.avatar" alt="自定义头像" />
+              <span v-else>{{ avatarInitial }}</span>
+            </div>
+            <div class="avatar-actions">
+              <button class="btn btn-secondary" type="button" :disabled="uploadingAvatar" @click="triggerAvatarUpload">
+                {{ uploadingAvatar ? '上传中...' : '上传头像' }}
+              </button>
+              <button v-if="store.avatar" class="btn btn-ghost danger-outline" type="button" :disabled="uploadingAvatar" @click="removeAvatar">
+                移除
+              </button>
+            </div>
+            <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="avatar-input" @change="handleAvatarFile" />
+            <span class="avatar-hint">PNG / JPG / GIF / WebP，最大 4 MiB</span>
+          </div>
+
+          <div class="profile-fields">
+            <div class="form-stack">
+              <label class="field">
+                <span class="field-label">自定义名称</span>
+                <input v-model="nickname" placeholder="输入展示名称（留空则显示用户名）" class="vercel-input" :maxlength="64" />
+              </label>
+              <p class="profile-meta">登录用户名: <strong>{{ store.username }}</strong></p>
+              <div class="form-actions">
+                <button class="btn btn-primary" :disabled="savingProfile" @click="saveProfile">
+                  {{ savingProfile ? '保存中...' : '保存资料' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="security-rule" aria-hidden="true"></div>
+
+        <div class="email-section">
+          <div class="email-heading">
+            <div>
+              <span class="email-status" :class="store.email ? 'bound' : 'unbound'">{{ store.email ? '已绑定' : '未绑定' }}</span>
+              <h4 class="email-title">账户邮箱</h4>
+              <p v-if="store.email" class="email-current">当前邮箱: <strong>{{ store.email }}</strong></p>
+              <p v-else class="email-current">绑定邮箱后可用于找回密码与接收服务告警。</p>
+            </div>
+          </div>
+
+          <form class="form-stack email-form" @submit.prevent="saveEmail">
+            <div class="email-fields">
+              <label class="field">
+                <span class="field-label">{{ store.email ? '新邮箱' : '邮箱地址' }}</span>
+                <input v-model="newEmail" type="email" placeholder="name@example.com" class="vercel-input" />
+              </label>
+              <label class="field">
+                <span class="field-label">当前密码确认</span>
+                <input v-model="emailPassword" type="password" placeholder="输入当前密码确认" class="vercel-input" autocomplete="current-password" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-secondary" type="submit" :disabled="savingEmail || !newEmail.trim() || !emailPassword">
+                {{ savingEmail ? '保存中...' : store.email ? '修改邮箱' : '绑定邮箱' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
       <section class="settings-card security-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.04s' }" aria-labelledby="two-factor-title">
         <div class="security-heading">
           <div>
@@ -289,9 +364,12 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useDialog, useMessage } from 'naive-ui'
 import QRCode from 'qrcode'
 import {
+  changeEmail,
   changePassword,
+  changeProfile,
   changeUsername,
   confirmTwoFactor,
+  uploadAvatar,
   disconnectCloudflareOAuth,
   disableTwoFactor,
   getCloudflareOAuthStatus,
@@ -314,6 +392,13 @@ const router = useRouter()
 const store = useConfigStore()
 const visible = ref(false)
 
+const nickname = ref('')
+const savingProfile = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
+const uploadingAvatar = ref(false)
+const newEmail = ref('')
+const emailPassword = ref('')
+const savingEmail = ref(false)
 const newUsername = ref('')
 const usernamePassword = ref('')
 const currentPassword = ref('')
@@ -372,6 +457,8 @@ const countdownLabel = computed(() => {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0')
   return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`
 })
+
+const avatarInitial = computed(() => (store.displayName || store.username || '?').trim().charAt(0).toUpperCase())
 
 const statusStamp = computed(() => {
   if (statusLoading.value) return { label: '读取中', tone: 'neutral' }
@@ -692,7 +779,7 @@ async function finishRecovery() {
   if (!recoveryAcknowledged.value) return
   recoveryCodes.value = []
   recoveryAcknowledged.value = false
-  await router.replace('/login')
+  await router.replace('/')
 }
 
 function openDisable() {
@@ -716,7 +803,7 @@ async function submitDisable() {
     cancelDisable()
     store.clearAuth()
     message.success('双重身份验证已停用，请重新登录')
-    await router.replace('/login')
+    await router.replace('/')
   } catch (error: any) {
     message.error('停用失败: ' + apiError(error, '请检查密码与验证代码'))
     if (error.response?.status === 401) {
@@ -739,6 +826,89 @@ onBeforeRouteLeave(() => {
   if (confirming.value || recoveryCodes.value.length) return false
 })
 
+async function saveProfile() {
+  const value = nickname.value.trim()
+  if (value.length > 64) {
+    message.error('自定义名称不能超过 64 个字符')
+    return
+  }
+  savingProfile.value = true
+  try {
+    await changeProfile(value, store.avatar)
+    await store.fetchMe()
+    message.success('个人资料已更新')
+  } catch (e: any) {
+    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+function triggerAvatarUpload() {
+  avatarInput.value?.click()
+}
+
+function handleAvatarFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    message.error('仅支持 PNG / JPG / GIF / WebP 格式')
+    return
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    message.error('图片不能超过 4 MiB')
+    return
+  }
+  uploadingAvatar.value = true
+  uploadAvatar(file)
+    .then(async ({ data }) => {
+      await store.fetchMe()
+      message.success('头像已更新')
+    })
+    .catch((e: any) => {
+      message.error('上传失败: ' + (e.response?.data?.error || e.message))
+    })
+    .finally(() => {
+      uploadingAvatar.value = false
+    })
+}
+
+async function removeAvatar() {
+  savingProfile.value = true
+  try {
+    await changeProfile(nickname.value.trim(), '')
+    await store.fetchMe()
+    message.success('头像已移除')
+  } catch (e: any) {
+    message.error('移除失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+async function saveEmail() {
+  const email = newEmail.value.trim()
+  if (!email || !emailPassword.value) {
+    message.error('请填写邮箱和当前密码')
+    return
+  }
+  savingEmail.value = true
+  try {
+    await changeEmail(emailPassword.value, email)
+    newEmail.value = ''
+    emailPassword.value = ''
+    await store.fetchMe()
+    message.success(store.email ? '邮箱已更新' : '邮箱已绑定')
+  } catch (e: any) {
+    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    savingEmail.value = false
+  }
+}
+
 async function saveUsername() {
   if (!newUsername.value || !usernamePassword.value) {
     message.error('请填写新用户名和当前密码')
@@ -749,7 +919,7 @@ async function saveUsername() {
     await changeUsername(usernamePassword.value, newUsername.value)
     store.clearAuth()
     message.success('用户名已更新，请重新登录')
-    await router.replace('/login')
+    await router.replace('/')
   } catch (e: any) {
     message.error('更新失败: ' + (e.response?.data?.error || e.message))
   } finally {
@@ -771,7 +941,7 @@ async function savePassword() {
     await changePassword(currentPassword.value, newPassword.value)
     store.clearAuth()
     message.success('密码已更新，请重新登录')
-    await router.replace('/login')
+    await router.replace('/')
   } catch (e: any) {
     message.error('更新失败: ' + (e.response?.data?.error || e.message))
   } finally {
@@ -779,7 +949,12 @@ async function savePassword() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  nickname.value = store.nickname || ''
+  newEmail.value = ''
+  emailPassword.value = ''
+  await store.fetchMe()
+  nickname.value = store.nickname || ''
   window.addEventListener('beforeunload', handleBeforeUnload)
   visibleFrame = requestAnimationFrame(() => {
     visibleFrame = undefined
@@ -839,6 +1014,157 @@ onBeforeUnmount(() => {
   color: var(--color-mute);
   line-height: 1.65;
   margin: 0;
+}
+
+.profile-card .security-rule {
+  margin: var(--spacing-lg) 0 var(--spacing-md);
+}
+
+.profile-main {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: flex-start;
+}
+
+.avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  width: 132px;
+}
+
+.avatar-preview {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 1px solid var(--color-hairline-strong);
+  background: var(--color-canvas-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--color-link);
+  flex: 0 0 auto;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.avatar-actions .btn {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.avatar-input {
+  display: none;
+}
+
+.avatar-hint {
+  color: var(--color-mute);
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.profile-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-meta {
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 13px;
+}
+
+.profile-meta strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.email-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.email-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.email-status {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.email-status.bound {
+  color: var(--color-status-up-text);
+  border: 1px solid var(--color-status-up-border);
+  background: var(--color-status-up-bg);
+}
+
+.email-status.unbound {
+  color: var(--color-mute);
+  border: 1px solid var(--color-hairline-strong);
+  background: var(--color-canvas-soft);
+}
+
+.email-current {
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.email-current strong {
+  color: var(--color-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.email-form {
+  margin-top: var(--spacing-sm);
+}
+
+.email-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+@media (max-width: 640px) {
+  .profile-main {
+    flex-direction: column;
+    align-items: center;
+  }
+  .profile-fields {
+    width: 100%;
+  }
+  .email-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cloudflare-heading {
@@ -1108,8 +1434,10 @@ onBeforeUnmount(() => {
   background: var(--color-canvas-soft);
 }
 .connection-item.active { border-color: var(--color-link); }
-.connection-info { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-ink); flex-wrap: wrap; }
-.connection-info code { font-size: 12px; color: var(--color-mute); }
+.connection-info { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-ink); flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+.connection-info strong { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.connection-info code { font-size: 12px; color: var(--color-mute); overflow-wrap: anywhere; word-break: break-all; }
+.connection-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .conn-badge {
   padding: 2px 8px;
   border-radius: 999px;

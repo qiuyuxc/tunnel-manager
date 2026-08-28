@@ -42,6 +42,7 @@ func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		"site_name":        cfg.SiteName,
 		"site_description": cfg.SiteDescription,
 		"site_icon":        cfg.SiteIcon,
+		"landing_enabled":  cfg.LandingEnabled,
 	})
 }
 
@@ -49,9 +50,10 @@ func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 func (h *ConfigHandler) GetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := h.store.GetConfig()
 	writeJSON(w, http.StatusOK, models.SiteSettings{
-		Name:        cfg.SiteName,
-		Description: cfg.SiteDescription,
-		Icon:        cfg.SiteIcon,
+		Name:           cfg.SiteName,
+		Description:    cfg.SiteDescription,
+		Icon:           cfg.SiteIcon,
+		LandingEnabled: cfg.LandingEnabled,
 	})
 }
 
@@ -88,11 +90,11 @@ func (h *ConfigHandler) SetSiteSettings(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := h.store.SetSiteSettings(req.Name, req.Description, req.Icon); err != nil {
+	if err := h.store.SetSiteSettings(req.Name, req.Description, req.Icon, req.LandingEnabled); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save site settings"})
 		return
 	}
-	writeJSON(w, http.StatusOK, models.SiteSettings{Name: req.Name, Description: req.Description, Icon: req.Icon})
+	writeJSON(w, http.StatusOK, models.SiteSettings{Name: req.Name, Description: req.Description, Icon: req.Icon, LandingEnabled: req.LandingEnabled})
 }
 
 // SetCNAMEPresets replaces the reusable preferred CNAME options.

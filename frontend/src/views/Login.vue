@@ -42,6 +42,7 @@
                 <input id="fp-password" v-model="forgotForm.newPassword" type="password" placeholder="至少 6 位" class="vercel-input" autocomplete="new-password" />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+              <div v-if="turnstileEnabled" ref="forgotTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '重置中...' : '重置密码' }}
@@ -85,6 +86,7 @@
                 <input id="reg-invite" v-model="regForm.invite" type="text" placeholder="邀请码" class="vercel-input" />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+              <div v-if="turnstileEnabled" ref="regTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '注册中...' : '注册并登录' }}
@@ -121,6 +123,7 @@
                 />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+              <div v-if="turnstileEnabled" ref="loginTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '登录中...' : '登录' }}
@@ -179,7 +182,16 @@ const router = useRouter()
 const store = useConfigStore()
 const step = ref<'credentials' | 'factor'>('credentials')
 const mode = ref<'login' | 'register' | 'forgot'>('login')
-const authConfig = ref<AuthConfig>({ registration_enabled: false, invite_mode: 'off', email_verify_enabled: false })
+const authConfig = ref<AuthConfig>({ registration_enabled: false, invite_mode: 'off', email_verify_enabled: false, turnstile_enabled: false, turnstile_site_key: '' })
+const turnstileEnabled = ref(false)
+const turnstileSiteKey = ref('')
+const turnstileLoaded = ref(false)
+const turnstileWidgetID = ref('')
+const turnstileToken = ref('')
+const loginTurnstile = ref<HTMLElement | null>(null)
+const regTurnstile = ref<HTMLElement | null>(null)
+const forgotTurnstile = ref<HTMLElement | null>(null)
+let turnstileScriptPromise: Promise<void> | null = null
 const modeSwitchable = ref(false)
 const regForm = reactive({ username: '', email: '', password: '', invite: '', verifyCode: '' })
 const forgotForm = reactive({ email: '', code: '', newPassword: '' })
@@ -216,26 +228,104 @@ onMounted(() => {
   getAuthConfig().then(({ data }) => {
     authConfig.value = data
     modeSwitchable.value = data.registration_enabled
+    turnstileEnabled.value = data.turnstile_enabled
+    turnstileSiteKey.value = data.turnstile_site_key || ''
+    if (data.turnstile_enabled) void renderTurnstile()
+    if (router.currentRoute.value.query.mode === 'register' && data.registration_enabled) {
+      mode.value = 'register'
+      nextTick(() => document.getElementById('reg-username')?.focus())
+    }
   }).catch(() => {})
 })
 onBeforeUnmount(() => {
   disposed = true
   clearChallengeTimer()
+  destroyTurnstile()
   if (cooldownTimer !== undefined) window.clearInterval(cooldownTimer)
   if (entranceFrame !== undefined) cancelAnimationFrame(entranceFrame)
   if (shakeFrame !== undefined) cancelAnimationFrame(shakeFrame)
   if (shakeTimer !== undefined) window.clearTimeout(shakeTimer)
 })
+function loadTurnstileScript(): Promise<void> {
+  if (turnstileLoaded.value) return Promise.resolve()
+  if (turnstileScriptPromise) return turnstileScriptPromise
+  turnstileScriptPromise = new Promise<void>((resolve) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-turnstile]')
+    if (existing) {
+      if (window.turnstile) {
+        resolve()
+      } else {
+        existing.addEventListener('load', () => resolve(), { once: true })
+      }
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+    script.async = true
+    script.defer = true
+    script.dataset.turnstile = 'true'
+    script.addEventListener('load', () => resolve(), { once: true })
+    document.head.appendChild(script)
+  }).then(() => { turnstileLoaded.value = true })
+  return turnstileScriptPromise
+}
+
+function turnstileContainer(): HTMLElement | null {
+  if (mode.value === 'register') return regTurnstile.value
+  if (mode.value === 'forgot') return forgotTurnstile.value
+  return loginTurnstile.value
+}
+
+async function renderTurnstile() {
+  destroyTurnstile()
+  if (!turnstileEnabled.value || !turnstileSiteKey.value) return
+  if (mode.value === 'login' && step.value !== 'credentials') return
+  await loadTurnstileScript().catch(() => {})
+  await nextTick()
+  const container = turnstileContainer()
+  if (!container || !window.turnstile) return
+  turnstileWidgetID.value = window.turnstile.render(container, {
+    sitekey: turnstileSiteKey.value,
+    action: mode.value,
+    callback: (token: string) => { turnstileToken.value = token },
+    'expired-callback': () => { turnstileToken.value = '' },
+    'error-callback': () => { turnstileToken.value = '' },
+  })
+}
+
+function destroyTurnstile() {
+  if (turnstileWidgetID.value && window.turnstile) {
+    try { window.turnstile.remove(turnstileWidgetID.value) } catch { /* ignore */ }
+  }
+  turnstileWidgetID.value = ''
+  turnstileToken.value = ''
+}
+
+// Consumes the current single-use token and removes the widget. The caller
+// must re-render a fresh widget afterwards.
+function takeTurnstileToken(): string {
+  const token = turnstileEnabled.value ? turnstileToken.value : ''
+  destroyTurnstile()
+  return token
+}
+
 async function handleLogin() {
   if (!form.username || !form.password) {
     error.value = '请输入用户名和密码'
     triggerShake()
     return
   }
+  const turnstileTokenValue = takeTurnstileToken()
+  if (turnstileEnabled.value && !turnstileTokenValue) {
+    error.value = '请完成人机验证'
+    triggerShake()
+    void renderTurnstile()
+    return
+  }
   loading.value = true
   error.value = ''
   try {
-    const response = await loginApi(form.username, form.password)
+    const response = await loginApi(form.username, form.password, turnstileTokenValue)
     if (response.status === 202 && 'two_factor_required' in response.data) {
       const expiresAt = Date.parse(response.data.expires_at)
       if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
@@ -258,7 +348,7 @@ async function handleLogin() {
     }
     if ('token' in response.data) {
       store.setAuth(response.data.token, response.data.username)
-      await router.replace('/')
+      await router.replace('/dashboard')
     }
   } catch (e: any) {
     error.value = e.response?.status === 401
@@ -269,6 +359,7 @@ async function handleLogin() {
     passwordInput.value?.focus()
   } finally {
     loading.value = false
+    void renderTurnstile()
   }
 }
 async function handleFactorLogin() {
@@ -287,7 +378,7 @@ async function handleFactorLogin() {
     const { data } = await completeTwoFactorLogin(challengeToken.value, code)
     clearChallengeTimer()
     store.setAuth(data.token, data.username)
-    await router.replace('/')
+    await router.replace('/dashboard')
   } catch (e: any) {
     if (e.response?.status === 401) {
       failedFactorAttempts.value += 1
@@ -325,7 +416,10 @@ function resetChallenge(message = '') {
   factorCode.value = ''
   failedFactorAttempts.value = 0
   error.value = message
-  nextTick(() => passwordInput.value?.focus())
+  nextTick(() => {
+    passwordInput.value?.focus()
+    void renderTurnstile()
+  })
 }
 function clearChallengeTimer() {
   if (countdownTimer !== undefined) {
@@ -339,6 +433,7 @@ function switchMode(target: 'login' | 'register' | 'forgot') {
   error.value = ''
   step.value = 'credentials'
   nextTick(() => {
+    void renderTurnstile()
     if (target === 'register') {
       document.getElementById('reg-username')?.focus()
     } else if (target === 'forgot') {
@@ -355,10 +450,16 @@ async function handleSendCode() {
     error.value = '请先填写邮箱'
     return
   }
+  const turnstileTokenValue = takeTurnstileToken()
+  if (turnstileEnabled.value && !turnstileTokenValue) {
+    error.value = '请完成人机验证'
+    void renderTurnstile()
+    return
+  }
   codeSending.value = true
   error.value = ''
   try {
-    await sendRegisterCode(email)
+    await sendRegisterCode(email, turnstileTokenValue)
     codeCooldown.value = 60
     cooldownTimer = window.setInterval(() => {
       codeCooldown.value -= 1
@@ -371,6 +472,7 @@ async function handleSendCode() {
     error.value = e.response?.data?.error || '验证码发送失败'
   } finally {
     codeSending.value = false
+    void renderTurnstile()
   }
 }
 
@@ -380,10 +482,16 @@ async function handleForgotSend() {
     error.value = '请先填写注册邮箱'
     return
   }
+  const turnstileTokenValue = takeTurnstileToken()
+  if (turnstileEnabled.value && !turnstileTokenValue) {
+    error.value = '请完成人机验证'
+    void renderTurnstile()
+    return
+  }
   codeSending.value = true
   error.value = ''
   try {
-    await forgotPassword(email)
+    await forgotPassword(email, turnstileTokenValue)
     codeCooldown.value = 60
     cooldownTimer = window.setInterval(() => {
       codeCooldown.value -= 1
@@ -396,6 +504,7 @@ async function handleForgotSend() {
     error.value = e.response?.data?.error || '验证码发送失败'
   } finally {
     codeSending.value = false
+    void renderTurnstile()
   }
 }
 
@@ -409,10 +518,17 @@ async function handleResetPassword() {
     error.value = '新密码至少 6 位'
     return
   }
+  const turnstileTokenValue = takeTurnstileToken()
+  if (turnstileEnabled.value && !turnstileTokenValue) {
+    error.value = '请完成人机验证'
+    triggerShake()
+    void renderTurnstile()
+    return
+  }
   loading.value = true
   error.value = ''
   try {
-    await resetPassword(email, forgotForm.code.trim(), forgotForm.newPassword)
+    await resetPassword(email, forgotForm.code.trim(), forgotForm.newPassword, turnstileTokenValue)
     forgotForm.email = ''
     forgotForm.code = ''
     forgotForm.newPassword = ''
@@ -422,6 +538,7 @@ async function handleResetPassword() {
     error.value = e.response?.data?.error || '重置失败'
   } finally {
     loading.value = false
+    void renderTurnstile()
   }
 }
 
@@ -443,6 +560,13 @@ async function handleRegister() {
     triggerShake()
     return
   }
+  const turnstileTokenValue = takeTurnstileToken()
+  if (turnstileEnabled.value && !turnstileTokenValue) {
+    error.value = '请完成人机验证'
+    triggerShake()
+    void renderTurnstile()
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -452,15 +576,17 @@ async function handleRegister() {
       password: regForm.password,
       invite: regForm.invite.trim() || undefined,
       verify_code: regForm.verifyCode.trim() || undefined,
+      cf_turnstile_response: turnstileTokenValue,
     })
     store.setAuth(data.token, data.username, data.role || 'user')
     regForm.password = ''
-    await router.replace('/')
+    await router.replace('/dashboard')
   } catch (e: any) {
     error.value = e.response?.data?.error || '注册失败: ' + (e.message || '')
     triggerShake()
   } finally {
     loading.value = false
+    void renderTurnstile()
   }
 }
 
@@ -620,6 +746,13 @@ function triggerShake() {
 }
 
 .link-btn:hover { color: var(--color-ink); }
+
+.turnstile-wrap {
+  margin: 12px 0 4px;
+  min-height: 65px;
+  display: flex;
+  justify-content: center;
+}
 
 .spinner {
   width: 14px;

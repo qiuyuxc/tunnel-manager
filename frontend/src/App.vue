@@ -39,6 +39,7 @@ const currentThemeOverrides = computed(() => {
 })
 
 configStore.fetchSiteSettings()
+configStore.fetchMe()
 </script>
 
 <style>

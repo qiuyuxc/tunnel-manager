@@ -257,7 +257,16 @@ func (h *ManagementHandler) DeleteInvite(w http.ResponseWriter, r *http.Request)
 
 // GetAppSettings handles GET /api/admin/settings.
 func (h *ManagementHandler) GetAppSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.store.GetAppSettings())
+	settings := h.store.GetAppSettings()
+	writeJSON(w, http.StatusOK, models.AppSettingsView{
+		RegistrationEnabled: settings.RegistrationEnabled,
+		InviteMode:          settings.InviteMode,
+		DefaultGroupID:      settings.DefaultGroupID,
+		EmailVerifyDisabled: settings.EmailVerifyDisabled,
+		TurnstileEnabled:    settings.TurnstileEnabled,
+		TurnstileSiteKey:    settings.TurnstileSiteKey,
+		TurnstileHasSecret:  settings.TurnstileSecret != "",
+	})
 }
 
 // UpdateAppSettings handles PUT /api/admin/settings.
@@ -267,17 +276,34 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
+	stored := h.store.GetAppSettings()
 	settings := models.AppSettings{
 		RegistrationEnabled: req.RegistrationEnabled,
 		InviteMode:          req.InviteMode,
 		DefaultGroupID:      req.DefaultGroupID,
 		EmailVerifyDisabled: req.EmailVerifyDisabled,
+		TurnstileEnabled:    req.TurnstileEnabled,
+		TurnstileSiteKey:    strings.TrimSpace(req.TurnstileSiteKey),
+	}
+	if settings.TurnstileEnabled && (settings.TurnstileSiteKey == "" || (req.TurnstileSecret == "" && stored.TurnstileSecret == "")) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "开启人机验证需要填写 Site Key 与 Secret Key"})
+		return
+	}
+	if req.TurnstileSecret != "" {
+		encrypted, err := auth.EncryptSecret(h.encryptionKey, turnstileSecretPurpose, []byte(req.TurnstileSecret))
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "加密人机验证密钥失败"})
+			return
+		}
+		settings.TurnstileSecret = encrypted
+	} else {
+		settings.TurnstileSecret = stored.TurnstileSecret
 	}
 	if err := h.store.SetAppSettings(settings); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "保存设置失败"})
 		return
 	}
-	writeJSON(w, http.StatusOK, h.store.GetAppSettings())
+	h.GetAppSettings(w, r)
 }
 
 // ---------------------------------------------------------------------------

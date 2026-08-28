@@ -158,6 +158,21 @@
       </div>
 
       <div class="admin-card">
+        <h3>人机验证（Cloudflare Turnstile）</h3>
+        <p class="admin-hint">可选防护：开启后登录、注册与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
+        <div class="setting-row">
+          <span class="setting-label">启用人机验证</span>
+          <n-switch v-model:value="turnstile.enabled" size="small" />
+        </div>
+        <div class="admin-form">
+          <input v-model="turnstile.site_key" type="text" placeholder="Site Key（0x4A…）" class="vercel-input" />
+          <input v-model="turnstileSecret" type="password" placeholder="Secret Key（留空保持不变）" class="vercel-input" autocomplete="off" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">保存</button>
+          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+        </div>
+      </div>
+
+      <div class="admin-card">
         <h3>Cloudflare OAuth 客户端</h3>
         <p class="admin-hint">留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET。此处填写后优先于环境变量；密钥留空表示保持不变。</p>
         <p class="admin-hint">OAuth 客户端需在 Cloudflare 控制台勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit</p>
@@ -239,6 +254,9 @@ const users = ref<UserView[]>([])
 const groups = ref<UserGroup[]>([])
 const invites = ref<Invite[]>([])
 const settings = ref<AppSettings>({ registration_enabled: true, invite_mode: 'off', default_group_id: '' })
+const turnstile = ref({ enabled: false, site_key: '' })
+const turnstileSecret = ref('')
+const turnstileHasSecret = ref(false)
 const allPermissions = ALL_PERMISSIONS
 const permissionLabels = PERMISSION_LABELS
 
@@ -293,6 +311,10 @@ async function loadAll() {
     groups.value = g.data.groups
     invites.value = i.data.invites
     settings.value = s.data
+    turnstile.value.enabled = !!s.data.turnstile_enabled
+    turnstile.value.site_key = s.data.turnstile_site_key || ''
+    turnstileHasSecret.value = !!s.data.turnstile_has_secret
+    turnstileSecret.value = ''
   } catch (e: any) {
     notify('加载失败: ' + (e.response?.data?.error || e.message), true)
   } finally {
@@ -403,6 +425,19 @@ function removeInvite(invite: Invite) {
 
 function saveSettings() {
   void run(() => updateAppSettings(settings.value), '设置已保存')
+}
+
+function saveTurnstile() {
+  const payload: Partial<AppSettings> & { turnstile_secret?: string } = {
+    registration_enabled: settings.value.registration_enabled,
+    invite_mode: settings.value.invite_mode,
+    default_group_id: settings.value.default_group_id || '',
+    email_verify_disabled: !!settings.value.email_verify_disabled,
+    turnstile_enabled: turnstile.value.enabled,
+    turnstile_site_key: turnstile.value.site_key.trim(),
+  }
+  if (turnstileSecret.value) payload.turnstile_secret = turnstileSecret.value
+  void run(() => updateAppSettings(payload), '人机验证设置已保存')
 }
 
 onMounted(() => {

@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
             <h2>TG 机器人设置</h2>
-      <p>通过 Telegram Bot 远程管理隧道配置</p>
+      <p>每人一个独立 Bot，远程管理自己的隧道、DNS 与域名，账户之间互相隔离</p>
     </div>
     <div class="settings-list section">
       <!-- Status card -->
@@ -63,13 +63,22 @@
             />
           </div>
         </div>
+        <button
+          v-if="!settings.bot_token_set && notifyBotSet"
+          class="btn btn-secondary btn-sm"
+          :disabled="reusing"
+          @click="handleReuse"
+          style="margin-top: 12px"
+        >
+          {{ reusing ? '复用中...' : '一键复用通知的 Bot' }}
+        </button>
       </div>
       <!-- Admin TG IDs -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.32s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">管理员 TG ID</div>
+          <div class="settings-card-title">授权 TG ID</div>
           <div class="settings-card-desc">
-            逗号分隔的数字 ID。与 @userinfobot 对话可获取你的 ID。多个管理员用英文逗号隔开。
+            逗号分隔的数字 ID。与 @userinfobot 对话可获取你的 ID。只有这些 TG 账号能向你的 Bot 发指令，可填多个，用英文逗号隔开。
           </div>
         </div>
         <div class="settings-input-row">
@@ -82,50 +91,28 @@
           </div>
         </div>
       </div>
-      <!-- API Endpoint -->
+      <!-- API Endpoint (panel-wide, admin editable) -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.40s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">API 端点</div>
-          <div class="settings-card-desc">默认使用 Telegram 官方 API。如果你有自建 Bot API 服务器，可在此指定地址。</div>
+          <div class="settings-card-desc">
+            面板级配置，所有用户的 Bot 都走该端点。国内网络建议使用自建反代（如 https://tele.example.com），默认官方 api.telegram.org 在国内无法直连。
+          </div>
         </div>
         <div class="settings-input-row">
           <div class="input-wrapper">
             <input
               v-model="settings.api_endpoint"
-              placeholder="https://api.telegram.org"
+              :readonly="!isAdmin"
+              :placeholder="'https://api.telegram.org'"
               class="vercel-input"
             />
           </div>
+          <button v-if="isAdmin" class="btn btn-primary btn-sm" :disabled="savingEndpoint" @click="handleSaveEndpoint">
+            {{ savingEndpoint ? '保存中...' : '保存端点' }}
+          </button>
         </div>
-      </div>
-      <!-- Mode -->
-      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.48s' }">
-        <div class="settings-card-header">
-          <div class="settings-card-title">运行模式</div>
-          <div class="settings-card-desc">长轮询无需公网地址，适合内网环境。Webhook 需要服务器有公网 HTTPS 地址。</div>
-        </div>
-        <div class="mode-row">
-          <label class="radio-item" :class="{ active: settings.mode === 'polling' }">
-            <input type="radio" v-model="settings.mode" value="polling" />
-            <span class="radio-dot" />
-            <span class="radio-label">长轮询（推荐）</span>
-          </label>
-          <label class="radio-item" :class="{ active: settings.mode === 'webhook' }">
-            <input type="radio" v-model="settings.mode" value="webhook" />
-            <span class="radio-dot" />
-            <span class="radio-label">Webhook</span>
-          </label>
-        </div>
-        <div v-if="settings.mode === 'webhook'" class="webhook-url-row">
-          <div class="input-wrapper">
-            <input
-              v-model="settings.webhook_url"
-              placeholder="https://panel.example.com"
-              class="vercel-input"
-            />
-          </div>
-          <span class="webhook-note">后端将自动追加 /api/telegram/webhook</span>
-        </div>
+        <p v-if="!isAdmin" class="field-hint">端点由管理员统一配置，所有用户自动生效。</p>
       </div>
       <!-- Actions -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.56s' }">
@@ -157,7 +144,7 @@
           <code>/DNS列表</code> <code>/DNS详情</code> <code>/DNS添加</code> <code>/DNS修改</code> <code>/DNS删除</code> <code>/确认删除</code>
           <code>/全局优选</code> <code>/设置回退源</code> <code>/help</code>
         </div>
-        <p class="guide-note">Bot 与面板共享同一配置，两边操作实时同步。</p>
+        <p class="guide-note">每个用户的 Bot 只操作自己的账户资源（隧道、DNS、域名绑定），互不影响。</p>
       </div>
     </div>
   </div>
@@ -170,17 +157,20 @@ import {
   saveTelegramSettings,
   getTelegramStatus,
   testTelegram,
+  reuseTelegramFromNotify,
+  saveTelegramAPIEndpoint,
   type TelegramSettings,
   type TelegramStatus,
 } from '../api'
+import { useConfigStore } from '../stores/config'
+const configStore = useConfigStore()
 const message = useMessage()
+const isAdmin = configStore.isAdmin()
 const visible = ref(false)
 const settings = ref({
   enabled: false,
   bot_token: '',
   admin_tg_ids: '',
-  mode: 'polling',
-  webhook_url: '',
   api_endpoint: '',
   bot_token_set: false,
   bot_token_hint: '',
@@ -195,6 +185,9 @@ const status = ref<TelegramStatus>({
 })
 const saving = ref(false)
 const testing = ref(false)
+const reusing = ref(false)
+const savingEndpoint = ref(false)
+const notifyBotSet = ref(false)
 let statusTimer: ReturnType<typeof setInterval> | null = null
 const modeLabel = computed(() => {
   return status.value.mode === 'webhook' ? 'Webhook 模式' : '长轮询模式'
@@ -212,14 +205,45 @@ async function fetchSettings() {
     const { data } = await getTelegramSettings()
     settings.value.enabled = data.enabled
     settings.value.admin_tg_ids = data.admin_tg_ids
-    settings.value.mode = data.mode || 'polling'
-    settings.value.webhook_url = data.webhook_url
-    settings.value.api_endpoint = data.api_endpoint
+    settings.value.api_endpoint = data.api_endpoint || ''
     settings.value.bot_token_set = data.bot_token_set
     settings.value.bot_token_hint = data.bot_token_hint
     settings.value.bot_token = '' // never prefill the token
+    notifyBotSet.value = !!data.notify_bot_set
   } catch {
     // settings may not be available
+  }
+}
+
+async function handleSaveEndpoint() {
+  savingEndpoint.value = true
+  try {
+    const endpoint = settings.value.api_endpoint.trim().replace(/\/+$/, '')
+    if (!endpoint) {
+      message.error('API 端点不能为空')
+      return
+    }
+    const { data } = await saveTelegramAPIEndpoint(endpoint)
+    settings.value.api_endpoint = data.api_endpoint
+    message.success('API 端点已保存，所有 Bot 已重启生效')
+  } catch (e: any) {
+    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    savingEndpoint.value = false
+  }
+}
+
+async function handleReuse() {
+  reusing.value = true
+  try {
+    await reuseTelegramFromNotify()
+    await fetchSettings()
+    await fetchStatus()
+    message.success('已复用通知的 Bot Token，请填写授权 TG ID 并保存启用')
+  } catch (e: any) {
+    message.error('复用失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    reusing.value = false
   }
 }
 async function fetchStatus() {
@@ -237,9 +261,6 @@ async function handleSave() {
       enabled: settings.value.enabled,
       bot_token: settings.value.bot_token,
       admin_tg_ids: settings.value.admin_tg_ids,
-      mode: settings.value.mode,
-      webhook_url: settings.value.webhook_url,
-      api_endpoint: settings.value.api_endpoint,
     })
     settings.value.bot_token = '' // clear after save
     await fetchSettings()
@@ -456,6 +477,12 @@ onUnmounted(() => {
   margin-top: 12px;
   font-size: 13px;
   color: var(--color-mute);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--color-mute);
+  margin-top: 8px;
 }
 
 @media (max-width: 640px) {

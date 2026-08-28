@@ -6,11 +6,15 @@ export interface AuthConfig {
   registration_enabled: boolean
   invite_mode: 'off' | 'optional' | 'required'
   email_verify_enabled: boolean
+  turnstile_enabled: boolean
+  turnstile_site_key: string
 }
 
 export interface MeResponse {
   id: string
   username: string
+  nickname: string
+  avatar: string
   email: string
   role: string
   permissions: string[]
@@ -26,14 +30,15 @@ export interface RegisterPayload {
   password: string
   invite?: string
   verify_code?: string
+  cf_turnstile_response?: string
 }
 
 export function register(payload: RegisterPayload) {
   return api.post<LoginResponse>('/auth/register', payload)
 }
 
-export function sendRegisterCode(email: string) {
-  return api.post<{ message: string }>('/auth/send-code', { email })
+export function sendRegisterCode(email: string, turnstileToken = '') {
+  return api.post<{ message: string }>('/auth/send-code', { email, cf_turnstile_response: turnstileToken })
 }
 
 export function getMe() {
@@ -43,6 +48,8 @@ export function getMe() {
 export interface UserView {
   id: string
   username: string
+  nickname: string
+  avatar: string
   email: string
   role: string
   group_id: string
@@ -78,6 +85,9 @@ export interface AppSettings {
   invite_mode: string
   default_group_id?: string
   email_verify_disabled?: boolean
+  turnstile_enabled?: boolean
+  turnstile_site_key?: string
+  turnstile_has_secret?: boolean
 }
 
 export interface OAuthConfig {
@@ -123,17 +133,18 @@ export const createInvite = (payload: { group_id?: string; max_uses?: number; ex
 export const updateInvite = (code: string, enabled: boolean) => api.put('/admin/invites/' + code, { enabled })
 export const deleteInvite = (code: string) => api.delete('/admin/invites/' + code)
 export const getAppSettings = () => api.get<AppSettings>('/admin/settings')
-export const updateAppSettings = (payload: AppSettings) => api.put<AppSettings>('/admin/settings', payload)
+export const updateAppSettings = (payload: Partial<AppSettings> & { turnstile_secret?: string }) =>
+  api.put<AppSettings>('/admin/settings', payload)
 export const getOAuthConfig = () => api.get<OAuthConfig>('/admin/oauth')
 export const updateOAuthConfig = (payload: { client_id: string; client_secret?: string; redirect_uri: string; scopes: string }) =>
   api.put<OAuthConfig>('/admin/oauth', payload)
 export const getEncryptionKeyStatus = () => api.get<{ source: string }>('/admin/encryption-key')
 export const saveEncryptionKey = (key: string) => api.put<{ message: string }>('/admin/encryption-key', { key })
-export function forgotPassword(email: string) {
-  return api.post<{ message: string }>('/auth/forgot-password', { email })
+export function forgotPassword(email: string, turnstileToken = '') {
+  return api.post<{ message: string }>('/auth/forgot-password', { email, cf_turnstile_response: turnstileToken })
 }
-export function resetPassword(email: string, code: string, newPassword: string) {
-  return api.post<{ message: string }>('/auth/reset-password', { email, code, new_password: newPassword })
+export function resetPassword(email: string, code: string, newPassword: string, turnstileToken = '') {
+  return api.post<{ message: string }>('/auth/reset-password', { email, code, new_password: newPassword, cf_turnstile_response: turnstileToken })
 }
 export const getSMTP = () => api.get<SMTPStatus>('/admin/smtp')
 export const updateSMTP = (payload: { host: string; port: number; username: string; password?: string; from: string; tls_mode: string }) =>

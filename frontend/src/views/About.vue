@@ -66,12 +66,12 @@
           </div>
         </div>
         <ul class="changelog-list">
-          <li>多用户体系上线：邮箱注册、用户组权限、管理后台统一管理用户与邀请码</li>
-          <li>数据存储迁移至 SQLite，旧配置自动导入，重启后会话不再丢失</li>
-          <li>Cloudflare OAuth 支持多账户：一个面板可授权多个 Cloudflare 账户并随时切换</li>
-          <li>服务监控告警：仅在状态变化时发送邮件通知，支持多收件人与告警记录</li>
-          <li>SMTP 邮件服务可视化配置，支持 465 / 587 加密连接与测试发送</li>
-          <li>注册策略可组合：开放注册、邀请码（选填 / 必填）、邮箱验证码独立开关</li>
+          <li>用户主页：自定义展示名称与头像（支持上传），账户邮箱可直接绑定或修改</li>
+          <li>可选人机验证：Cloudflare Turnstile，覆盖登录、注册与找回密码</li>
+          <li>用户通知中心：独立配置邮箱 / Telegram 通知渠道与登录通知，支持多收件人</li>
+          <li>Telegram 远程控制开放给所有用户：每人独立 Bot，操作各自资源互不干扰</li>
+          <li>通知与远程控制 Bot Token 独立存储，支持一键复用</li>
+          <li>Telegram API 端点面板级可配置（自定义反代），解决国内无法直连官方 API 的问题</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

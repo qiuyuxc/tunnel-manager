@@ -11,7 +11,7 @@ import (
 
 func TestGetSiteSettingsIsPublicSafeResponse(t *testing.T) {
 	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
-	if err := st.SetSiteSettings("My Panel", "Operations", "/icon.png"); err != nil {
+	if err := st.SetSiteSettings("My Panel", "Operations", "/icon.png", false); err != nil {
 		t.Fatal(err)
 	}
 	h := NewConfigHandler(st)
@@ -21,7 +21,7 @@ func TestGetSiteSettingsIsPublicSafeResponse(t *testing.T) {
 	}
 	var result map[string]interface{}
 	decodeResponse(t, resp, &result)
-	if len(result) != 3 || result["name"] != "My Panel" || result["description"] != "Operations" || result["icon"] != "/icon.png" {
+	if len(result) != 4 || result["name"] != "My Panel" || result["description"] != "Operations" || result["icon"] != "/icon.png" || result["landing_enabled"] != false {
 		t.Fatalf("GetSiteSettings() response = %#v", result)
 	}
 }

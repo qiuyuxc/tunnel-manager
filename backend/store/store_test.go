@@ -296,7 +296,7 @@ func TestLegacyConfigReceivesBrandingAndCNAMEPresetDefaults(t *testing.T) {
 
 func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 	s := newTestStore(t, HashPassword("password"))
-	if err := s.SetSiteSettings("My Panel", "Operations", "https://example.com/icon.png"); err != nil {
+	if err := s.SetSiteSettings("My Panel", "Operations", "https://example.com/icon.png", true); err != nil {
 		t.Fatal(err)
 	}
 	presets := []models.CNAMEPreset{{Name: "线路 A", Value: "a.example.com"}}
@@ -309,7 +309,7 @@ func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 
 	reloaded := NewStore(s.filePath)
 	config := reloaded.GetConfig()
-	if config.SiteName != "My Panel" || config.SiteDescription != "Operations" || config.SiteIcon != "https://example.com/icon.png" {
+	if config.SiteName != "My Panel" || config.SiteDescription != "Operations" || config.SiteIcon != "https://example.com/icon.png" || !config.LandingEnabled {
 		t.Fatalf("persisted site settings = %#v", config)
 	}
 	prefs := reloaded.GetUserPrefs(reloaded.AdminUserID())
@@ -569,4 +569,48 @@ func configsEqual(left, right models.Config) bool {
 	leftJSON, _ := json.Marshal(left)
 	rightJSON, _ := json.Marshal(right)
 	return string(leftJSON) == string(rightJSON)
+}
+
+func TestReuseTelegramTokens(t *testing.T) {
+	s := newTestStore(t, HashPassword("password"))
+	adminID := s.AdminUserID()
+
+	// Remote -> notify reuse: remote token set, notify empty.
+	if err := s.SetUserRemoteSettings(adminID, true, "7330290970", "enc-remote"); err != nil {
+		t.Fatalf("SetUserRemoteSettings: %v", err)
+	}
+	if err := s.ReuseTokenForNotify(adminID); err != nil {
+		t.Fatalf("ReuseTokenForNotify: %v", err)
+	}
+	prefs := s.GetUserPrefs(adminID)
+	if prefs.TGBotTokenEncrypted != "enc-remote" {
+		t.Fatalf("notify token = %q, want %q", prefs.TGBotTokenEncrypted, "enc-remote")
+	}
+	if err := s.ReuseTokenForNotify(adminID); err == nil {
+		t.Fatal("ReuseTokenForNotify succeeded when notify token already set")
+	}
+
+	// Notify -> remote reuse: notify token set, remote empty.
+	if err := s.SetUserNotifySettings(adminID, nil, nil, "", "enc-notify", "111"); err != nil {
+		t.Fatalf("SetUserNotifySettings: %v", err)
+	}
+	prefs = s.GetUserPrefs(adminID)
+	prefs.TGRemoteTokenEncrypted = ""
+	s.mu.Lock()
+	s.prefs[adminID] = prefs
+	err := s.saveLocked()
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatalf("clear remote token: %v", err)
+	}
+	if err := s.ReuseTokenForRemote(adminID); err != nil {
+		t.Fatalf("ReuseTokenForRemote: %v", err)
+	}
+	prefs = s.GetUserPrefs(adminID)
+	if prefs.TGRemoteTokenEncrypted != "enc-notify" {
+		t.Fatalf("remote token = %q, want %q", prefs.TGRemoteTokenEncrypted, "enc-notify")
+	}
+	if err := s.ReuseTokenForRemote(adminID); err == nil {
+		t.Fatal("ReuseTokenForRemote succeeded when remote token already set")
+	}
 }

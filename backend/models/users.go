@@ -33,6 +33,8 @@ const (
 type User struct {
 	ID                     string
 	Username               string
+	Nickname               string
+	Avatar                 string
 	Email                  string
 	PasswordHash           string
 	Role                   string
@@ -52,6 +54,8 @@ type User struct {
 type UserView struct {
 	ID            string   `json:"id"`
 	Username      string   `json:"username"`
+	Nickname      string   `json:"nickname"`
+	Avatar        string   `json:"avatar"`
 	Email         string   `json:"email"`
 	Role          string   `json:"role"`
 	GroupID       string   `json:"group_id"`
@@ -92,6 +96,23 @@ type AppSettings struct {
 	// When true, registration never asks for an email verification code even
 	// though SMTP is configured (SMTP stays active for alerts).
 	EmailVerifyDisabled bool `json:"email_verify_disabled"`
+	// Optional Cloudflare Turnstile human verification. Secret is stored
+	// encrypted at rest.
+	TurnstileEnabled bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey string `json:"turnstile_site_key"`
+	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
+}
+
+// AppSettingsView is the admin-facing projection of AppSettings; it never
+// exposes the stored (encrypted) Turnstile secret.
+type AppSettingsView struct {
+	RegistrationEnabled bool   `json:"registration_enabled"`
+	InviteMode          string `json:"invite_mode"`
+	DefaultGroupID      string `json:"default_group_id,omitempty"`
+	EmailVerifyDisabled bool   `json:"email_verify_disabled"`
+	TurnstileEnabled    bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey    string `json:"turnstile_site_key"`
+	TurnstileHasSecret  bool   `json:"turnstile_has_secret"`
 }
 
 // OAuthSettings holds the Cloudflare OAuth client configured in the admin
@@ -126,12 +147,61 @@ type UserPrefs struct {
 	ServiceURL       string `json:"service_url"`
 	SelectedZoneID   string `json:"selected_zone_id"`
 	SelectedZoneName string `json:"selected_zone_name"`
+
+	// Per-user notification preferences. Channels and events are persisted
+	// as JSON in the user_prefs table.
+	NotifyChannels      []string        `json:"notify_channels,omitempty"`
+	NotifyEvents        map[string]bool `json:"notify_events,omitempty"`
+	NotifyEmails        string          `json:"notify_emails,omitempty"`
+	TGBotTokenEncrypted      string          `json:"tg_bot_token_encrypted,omitempty"`
+	TGNotifyChatID           string          `json:"tg_notify_chat_id,omitempty"`
+	TGRemoteTokenEncrypted   string          `json:"tg_remote_token_encrypted,omitempty"`
+
+	// Per-user Telegram remote-control bot. Notification and remote control
+	// keep separate tokens: each may be configured independently, and either
+	// side can be one-click reused from the other. TGOperatorIDs lists the
+	// Telegram user IDs allowed to send commands.
+	TGRemoteEnabled bool   `json:"tg_remote_enabled,omitempty"`
+	TGOperatorIDs   string `json:"tg_operator_ids,omitempty"`
+	PreferredCNAME  string `json:"preferred_cname,omitempty"`
+}
+
+// Per-user notification channels and events.
+const (
+	NotifyChannelEmail    = "email"
+	NotifyChannelTelegram = "telegram"
+	NotifyEventLogin      = "login"
+)
+
+// AllNotifyEvents lists every supported notification event in display order.
+var AllNotifyEvents = []string{NotifyEventLogin}
+
+// NotifySettingsView is the API projection of one account's notification
+// preferences; it never exposes the stored (encrypted) Telegram token.
+type NotifySettingsView struct {
+	Channels       []string       `json:"channels"`
+	Events         map[string]bool `json:"events"`
+	Emails         string         `json:"emails"`
+	TGBotTokenSet  bool           `json:"tg_bot_token_set"`
+	TGNotifyChatID string         `json:"tg_notify_chat_id"`
+	TGRemoteBotSet bool           `json:"tg_remote_bot_set"`
+}
+
+// SaveNotifySettingsRequest is the body of PUT /api/notify/settings.
+type SaveNotifySettingsRequest struct {
+	Channels       []string        `json:"channels"`
+	Events         map[string]bool `json:"events"`
+	Emails         string          `json:"emails"`
+	TGBotToken     string          `json:"tg_bot_token,omitempty"` // blank keeps the stored token
+	TGNotifyChatID string          `json:"tg_notify_chat_id"`
 }
 
 // SessionUser is the authenticated identity attached to requests.
 type SessionUser struct {
 	ID          string   `json:"id"`
 	Username    string   `json:"username"`
+	Nickname    string   `json:"nickname"`
+	Avatar      string   `json:"avatar"`
 	Email       string   `json:"email"`
 	Role        string   `json:"role"`
 	Permissions []string `json:"permissions,omitempty"`
@@ -165,11 +235,12 @@ func (u *SessionUser) IsAPIKey() bool {
 
 // RegisterRequest is the body of POST /api/auth/register.
 type RegisterRequest struct {
-	Username   string `json:"username"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	Invite     string `json:"invite"`
-	VerifyCode string `json:"verify_code"`
+	Username          string `json:"username"`
+	Email             string `json:"email"`
+	Password          string `json:"password"`
+	Invite            string `json:"invite"`
+	VerifyCode        string `json:"verify_code"`
+	TurnstileResponse string `json:"cf_turnstile_response,omitempty"`
 }
 
 // AuthConfigResponse tells the frontend how to render the register form.
@@ -177,24 +248,31 @@ type AuthConfigResponse struct {
 	RegistrationEnabled bool   `json:"registration_enabled"`
 	InviteMode          string `json:"invite_mode"`
 	EmailVerifyEnabled  bool   `json:"email_verify_enabled"`
+	// Turnstile human verification (optional). Site key is public.
+	TurnstileEnabled bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey string `json:"turnstile_site_key"`
 }
 
 // SendCodeRequest is the body of POST /api/auth/send-code.
 type SendCodeRequest struct {
-	Email string `json:"email"`
+	Email             string `json:"email"`
+	TurnstileResponse string `json:"cf_turnstile_response,omitempty"`
 }
 
 // ResetPasswordRequest is the body of POST /api/auth/reset-password.
 type ResetPasswordRequest struct {
-	Email       string `json:"email"`
-	Code        string `json:"code"`
-	NewPassword string `json:"new_password"`
+	Email             string `json:"email"`
+	Code              string `json:"code"`
+	NewPassword       string `json:"new_password"`
+	TurnstileResponse string `json:"cf_turnstile_response,omitempty"`
 }
 
 // MeResponse describes the authenticated user for the frontend.
 type MeResponse struct {
 	ID          string   `json:"id"`
 	Username    string   `json:"username"`
+	Nickname    string   `json:"nickname"`
+	Avatar      string   `json:"avatar"`
 	Email       string   `json:"email"`
 	Role        string   `json:"role"`
 	Permissions []string `json:"permissions"`
@@ -248,6 +326,14 @@ type SaveAppSettingsRequest struct {
 	InviteMode          string `json:"invite_mode"`
 	DefaultGroupID      string `json:"default_group_id"`
 	EmailVerifyDisabled bool   `json:"email_verify_disabled"`
+	// Optional Cloudflare Turnstile verification. A blank secret keeps the
+	// stored one.
+	TurnstileEnabled bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey string `json:"turnstile_site_key"`
+	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
+	// TurnstileHasSecret is accepted for round-tripping the GET response;
+	// it carries no save semantics.
+	TurnstileHasSecret bool `json:"turnstile_has_secret,omitempty"`
 }
 
 // SaveOAuthRequest is the body of PUT /api/admin/oauth. A blank secret keeps

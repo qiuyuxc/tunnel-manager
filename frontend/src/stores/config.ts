@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getConfig, getSiteSettings, listTunnels, setTunnelSelection, type Config } from '../api'
 import { getMe } from '../api/admin'
 
@@ -15,18 +15,27 @@ export const useConfigStore = defineStore('config', () => {
     site_name: 'Tunnel Manager',
     site_description: 'Cloudflare 隧道管理中心',
     site_icon: '',
+    landing_enabled: false,
   })
   const darkMode = ref(localStorage.getItem('dark_mode') === 'true')
   const savedVisualTheme = localStorage.getItem('visual_theme')
   const visualTheme = ref<VisualTheme>(savedVisualTheme === 'warm' ? 'warm' : 'enterprise')
   const loading = ref(false)
+  const landingEnabled = ref(false)
+  const siteSettingsLoaded = ref(false)
+  let siteSettingsPromise: Promise<void> | null = null
 
   // Auth state
   const token = ref(localStorage.getItem('auth_token') || '')
   const username = ref(localStorage.getItem('auth_username') || '')
+  const nickname = ref(localStorage.getItem('auth_nickname') || '')
+  const avatar = ref(localStorage.getItem('auth_avatar') || '')
+  const email = ref(localStorage.getItem('auth_email') || '')
   const role = ref(localStorage.getItem('auth_role') || '')
   const permissions = ref<string[]>([])
   const isAuthenticated = ref(!!token.value)
+
+  const displayName = computed(() => nickname.value || username.value)
 
   function hasPerm(perm: string) {
     if (role.value === 'admin') return true
@@ -44,7 +53,14 @@ export const useConfigStore = defineStore('config', () => {
       role.value = data.role
       permissions.value = data.permissions || []
       username.value = data.username
+      nickname.value = data.nickname || ''
+      avatar.value = data.avatar || ''
+      email.value = data.email || ''
       localStorage.setItem('auth_role', data.role)
+      localStorage.setItem('auth_username', data.username)
+      localStorage.setItem('auth_nickname', data.nickname || '')
+      localStorage.setItem('auth_avatar', data.avatar || '')
+      localStorage.setItem('auth_email', data.email || '')
     } catch (_) {
       // 401 is handled by the shared interceptor; keep cached state otherwise.
     }
@@ -63,15 +79,22 @@ export const useConfigStore = defineStore('config', () => {
 
   watch(() => [config.value.site_name, config.value.site_icon], applySiteBranding, { immediate: true })
 
-  async function fetchSiteSettings() {
-    try {
-      const { data } = await getSiteSettings()
-      config.value.site_name = data.name
-      config.value.site_description = data.description
-      config.value.site_icon = data.icon
-    } catch (_) {
-      // Keep local defaults when the public endpoint is unavailable.
-    }
+  function fetchSiteSettings() {
+    if (siteSettingsPromise) return siteSettingsPromise
+    siteSettingsPromise = (async () => {
+      try {
+        const { data } = await getSiteSettings()
+        config.value.site_name = data.name
+        config.value.site_description = data.description
+        config.value.site_icon = data.icon
+        landingEnabled.value = data.landing_enabled
+      } catch (_) {
+        // Keep local defaults when the public endpoint is unavailable.
+      } finally {
+        siteSettingsLoaded.value = true
+      }
+    })()
+    return siteSettingsPromise
   }
 
   async function fetchConfig() {
@@ -79,6 +102,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const { data } = await getConfig()
       Object.assign(config.value, data)
+      landingEnabled.value = !!data.landing_enabled
       if (data.tunnel_id && !data.tunnel_name) {
         await resolveLegacyTunnelName(data.tunnel_id)
       }
@@ -111,11 +135,17 @@ export const useConfigStore = defineStore('config', () => {
   function clearAuth() {
     token.value = ''
     username.value = ''
+    nickname.value = ''
+    avatar.value = ''
+    email.value = ''
     role.value = ''
     permissions.value = []
     isAuthenticated.value = false
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_username')
+    localStorage.removeItem('auth_nickname')
+    localStorage.removeItem('auth_avatar')
+    localStorage.removeItem('auth_email')
     localStorage.removeItem('auth_role')
   }
 
@@ -146,7 +176,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   return {
-    config, darkMode, visualTheme, loading, token, username, role, permissions, isAuthenticated,
+    config, darkMode, visualTheme, loading, landingEnabled, siteSettingsLoaded,
+    token, username, nickname, avatar, email, displayName,
+    role, permissions, isAuthenticated,
     hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, toggleDarkMode, toggleVisualTheme, setAuth, clearAuth,
   }
 })

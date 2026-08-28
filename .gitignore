@@ -38,3 +38,7 @@ frontend/src/assets/fonts/*
 backend/.accept/
 backend/.fix_key.py
 docs/.server.py
+
+# Local design-language references (working files, not shipped)
+DESIGN.md
+uDESIGN.md

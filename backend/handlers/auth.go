@@ -63,6 +63,8 @@ func (h *AuthHandler) AuthConfig(w http.ResponseWriter, r *http.Request) {
 		RegistrationEnabled: settings.RegistrationEnabled,
 		InviteMode:          settings.InviteMode,
 		EmailVerifyEnabled:  h.mailer() != nil && !settings.EmailVerifyDisabled,
+		TurnstileEnabled:    settings.TurnstileEnabled,
+		TurnstileSiteKey:    settings.TurnstileSiteKey,
 	})
 }
 
@@ -71,6 +73,10 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	var req models.SendCodeRequest
 	if err := readAdminJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "send-code"); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 		return
 	}
 	email := strings.TrimSpace(strings.ToLower(req.Email))
@@ -110,6 +116,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
 	if err := readAdminJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "register"); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 		return
 	}
 	settings := h.store.GetAppSettings()
@@ -252,6 +262,8 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.MeResponse{
 		ID:          user.ID,
 		Username:    user.Username,
+		Nickname:    user.Nickname,
+		Avatar:      user.Avatar,
 		Email:       user.Email,
 		Role:        user.Role,
 		Permissions: user.Permissions,
@@ -304,6 +316,10 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
+	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "forgot-password"); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
+		return
+	}
 	email := strings.TrimSpace(strings.ToLower(req.Email))
 	if !validEmail(email) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
@@ -345,6 +361,10 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req models.ResetPasswordRequest
 	if err := readAdminJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "reset-password"); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 		return
 	}
 	email := strings.TrimSpace(strings.ToLower(req.Email))

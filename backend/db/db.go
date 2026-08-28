@@ -173,6 +173,30 @@ CREATE INDEX idx_cf_connections_user ON cf_connections(user_id);
 ALTER TABLE users ADD COLUMN active_cf_connection_id TEXT NOT NULL DEFAULT '';
 `
 
+// schemaV5 adds per-user profile fields: an optional display nickname and
+// a custom avatar URL (typically an uploaded /uploads/... image).
+const schemaV5 = `ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT '';`
+
+// schemaV6 adds per-user notification preferences: delivery channels,
+// enabled events, multiple recipient emails and a per-user Telegram bot.
+const schemaV6 = `ALTER TABLE user_prefs ADD COLUMN notify_channels TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN notify_events TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN notify_emails TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN tg_bot_token_encrypted TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN tg_notify_chat_id TEXT NOT NULL DEFAULT '';`
+
+// schemaV7 adds per-user Telegram remote-control preferences: an enable
+// flag, the Telegram user IDs allowed to operate the bot, and a per-user
+// preferred CNAME (mirrors the global Telegram bot fields).
+const schemaV7 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE user_prefs ADD COLUMN tg_operator_ids TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN preferred_cname TEXT NOT NULL DEFAULT '';`
+
+// schemaV8 separates the notification bot token from the remote-control bot
+// token, so an account can use two different bots (or reuse one for both).
+const schemaV8 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_token_encrypted TEXT NOT NULL DEFAULT '';`
+
 // migrations lists every schema version in order. Append new entries instead
 // of editing existing ones.
 var migrations = []migration{
@@ -180,6 +204,10 @@ var migrations = []migration{
 	{version: 2, stmts: schemaV2},
 	{version: 3, stmts: schemaV3},
 	{version: 4, stmts: schemaV4},
+	{version: 5, stmts: schemaV5},
+	{version: 6, stmts: schemaV6},
+	{version: 7, stmts: schemaV7},
+	{version: 8, stmts: schemaV8},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

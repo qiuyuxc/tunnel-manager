@@ -30,7 +30,7 @@
       >
         <div class="mi-main">
           <div class="mi-name-row">
-            <strong class="mi-name">{{ m.name }}</strong>
+            <strong class="mi-name" :title="m.name">{{ m.name }}</strong>
             <span class="mi-count">{{ m.targets.length }} 个服务</span>
           </div>
           <div class="mi-meta text-muted">
@@ -185,9 +185,9 @@ onMounted(load)
 }
 .monitor-item:hover { border-color: var(--color-hairline-strong); }
 .mi-main { min-width: 0; }
-.mi-name-row { display: flex; align-items: baseline; gap: 10px; }
-.mi-name { font-size: 15px; font-weight: 600; color: var(--color-ink); }
-.mi-count { font-size: 12px; color: var(--color-mute); }
+.mi-name-row { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.mi-name { font-size: 15px; font-weight: 600; color: var(--color-ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-count { font-size: 12px; color: var(--color-mute); flex-shrink: 0; }
 .mi-meta { margin-top: 5px; font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sum-dots { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; color: var(--color-body); font-weight: 500; }
 .sum-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-left: 4px; }
