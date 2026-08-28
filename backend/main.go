@@ -33,7 +33,7 @@ func main() {
 
 	storePath := os.Getenv("STORE_PATH")
 	if storePath == "" {
-		storePath = "data/config.json"
+		storePath = "data/tunnel-manager.db"
 	}
 
 	// Handle password reset CLI commands (don't require CF credentials)

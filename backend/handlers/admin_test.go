@@ -415,10 +415,9 @@ func TestChangePasswordSaveFailureDoesNotRevokeOrReportSuccess(t *testing.T) {
 	}
 	h := NewAdminHandler(st)
 	token := login(t, h, "admin", "password")
-	if err := os.Remove(path); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(dir); err != nil {
+	// Removing the whole directory takes the SQLite database with it, so the
+	// next save fails exactly like the old JSON store losing its file.
+	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
 	resp := performJSON(t, h.ChangePassword, http.MethodPut, "", `{"current_password":"password","new_password":"new-password"}`, token)

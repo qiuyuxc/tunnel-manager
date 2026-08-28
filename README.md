@@ -56,7 +56,7 @@ docker compose logs | grep 密
 | 层 | 技术 |
 | --- | --- |
 | 前端 | Vue 3, TypeScript, Naive UI, Vite, Pinia |
-| 后端 | Go, chi, JSON file store |
+| 后端 | Go, chi, SQLite |
 | 部署 | Docker multi-stage, GitHub Actions CI |
 
 ## 开发

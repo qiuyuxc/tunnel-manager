@@ -69,7 +69,7 @@ func TestEnableTOTPPersistsState(t *testing.T) {
 	if !enabled || secret != "v1:encrypted-secret" || step != 123 || count != 2 {
 		t.Fatalf("persisted state = (%v, %q, %d, %d)", enabled, secret, step, count)
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(ResolveDBPath(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,22 +312,20 @@ func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 	}
 }
 
-func TestAtomicSaveReplacesFileWithPrivatePermissions(t *testing.T) {
+func TestDatabaseFileHasPrivatePermissions(t *testing.T) {
 	s, path := newStoreWithConfig(t, models.Config{AdminUsername: "admin", AdminPasswordHash: HashPassword("password")})
-	if err := os.Chmod(path, 0644); err != nil {
-		t.Fatal(err)
-	}
+	dbPath := ResolveDBPath(path)
 	if err := s.SetAdminUsername("new-admin"); err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if info.Mode().Perm() != 0600 {
-		t.Fatalf("config permissions = %o, want 600", info.Mode().Perm())
+		t.Fatalf("database permissions = %o, want 600", info.Mode().Perm())
 	}
-	matches, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".config-*"))
+	matches, err := filepath.Glob(filepath.Join(filepath.Dir(dbPath), ".config-*"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -423,6 +421,80 @@ func newStoreWithConfig(t *testing.T, config models.Config) (*Store, string) {
 		t.Fatal(err)
 	}
 	return NewStore(path), path
+}
+
+func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
+	s, path := newTestStoreWithMonitors(t)
+	monitors := s.GetConfig().Monitors
+	if len(monitors) != 2 {
+		t.Fatalf("monitor count = %d, want 2", len(monitors))
+	}
+
+	reloaded := NewStore(path).GetConfig().Monitors
+	if len(reloaded) != 2 {
+		t.Fatalf("reloaded monitor count = %d, want 2", len(reloaded))
+	}
+	for i := range monitors {
+		if monitors[i].ID != reloaded[i].ID || monitors[i].Name != reloaded[i].Name {
+			t.Fatalf("monitor %d = (%q, %q), want (%q, %q)", i, reloaded[i].ID, reloaded[i].Name, monitors[i].ID, monitors[i].Name)
+		}
+		if monitors[i].PublishEnabled != reloaded[i].PublishEnabled {
+			t.Fatalf("monitor %s publish = %v, want %v", monitors[i].ID, reloaded[i].PublishEnabled, monitors[i].PublishEnabled)
+		}
+		if len(reloaded[i].Targets) != len(monitors[i].Targets) {
+			t.Fatalf("monitor %s target count = %d, want %d", monitors[i].ID, len(reloaded[i].Targets), len(monitors[i].Targets))
+		}
+		for j, target := range monitors[i].Targets {
+			if reloaded[i].Targets[j] != target {
+				t.Fatalf("monitor %s target %d = %#v, want %#v", monitors[i].ID, j, reloaded[i].Targets[j], target)
+			}
+		}
+	}
+
+	// Mutating the reloaded store must not resurrect stale legacy state.
+	if err := reloadedStore(t, path).RemoveMonitor(monitors[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := NewStore(path).GetConfig().Monitors; len(got) != 1 || got[0].ID != monitors[1].ID {
+		t.Fatalf("monitors after removal = %#v", got)
+	}
+}
+
+func reloadedStore(t *testing.T, path string) *Store {
+	t.Helper()
+	return NewStore(path)
+}
+
+func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
+	t.Helper()
+	s := newTestStore(t, HashPassword("password"))
+	first := models.Monitor{
+		ID:             "mon-one",
+		Name:           "First",
+		IntervalSec:    60,
+		PublishEnabled: true,
+		PublicToken:    "token-one",
+		PublicSlug:     "first",
+		Targets: []models.MonitorTarget{
+			{ID: "t-one", Name: "A", URL: "https://a.example.com", Type: "http", CreatedAt: 11, LinkEnabled: true},
+			{ID: "t-two", Name: "B", URL: "https://b.example.com", Type: "tcp"},
+		},
+	}
+	second := models.Monitor{
+		ID:          "mon-two",
+		Name:        "Second",
+		IntervalSec: 120,
+		Targets: []models.MonitorTarget{
+			{ID: "t-three", Name: "C", URL: "10.0.0.1:22", Type: "tcp", CreatedAt: 33},
+		},
+	}
+	if err := s.AddMonitor(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMonitor(second); err != nil {
+		t.Fatal(err)
+	}
+	return s, s.filePath
 }
 
 func runConcurrently(count int, operation func() error) []error {
