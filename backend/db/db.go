@@ -54,6 +54,77 @@ CREATE TABLE monitor_targets (
 CREATE INDEX idx_monitor_targets_monitor ON monitor_targets(monitor_id);
 `
 
+// schemaV2 adds multi-user support: users with per-user TOTP state and
+// preferences, database-backed sessions, user groups, invite codes and
+// email verification codes.
+const schemaV2 = `ALTER TABLE monitors ADD COLUMN user_id TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE user_groups (
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL UNIQUE,
+	permissions TEXT NOT NULL DEFAULT '',
+	builtin     INTEGER NOT NULL DEFAULT 0,
+	created_at  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE users (
+	id                        TEXT PRIMARY KEY,
+	username                  TEXT NOT NULL UNIQUE,
+	email                     TEXT NOT NULL DEFAULT '',
+	password_hash             TEXT NOT NULL,
+	role                      TEXT NOT NULL DEFAULT 'user',
+	group_id                  TEXT NOT NULL DEFAULT '',
+	status                    TEXT NOT NULL DEFAULT 'active',
+	email_verified            INTEGER NOT NULL DEFAULT 0,
+	totp_enabled              INTEGER NOT NULL DEFAULT 0,
+	totp_secret_encrypted     TEXT NOT NULL DEFAULT '',
+	totp_last_accepted_step   INTEGER NOT NULL DEFAULT 0,
+	totp_recovery_code_hashes TEXT NOT NULL DEFAULT '',
+	created_at                INTEGER NOT NULL DEFAULT 0,
+	last_login_at             INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX idx_users_email ON users(email) WHERE email != '';
+
+CREATE TABLE user_prefs (
+	user_id            TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	tunnel_id          TEXT NOT NULL DEFAULT '',
+	tunnel_name        TEXT NOT NULL DEFAULT '',
+	service_url        TEXT NOT NULL DEFAULT '',
+	selected_zone_id   TEXT NOT NULL DEFAULT '',
+	selected_zone_name TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE sessions (
+	token_hash TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at INTEGER NOT NULL DEFAULT 0,
+	expires_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_sessions_user ON sessions(user_id);
+CREATE INDEX idx_sessions_expiry ON sessions(expires_at);
+
+CREATE TABLE invites (
+	code       TEXT PRIMARY KEY,
+	group_id   TEXT NOT NULL DEFAULT '',
+	max_uses   INTEGER NOT NULL DEFAULT 0,
+	used_count INTEGER NOT NULL DEFAULT 0,
+	expires_at INTEGER NOT NULL DEFAULT 0,
+	enabled    INTEGER NOT NULL DEFAULT 1,
+	created_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE verify_codes (
+	email      TEXT NOT NULL,
+	purpose    TEXT NOT NULL,
+	code_hash  TEXT NOT NULL,
+	created_at INTEGER NOT NULL DEFAULT 0,
+	expires_at INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (email, purpose)
+);
+`
+
 type migration struct {
 	version int
 	stmts   string
@@ -63,6 +134,7 @@ type migration struct {
 // of editing existing ones.
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
+	{version: 2, stmts: schemaV2},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

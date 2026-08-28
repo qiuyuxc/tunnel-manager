@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"tunnel-manager/models"
 )
 
 // Middleware holds shared dependencies for handlers
@@ -11,6 +14,9 @@ type Middleware struct {
 	APIKey       string
 	AdminHandler *AdminHandler
 }
+
+// contextKey carries the authenticated identity through a request.
+type contextKey struct{}
 
 // CORS wraps a handler with CORS headers
 func (m *Middleware) CORS(next http.Handler) http.Handler {
@@ -28,44 +34,99 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 	})
 }
 
-// Auth wraps a handler with API key or session token authentication
+// sessionFromToken resolves the account behind a session token.
+func (m *Middleware) sessionFromToken(token string) (models.SessionUser, bool) {
+	if token == "" || m.AdminHandler == nil {
+		return models.SessionUser{}, false
+	}
+	return m.AdminHandler.ValidateSession(token)
+}
+
+// withUser attaches the identity to the request context.
+func withUser(r *http.Request, user models.SessionUser) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), contextKey{}, user))
+}
+
+// SessionUser returns the authenticated identity attached by the auth
+// middleware, or nil when the request is unauthenticated.
+func SessionUser(r *http.Request) *models.SessionUser {
+	user, _ := r.Context().Value(contextKey{}).(models.SessionUser)
+	if user.ID == "" && user.Role == "" {
+		return nil
+	}
+	return &user
+}
+
+// Auth wraps a handler with session token or admin API key authentication and
+// attaches the resolved identity to the request context.
 func (m *Middleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Check session token first
-		token := r.Header.Get("X-Auth-Token")
-		if token != "" && m.AdminHandler != nil && m.AdminHandler.ValidateToken(token) {
-			next(w, r)
+		if su, ok := m.sessionFromToken(r.Header.Get("X-Auth-Token")); ok {
+			next(w, withUser(r, su))
 			return
 		}
 
-		// Fall back to API key auth
-		if m.APIKey == "" {
-			// Auth disabled — require session at minimum
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		// Static API key access keeps full administrator reach.
+		if m.APIKey != "" {
+			key := r.Header.Get("X-API-Key")
+			if key == "" {
+				key = r.URL.Query().Get("api_key")
+			}
+			if key == m.APIKey {
+				su := models.SessionUser{
+					Username:    "api-key",
+					Role:        models.RoleAdmin,
+					Permissions: append([]string(nil), models.AllPermissions...),
+				}
+				next(w, withUser(r, su))
+				return
+			}
+		}
+
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	}
+}
+
+// SessionOnly wraps security-sensitive account management endpoints and
+// accepts only a valid session token.
+func (m *Middleware) SessionOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if su, ok := m.sessionFromToken(r.Header.Get("X-Auth-Token")); ok {
+			next(w, withUser(r, su))
 			return
 		}
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+}
 
-		key := r.Header.Get("X-API-Key")
-		if key == "" {
-			key = r.URL.Query().Get("api_key")
-		}
-
-		if key != m.APIKey {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+// RequirePerm gates a handler behind one group permission. Administrators
+// always pass; it must be wrapped by Auth so the identity is present.
+func (m *Middleware) RequirePerm(perm string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := SessionUser(r)
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}
-
+		if !user.HasPerm(perm) {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "permission denied"})
+			return
+		}
 		next(w, r)
 	}
 }
 
-// SessionOnly wraps security-sensitive account management endpoints and accepts
-// only a valid administrator session token.
-func (m *Middleware) SessionOnly(next http.HandlerFunc) http.HandlerFunc {
+// RequireAdmin gates a handler behind the administrator role. It must be
+// wrapped by Auth so the identity is present.
+func (m *Middleware) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("X-Auth-Token")
-		if m.AdminHandler == nil || !m.AdminHandler.ValidateToken(token) {
+		user := SessionUser(r)
+		if user == nil {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		if !user.IsAdmin() {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "administrator access required"})
 			return
 		}
 		next(w, r)

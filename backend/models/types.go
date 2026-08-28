@@ -60,6 +60,7 @@ type MonitorTarget struct {
 // token-protected public status page.
 type Monitor struct {
 	ID             string          `json:"id"`
+	UserID         string          `json:"user_id,omitempty"`
 	Name           string          `json:"name"`
 	IntervalSec    int             `json:"interval_sec,omitempty"` // default 60
 	PublicToken    string          `json:"public_token,omitempty"`
@@ -280,6 +281,7 @@ type SetCNAMEPresetsRequest struct {
 
 // LoginRequest is the request body for admin login
 type LoginRequest struct {
+	Account  string `json:"account,omitempty"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -288,6 +290,7 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Token    string `json:"token"`
 	Username string `json:"username"`
+	Role     string `json:"role,omitempty"`
 }
 
 // TwoFactorChallengeResponse requests a second authentication factor.

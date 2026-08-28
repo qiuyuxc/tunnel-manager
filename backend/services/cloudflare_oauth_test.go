@@ -126,7 +126,7 @@ func TestCloudflareOAuthExchangeRefreshAndRevoke(t *testing.T) {
 	if err := st.SetCloudflareAccount("account-id", "Account"); err != nil {
 		t.Fatalf("SetCloudflareAccount() error = %v", err)
 	}
-	if err := st.SetTunnelSelection("tunnel-id", "Tunnel"); err != nil {
+	if err := st.SetUserTunnelSelection(st.AdminUserID(), "tunnel-id", "Tunnel"); err != nil {
 		t.Fatalf("SetTunnelSelection() error = %v", err)
 	}
 

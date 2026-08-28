@@ -44,13 +44,39 @@ var (
 	ErrRecoveryCodeNotFound = errors.New("recovery code is invalid or already used")
 )
 
+// sessionRecord is one authenticated session, stored by token hash.
+type sessionRecord struct {
+	TokenHash string
+	UserID    string
+	CreatedAt int64
+	ExpiresAt int64
+}
+
+// verifyCodeRecord is one hashed email verification code.
+type verifyCodeRecord struct {
+	Email     string
+	Purpose   string
+	CodeHash  string
+	CreatedAt int64
+	ExpiresAt int64
+}
+
 // Store manages application state with SQLite persistence and an in-memory
 // cache. All accessor methods operate on the cache; saveLocked persists the
 // full state inside a single transaction.
 type Store struct {
-	mu       sync.RWMutex
-	filePath string
-	config   models.Config
+	mu          sync.RWMutex
+	filePath    string
+	config      models.Config
+	users       []models.User
+	groups      []models.UserGroup
+	invites     []models.Invite
+	sessions    []sessionRecord
+	verifyCodes []verifyCodeRecord
+	prefs       map[string]models.UserPrefs
+	appSettings models.AppSettings
+	smtp        models.SMTPSettings
+	adminID     string
 }
 
 // settingsKey is the app_settings row holding the flat settings document.
@@ -69,6 +95,7 @@ func NewStore(filePath string) *Store {
 	}
 	s := &Store{
 		filePath: resolved,
+		prefs:    map[string]models.UserPrefs{},
 		config: models.Config{
 			PreferredCNAME: "cf.090227.xyz",
 			CNAMEPresets: []models.CNAMEPreset{
@@ -109,12 +136,7 @@ func (s *Store) load() {
 	}
 	if !fresh {
 		s.applyDefaults(false)
-		return
-	}
-
-	// Empty database: import a legacy JSON configuration when present,
-	// otherwise bootstrap a fresh administrator account.
-	if legacy := legacyJSONPath(s.filePath); legacy != "" {
+	} else if legacy := legacyJSONPath(s.filePath); legacy != "" {
 		cfg, err := readLegacyConfig(legacy)
 		if err == nil {
 			s.config = cfg
@@ -123,11 +145,19 @@ func (s *Store) load() {
 				log.Fatalf("import legacy configuration: %v", err)
 			}
 			log.Printf("已从 %s 迁移配置到 SQLite，原文件保留作备份", legacy)
-			return
+		} else {
+			log.Printf("读取旧配置 %s 失败，按全新安装初始化: %v", legacy, err)
+			s.bootstrapAdminPassword()
 		}
-		log.Printf("读取旧配置 %s 失败，按全新安装初始化: %v", legacy, err)
+	} else {
+		s.bootstrapAdminPassword()
 	}
+	s.seedUsers()
+}
 
+// bootstrapAdminPassword generates the first-run administrator password and
+// prints the banner. The account row itself is created by seedUsers.
+func (s *Store) bootstrapAdminPassword() {
 	password := os.Getenv("ADMIN_PASSWORD")
 	if password == "" {
 		password = generateRandomPassword(12)
@@ -202,30 +232,8 @@ func (s *Store) applyDefaults(generatePassword bool) {
 	if s.config.TGApiEndpoint == "" {
 		s.config.TGApiEndpoint = "https://api.telegram.org"
 	}
-	if s.config.AdminPasswordHash == "" {
-		password := os.Getenv("ADMIN_PASSWORD")
-		if password == "" {
-			password = generateRandomPassword(12)
-		}
-		s.config.AdminPasswordHash = hashPassword(password)
-		if err := s.saveLocked(); err != nil {
-			log.Printf("save generated administrator password: %v", err)
-		}
-		if generatePassword {
-			log.Printf("========================================")
-			log.Printf("  首次启动，已生成管理员账户：")
-			log.Printf("  用户名: %s", s.config.AdminUsername)
-			log.Printf("  密  码: %s", password)
-			log.Printf("  请登录后立即修改密码！")
-			log.Printf("========================================")
-		} else {
-			log.Printf("========================================")
-			log.Printf("  密码为空，已自动生成：")
-			log.Printf("  用户名: %s", s.config.AdminUsername)
-			log.Printf("  密  码: %s", password)
-			log.Printf("========================================")
-		}
-	}
+	// Administrator credentials are owned by the users table (seedUsers); the
+	// settings document no longer carries them.
 }
 
 // loadFromDB reads the settings document, CNAME presets and monitors into
@@ -258,6 +266,38 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 		return false, err
 	}
 	s.config.Monitors = monitors
+
+	users, prefs, err := loadUsers(handle)
+	if err != nil {
+		return false, err
+	}
+	s.users = users
+	if prefs == nil {
+		prefs = map[string]models.UserPrefs{}
+	}
+	s.prefs = prefs
+	if s.groups, err = loadGroups(handle); err != nil {
+		return false, err
+	}
+	if s.sessions, err = loadSessions(handle); err != nil {
+		return false, err
+	}
+	if s.invites, err = loadInvites(handle); err != nil {
+		return false, err
+	}
+	if s.verifyCodes, err = loadVerifyCodes(handle); err != nil {
+		return false, err
+	}
+	if appDoc, ok, loadErr := loadSetting(handle, "app"); loadErr != nil {
+		return false, loadErr
+	} else if ok {
+		_ = json.Unmarshal([]byte(appDoc), &s.appSettings)
+	}
+	if smtpDoc, ok, loadErr := loadSetting(handle, "smtp"); loadErr != nil {
+		return false, loadErr
+	} else if ok {
+		_ = json.Unmarshal([]byte(smtpDoc), &s.smtp)
+	}
 	return false, nil
 }
 
@@ -291,6 +331,35 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	if err := replaceMonitors(tx, s.config.Monitors); err != nil {
+		return err
+	}
+	if err := replaceUsers(tx, s.users, s.prefs); err != nil {
+		return err
+	}
+	if err := replaceGroups(tx, s.groups); err != nil {
+		return err
+	}
+	if err := replaceSessions(tx, s.sessions); err != nil {
+		return err
+	}
+	if err := replaceInvites(tx, s.invites); err != nil {
+		return err
+	}
+	if err := replaceVerifyCodes(tx, s.verifyCodes); err != nil {
+		return err
+	}
+	appJSON, err := json.Marshal(s.appSettings)
+	if err != nil {
+		return fmt.Errorf("marshal app settings: %w", err)
+	}
+	if err := upsertSetting(tx, "app", string(appJSON)); err != nil {
+		return err
+	}
+	smtpJSON, err := json.Marshal(s.smtp)
+	if err != nil {
+		return fmt.Errorf("marshal smtp settings: %w", err)
+	}
+	if err := upsertSetting(tx, "smtp", string(smtpJSON)); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -410,20 +479,6 @@ func (s *Store) FindMonitorByToken(token string) (models.Monitor, bool) {
 	return models.Monitor{}, false
 }
 
-// SetTunnelSelection sets the active tunnel and its display name.
-func (s *Store) SetTunnelSelection(id, name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	previous := s.config
-	s.config.TunnelID = id
-	s.config.TunnelName = name
-	if err := s.saveLocked(); err != nil {
-		s.config = previous
-		return err
-	}
-	return nil
-}
-
 // SetZoneSelection sets the active zone used by Telegram DNS commands.
 func (s *Store) SetZoneSelection(id, name string) error {
 	s.mu.Lock()
@@ -482,76 +537,6 @@ func (s *Store) SetCNAMEPresets(items []models.CNAMEPreset) error {
 		return err
 	}
 	return nil
-}
-
-// GetAdminCredentials returns admin username and password hash
-func (s *Store) GetAdminCredentials() (string, string) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.config.AdminUsername, s.config.AdminPasswordHash
-}
-
-// SetAdminCredentials sets admin username and password hash.
-func (s *Store) SetAdminCredentials(username, passwordHash string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	previous := s.config
-	s.config.AdminUsername = username
-	s.config.AdminPasswordHash = passwordHash
-	if err := s.saveLocked(); err != nil {
-		s.config = previous
-		return err
-	}
-	return nil
-}
-
-// SetAdminPasswordHash changes the password without overwriting a concurrent username update.
-func (s *Store) SetAdminPasswordHash(passwordHash string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	previous := s.config.AdminPasswordHash
-	s.config.AdminPasswordHash = passwordHash
-	if err := s.saveLocked(); err != nil {
-		s.config.AdminPasswordHash = previous
-		return err
-	}
-	return nil
-}
-
-// SetAdminUsername changes only the administrator username. It intentionally
-// leaves the current password hash untouched, including a migrated Argon2id hash.
-func (s *Store) SetAdminUsername(username string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	previous := s.config
-	s.config.AdminUsername = username
-	if err := s.saveLocked(); err != nil {
-		s.config = previous
-		return err
-	}
-	return nil
-}
-
-// ValidatePassword checks a plaintext password against the stored hash. Successful
-// validation of a legacy SHA-256 digest upgrades the stored hash to Argon2id.
-func (s *Store) ValidatePassword(password, encodedHash string) bool {
-	valid, legacy := verifyPassword(password, encodedHash)
-	if !valid || !legacy {
-		return valid
-	}
-
-	// Do not overwrite a password that changed between credential lookup and validation.
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if subtle.ConstantTimeCompare([]byte(s.config.AdminPasswordHash), []byte(encodedHash)) == 1 {
-		previous := s.config.AdminPasswordHash
-		s.config.AdminPasswordHash = HashPassword(password)
-		if err := s.saveLocked(); err != nil {
-			s.config.AdminPasswordHash = previous
-			log.Printf("save migrated administrator password hash: %v", err)
-		}
-	}
-	return true
 }
 
 // HashPassword returns an Argon2id PHC string for a password.
@@ -617,131 +602,6 @@ func hashPassword(password string) string {
 	return HashPassword(password)
 }
 
-// GetTOTPState returns the persisted TOTP state without exposing recovery hashes.
-func (s *Store) GetTOTPState() (enabled bool, encryptedSecret string, lastStep int64, recoveryCount int) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.config.TOTPEnabled, s.config.TOTPSecretEncrypted,
-		s.config.TOTPLastAcceptedStep, len(s.config.TOTPRecoveryCodeHashes)
-}
-
-// EnableTOTP atomically persists a confirmed TOTP setup. The accepted setup
-// step is recorded so the confirmation code cannot be replayed.
-func (s *Store) EnableTOTP(encryptedSecret string, recoveryHashes []string, acceptedStep int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.config.TOTPEnabled {
-		return ErrTOTPAlreadyEnabled
-	}
-
-	previous := s.config
-	s.config.TOTPEnabled = true
-	s.config.TOTPSecretEncrypted = encryptedSecret
-	s.config.TOTPRecoveryCodeHashes = append([]string(nil), recoveryHashes...)
-	s.config.TOTPLastAcceptedStep = acceptedStep
-	if err := s.saveLocked(); err != nil {
-		s.config = previous
-		return err
-	}
-	return nil
-}
-
-// AdvanceTOTPStep records a newer accepted TOTP step and rejects replayed or
-// older codes.
-func (s *Store) AdvanceTOTPStep(step int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.config.TOTPEnabled {
-		return ErrTOTPDisabled
-	}
-	if step <= s.config.TOTPLastAcceptedStep {
-		return ErrTOTPReplay
-	}
-
-	previous := s.config.TOTPLastAcceptedStep
-	s.config.TOTPLastAcceptedStep = step
-	if err := s.saveLocked(); err != nil {
-		s.config.TOTPLastAcceptedStep = previous
-		return err
-	}
-	return nil
-}
-
-// ConsumeRecoveryCode removes one matching candidate hash. Comparison is
-// constant-time and the candidate must already be hashed by the handler.
-func (s *Store) ConsumeRecoveryCode(candidateHash string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.config.TOTPEnabled {
-		return ErrTOTPDisabled
-	}
-
-	match := -1
-	for i, storedHash := range s.config.TOTPRecoveryCodeHashes {
-		if subtle.ConstantTimeCompare([]byte(storedHash), []byte(candidateHash)) == 1 {
-			match = i
-		}
-	}
-	if match < 0 {
-		return ErrRecoveryCodeNotFound
-	}
-
-	previous := s.config.TOTPRecoveryCodeHashes
-	remaining := make([]string, 0, len(previous)-1)
-	remaining = append(remaining, previous[:match]...)
-	remaining = append(remaining, previous[match+1:]...)
-	s.config.TOTPRecoveryCodeHashes = remaining
-	if err := s.saveLocked(); err != nil {
-		s.config.TOTPRecoveryCodeHashes = previous
-		return err
-	}
-	return nil
-}
-
-// DisableTOTPWithStep disables TOTP when presented with a newer valid step.
-func (s *Store) DisableTOTPWithStep(step int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.config.TOTPEnabled {
-		return ErrTOTPDisabled
-	}
-	if step <= s.config.TOTPLastAcceptedStep {
-		return ErrTOTPReplay
-	}
-	return s.disableTOTPLocked()
-}
-
-// DisableTOTPWithRecovery disables TOTP using one stored recovery hash.
-func (s *Store) DisableTOTPWithRecovery(candidateHash string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.config.TOTPEnabled {
-		return ErrTOTPDisabled
-	}
-
-	matched := 0
-	for _, storedHash := range s.config.TOTPRecoveryCodeHashes {
-		matched |= subtle.ConstantTimeCompare([]byte(storedHash), []byte(candidateHash))
-	}
-	if matched != 1 {
-		return ErrRecoveryCodeNotFound
-	}
-	return s.disableTOTPLocked()
-}
-
-func (s *Store) disableTOTPLocked() error {
-	previous := s.config
-	s.config.TOTPEnabled = false
-	s.config.TOTPSecretEncrypted = ""
-	s.config.TOTPRecoveryCodeHashes = nil
-	s.config.TOTPLastAcceptedStep = 0
-	if err := s.saveLocked(); err != nil {
-		s.config = previous
-		return err
-	}
-	return nil
-}
-
 // SetCloudflareOAuth stores encrypted OAuth credentials and their expiry.
 func (s *Store) SetCloudflareOAuth(accessToken, refreshToken string, expiresAt time.Time, scope string) error {
 	s.mu.Lock()
@@ -770,6 +630,7 @@ func (s *Store) SetCloudflareAccount(id, name string) error {
 	if s.config.CFAccountID != id {
 		s.config.TunnelID = ""
 		s.config.TunnelName = ""
+		s.clearAllTunnelSelectionsLocked()
 	}
 	s.config.CFAccountID = id
 	s.config.CFAccountName = name
@@ -778,6 +639,17 @@ func (s *Store) SetCloudflareAccount(id, name string) error {
 		return err
 	}
 	return nil
+}
+
+// clearAllTunnelSelectionsLocked drops every user's tunnel selection; the
+// caller holds s.mu and saves afterwards.
+func (s *Store) clearAllTunnelSelectionsLocked() {
+	for uid := range s.prefs {
+		prefs := s.prefs[uid]
+		prefs.TunnelID = ""
+		prefs.TunnelName = ""
+		s.prefs[uid] = prefs
+	}
 }
 
 // ClearCloudflareOAuth removes OAuth credentials and the OAuth account selection.
@@ -793,6 +665,7 @@ func (s *Store) ClearCloudflareOAuth() error {
 	s.config.CFAccountName = ""
 	s.config.TunnelID = ""
 	s.config.TunnelName = ""
+	s.clearAllTunnelSelectionsLocked()
 	if err := s.saveLocked(); err != nil {
 		s.config = previous
 		return err

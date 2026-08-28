@@ -583,7 +583,7 @@ func (b *TelegramBot) handleSelectTunnel(chatID int64, arg string) {
 		b.sendMessage(cfg, chatID, "❌ "+err.Error())
 		return
 	}
-	if err := b.store.SetTunnelSelection(t.ID, t.Name); err != nil {
+	if err := b.store.SetUserTunnelSelection(b.store.AdminUserID(), t.ID, t.Name); err != nil {
 		cfg := b.store.GetConfig()
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 保存隧道选择失败: %s", err.Error()))
 		return

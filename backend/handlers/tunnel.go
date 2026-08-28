@@ -77,10 +77,8 @@ func (h *TunnelHandler) DeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.store.GetConfig().TunnelID == tunnelID {
-		if err := h.store.SetTunnelSelection("", ""); err != nil {
-			log.Printf("clear deleted tunnel selection: %v", err)
-		}
+	if err := h.store.ClearTunnelSelectionIfUsed(tunnelID); err != nil {
+		log.Printf("clear deleted tunnel selection: %v", err)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "tunnel deleted"})
 }
