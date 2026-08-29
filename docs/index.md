@@ -34,7 +34,7 @@ features:
     link: /guide/monitors-status
     linkText: 配置监控
   - title: 公开状态页
-    details: 免登录分享检测结果，系统令牌或自定义短路径任一有效；标题、公告、品牌图标与主题均可自定义。
+    details: 免登录分享检测结果，支持短路径、自定义域名、直连 Tunnel 与优选 CNAME；自定义域名仅开放对应状态页。
     link: /guide/monitors-status
     linkText: 发布状态页
   - title: 安全与远程管理

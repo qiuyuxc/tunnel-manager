@@ -620,18 +620,58 @@ func configsEqual(left, right models.Config) bool {
 	return string(leftJSON) == string(rightJSON)
 }
 
+func TestUserWebhookSettingsPersistAcrossRestart(t *testing.T) {
+	s := newTestStore(t, HashPassword("password"))
+	adminID := s.AdminUserID()
+
+	if err := s.SetUserRemoteSettings(adminID, true, "7330290970", "enc-remote", "webhook", "https://panel.example.com/", "secret-abc"); err != nil {
+		t.Fatalf("SetUserRemoteSettings: %v", err)
+	}
+	if err := s.SetUserWebhookSecret(adminID, "regenerated-secret"); err != nil {
+		t.Fatalf("SetUserWebhookSecret: %v", err)
+	}
+
+	reloaded := NewStore(s.filePath)
+	prefs := reloaded.GetUserPrefs(adminID)
+	if !prefs.TGRemoteEnabled {
+		t.Fatal("remote enabled flag lost after restart")
+	}
+	if prefs.TGRemoteMode != "webhook" {
+		t.Fatalf("mode = %q, want webhook", prefs.TGRemoteMode)
+	}
+	if prefs.TGRemoteWebhookURL != "https://panel.example.com/" {
+		t.Fatalf("webhook url = %q", prefs.TGRemoteWebhookURL)
+	}
+	if prefs.TGRemoteWebhookSecret != "regenerated-secret" {
+		t.Fatalf("webhook secret = %q", prefs.TGRemoteWebhookSecret)
+	}
+
+	// Polling is the default when no mode was ever stored.
+	if err := s.SetUserRemoteSettings(adminID, false, "7330290970", "", "", "", ""); err != nil {
+		t.Fatalf("SetUserRemoteSettings polling: %v", err)
+	}
+	reloaded = NewStore(s.filePath)
+	if got := reloaded.GetUserPrefs(adminID).TGRemoteMode; got != "polling" {
+		t.Fatalf("default mode = %q, want polling", got)
+	}
+}
+
 func TestReuseTelegramTokens(t *testing.T) {
 	s := newTestStore(t, HashPassword("password"))
 	adminID := s.AdminUserID()
 
 	// Remote -> notify reuse: remote token set, notify empty.
-	if err := s.SetUserRemoteSettings(adminID, true, "7330290970", "enc-remote"); err != nil {
+	if err := s.SetUserRemoteSettings(adminID, true, "7330290970", "enc-remote", "webhook", "https://panel.example.com", "secret-abc"); err != nil {
 		t.Fatalf("SetUserRemoteSettings: %v", err)
+	}
+	prefs := s.GetUserPrefs(adminID)
+	if prefs.TGRemoteMode != "webhook" || prefs.TGRemoteWebhookURL != "https://panel.example.com" || prefs.TGRemoteWebhookSecret != "secret-abc" {
+		t.Fatalf("webhook prefs = %+v", prefs)
 	}
 	if err := s.ReuseTokenForNotify(adminID); err != nil {
 		t.Fatalf("ReuseTokenForNotify: %v", err)
 	}
-	prefs := s.GetUserPrefs(adminID)
+	prefs = s.GetUserPrefs(adminID)
 	if prefs.TGBotTokenEncrypted != "enc-remote" {
 		t.Fatalf("notify token = %q, want %q", prefs.TGBotTokenEncrypted, "enc-remote")
 	}

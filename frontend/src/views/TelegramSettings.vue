@@ -44,6 +44,34 @@
           <span class="toggle-label">{{ settings.enabled ? '已启用' : '已禁用' }}</span>
         </div>
       </div>
+      <!-- Mode: polling / webhook -->
+      <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.20s' }">
+        <div class="settings-card-header">
+          <div class="settings-card-title">运行模式</div>
+          <div class="settings-card-desc">长轮询无需公网入口；Webhook 需要面板有可公网访问的 HTTPS 地址，消息推送更及时。</div>
+        </div>
+        <div class="radio-group">
+          <label class="radio-option" :class="{ active: settings.mode === 'polling' }">
+            <input type="radio" value="polling" v-model="settings.mode" />
+            <span>长轮询（Polling）</span>
+          </label>
+          <label class="radio-option" :class="{ active: settings.mode === 'webhook' }">
+            <input type="radio" value="webhook" v-model="settings.mode" />
+            <span>Webhook</span>
+          </label>
+        </div>
+        <div v-if="settings.mode === 'webhook'" class="settings-input-row" style="margin-top: 12px">
+          <div class="input-wrapper">
+            <input
+              v-model="settings.webhook_url"
+              type="url"
+              placeholder="https://panel.example.com"
+              class="vercel-input"
+            />
+          </div>
+          <p class="webhook-note">系统会自动追加 <code>/api/telegram/webhook/{userID}</code>，这里只需填写面板公网 HTTPS 基础地址。</p>
+        </div>
+      </div>
       <!-- Bot Token -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.24s' }">
         <div class="settings-card-header">
@@ -172,6 +200,8 @@ const settings = ref({
   bot_token: '',
   admin_tg_ids: '',
   api_endpoint: '',
+  mode: 'polling',
+  webhook_url: '',
   bot_token_set: false,
   bot_token_hint: '',
 })
@@ -206,6 +236,8 @@ async function fetchSettings() {
     settings.value.enabled = data.enabled
     settings.value.admin_tg_ids = data.admin_tg_ids
     settings.value.api_endpoint = data.api_endpoint || ''
+    settings.value.mode = data.mode || 'polling'
+    settings.value.webhook_url = data.webhook_url || ''
     settings.value.bot_token_set = data.bot_token_set
     settings.value.bot_token_hint = data.bot_token_hint
     settings.value.bot_token = '' // never prefill the token
@@ -261,6 +293,8 @@ async function handleSave() {
       enabled: settings.value.enabled,
       bot_token: settings.value.bot_token,
       admin_tg_ids: settings.value.admin_tg_ids,
+      mode: settings.value.mode,
+      webhook_url: settings.value.webhook_url,
     })
     settings.value.bot_token = '' // clear after save
     await fetchSettings()
@@ -418,6 +452,16 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--color-mute);
   margin-top: 4px;
+  word-break: break-all;
+}
+
+.webhook-note code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--color-canvas-soft-2);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-hairline);
 }
 
 .actions-row {

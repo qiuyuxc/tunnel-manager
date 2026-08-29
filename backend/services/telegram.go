@@ -92,9 +92,11 @@ type TelegramBot struct {
 	confirmations map[string]dnsDeleteConfirmation
 
 	// Per-user instance state (empty userID means legacy global admin bot).
-	userID      string
-	token       string
-	operatorIDs string
+	userID        string
+	token         string
+	operatorIDs   string
+	webhookURL    string // public HTTPS base URL, per-user
+	webhookSecret string // generated verification secret, backend only
 }
 
 // NewTelegramBot creates the legacy administrator bot operating on the
@@ -114,7 +116,12 @@ func NewTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService) *T
 // NewUserTelegramBot creates a per-user Telegram bot. Each account owns its
 // bot token and operator IDs; commands run against that account's own
 // Cloudflare connection and selections, isolated from every other user.
-func NewUserTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService, userID, token, operatorIDs string) *TelegramBot {
+// mode is "polling" (default) or "webhook"; webhookURL is the account's
+// public HTTPS base address and webhookSecret the generated secret.
+func NewUserTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService, userID, token, operatorIDs, mode, webhookURL, webhookSecret string) *TelegramBot {
+	if mode == "" {
+		mode = "polling"
+	}
 	return &TelegramBot{
 		store:         st,
 		cf:            cf.ForUser(userID),
@@ -122,6 +129,9 @@ func NewUserTelegramBot(st *store.Store, cf *CloudflareClient, ds *DomainService
 		userID:        userID,
 		token:         token,
 		operatorIDs:   operatorIDs,
+		mode:          mode,
+		webhookURL:    webhookURL,
+		webhookSecret: webhookSecret,
 		httpClient:    &http.Client{Timeout: 40 * time.Second},
 		confirmations: make(map[string]dnsDeleteConfirmation),
 	}
@@ -151,9 +161,12 @@ func (b *TelegramBot) settings() models.Config {
 	prefs := b.store.GetUserPrefs(b.userID)
 	cfg.TGBotToken = b.token
 	cfg.TGAdminIDs = b.operatorIDs
-	cfg.TGMode = "polling"
-	cfg.TGWebhookURL = ""
-	cfg.TGWebhookSecret = ""
+	cfg.TGMode = b.mode
+	if cfg.TGMode == "" {
+		cfg.TGMode = "polling"
+	}
+	cfg.TGWebhookURL = b.webhookURL
+	cfg.TGWebhookSecret = b.webhookSecret
 	cfg.SelectedZoneID = prefs.SelectedZoneID
 	cfg.SelectedZoneName = prefs.SelectedZoneName
 	cfg.TunnelID = prefs.TunnelID
@@ -198,10 +211,19 @@ func (b *TelegramBot) Start() error {
 		log.Printf("[telegram] set commands failed: %v", err)
 	}
 
-	if b.mode == "webhook" && !b.isPerUser() {
+	if b.mode == "webhook" {
+		if cfg.TGWebhookURL == "" {
+			b.running = false
+			cancel()
+			return fmt.Errorf("Webhook 模式需要填写公网 HTTPS 基础地址")
+		}
 		if cfg.TGWebhookSecret == "" {
 			secret := generateRandomHex(32)
-			b.store.SetTelegramWebhookSecret(secret)
+			if b.isPerUser() {
+				b.store.SetUserWebhookSecret(b.userID, secret)
+			} else {
+				b.store.SetTelegramWebhookSecret(secret)
+			}
 			cfg.TGWebhookSecret = secret
 		}
 		if err := b.setWebhook(cfg); err != nil {
@@ -745,6 +767,9 @@ func (b *TelegramBot) HandleWebhookUpdate(raw []byte) {
 		log.Printf("[telegram] webhook parse error: %v", err)
 		return
 	}
+	b.mu.Lock()
+	b.lastUpdateAt = time.Now()
+	b.mu.Unlock()
 	go b.handleUpdate(u)
 }
 
@@ -852,6 +877,9 @@ func (b *TelegramBot) setCommands(cfg models.Config) error {
 
 func (b *TelegramBot) setWebhook(cfg models.Config) error {
 	webhookURL := strings.TrimRight(cfg.TGWebhookURL, "/") + "/api/telegram/webhook"
+	if b.isPerUser() {
+		webhookURL += "/" + b.userID
+	}
 	url := fmt.Sprintf("%s/bot%s/setWebhook", b.apiBase(cfg), cfg.TGBotToken)
 	payload := map[string]interface{}{
 		"url":             webhookURL,

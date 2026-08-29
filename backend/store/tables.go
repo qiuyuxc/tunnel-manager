@@ -52,12 +52,14 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 		p := prefs[u.ID]
 		if _, err := tx.Exec(`INSERT INTO user_prefs(user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name,
 			notify_channels, notify_events, notify_emails, tg_bot_token_encrypted, tg_notify_chat_id,
-			tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted)
-			VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted,
+			tg_remote_mode, tg_webhook_url, tg_webhook_secret)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			u.ID, p.TunnelID, p.TunnelName, p.ServiceURL, p.SelectedZoneID, p.SelectedZoneName,
 			jsonMarshalPrefs(p.NotifyChannels), jsonMarshalPrefs(p.NotifyEvents), p.NotifyEmails,
 			p.TGBotTokenEncrypted, p.TGNotifyChatID,
-			boolInt(p.TGRemoteEnabled), p.TGOperatorIDs, p.PreferredCNAME, p.TGRemoteTokenEncrypted); err != nil {
+			boolInt(p.TGRemoteEnabled), p.TGOperatorIDs, p.PreferredCNAME, p.TGRemoteTokenEncrypted,
+			p.TGRemoteMode, p.TGRemoteWebhookURL, p.TGRemoteWebhookSecret); err != nil {
 			return fmt.Errorf("save prefs %s: %w", u.ID, err)
 		}
 	}
@@ -97,7 +99,8 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 	prefs := map[string]models.UserPrefs{}
 	prefRows, err := handle.Query(`SELECT user_id, tunnel_id, tunnel_name, service_url, selected_zone_id, selected_zone_name,
 		notify_channels, notify_events, notify_emails, tg_bot_token_encrypted, tg_notify_chat_id,
-		tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted FROM user_prefs`)
+		tg_remote_enabled, tg_operator_ids, preferred_cname, tg_remote_token_encrypted,
+		tg_remote_mode, tg_webhook_url, tg_webhook_secret FROM user_prefs`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load user prefs: %w", err)
 	}
@@ -109,7 +112,8 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 		var remoteEnabled int
 		if err := prefRows.Scan(&userID, &p.TunnelID, &p.TunnelName, &p.ServiceURL, &p.SelectedZoneID, &p.SelectedZoneName,
 			&channelsJSON, &eventsJSON, &p.NotifyEmails, &p.TGBotTokenEncrypted, &p.TGNotifyChatID,
-			&remoteEnabled, &p.TGOperatorIDs, &p.PreferredCNAME, &p.TGRemoteTokenEncrypted); err != nil {
+			&remoteEnabled, &p.TGOperatorIDs, &p.PreferredCNAME, &p.TGRemoteTokenEncrypted,
+			&p.TGRemoteMode, &p.TGRemoteWebhookURL, &p.TGRemoteWebhookSecret); err != nil {
 			return nil, nil, fmt.Errorf("scan user prefs: %w", err)
 		}
 		if channelsJSON != "" {
@@ -119,6 +123,9 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 			_ = json.Unmarshal([]byte(eventsJSON), &p.NotifyEvents)
 		}
 		p.TGRemoteEnabled = remoteEnabled != 0
+		if p.TGRemoteMode == "" {
+			p.TGRemoteMode = "polling"
+		}
 		prefs[userID] = p
 	}
 	return users, prefs, prefRows.Err()

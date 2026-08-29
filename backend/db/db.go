@@ -210,6 +210,13 @@ const schemaV10 = `ALTER TABLE monitors ADD COLUMN public_domain_mode TEXT NOT N
 const schemaV11 = `ALTER TABLE monitors ADD COLUMN public_aux_domain TEXT NOT NULL DEFAULT '';
 ALTER TABLE monitors ADD COLUMN public_preferred_cname TEXT NOT NULL DEFAULT '';`
 
+// schemaV12 adds per-user Telegram remote-control mode and webhook settings:
+// polling (default) or webhook, plus the public HTTPS base URL and the
+// generated verification secret. The secret never leaves the backend.
+const schemaV12 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_mode TEXT NOT NULL DEFAULT 'polling';
+ALTER TABLE user_prefs ADD COLUMN tg_webhook_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE user_prefs ADD COLUMN tg_webhook_secret TEXT NOT NULL DEFAULT '';`
+
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
@@ -222,6 +229,7 @@ var migrations = []migration{
 	{version: 9, stmts: schemaV9},
 	{version: 10, stmts: schemaV10},
 	{version: 11, stmts: schemaV11},
+	{version: 12, stmts: schemaV12},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

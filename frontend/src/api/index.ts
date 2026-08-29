@@ -86,6 +86,7 @@ export interface SiteSettings {
   name: string
   description: string
   icon: string
+  panel_host?: string
   landing_enabled: boolean
 }
 
@@ -415,6 +416,8 @@ export interface TelegramSettingsRequest {
   enabled: boolean
   bot_token: string
   admin_tg_ids: string
+  mode: string
+  webhook_url: string
 }
 
 export function getTelegramSettings() {

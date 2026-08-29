@@ -1327,8 +1327,10 @@ func (s *Store) SetUserNotifySettings(userID string, channels []string, events m
 
 // SetUserRemoteSettings stores one account's Telegram remote-control bot
 // preferences. tgBotTokenEncrypted must already be encrypted by the caller;
-// pass the previously stored value to keep an existing token unchanged.
-func (s *Store) SetUserRemoteSettings(userID string, enabled bool, operatorIDs, tgBotTokenEncrypted string) error {
+// pass the previously stored value to keep an existing token unchanged. mode
+// is "polling" (default) or "webhook"; webhookURL is the panel's public HTTPS
+// base address and webhookSecret the generated verification secret.
+func (s *Store) SetUserRemoteSettings(userID string, enabled bool, operatorIDs, tgBotTokenEncrypted, mode, webhookURL, webhookSecret string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.findUserLocked(userID) == nil {
@@ -1341,6 +1343,32 @@ func (s *Store) SetUserRemoteSettings(userID string, enabled bool, operatorIDs, 
 	if tgBotTokenEncrypted != "" {
 		prefs.TGRemoteTokenEncrypted = tgBotTokenEncrypted
 	}
+	prefs.TGRemoteMode = mode
+	if prefs.TGRemoteMode == "" {
+		prefs.TGRemoteMode = "polling"
+	}
+	prefs.TGRemoteWebhookURL = webhookURL
+	prefs.TGRemoteWebhookSecret = webhookSecret
+	s.prefs[userID] = prefs
+	if err := s.saveLocked(); err != nil {
+		s.prefs[userID] = previous
+		return err
+	}
+	return nil
+}
+
+// SetUserWebhookSecret persists a generated webhook verification secret for
+// one account without touching the rest of its Telegram settings. The secret
+// stays in the backend only and is never exposed through the API.
+func (s *Store) SetUserWebhookSecret(userID, secret string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.findUserLocked(userID) == nil {
+		return ErrUserNotFound
+	}
+	prefs := s.prefs[userID]
+	previous := prefs
+	prefs.TGRemoteWebhookSecret = secret
 	s.prefs[userID] = prefs
 	if err := s.saveLocked(); err != nil {
 		s.prefs[userID] = previous

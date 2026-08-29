@@ -2,19 +2,14 @@
 
 整理自仓库发布提交，更早的版本细节见 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)。
 
-## v2.2.0-test.2
+## v2.2.0
 
-- 状态页优选模式复用面板现有优选绑定流程，区分访问域名与辅助回源域名
+- 状态页支持绑定独立自定义域名，并按请求 Host 跳转到对应公开页面（状态页 Host 隔离）
+- 状态页直连 / 优选双接入：优选模式区分访问域名与辅助回源域名，Custom Hostname 的 Custom Origin 改为辅助回源域名，并同步配置双域名 ingress
+- 保存自定义域名时自动创建 Cloudflare 橙云 CNAME，并复制面板隧道 ingress 的服务与源站参数；自动配置失败时保留状态页设置并返回警告，界面继续提供手动 DNS 与 ingress 指引
 - 支持为每个监控选择或手填优选 CNAME，留空时使用全局默认值
-- Custom Hostname 的 Custom Origin 改为辅助回源域名，并同步配置双域名 ingress
-
-## v2.2.0-test.1
-
-- 状态页支持绑定自定义域名，并按请求 Host 跳转到对应公开页面
-- 保存自定义域名时自动创建 Cloudflare 橙云 CNAME，并复制面板隧道 ingress 的服务与源站参数
-- 自动配置失败时保留状态页设置并返回警告，界面继续提供手动 DNS 与 ingress 指引
 - 修复监控项目所有者未持久化导致的跨用户访问问题，并回填历史空归属项目
-- 测试版本，用于云端环境验收自定义域名完整链路
+- 恢复每用户 Telegram 长轮询 / Webhook 双模式：Webhook 密钥自动生成且仅存后端，每用户独立路由验签与账户隔离
 
 ## v2.1.0
 

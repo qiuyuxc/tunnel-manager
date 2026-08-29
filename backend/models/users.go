@@ -150,20 +150,25 @@ type UserPrefs struct {
 
 	// Per-user notification preferences. Channels and events are persisted
 	// as JSON in the user_prefs table.
-	NotifyChannels      []string        `json:"notify_channels,omitempty"`
-	NotifyEvents        map[string]bool `json:"notify_events,omitempty"`
-	NotifyEmails        string          `json:"notify_emails,omitempty"`
-	TGBotTokenEncrypted      string          `json:"tg_bot_token_encrypted,omitempty"`
-	TGNotifyChatID           string          `json:"tg_notify_chat_id,omitempty"`
-	TGRemoteTokenEncrypted   string          `json:"tg_remote_token_encrypted,omitempty"`
+	NotifyChannels         []string        `json:"notify_channels,omitempty"`
+	NotifyEvents           map[string]bool `json:"notify_events,omitempty"`
+	NotifyEmails           string          `json:"notify_emails,omitempty"`
+	TGBotTokenEncrypted    string          `json:"tg_bot_token_encrypted,omitempty"`
+	TGNotifyChatID         string          `json:"tg_notify_chat_id,omitempty"`
+	TGRemoteTokenEncrypted string          `json:"tg_remote_token_encrypted,omitempty"`
 
 	// Per-user Telegram remote-control bot. Notification and remote control
 	// keep separate tokens: each may be configured independently, and either
 	// side can be one-click reused from the other. TGOperatorIDs lists the
-	// Telegram user IDs allowed to send commands.
-	TGRemoteEnabled bool   `json:"tg_remote_enabled,omitempty"`
-	TGOperatorIDs   string `json:"tg_operator_ids,omitempty"`
-	PreferredCNAME  string `json:"preferred_cname,omitempty"`
+	// Telegram user IDs allowed to send commands. TGRemoteMode is "polling"
+	// (default) or "webhook"; the webhook URL is the panel's public HTTPS
+	// base address and the generated secret never leaves the backend.
+	TGRemoteEnabled       bool   `json:"tg_remote_enabled,omitempty"`
+	TGOperatorIDs         string `json:"tg_operator_ids,omitempty"`
+	TGRemoteMode          string `json:"tg_remote_mode,omitempty"`
+	TGRemoteWebhookURL    string `json:"tg_webhook_url,omitempty"`
+	TGRemoteWebhookSecret string `json:"tg_webhook_secret,omitempty"`
+	PreferredCNAME        string `json:"preferred_cname,omitempty"`
 }
 
 // Per-user notification channels and events.
@@ -179,12 +184,12 @@ var AllNotifyEvents = []string{NotifyEventLogin}
 // NotifySettingsView is the API projection of one account's notification
 // preferences; it never exposes the stored (encrypted) Telegram token.
 type NotifySettingsView struct {
-	Channels       []string       `json:"channels"`
+	Channels       []string        `json:"channels"`
 	Events         map[string]bool `json:"events"`
-	Emails         string         `json:"emails"`
-	TGBotTokenSet  bool           `json:"tg_bot_token_set"`
-	TGNotifyChatID string         `json:"tg_notify_chat_id"`
-	TGRemoteBotSet bool           `json:"tg_remote_bot_set"`
+	Emails         string          `json:"emails"`
+	TGBotTokenSet  bool            `json:"tg_bot_token_set"`
+	TGNotifyChatID string          `json:"tg_notify_chat_id"`
+	TGRemoteBotSet bool            `json:"tg_remote_bot_set"`
 }
 
 // SaveNotifySettingsRequest is the body of PUT /api/notify/settings.

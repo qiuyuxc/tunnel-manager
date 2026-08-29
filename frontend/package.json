@@ -1,7 +1,7 @@
 {
   "name": "tunnel-manager",
   "private": true,
-  "version": "2.2.0-test.2",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

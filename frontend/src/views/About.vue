@@ -66,12 +66,12 @@
           </div>
         </div>
         <ul class="changelog-list">
-          <li>用户主页：自定义展示名称与头像（支持上传），账户邮箱可直接绑定或修改</li>
-          <li>可选人机验证：Cloudflare Turnstile，覆盖登录、注册与找回密码</li>
-          <li>用户通知中心：独立配置邮箱 / Telegram 通知渠道与登录通知，支持多收件人</li>
-          <li>Telegram 远程控制开放给所有用户：每人独立 Bot，操作各自资源互不干扰</li>
-          <li>通知与远程控制 Bot Token 独立存储，支持一键复用</li>
-          <li>Telegram API 端点面板级可配置（自定义反代），解决国内无法直连官方 API 的问题</li>
+          <li>状态页支持绑定独立自定义域名，直连 / 优选双接入</li>
+          <li>优选模式区分访问域名与辅助回源域名，并同步配置双域名 ingress</li>
+          <li>每个监控可单独选择或手填优选 CNAME，留空时使用全局默认值</li>
+          <li>状态页按请求 Host 隔离跳转到对应公开页面</li>
+          <li>修复监控项目所有者未持久化导致的跨用户访问问题</li>
+          <li>恢复每用户 Telegram 长轮询 / Webhook 双模式，Webhook 独立路由验签、账户隔离</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

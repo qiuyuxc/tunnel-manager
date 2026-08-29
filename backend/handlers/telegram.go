@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"tunnel-manager/auth"
 	"tunnel-manager/models"
 	"tunnel-manager/services"
@@ -52,12 +54,17 @@ func (h *TelegramHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	mode := prefs.TGRemoteMode
+	if mode == "" {
+		mode = "polling"
+	}
 	resp := models.TelegramSettingsResponse{
 		Enabled:      prefs.TGRemoteEnabled,
 		BotTokenSet:  prefs.TGRemoteTokenEncrypted != "",
 		BotTokenHint: hint,
 		AdminTGIDs:   prefs.TGOperatorIDs,
-		Mode:         "polling",
+		Mode:         mode,
+		WebhookURL:   prefs.TGRemoteWebhookURL,
 		ApiEndpoint:  cfg.TGApiEndpoint,
 		NotifyBotSet: prefs.TGBotTokenEncrypted != "",
 	}
@@ -103,6 +110,20 @@ func (h *TelegramHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mode := strings.TrimSpace(req.Mode)
+	if mode == "" {
+		mode = "polling"
+	}
+	if mode != "polling" && mode != "webhook" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "mode 只允许 polling 或 webhook"})
+		return
+	}
+	webhookURL := strings.TrimRight(strings.TrimSpace(req.WebhookURL), "/")
+	if mode == "webhook" && (!strings.HasPrefix(webhookURL, "https://") || webhookURL == "https://") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Webhook 模式需要填写合法的公网 HTTPS 基础地址"})
+		return
+	}
+
 	encrypted := prefs.TGRemoteTokenEncrypted
 	if token != "" {
 		enc, err := auth.EncryptSecret(h.encryptionKey, notifyTGTokenPurpose, []byte(token))
@@ -113,7 +134,9 @@ func (h *TelegramHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 		encrypted = enc
 	}
 
-	if err := h.store.SetUserRemoteSettings(userID, req.Enabled, strings.TrimSpace(req.AdminTGIDs), encrypted); err != nil {
+	// The webhook secret stays in the backend only; keep the stored value
+	// unless the bot needs a freshly generated one.
+	if err := h.store.SetUserRemoteSettings(userID, req.Enabled, strings.TrimSpace(req.AdminTGIDs), encrypted, mode, webhookURL, prefs.TGRemoteWebhookSecret); err != nil {
 		if err == store.ErrUserNotFound {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
 			return
@@ -124,10 +147,14 @@ func (h *TelegramHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	h.manager.Reconcile()
 	status := h.manager.Status(userID)
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	resp := map[string]interface{}{
 		"status":  "ok",
 		"running": status.Running,
-	})
+	}
+	if !status.Running && status.LastError != "" {
+		resp["error"] = status.LastError
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // SaveAPIEndpoint updates the panel-wide Telegram Bot API endpoint used by
@@ -190,6 +217,40 @@ func (h *TelegramHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.bot.HandleWebhookUpdate(body)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// UserWebhook handles incoming Telegram webhook updates for one account's
+// isolated bot (no auth middleware; verified via secret token). It only
+// accepts enabled, running, webhook-mode bots belonging to the userID in the
+// URL; the update is dispatched exclusively to that account's bot.
+func (h *TelegramHandler) UserWebhook(w http.ResponseWriter, r *http.Request) {
+	userID := strings.TrimSpace(chi.URLParam(r, "userID"))
+	if userID == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	prefs := h.store.GetUserPrefs(userID)
+	if !prefs.TGRemoteEnabled || prefs.TGRemoteMode != "webhook" || prefs.TGRemoteTokenEncrypted == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "bot not in webhook mode"})
+		return
+	}
+	if !h.manager.Status(userID).Running {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "bot not running"})
+		return
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "read body failed"})
+		return
+	}
+
+	secret := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+	if err := h.manager.HandleWebhook(userID, secret, body); err != nil {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "invalid secret token"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

@@ -151,7 +151,7 @@
 
 ## 服务监控与状态页
 
-需要用户组权限 `monitors`。监控项目按创建者隔离：普通用户仅见自己的项目，管理员可见全部。创建 / 更新接口支持 `alert_enabled` 与 `alert_emails`（逗号分隔）字段。
+需要用户组权限 `monitors`。监控项目按创建者隔离：普通用户仅见自己的项目，管理员可见全部。创建 / 更新接口支持公开页、告警开关与收件邮箱配置。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -165,7 +165,21 @@
 | POST | `/api/monitors/{monitorID}/targets` | 添加探测目标 |
 | PUT | `/api/monitors/{monitorID}/targets/{targetID}` | 编辑探测目标 |
 | DELETE | `/api/monitors/{monitorID}/targets/{targetID}` | 删除探测目标 |
-| GET | `/api/public/status/{token}` | 公开状态数据；token 可为系统令牌或短路径 | 无 |
+| GET | `/api/public/status/{token}` | 公开状态数据，token 可为系统令牌或短路径 |
+
+`PUT /api/monitors/{monitorID}` 的自定义域名字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `public_domain` | 状态页访问域名，留空则只保留面板域名下的公开链接 |
+| `public_domain_mode` | `simple` 为直连，`preferred` 为优选 |
+| `public_aux_domain` | 优选模式必填，橙云回源到 Tunnel 的辅助域名 |
+| `public_preferred_cname` | 本监控使用的优选 CNAME，留空时读取全局默认值 |
+| `domain_warning` | 响应字段，表示设置已保存，但 Cloudflare 自动配置失败 |
+
+优选模式下，访问域名、辅助回源域名不能相同，优选 CNAME 也不能与访问域名相同。修改上述任一字段都会重新执行 Cloudflare 自动配置。自动配置失败返回 HTTP 200，并通过 `domain_warning` 说明原因。
+
+自定义域名只允许访问当前监控的公开页和相关静态资源。其他状态页、管理后台和受保护 API 会返回 404。
 
 ## 上传与 Telegram
 
@@ -179,5 +193,6 @@ Telegram 远程控制为每用户独立功能：每个账号配置自己的 Bot 
 | GET | `/api/telegram/status` | 获取当前用户的 Bot 状态 | 用户会话 |
 | POST | `/api/telegram/test` | 向当前用户的授权 TG ID 发送测试消息 | 用户会话 |
 | PUT | `/api/telegram/endpoint` | 设置面板级 Telegram API 端点（自定义反代），所有用户 Bot 生效 | 管理员 |
-| POST | `/api/telegram/webhook` | 旧全局 Bot 的 Webhook 入口（已停用） | Secret Token |
+| POST | `/api/telegram/webhook` | 旧全局 Bot 的 Webhook 入口（向后兼容） | Secret Token |
+| POST | `/api/telegram/webhook/{userID}` | 每用户 Bot 的 Webhook 入口，仅分发到 URL 中 userID 对应的 Bot | Secret Token |
 

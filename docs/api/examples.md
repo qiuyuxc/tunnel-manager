@@ -64,6 +64,22 @@ curl -H 'X-Auth-Token: <token>' \
   http://localhost:8080/api/monitors/<monitorID>/alerts
 ```
 
+## 配置状态页优选域名
+
+```bash
+curl -X PUT http://localhost:8080/api/monitors/<monitorID> \
+  -H 'X-Auth-Token: <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "public_domain": "status.example.com",
+    "public_domain_mode": "preferred",
+    "public_aux_domain": "status-origin.example.com",
+    "public_preferred_cname": "preferred.example.net"
+  }'
+```
+
+`public_preferred_cname` 留空时使用全局默认值。响应包含 `domain_warning` 时，表示字段已经保存，但 Cloudflare 自动配置没有完整执行。
+
 ## 获取公开状态页数据
 
 无需任何鉴权，token 可为系统令牌或自定义短路径：

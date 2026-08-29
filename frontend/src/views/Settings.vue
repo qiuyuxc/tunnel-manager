@@ -51,6 +51,11 @@
               <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">清除图标</button>
               <span>建议使用 1:1 图片，文件不超过 512 KB。</span>
             </div>
+            <label class="field">
+              <span class="field-label">面板域名</span>
+              <input v-model="site.panelHost" class="vercel-input" placeholder="panel.example.com" />
+              <span class="field-help">状态页自定义域名会复制该域名 ingress 的服务与源站参数。留空时自动使用管理员首次登录时的访问域名。</span>
+            </label>
             <div class="landing-toggle">
               <div class="landing-toggle-text">
                 <span class="field-label">启用首页（落地页）</span>
@@ -155,7 +160,7 @@ const store = useConfigStore()
 const config = store.config
 const visible = ref(false)
 const iconInput = ref<HTMLInputElement | null>(null)
-const site = reactive({ name: '', description: '', icon: '', landingEnabled: false })
+const site = reactive({ name: '', description: '', icon: '', panelHost: '', landingEnabled: false })
 const cnamePresets = ref<CNAMEPreset[]>([])
 const preferredCNAME = ref('')
 const fallbackDomain = ref('')
@@ -167,6 +172,7 @@ function syncFormFromConfig() {
   site.name = config.site_name
   site.description = config.site_description
   site.icon = config.site_icon
+  site.panelHost = config.panel_host || ''
   site.landingEnabled = store.landingEnabled
   preferredCNAME.value = config.preferred_cname
   cnamePresets.value = config.cname_presets.map((item) => ({ ...item }))
@@ -178,11 +184,12 @@ async function saveSite() {
   }
   savingSite.value = true
   try {
-    const payload = { name: site.name.trim(), description: site.description.trim(), icon: site.icon.trim(), landing_enabled: site.landingEnabled }
+    const payload = { name: site.name.trim(), description: site.description.trim(), icon: site.icon.trim(), panel_host: site.panelHost.trim(), landing_enabled: site.landingEnabled }
     const { data } = await setSiteSettings(payload)
     config.site_name = data.name
     config.site_description = data.description
     config.site_icon = data.icon
+    config.panel_host = site.panelHost.trim()
     store.landingEnabled = data.landing_enabled
     Object.assign(site, data)
     message.success('站点信息已更新')

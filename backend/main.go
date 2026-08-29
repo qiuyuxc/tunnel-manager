@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.2.0-test.2"
+const Version = "v2.2.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -289,7 +289,8 @@ func main() {
 		r.Post("/telegram/test", mw.Auth(telegramHandler.SendTest))
 		r.Post("/telegram/reuse", mw.Auth(telegramHandler.ReuseFromNotify))
 		r.Put("/telegram/endpoint", mw.Auth(mw.RequireAdmin(telegramHandler.SaveAPIEndpoint)))
-		r.Post("/telegram/webhook", telegramHandler.Webhook) // no auth: verified via secret token
+		r.Post("/telegram/webhook", telegramHandler.Webhook)              // legacy global bot: no auth, verified via secret token
+		r.Post("/telegram/webhook/{userID}", telegramHandler.UserWebhook) // per-user bot: no auth, verified via secret token
 
 		// Per-user notification preferences (any authenticated user)
 		r.Get("/notify/settings", mw.Auth(notifyHandler.GetSettings))

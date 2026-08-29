@@ -52,7 +52,7 @@ v2.0.0 起，Tunnel Manager 支持多用户注册与管理后台。所有数据�
 
 - 在 Telegram 与 @BotFather 创建自己的 Bot 并填写 Token，与 @userinfobot 对话获取自己的数字 TG ID
 - 「授权 TG ID」填入允许向该 Bot 发送指令的 TG 账号（可多个，逗号分隔）
-- 启用后 Bot 以长轮询运行，只能操作**该用户自己的账户资源**：隧道选择、转发地址、DNS 记录、域名绑定、Cloudflare 区域
+- 启用后 Bot 以长轮询或 Webhook 运行（见 [TG 机器人设置](/guide/telegram-bot#运行模式)），只能操作**该用户自己的账户资源**：隧道选择、转发地址、DNS 记录、域名绑定、Cloudflare 区域
 - 通知与远程控制可各用各的 Bot；某一侧未配置时，页面会出现「一键复用」按钮，可直接把另一侧已配置的 Bot Token 复制过来
 - **API 端点**：面板级配置（管理员在「TG 机器人」页设置），所有用户的 Bot 与通知都走该端点；国内网络建议配置自建反代，默认官方 `api.telegram.org` 国内无法直连
 - 指令与原来的管理员 Bot 一致（`/help` 查看），但作用域限定在本人账户
