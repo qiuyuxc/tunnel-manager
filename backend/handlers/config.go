@@ -42,6 +42,7 @@ func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		"site_name":        cfg.SiteName,
 		"site_description": cfg.SiteDescription,
 		"site_icon":        cfg.SiteIcon,
+		"panel_host":       cfg.PanelHost,
 		"landing_enabled":  cfg.LandingEnabled,
 	})
 }
@@ -93,6 +94,13 @@ func (h *ConfigHandler) SetSiteSettings(w http.ResponseWriter, r *http.Request) 
 	if err := h.store.SetSiteSettings(req.Name, req.Description, req.Icon, req.LandingEnabled); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save site settings"})
 		return
+	}
+	// Absent means "leave as seeded"; an empty string clears the guard.
+	if req.PanelHost != nil {
+		if err := h.store.SetPanelHost(hostWithoutPort(*req.PanelHost)); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save panel host"})
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, models.SiteSettings{Name: req.Name, Description: req.Description, Icon: req.Icon, LandingEnabled: req.LandingEnabled})
 }

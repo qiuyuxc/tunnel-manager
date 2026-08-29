@@ -515,6 +515,20 @@ func (s *Store) FindMonitorByToken(token string) (models.Monitor, bool) {
 	return models.Monitor{}, false
 }
 
+// FindMonitorByDomain locates a published monitor by its custom domain.
+func (s *Store) FindMonitorByDomain(host string) (models.Monitor, bool) {
+	if host == "" {
+		return models.Monitor{}, false
+	}
+	cfg := s.GetConfig()
+	for _, m := range cfg.Monitors {
+		if m.PublishEnabled && m.PublicDomain != "" && strings.EqualFold(m.PublicDomain, host) {
+			return m, true
+		}
+	}
+	return models.Monitor{}, false
+}
+
 // SetZoneSelection sets the active zone used by Telegram DNS commands.
 func (s *Store) SetZoneSelection(id, name string) error {
 	s.mu.Lock()
@@ -556,6 +570,23 @@ func (s *Store) SetSiteSettings(name, description, icon string, landingEnabled b
 	s.config.SiteDescription = description
 	s.config.SiteIcon = icon
 	s.config.LandingEnabled = landingEnabled
+	if err := s.saveLocked(); err != nil {
+		s.config = previous
+		return err
+	}
+	return nil
+}
+
+// SetPanelHost records the hostname the panel itself is served on. It is used
+// to reject status-page custom domains that would hijack the panel root.
+func (s *Store) SetPanelHost(host string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.config.PanelHost == host {
+		return nil
+	}
+	previous := s.config
+	s.config.PanelHost = host
 	if err := s.saveLocked(); err != nil {
 		s.config = previous
 		return err
@@ -786,7 +817,7 @@ func replaceCNAMEPresets(tx *sql.Tx, presets []models.CNAMEPreset) error {
 	return nil
 }
 
-const monitorColumns = `id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at, alert_enabled, alert_emails`
+const monitorColumns = `id, user_id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at, alert_enabled, alert_emails, public_domain`
 
 func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 	rows, err := handle.Query(`SELECT ` + monitorColumns + ` FROM monitors ORDER BY position`)
@@ -798,9 +829,9 @@ func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 	for rows.Next() {
 		var m models.Monitor
 		var publishEnabled, alertEnabled int
-		if err := rows.Scan(&m.ID, new(int), &m.Name, &m.IntervalSec, &publishEnabled,
+		if err := rows.Scan(&m.ID, &m.UserID, new(int), &m.Name, &m.IntervalSec, &publishEnabled,
 			&m.PublicToken, &m.PublicSlug, &m.PublicTitle, &m.PublicIcon, &m.PublicTheme,
-			&m.Announcement, &m.CreatedAt, &alertEnabled, &m.AlertEmails); err != nil {
+			&m.Announcement, &m.CreatedAt, &alertEnabled, &m.AlertEmails, &m.PublicDomain); err != nil {
 			return nil, fmt.Errorf("scan monitor: %w", err)
 		}
 		m.PublishEnabled = publishEnabled != 0
@@ -848,9 +879,9 @@ func replaceMonitors(tx *sql.Tx, monitors []models.Monitor) error {
 		return fmt.Errorf("clear monitors: %w", err)
 	}
 	for i, m := range monitors {
-		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			m.ID, i, m.Name, m.IntervalSec, boolInt(m.PublishEnabled), m.PublicToken, m.PublicSlug,
-			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt, boolInt(m.AlertEnabled), m.AlertEmails); err != nil {
+		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			m.ID, m.UserID, i, m.Name, m.IntervalSec, boolInt(m.PublishEnabled), m.PublicToken, m.PublicSlug,
+			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt, boolInt(m.AlertEnabled), m.AlertEmails, m.PublicDomain); err != nil {
 			return fmt.Errorf("save monitor %s: %w", m.ID, err)
 		}
 		for j, t := range m.Targets {

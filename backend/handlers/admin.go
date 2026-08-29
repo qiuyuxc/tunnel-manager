@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -178,7 +179,29 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	h.store.UpdateUserLogin(user.ID)
 	h.notifyLogin(user.ID, user.Username, r)
+	h.seedPanelHost(user.Role, r)
 	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: user.Username, Role: user.Role})
+}
+
+// seedPanelHost records the panel's own hostname the first time an
+// administrator signs in. Status-page custom domains are checked against it so
+// a regular account cannot claim the panel's domain and take over the root
+// path; seeding from an administrator request keeps the value out of reach of
+// ordinary users, and administrators can correct it in the global settings.
+func (h *AdminHandler) seedPanelHost(role string, r *http.Request) {
+	if role != models.RoleAdmin {
+		return
+	}
+	if h.store.GetConfig().PanelHost != "" {
+		return
+	}
+	host := hostWithoutPort(r.Host)
+	if host == "" {
+		return
+	}
+	if err := h.store.SetPanelHost(host); err != nil {
+		log.Printf("seed panel host: %v", err)
+	}
 }
 
 // notifyLogin sends a per-user login notification (if enabled) without
@@ -254,6 +277,7 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 		username, role = user.Username, user.Role
 		h.store.UpdateUserLogin(user.ID)
 		h.notifyLogin(user.ID, user.Username, r)
+		h.seedPanelHost(user.Role, r)
 	}
 	writeJSON(w, http.StatusOK, models.LoginResponse{Token: token, Username: username, Role: role})
 }

@@ -15,6 +15,7 @@ type Config struct {
 	SiteName               string        `json:"site_name"`
 	SiteDescription        string        `json:"site_description"`
 	SiteIcon               string        `json:"site_icon"`
+	PanelHost              string        `json:"panel_host,omitempty"`
 	LandingEnabled         bool          `json:"landing_enabled"`
 	AdminUsername          string        `json:"admin_username"`
 	AdminPasswordHash      string        `json:"admin_password_hash"`
@@ -67,6 +68,7 @@ type Monitor struct {
 	IntervalSec    int             `json:"interval_sec,omitempty"` // default 60
 	PublicToken    string          `json:"public_token,omitempty"`
 	PublicSlug     string          `json:"public_slug,omitempty"`
+	PublicDomain   string          `json:"public_domain,omitempty"`
 	PublishEnabled bool            `json:"publish_enabled"`
 	AlertEnabled   bool            `json:"alert_enabled,omitempty"`
 	AlertEmails    string          `json:"alert_emails,omitempty"`
@@ -277,10 +279,11 @@ type SetTunnelRequest struct {
 
 // SetSiteSettingsRequest updates public-facing site branding.
 type SetSiteSettingsRequest struct {
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Icon           string `json:"icon"`
-	LandingEnabled bool   `json:"landing_enabled"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	Icon           string  `json:"icon"`
+	PanelHost      *string `json:"panel_host"`
+	LandingEnabled bool    `json:"landing_enabled"`
 }
 
 // SetCNAMEPresetsRequest replaces the reusable CNAME options.

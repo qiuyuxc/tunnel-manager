@@ -40,6 +40,11 @@ func (s *Store) seedUsers() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.resolveAdminIDLocked()
+		if s.assignOrphanMonitorsToAdminLocked() {
+			if err := s.saveLocked(); err != nil {
+				log.Printf("assign orphaned monitors to administrator: %v", err)
+			}
+		}
 		return
 	}
 
@@ -111,11 +116,7 @@ func (s *Store) seedUsers() {
 		SelectedZoneID:   s.config.SelectedZoneID,
 		SelectedZoneName: s.config.SelectedZoneName,
 	}
-	for i := range s.config.Monitors {
-		if s.config.Monitors[i].UserID == "" {
-			s.config.Monitors[i].UserID = admin.ID
-		}
-	}
+	s.assignOrphanMonitorsToAdminLocked()
 	// Administrator secrets now live in the users table only.
 	s.config.AdminPasswordHash = ""
 	s.config.TOTPEnabled = false
@@ -144,6 +145,23 @@ func (s *Store) resolveAdminIDLocked() {
 			return
 		}
 	}
+}
+
+// assignOrphanMonitorsToAdminLocked claims monitors created before ownership
+// was persisted. The caller must hold s.mu once the store is published.
+func (s *Store) assignOrphanMonitorsToAdminLocked() bool {
+	if s.adminID == "" {
+		return false
+	}
+	changed := false
+	for i := range s.config.Monitors {
+		if s.config.Monitors[i].UserID != "" {
+			continue
+		}
+		s.config.Monitors[i].UserID = s.adminID
+		changed = true
+	}
+	return changed
 }
 
 // AdminUserID returns the seeded administrator account id.

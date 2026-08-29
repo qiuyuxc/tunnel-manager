@@ -73,6 +73,7 @@ export interface Config {
   site_name: string
   site_description: string
   site_icon: string
+  panel_host?: string
   landing_enabled: boolean
 }
 
@@ -494,6 +495,8 @@ export interface MonitorView {
   publish_enabled: boolean
   public_token?: string
   public_slug?: string
+  public_domain?: string
+  domain_warning?: string
   public_title?: string
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
@@ -540,6 +543,7 @@ export interface MonitorUpdate {
   regenerate_token?: boolean
   public_title?: string
   public_slug?: string
+  public_domain?: string
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string

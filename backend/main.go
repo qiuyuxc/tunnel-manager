@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.1.0"
+const Version = "v2.2.0-test.1"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -124,7 +124,7 @@ func main() {
 	heartbeatLog.StartFlusher(10 * time.Second)
 
 	// Monitors management
-	monitorsHandler := handlers.NewMonitorsHandler(st, heartbeatLog, monitorRunner)
+	monitorsHandler := handlers.NewMonitorsHandler(st, heartbeatLog, monitorRunner, domainService)
 	uploadsDir := filepath.Join(filepath.Dir(storePath), "uploads")
 	uploadsHandler := handlers.NewUploadsHandler(uploadsDir)
 	uploadsHandler.SetStore(st)
@@ -160,6 +160,7 @@ func main() {
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 	r.Use(mw.CORS)
+	r.Use(handlers.StatusDomainRedirect(st))
 
 	r.Route("/api", func(r chi.Router) {
 		// Public site branding

@@ -108,6 +108,89 @@ func (d *DomainService) bindSimple(cfg models.Config, mainDomain, serviceURL str
 	return nil
 }
 
+// ProvisionStatusDomain exposes one public status hostname through the
+// monitor owner's selected tunnel and Cloudflare connection.
+func (d *DomainService) ProvisionStatusDomain(userID, panelHost, hostname string) error {
+	userID = strings.TrimSpace(userID)
+	panelHost = normalizeDomainName(panelHost)
+	hostname = normalizeDomainName(hostname)
+	if userID == "" {
+		return fmt.Errorf("监控项目缺少所有者，无法选择 Cloudflare 连接")
+	}
+	if panelHost == "" {
+		return fmt.Errorf("面板域名未配置，请管理员先在全局设置中填写")
+	}
+	if hostname == "" {
+		return fmt.Errorf("自定义域名不能为空")
+	}
+	if hostname == panelHost {
+		return fmt.Errorf("自定义域名不能与面板域名相同")
+	}
+
+	prefs := d.store.GetUserPrefs(userID)
+	if prefs.TunnelID == "" {
+		return fmt.Errorf("未选择面板所在隧道，请先在全局设置中选择")
+	}
+	userService := d.ForUser(userID)
+	zoneID, err := userService.cf.GetZoneIDByHostname(hostname)
+	if err != nil {
+		return fmt.Errorf("自定义域名不在当前 Cloudflare 连接的 zone 中: %w", err)
+	}
+	tunnelCfg, err := userService.cf.GetTunnelConfig(prefs.TunnelID)
+	if err != nil {
+		return fmt.Errorf("读取面板隧道配置失败: %w", err)
+	}
+	panelRule, ok := findPanelIngressRule(tunnelCfg.Result.Config.Ingress, panelHost)
+	if !ok {
+		return fmt.Errorf("隧道配置中未找到面板域名 %s 对应的 ingress 规则", panelHost)
+	}
+
+	statusRule := models.IngressRule{
+		Hostname:      hostname,
+		Service:       panelRule.Service,
+		OriginRequest: cloneOriginRequest(panelRule.OriginRequest),
+	}
+	tunnelCfg.Result.Config.Ingress = mergeIngressRules(
+		tunnelCfg.Result.Config.Ingress,
+		[]models.IngressRule{statusRule},
+		map[string]bool{hostname: true},
+	)
+	if err := userService.cf.UpdateTunnelConfig(prefs.TunnelID, map[string]interface{}{"config": tunnelCfg.Result.Config}); err != nil {
+		return fmt.Errorf("更新隧道 ingress 失败: %w", err)
+	}
+
+	tunnelCNAME := fmt.Sprintf("%s.cfargotunnel.com", prefs.TunnelID)
+	if err := userService.cf.UpsertDNSRecord(zoneID, hostname, "CNAME", tunnelCNAME, true); err != nil {
+		return fmt.Errorf("ingress 已更新，但 CNAME 创建失败: %w", err)
+	}
+	return nil
+}
+
+func findPanelIngressRule(rules []models.IngressRule, panelHost string) (models.IngressRule, bool) {
+	panelHost = normalizeDomainName(panelHost)
+	for _, rule := range rules {
+		if rule.Path == "" && normalizeDomainName(rule.Hostname) == panelHost && strings.TrimSpace(rule.Service) != "" {
+			return rule, true
+		}
+	}
+	return models.IngressRule{}, false
+}
+
+func normalizeDomainName(hostname string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(hostname), "."))
+}
+
+func cloneOriginRequest(input map[string]interface{}) map[string]interface{} {
+	if len(input) == 0 {
+		return nil
+	}
+	cloned := make(map[string]interface{}, len(input))
+	for key, value := range input {
+		cloned[key] = value
+	}
+	return cloned
+}
+
 func (d *DomainService) bindPreferred(cfg models.Config, mainDomain, auxDomain, serviceURL, preferredCNAME string) error {
 	mainZoneID, err := d.cf.GetZoneIDByHostname(mainDomain)
 	if err != nil {

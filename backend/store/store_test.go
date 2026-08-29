@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"tunnel-manager/db"
 	"tunnel-manager/models"
 )
 
@@ -447,6 +448,9 @@ func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
 		if monitors[i].ID != reloaded[i].ID || monitors[i].Name != reloaded[i].Name {
 			t.Fatalf("monitor %d = (%q, %q), want (%q, %q)", i, reloaded[i].ID, reloaded[i].Name, monitors[i].ID, monitors[i].Name)
 		}
+		if monitors[i].UserID != reloaded[i].UserID {
+			t.Fatalf("monitor %s owner = %q, want %q", monitors[i].ID, reloaded[i].UserID, monitors[i].UserID)
+		}
 		if monitors[i].PublishEnabled != reloaded[i].PublishEnabled {
 			t.Fatalf("monitor %s publish = %v, want %v", monitors[i].ID, reloaded[i].PublishEnabled, monitors[i].PublishEnabled)
 		}
@@ -469,6 +473,35 @@ func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
 	}
 }
 
+func TestReloadAssignsOrphanedMonitorsToAdministrator(t *testing.T) {
+	s := newTestStore(t, HashPassword("password"))
+	adminID := s.AdminUserID()
+	if err := s.AddMonitor(models.Monitor{ID: "legacy-monitor", UserID: adminID, Name: "Legacy"}); err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := db.Open(s.filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handle.Exec(`UPDATE monitors SET user_id = '' WHERE id = ?`, "legacy-monitor"); err != nil {
+		handle.Close()
+		t.Fatal(err)
+	}
+	if err := handle.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded := NewStore(s.filePath)
+	monitors := reloaded.GetConfig().Monitors
+	if len(monitors) != 1 {
+		t.Fatalf("monitor count = %d, want 1", len(monitors))
+	}
+	if monitors[0].UserID != reloaded.AdminUserID() {
+		t.Fatalf("orphaned monitor owner = %q, want administrator %q", monitors[0].UserID, reloaded.AdminUserID())
+	}
+}
+
 func reloadedStore(t *testing.T, path string) *Store {
 	t.Helper()
 	return NewStore(path)
@@ -477,8 +510,10 @@ func reloadedStore(t *testing.T, path string) *Store {
 func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
 	t.Helper()
 	s := newTestStore(t, HashPassword("password"))
+	adminID := s.AdminUserID()
 	first := models.Monitor{
 		ID:             "mon-one",
+		UserID:         adminID,
 		Name:           "First",
 		IntervalSec:    60,
 		PublishEnabled: true,
@@ -491,6 +526,7 @@ func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
 	}
 	second := models.Monitor{
 		ID:          "mon-two",
+		UserID:      adminID,
 		Name:        "Second",
 		IntervalSec: 120,
 		Targets: []models.MonitorTarget{

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,16 +19,26 @@ const barsPerTarget = 48
 
 var slugRe = regexp.MustCompile("^[a-z0-9_-]{1,32}$")
 
+// domainRe matches a dotted hostname: labels of a-z 0-9 and inner hyphens,
+// at least two of them, so a bare label cannot be claimed.
+var domainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
+
+type statusDomainProvisioner interface {
+	ProvisionStatusDomain(userID, panelHost, hostname string) error
+}
+
 // MonitorsHandler serves monitor CRUD and the public status API.
 type MonitorsHandler struct {
-	st     *store.Store
-	hb     *services.HeartbeatLog
-	runner *services.Runner
+	updateMu sync.Mutex
+	st       *store.Store
+	hb       *services.HeartbeatLog
+	runner   *services.Runner
+	domains  statusDomainProvisioner
 }
 
 // NewMonitorsHandler wires the handler with its collaborators.
-func NewMonitorsHandler(st *store.Store, hb *services.HeartbeatLog, runner *services.Runner) *MonitorsHandler {
-	return &MonitorsHandler{st: st, hb: hb, runner: runner}
+func NewMonitorsHandler(st *store.Store, hb *services.HeartbeatLog, runner *services.Runner, domains statusDomainProvisioner) *MonitorsHandler {
+	return &MonitorsHandler{st: st, hb: hb, runner: runner, domains: domains}
 }
 
 func newAPIToken() string { return services.NewMonitorID() }
@@ -63,6 +74,8 @@ type monitorView struct {
 	PublicTitle    string         `json:"public_title,omitempty"`
 	PublicIcon     string         `json:"public_icon,omitempty"`
 	PublicSlug     string         `json:"public_slug,omitempty"`
+	PublicDomain   string         `json:"public_domain,omitempty"`
+	DomainWarning  string         `json:"domain_warning,omitempty"`
 	PublicTheme    string         `json:"public_theme,omitempty"`
 	Announcement   string         `json:"announcement,omitempty"`
 	AlertEnabled   bool           `json:"alert_enabled"`
@@ -84,6 +97,7 @@ func (h *MonitorsHandler) enrich(m models.Monitor, withBars bool) monitorView {
 		AlertEmails:    m.AlertEmails,
 		PublicIcon:     m.PublicIcon,
 		PublicSlug:     m.PublicSlug,
+		PublicDomain:   m.PublicDomain,
 		PublicTheme:    m.PublicTheme,
 		CreatedAt:      m.CreatedAt,
 		Targets:        make([]targetStatus, 0, len(m.Targets)),
@@ -142,7 +156,7 @@ func (h *MonitorsHandler) visibleTo(r *http.Request, m models.Monitor) bool {
 	if user.IsAdmin() {
 		return true
 	}
-	return m.UserID == "" || m.UserID == user.ID
+	return m.UserID == user.ID
 }
 
 // lookupVisible fetches the monitor only when the session may access it.
@@ -177,6 +191,9 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ownerID := ""
 	if user := SessionUser(r); user != nil {
 		ownerID = user.ID
+		if ownerID == "" && user.IsAdmin() {
+			ownerID = h.st.AdminUserID()
+		}
 	}
 	m := models.Monitor{
 		ID:             services.NewMonitorID(),
@@ -229,6 +246,7 @@ type updateReq struct {
 	PublicIcon      *string `json:"public_icon"`
 	PublicTheme     *string `json:"public_theme"`
 	PublicSlug      *string `json:"public_slug"`
+	PublicDomain    *string `json:"public_domain"`
 	Announcement    *string `json:"announcement"`
 	AlertEnabled    *bool   `json:"alert_enabled"`
 	AlertEmails     *string `json:"alert_emails"`
@@ -238,6 +256,9 @@ type updateReq struct {
 func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "monitorID")
 	current, ok := h.lookupVisible(r, id)
+	h.updateMu.Lock()
+	defer h.updateMu.Unlock()
+
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
@@ -331,6 +352,30 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			current.PublicSlug = sv
 		}
 	}
+	if req.PublicDomain != nil {
+		dv := hostWithoutPort(*req.PublicDomain)
+		if dv == "" {
+			current.PublicDomain = ""
+		} else {
+			if len(dv) > 253 || !domainRe.MatchString(dv) {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "自定义域名格式不正确，请填写完整主机名，如 status.example.com"})
+				return
+			}
+			panelHost := hostWithoutPort(h.st.GetConfig().PanelHost)
+			requestHost := hostWithoutPort(r.Host)
+			if dv == panelHost || dv == requestHost {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "不能使用面板自身域名"})
+				return
+			}
+			for _, other := range h.st.GetConfig().Monitors {
+				if other.ID != current.ID && strings.EqualFold(other.PublicDomain, dv) {
+					writeJSON(w, http.StatusBadRequest, map[string]string{"error": "该域名已被其他状态页占用"})
+					return
+				}
+			}
+			current.PublicDomain = dv
+		}
+	}
 	if err := h.st.MutateMonitor(id, func(dst *models.Monitor) bool {
 		saved := *dst
 		*dst = current
@@ -341,7 +386,17 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fresh, _ := h.lookup(id)
-	writeJSON(w, http.StatusOK, h.enrich(fresh, false))
+	view := h.enrich(fresh, false)
+	if req.PublicDomain != nil && fresh.PublicDomain != "" {
+		if h.domains == nil {
+			view.DomainWarning = "自动配置服务不可用"
+		} else if err := h.domains.ProvisionStatusDomain(
+			fresh.UserID, h.st.GetConfig().PanelHost, fresh.PublicDomain,
+		); err != nil {
+			view.DomainWarning = err.Error()
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 // Delete handles DELETE /api/monitors/{monitorID}.

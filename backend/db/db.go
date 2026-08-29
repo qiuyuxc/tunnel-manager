@@ -197,6 +197,10 @@ ALTER TABLE user_prefs ADD COLUMN preferred_cname TEXT NOT NULL DEFAULT '';`
 // token, so an account can use two different bots (or reuse one for both).
 const schemaV8 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_token_encrypted TEXT NOT NULL DEFAULT '';`
 
+// schemaV9 adds an optional custom domain per monitor: visitors reaching the
+// panel with this Host are routed to the monitor's public status page.
+const schemaV9 = `ALTER TABLE monitors ADD COLUMN public_domain TEXT NOT NULL DEFAULT '';`
+
 // migrations lists every schema version in order. Append new entries instead
 // of editing existing ones.
 var migrations = []migration{
@@ -208,6 +212,7 @@ var migrations = []migration{
 	{version: 6, stmts: schemaV6},
 	{version: 7, stmts: schemaV7},
 	{version: 8, stmts: schemaV8},
+	{version: 9, stmts: schemaV9},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

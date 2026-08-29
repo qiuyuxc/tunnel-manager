@@ -23,6 +23,7 @@
     <div v-if="monitor?.publish_enabled && monitor.public_token" class="card pub-card">
       <span class="caption-mono">公开状态页</span>
       <code class="pub-url">{{ fullPublicUrl }}</code>
+      <code v-if="monitor.public_domain" class="pub-url">https://{{ monitor.public_domain }}</code>
       <button class="show-toggle" @click="regenToken">重新生成令牌</button>
     </div>
 
@@ -48,6 +49,28 @@
             <input v-model.trim="pubSlug" maxlength="32" placeholder="例如：team" class="vercel-input icon-url" />
           </div>
           <p class="slug-hint text-muted">短链接预览：{{ slugPreview }}</p></label>
+        <label class="fld"><span>自定义域名（留空则只用面板域名访问）</span>
+          <input v-model.trim="pubDomain" maxlength="253" placeholder="例如：status.example.com" class="vercel-input" />
+          <p class="slug-hint text-muted">
+            填写后访问 <code class="inline-code">https://{{ pubDomain || 'status.example.com' }}</code> 会直接打开本状态页。保存时会自动配置同一 Cloudflare 连接下的 DNS 与隧道路由。
+          </p></label>
+        <div v-if="pubDomain" class="domain-guide">
+          <span class="caption-mono">自动配置失败时，手动检查 DNS CNAME</span>
+          <div class="copy-row">
+            <code class="token-box">{{ dnsGuide }}</code>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(dnsGuide)">复制</button>
+          </div>
+          <span class="caption-mono">手动检查 cloudflared ingress 规则</span>
+          <div class="copy-row">
+            <code class="token-box">{{ ingressGuide }}</code>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(ingressGuide)">复制</button>
+          </div>
+          <p class="slug-hint text-muted">
+            隧道匹配不到该主机名会直接返回 404，请求到不了面板。也可以改用通配主机名（如
+            <code class="inline-code">*.{{ apexHint }}</code>）或把隧道末尾的兜底规则指向面板，这样以后新增域名无需再改隧道。
+            面板若是 A 记录直连或走 nginx 反代，则自动配置不适用，需手动配置 DNS 与反向代理。
+          </p>
+        </div>
         <label class="fld"><span>公开页标题</span>
           <input v-model="pubTitle" maxlength="120" :placeholder="monitor.name" /></label>
         <label class="fld"><span>公告文本</span>
@@ -214,6 +237,7 @@ const pubTitle = ref('')
 const pubIcon = ref('')
 const pubTheme = ref<'' | 'warm'>('')
 const pubSlug = ref('')
+const pubDomain = ref('')
 const announcement = ref('')
 
 const editOpen = ref(false)
@@ -234,6 +258,28 @@ const slugPreview = computed(() => {
 })
 
 const iconPreview = computed(() => /^(https?:\/\/|\/uploads\/|data:image\/)/.test(pubIcon.value.trim()))
+
+// Everything below the first label of the custom domain, used to suggest a
+// wildcard ingress hostname.
+const apexHint = computed(() => pubDomain.value.split('.').slice(1).join('.') || 'example.com')
+
+const dnsGuide = computed(() => {
+  const tunnel = configStore.config.tunnel_id
+  return [
+    `类型:   CNAME`,
+    `名称:   ${pubDomain.value}`,
+    `目标:   ${tunnel ? tunnel + '.cfargotunnel.com' : '<面板所在隧道的 ID>.cfargotunnel.com'}`,
+    `代理:   已开启（橙云）`,
+  ].join('\n')
+})
+
+const ingressGuide = computed(() => {
+  const service = configStore.config.service_url
+  return [
+    `主机名: ${pubDomain.value}`,
+    `服务:   ${service || '<面板的本机地址，例如 http://localhost:8080>'}`,
+  ].join('\n')
+})
 const urlHint = computed(() =>
   probeType.value === 'tcp' ? '地址，例如 example.com:443 或 10.0.0.2:22' :
   probeType.value === 'icmp' ? '主机或 IP，例如 example.com 或 1.1.1.1' :
@@ -257,6 +303,7 @@ async function load() {
     pubIcon.value = data.public_icon || ''
     pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
     pubSlug.value = data.public_slug || ''
+    pubDomain.value = data.public_domain || ''
     announcement.value = data.announcement || ''
     alertEnabled.value = Boolean(data.alert_enabled)
     alertEmails.value = data.alert_emails || ''
@@ -369,10 +416,17 @@ async function savePublishSettings() {
       public_icon: pubIcon.value.trim(),
       public_theme: pubTheme.value,
       public_slug: pubSlug.value.toLowerCase(),
+      public_domain: pubDomain.value.toLowerCase(),
       announcement: announcement.value.trim(),
     })
     monitor.value = data
-    message.success('公开页设置已保存')
+    if (data.domain_warning) {
+      message.warning(`设置已保存，但自动配置失败：${data.domain_warning}`)
+    } else if (data.public_domain) {
+      message.success('公开页设置已保存，DNS 与隧道路由已自动配置')
+    } else {
+      message.success('公开页设置已保存')
+    }
   } catch (_) {
     message.error('保存失败')
   }
@@ -501,6 +555,12 @@ function copyLink() {
     .catch(() => message.error('复制失败'))
 }
 
+function copyText(text: string) {
+  navigator.clipboard.writeText(text)
+    .then(() => message.success('已复制'))
+    .catch(() => message.warning('复制失败，请手动选择文本'))
+}
+
 onMounted(() => {
   load()
   void loadRoutes()
@@ -552,6 +612,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: 6px;
 }
 .slug-hint { margin: 2px 0 0; font-size: 11px; }
+.domain-guide { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
+.copy-row { display: flex; align-items: flex-start; gap: 8px; }
+.token-box { flex: 1; min-width: 0; padding: 10px 12px; color: var(--color-ink); background: var(--color-canvas); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
 .edit-modal { width: min(460px, calc(100vw - 32px)); }
 .edit-body { display: flex; flex-direction: column; gap: 14px; }
 .edit-note { margin: 0; font-size: 11.5px; line-height: 1.5; }
