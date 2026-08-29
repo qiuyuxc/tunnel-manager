@@ -2,6 +2,12 @@
 
 整理自仓库发布提交，更早的版本细节见 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)。
 
+## v2.2.0-test.2
+
+- 状态页优选模式复用面板现有优选绑定流程，区分访问域名与辅助回源域名
+- 支持为每个监控选择或手填优选 CNAME，留空时使用全局默认值
+- Custom Hostname 的 Custom Origin 改为辅助回源域名，并同步配置双域名 ingress
+
 ## v2.2.0-test.1
 
 - 状态页支持绑定自定义域名，并按请求 Host 跳转到对应公开页面
