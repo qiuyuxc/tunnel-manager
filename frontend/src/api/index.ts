@@ -496,6 +496,9 @@ export interface MonitorView {
   public_token?: string
   public_slug?: string
   public_domain?: string
+  public_domain_mode?: BindMode
+  public_aux_domain?: string
+  public_preferred_cname?: string
   domain_warning?: string
   public_title?: string
   public_icon?: string
@@ -544,6 +547,9 @@ export interface MonitorUpdate {
   public_title?: string
   public_slug?: string
   public_domain?: string
+  public_domain_mode?: BindMode
+  public_aux_domain?: string
+  public_preferred_cname?: string
   public_icon?: string
   public_theme?: '' | 'blue' | 'warm'
   announcement?: string

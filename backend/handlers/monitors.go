@@ -24,7 +24,7 @@ var slugRe = regexp.MustCompile("^[a-z0-9_-]{1,32}$")
 var domainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
 type statusDomainProvisioner interface {
-	ProvisionStatusDomain(userID, panelHost, hostname string) error
+	ProvisionStatusDomain(userID, panelHost, hostname, mode, auxDomain, preferredCNAME string) error
 }
 
 // MonitorsHandler serves monitor CRUD and the public status API.
@@ -66,41 +66,47 @@ type monitorBar struct {
 }
 
 type monitorView struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	IntervalSec    int            `json:"interval_sec"`
-	PublishEnabled bool           `json:"publish_enabled"`
-	PublicToken    string         `json:"public_token,omitempty"`
-	PublicTitle    string         `json:"public_title,omitempty"`
-	PublicIcon     string         `json:"public_icon,omitempty"`
-	PublicSlug     string         `json:"public_slug,omitempty"`
-	PublicDomain   string         `json:"public_domain,omitempty"`
-	DomainWarning  string         `json:"domain_warning,omitempty"`
-	PublicTheme    string         `json:"public_theme,omitempty"`
-	Announcement   string         `json:"announcement,omitempty"`
-	AlertEnabled   bool           `json:"alert_enabled"`
-	AlertEmails    string         `json:"alert_emails,omitempty"`
-	CreatedAt      int64          `json:"created_at,omitempty"`
-	Targets        []targetStatus `json:"targets"`
+	ID                   string         `json:"id"`
+	Name                 string         `json:"name"`
+	IntervalSec          int            `json:"interval_sec"`
+	PublishEnabled       bool           `json:"publish_enabled"`
+	PublicToken          string         `json:"public_token,omitempty"`
+	PublicTitle          string         `json:"public_title,omitempty"`
+	PublicIcon           string         `json:"public_icon,omitempty"`
+	PublicSlug           string         `json:"public_slug,omitempty"`
+	PublicDomain         string         `json:"public_domain,omitempty"`
+	PublicDomainMode     string         `json:"public_domain_mode"`
+	PublicAuxDomain      string         `json:"public_aux_domain,omitempty"`
+	PublicPreferredCNAME string         `json:"public_preferred_cname,omitempty"`
+	DomainWarning        string         `json:"domain_warning,omitempty"`
+	PublicTheme          string         `json:"public_theme,omitempty"`
+	Announcement         string         `json:"announcement,omitempty"`
+	AlertEnabled         bool           `json:"alert_enabled"`
+	AlertEmails          string         `json:"alert_emails,omitempty"`
+	CreatedAt            int64          `json:"created_at,omitempty"`
+	Targets              []targetStatus `json:"targets"`
 }
 
 func (h *MonitorsHandler) enrich(m models.Monitor, withBars bool) monitorView {
 	view := monitorView{
-		ID:             m.ID,
-		Name:           m.Name,
-		IntervalSec:    services.MonitorInterval(m.IntervalSec),
-		PublishEnabled: m.PublishEnabled,
-		PublicToken:    m.PublicToken,
-		PublicTitle:    m.PublicTitle,
-		Announcement:   m.Announcement,
-		AlertEnabled:   m.AlertEnabled,
-		AlertEmails:    m.AlertEmails,
-		PublicIcon:     m.PublicIcon,
-		PublicSlug:     m.PublicSlug,
-		PublicDomain:   m.PublicDomain,
-		PublicTheme:    m.PublicTheme,
-		CreatedAt:      m.CreatedAt,
-		Targets:        make([]targetStatus, 0, len(m.Targets)),
+		ID:                   m.ID,
+		Name:                 m.Name,
+		IntervalSec:          services.MonitorInterval(m.IntervalSec),
+		PublishEnabled:       m.PublishEnabled,
+		PublicToken:          m.PublicToken,
+		PublicTitle:          m.PublicTitle,
+		Announcement:         m.Announcement,
+		AlertEnabled:         m.AlertEnabled,
+		AlertEmails:          m.AlertEmails,
+		PublicIcon:           m.PublicIcon,
+		PublicSlug:           m.PublicSlug,
+		PublicDomain:         m.PublicDomain,
+		PublicDomainMode:     m.PublicDomainMode,
+		PublicAuxDomain:      m.PublicAuxDomain,
+		PublicPreferredCNAME: m.PublicPreferredCNAME,
+		PublicTheme:          m.PublicTheme,
+		CreatedAt:            m.CreatedAt,
+		Targets:              make([]targetStatus, 0, len(m.Targets)),
 	}
 	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
 	for _, t := range m.Targets {
@@ -196,15 +202,16 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	m := models.Monitor{
-		ID:             services.NewMonitorID(),
-		UserID:         ownerID,
-		Name:           name,
-		IntervalSec:    req.IntervalSec,
-		PublishEnabled: req.PublishEnabled,
-		AlertEnabled:   req.AlertEnabled,
-		AlertEmails:    strings.TrimSpace(req.AlertEmails),
-		PublicToken:    newAPIToken(),
-		CreatedAt:      time.Now().Unix(),
+		ID:               services.NewMonitorID(),
+		UserID:           ownerID,
+		Name:             name,
+		IntervalSec:      req.IntervalSec,
+		PublishEnabled:   req.PublishEnabled,
+		AlertEnabled:     req.AlertEnabled,
+		AlertEmails:      strings.TrimSpace(req.AlertEmails),
+		PublicToken:      newAPIToken(),
+		PublicDomainMode: services.BindingModePreferred,
+		CreatedAt:        time.Now().Unix(),
 	}
 	if err := h.st.AddMonitor(m); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -238,18 +245,21 @@ func (h *MonitorsHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateReq struct {
-	Name            *string `json:"name"`
-	IntervalSec     *int    `json:"interval_sec"`
-	PublishEnabled  *bool   `json:"publish_enabled"`
-	RegenerateToken bool    `json:"regenerate_token"`
-	PublicTitle     *string `json:"public_title"`
-	PublicIcon      *string `json:"public_icon"`
-	PublicTheme     *string `json:"public_theme"`
-	PublicSlug      *string `json:"public_slug"`
-	PublicDomain    *string `json:"public_domain"`
-	Announcement    *string `json:"announcement"`
-	AlertEnabled    *bool   `json:"alert_enabled"`
-	AlertEmails     *string `json:"alert_emails"`
+	Name                 *string `json:"name"`
+	IntervalSec          *int    `json:"interval_sec"`
+	PublishEnabled       *bool   `json:"publish_enabled"`
+	RegenerateToken      bool    `json:"regenerate_token"`
+	PublicTitle          *string `json:"public_title"`
+	PublicIcon           *string `json:"public_icon"`
+	PublicTheme          *string `json:"public_theme"`
+	PublicSlug           *string `json:"public_slug"`
+	PublicDomain         *string `json:"public_domain"`
+	PublicDomainMode     *string `json:"public_domain_mode"`
+	PublicAuxDomain      *string `json:"public_aux_domain"`
+	PublicPreferredCNAME *string `json:"public_preferred_cname"`
+	Announcement         *string `json:"announcement"`
+	AlertEnabled         *bool   `json:"alert_enabled"`
+	AlertEmails          *string `json:"alert_emails"`
 }
 
 // Update handles PUT /api/monitors/{monitorID}.
@@ -376,6 +386,46 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			current.PublicDomain = dv
 		}
 	}
+	if req.PublicDomainMode != nil {
+		mode, err := services.NormalizeBindingMode(*req.PublicDomainMode)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "自定义域名接入方式不正确"})
+			return
+		}
+		current.PublicDomainMode = mode
+	}
+	if req.PublicAuxDomain != nil {
+		auxDomain := hostWithoutPort(*req.PublicAuxDomain)
+		if auxDomain != "" && (len(auxDomain) > 253 || !domainRe.MatchString(auxDomain)) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "辅助回源域名格式不正确，请填写完整主机名"})
+			return
+		}
+		current.PublicAuxDomain = auxDomain
+	}
+	if req.PublicPreferredCNAME != nil {
+		preferredCNAME := hostWithoutPort(*req.PublicPreferredCNAME)
+		if preferredCNAME != "" && (len(preferredCNAME) > 253 || !domainRe.MatchString(preferredCNAME)) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "优选 CNAME 格式不正确，请填写完整主机名"})
+			return
+		}
+		current.PublicPreferredCNAME = preferredCNAME
+	}
+	domainConfigTouched := req.PublicDomain != nil || req.PublicDomainMode != nil ||
+		req.PublicAuxDomain != nil || req.PublicPreferredCNAME != nil
+	if domainConfigTouched && current.PublicDomain != "" && current.PublicDomainMode == services.BindingModePreferred {
+		if current.PublicAuxDomain == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "优选模式需要填写辅助回源域名"})
+			return
+		}
+		if strings.EqualFold(current.PublicDomain, current.PublicAuxDomain) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "访问域名和辅助回源域名不能相同"})
+			return
+		}
+		if current.PublicPreferredCNAME != "" && strings.EqualFold(current.PublicDomain, current.PublicPreferredCNAME) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "优选 CNAME 不能与访问域名相同"})
+			return
+		}
+	}
 	if err := h.st.MutateMonitor(id, func(dst *models.Monitor) bool {
 		saved := *dst
 		*dst = current
@@ -387,11 +437,11 @@ func (h *MonitorsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	fresh, _ := h.lookup(id)
 	view := h.enrich(fresh, false)
-	if req.PublicDomain != nil && fresh.PublicDomain != "" {
+	if domainConfigTouched && fresh.PublicDomain != "" {
 		if h.domains == nil {
 			view.DomainWarning = "自动配置服务不可用"
 		} else if err := h.domains.ProvisionStatusDomain(
-			fresh.UserID, h.st.GetConfig().PanelHost, fresh.PublicDomain,
+			fresh.UserID, h.st.GetConfig().PanelHost, fresh.PublicDomain, fresh.PublicDomainMode, fresh.PublicAuxDomain, fresh.PublicPreferredCNAME,
 		); err != nil {
 			view.DomainWarning = err.Error()
 		}

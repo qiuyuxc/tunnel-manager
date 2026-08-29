@@ -490,6 +490,34 @@ func (c *CloudflareClient) UpsertCustomHostname(zoneID, hostname, originServer s
 	return c.do(req, nil)
 }
 
+// DeleteCustomHostname removes all exact SaaS custom-hostname matches.
+func (c *CloudflareClient) DeleteCustomHostname(zoneID, hostname string) error {
+	listURL := fmt.Sprintf("/zones/%s/custom_hostnames?hostname=%s", zoneID, url.QueryEscape(hostname))
+	req, err := c.newRequest(http.MethodGet, listURL, nil)
+	if err != nil {
+		return err
+	}
+
+	var existing []models.CustomHostname
+	if err := c.do(req, &existing); err != nil {
+		return err
+	}
+	for _, customHostname := range existing {
+		if !strings.EqualFold(customHostname.Hostname, hostname) {
+			continue
+		}
+		deleteURL := fmt.Sprintf("/zones/%s/custom_hostnames/%s", zoneID, customHostname.ID)
+		req, err := c.newRequest(http.MethodDelete, deleteURL, nil)
+		if err != nil {
+			return err
+		}
+		if err := c.do(req, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ListZones lists all active zones
 func (c *CloudflareClient) ListZones() ([]models.Zone, error) {
 	req, err := c.newRequest("GET", "/zones?status=active&per_page=1000", nil)

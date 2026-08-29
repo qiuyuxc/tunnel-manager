@@ -439,6 +439,9 @@ func (s *Store) AddMonitor(m models.Monitor) error {
 	if m.IntervalSec == 0 {
 		m.IntervalSec = 60
 	}
+	if m.PublicDomainMode != "simple" && m.PublicDomainMode != "preferred" {
+		m.PublicDomainMode = "preferred"
+	}
 	previous := s.config
 	s.config.Monitors = append(s.config.Monitors, m)
 	if err := s.saveLocked(); err != nil {
@@ -817,7 +820,7 @@ func replaceCNAMEPresets(tx *sql.Tx, presets []models.CNAMEPreset) error {
 	return nil
 }
 
-const monitorColumns = `id, user_id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at, alert_enabled, alert_emails, public_domain`
+const monitorColumns = `id, user_id, position, name, interval_sec, publish_enabled, public_token, public_slug, public_title, public_icon, public_theme, announcement, created_at, alert_enabled, alert_emails, public_domain, public_domain_mode, public_aux_domain, public_preferred_cname`
 
 func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 	rows, err := handle.Query(`SELECT ` + monitorColumns + ` FROM monitors ORDER BY position`)
@@ -831,11 +834,14 @@ func loadMonitors(handle *sql.DB) ([]models.Monitor, error) {
 		var publishEnabled, alertEnabled int
 		if err := rows.Scan(&m.ID, &m.UserID, new(int), &m.Name, &m.IntervalSec, &publishEnabled,
 			&m.PublicToken, &m.PublicSlug, &m.PublicTitle, &m.PublicIcon, &m.PublicTheme,
-			&m.Announcement, &m.CreatedAt, &alertEnabled, &m.AlertEmails, &m.PublicDomain); err != nil {
+			&m.Announcement, &m.CreatedAt, &alertEnabled, &m.AlertEmails, &m.PublicDomain, &m.PublicDomainMode, &m.PublicAuxDomain, &m.PublicPreferredCNAME); err != nil {
 			return nil, fmt.Errorf("scan monitor: %w", err)
 		}
 		m.PublishEnabled = publishEnabled != 0
 		m.AlertEnabled = alertEnabled != 0
+		if m.PublicDomainMode != "simple" && m.PublicDomainMode != "preferred" {
+			m.PublicDomainMode = "simple"
+		}
 		monitors = append(monitors, m)
 	}
 	if err := rows.Err(); err != nil {
@@ -879,9 +885,12 @@ func replaceMonitors(tx *sql.Tx, monitors []models.Monitor) error {
 		return fmt.Errorf("clear monitors: %w", err)
 	}
 	for i, m := range monitors {
-		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		if m.PublicDomainMode != "simple" && m.PublicDomainMode != "preferred" {
+			m.PublicDomainMode = "simple"
+		}
+		if _, err := tx.Exec(`INSERT INTO monitors(`+monitorColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			m.ID, m.UserID, i, m.Name, m.IntervalSec, boolInt(m.PublishEnabled), m.PublicToken, m.PublicSlug,
-			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt, boolInt(m.AlertEnabled), m.AlertEmails, m.PublicDomain); err != nil {
+			m.PublicTitle, m.PublicIcon, m.PublicTheme, m.Announcement, m.CreatedAt, boolInt(m.AlertEnabled), m.AlertEmails, m.PublicDomain, m.PublicDomainMode, m.PublicAuxDomain, m.PublicPreferredCNAME); err != nil {
 			return fmt.Errorf("save monitor %s: %w", m.ID, err)
 		}
 		for j, t := range m.Targets {

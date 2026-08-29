@@ -201,8 +201,15 @@ const schemaV8 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_token_encrypted TE
 // panel with this Host are routed to the monitor's public status page.
 const schemaV9 = `ALTER TABLE monitors ADD COLUMN public_domain TEXT NOT NULL DEFAULT '';`
 
-// migrations lists every schema version in order. Append new entries instead
-// of editing existing ones.
+// schemaV10 records whether a monitor custom domain uses a direct proxied
+// Tunnel CNAME or the SaaS custom-hostname preferred route.
+const schemaV10 = `ALTER TABLE monitors ADD COLUMN public_domain_mode TEXT NOT NULL DEFAULT 'simple';`
+
+// schemaV11 adds the preferred-mode auxiliary origin hostname and an optional
+// per-monitor preferred CNAME override.
+const schemaV11 = `ALTER TABLE monitors ADD COLUMN public_aux_domain TEXT NOT NULL DEFAULT '';
+ALTER TABLE monitors ADD COLUMN public_preferred_cname TEXT NOT NULL DEFAULT '';`
+
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
@@ -213,6 +220,8 @@ var migrations = []migration{
 	{version: 7, stmts: schemaV7},
 	{version: 8, stmts: schemaV8},
 	{version: 9, stmts: schemaV9},
+	{version: 10, stmts: schemaV10},
+	{version: 11, stmts: schemaV11},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

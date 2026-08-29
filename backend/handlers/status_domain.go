@@ -19,36 +19,72 @@ func hostWithoutPort(host string) string {
 	return strings.ToLower(strings.TrimSuffix(host, "."))
 }
 
-// StatusDomainRedirect sends visitors arriving on a status page's custom domain
-// from the site root to that page. Only the root path is claimed, so every
-// other path (the SPA, /api, other status pages) still works on the same
-// domain. It runs as middleware, ahead of routing, so it applies whether or not
-// the static frontend is being served.
+// StatusDomainRedirect confines a status page custom domain to that monitor's
+// public page and the assets needed to render it. Requests for the main SPA,
+// authenticated APIs, and other monitors are deliberately hidden with 404.
 func StatusDomainRedirect(st *store.Store) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/" {
+			target, published, configured := statusDomainTarget(st, hostWithoutPort(r.Host))
+			if !configured {
 				next.ServeHTTP(w, r)
 				return
 			}
-			monitor, ok := st.FindMonitorByDomain(hostWithoutPort(r.Host))
-			if !ok {
-				next.ServeHTTP(w, r)
+			if !published || target == "" || (r.Method != http.MethodGet && r.Method != http.MethodHead) {
+				statusDomainNotFound(w, r)
 				return
 			}
-			target := monitor.PublicSlug
-			if target == "" {
-				target = monitor.PublicToken
-			}
-			if target == "" {
-				next.ServeHTTP(w, r)
+			if r.URL.Path == "/" {
+				location := "/status/" + target
+				if r.URL.RawQuery != "" {
+					location += "?" + r.URL.RawQuery
+				}
+				http.Redirect(w, r, location, http.StatusFound)
 				return
 			}
-			location := "/status/" + target
-			if r.URL.RawQuery != "" {
-				location += "?" + r.URL.RawQuery
+			if !statusDomainPublicPath(r.URL.Path, target) {
+				statusDomainNotFound(w, r)
+				return
 			}
-			http.Redirect(w, r, location, http.StatusFound)
+			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func statusDomainTarget(st *store.Store, host string) (target string, published, configured bool) {
+	if host == "" {
+		return "", false, false
+	}
+	for _, monitor := range st.GetConfig().Monitors {
+		if monitor.PublicDomain == "" || !strings.EqualFold(monitor.PublicDomain, host) {
+			continue
+		}
+		target = monitor.PublicSlug
+		if target == "" {
+			target = monitor.PublicToken
+		}
+		return target, monitor.PublishEnabled, true
+	}
+	return "", false, false
+}
+
+func statusDomainPublicPath(requestPath, target string) bool {
+	if strings.Contains(requestPath, "..") || strings.Contains(requestPath, "\\") {
+		return false
+	}
+	switch requestPath {
+	case "/status/" + target,
+		"/api/public/status/" + target,
+		"/api/site",
+		"/icon.webp":
+		return true
+	default:
+		return strings.HasPrefix(requestPath, "/assets/") ||
+			strings.HasPrefix(requestPath, "/uploads/")
+	}
+}
+
+func statusDomainNotFound(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	http.NotFound(w, r)
 }

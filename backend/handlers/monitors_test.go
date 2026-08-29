@@ -70,6 +70,9 @@ func TestCreateMonitorWithAPIKeyIdentityAssignsAdministratorOwner(t *testing.T) 
 	if monitors[0].UserID != st.AdminUserID() {
 		t.Fatalf("monitor owner = %q, want administrator %q", monitors[0].UserID, st.AdminUserID())
 	}
+	if monitors[0].PublicDomainMode != services.BindingModePreferred {
+		t.Fatalf("monitor domain mode = %q, want preferred", monitors[0].PublicDomainMode)
+	}
 }
 
 func TestUpdateMonitorPersistsDomainWhenProvisioningFails(t *testing.T) {
@@ -88,7 +91,7 @@ func TestUpdateMonitorPersistsDomainWhenProvisioningFails(t *testing.T) {
 	provisioner := &fakeStatusDomainProvisioner{err: errors.New("zone unavailable")}
 	heartbeats := services.NewHeartbeatLog(filepath.Join(t.TempDir(), "heartbeats.json"))
 	handler := NewMonitorsHandler(st, heartbeats, nil, provisioner)
-	req := httptest.NewRequest(http.MethodPut, "/api/monitors/user-monitor", strings.NewReader(`{"public_domain":"status.example.com"}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/monitors/user-monitor", strings.NewReader(`{"public_domain":"status.example.com","public_domain_mode":"simple"}`))
 	routeContext := chi.NewRouteContext()
 	routeContext.URLParams.Add("monitorID", "user-monitor")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
@@ -102,14 +105,57 @@ func TestUpdateMonitorPersistsDomainWhenProvisioningFails(t *testing.T) {
 	}
 	var view monitorView
 	decodeResponse(t, resp, &view)
-	if view.PublicDomain != "status.example.com" || view.DomainWarning != "zone unavailable" {
+	if view.PublicDomain != "status.example.com" || view.PublicDomainMode != services.BindingModeSimple || view.DomainWarning != "zone unavailable" {
 		t.Fatalf("Update() response = %#v", view)
 	}
-	if provisioner.userID != "owner-user" || provisioner.panelHost != "panel.example.com" || provisioner.hostname != "status.example.com" {
-		t.Fatalf("provision request = (%q, %q, %q)", provisioner.userID, provisioner.panelHost, provisioner.hostname)
+	if provisioner.userID != "owner-user" || provisioner.panelHost != "panel.example.com" || provisioner.hostname != "status.example.com" || provisioner.mode != services.BindingModeSimple {
+		t.Fatalf("provision request = (%q, %q, %q, %q)", provisioner.userID, provisioner.panelHost, provisioner.hostname, provisioner.mode)
 	}
 	stored := st.GetConfig().Monitors
-	if len(stored) != 1 || stored[0].PublicDomain != "status.example.com" {
+	if len(stored) != 1 || stored[0].PublicDomain != "status.example.com" || stored[0].PublicDomainMode != services.BindingModeSimple {
+		t.Fatalf("stored monitors = %#v", stored)
+	}
+}
+
+func TestUpdateMonitorPersistsPreferredDomainInputs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	st := store.NewStore(path)
+	if err := st.SetPanelHost("panel.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.AddMonitor(models.Monitor{
+		ID:     "preferred-monitor",
+		UserID: "owner-user",
+		Name:   "Preferred project",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	provisioner := &fakeStatusDomainProvisioner{}
+	heartbeats := services.NewHeartbeatLog(filepath.Join(t.TempDir(), "heartbeats.json"))
+	handler := NewMonitorsHandler(st, heartbeats, nil, provisioner)
+	req := httptest.NewRequest(http.MethodPut, "/api/monitors/preferred-monitor", strings.NewReader(
+		`{"public_domain":"status.example.com","public_domain_mode":"preferred","public_aux_domain":"origin.example.net","public_preferred_cname":"custom.edge.example"}`,
+	))
+	routeContext := chi.NewRouteContext()
+	routeContext.URLParams.Add("monitorID", "preferred-monitor")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
+	req = withUser(req, models.SessionUser{ID: st.AdminUserID(), Role: models.RoleAdmin})
+	resp := httptest.NewRecorder()
+
+	handler.Update(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("Update() status = %d, want %d: %s", resp.Code, http.StatusOK, resp.Body.String())
+	}
+	if provisioner.mode != services.BindingModePreferred ||
+		provisioner.auxDomain != "origin.example.net" ||
+		provisioner.preferredCNAME != "custom.edge.example" {
+		t.Fatalf("provision request = %#v", provisioner)
+	}
+	stored := st.GetConfig().Monitors
+	if len(stored) != 1 ||
+		stored[0].PublicAuxDomain != "origin.example.net" ||
+		stored[0].PublicPreferredCNAME != "custom.edge.example" {
 		t.Fatalf("stored monitors = %#v", stored)
 	}
 }
@@ -145,7 +191,7 @@ func TestUpdateMonitorRejectsCurrentRequestHostBeforePanelHostIsSeeded(t *testin
 	}
 }
 
-func TestStatusDomainRedirectRoutesOnlyCustomDomainRoot(t *testing.T) {
+func TestStatusDomainRedirectRestrictsCustomDomainToItsPublicStatusPage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	st := store.NewStore(path)
 	if err := st.AddMonitor(models.Monitor{
@@ -155,6 +201,16 @@ func TestStatusDomainRedirectRoutesOnlyCustomDomainRoot(t *testing.T) {
 		PublicDomain:   "status.example.com",
 		PublicSlug:     "team",
 		PublishEnabled: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.AddMonitor(models.Monitor{
+		ID:             "disabled-monitor",
+		UserID:         st.AdminUserID(),
+		Name:           "Disabled project",
+		PublicDomain:   "disabled-status.example.com",
+		PublicSlug:     "disabled",
+		PublishEnabled: false,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -178,28 +234,101 @@ func TestStatusDomainRedirectRoutesOnlyCustomDomainRoot(t *testing.T) {
 		t.Fatalf("fallback calls after root = %d, want 0", fallbackCalls)
 	}
 
-	otherReq := httptest.NewRequest(http.MethodGet, "http://status.example.com/api/site", nil)
-	otherReq.Host = "status.example.com"
-	otherResp := httptest.NewRecorder()
-	handler.ServeHTTP(otherResp, otherReq)
-	if otherResp.Code != http.StatusNoContent {
-		t.Fatalf("other path status = %d, want %d", otherResp.Code, http.StatusNoContent)
+	allowed := []string{
+		"/status/team",
+		"/api/public/status/team",
+		"/api/site",
+		"/assets/app.js",
+		"/uploads/status-icon.png",
+		"/icon.webp",
 	}
-	if fallbackCalls != 1 {
-		t.Fatalf("fallback calls after other path = %d, want 1", fallbackCalls)
+	for _, requestPath := range allowed {
+		req := httptest.NewRequest(http.MethodGet, "http://status.example.com"+requestPath, nil)
+		req.Host = "status.example.com"
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		if resp.Code != http.StatusNoContent {
+			t.Errorf("allowed path %s status = %d, want %d", requestPath, resp.Code, http.StatusNoContent)
+		}
+	}
+	if fallbackCalls != len(allowed) {
+		t.Fatalf("fallback calls after allowed paths = %d, want %d", fallbackCalls, len(allowed))
+	}
+
+	blocked := []string{
+		"/login",
+		"/dashboard",
+		"/api/admin/status",
+		"/api/monitors",
+		"/status/another-project",
+		"/api/public/status/another-project",
+		"/assets/../api/admin/status",
+	}
+	for _, requestPath := range blocked {
+		req := httptest.NewRequest(http.MethodGet, "http://status.example.com"+requestPath, nil)
+		req.Host = "status.example.com"
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		if resp.Code != http.StatusNotFound {
+			t.Errorf("blocked path %s status = %d, want %d", requestPath, resp.Code, http.StatusNotFound)
+		}
+	}
+	if fallbackCalls != len(allowed) {
+		t.Fatalf("fallback calls after blocked paths = %d, want %d", fallbackCalls, len(allowed))
+	}
+
+	postReq := httptest.NewRequest(http.MethodPost, "http://status.example.com/api/public/status/team", nil)
+	postReq.Host = "status.example.com"
+	postResp := httptest.NewRecorder()
+	handler.ServeHTTP(postResp, postReq)
+	if postResp.Code != http.StatusNotFound {
+		t.Fatalf("POST public status = %d, want %d", postResp.Code, http.StatusNotFound)
+	}
+	if fallbackCalls != len(allowed) {
+		t.Fatalf("fallback calls after POST = %d, want %d", fallbackCalls, len(allowed))
+	}
+
+	for _, requestPath := range []string{"/", "/login", "/api/admin/status"} {
+		req := httptest.NewRequest(http.MethodGet, "http://disabled-status.example.com"+requestPath, nil)
+		req.Host = "disabled-status.example.com"
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		if resp.Code != http.StatusNotFound {
+			t.Errorf("disabled status domain path %s = %d, want %d", requestPath, resp.Code, http.StatusNotFound)
+		}
+	}
+	if fallbackCalls != len(allowed) {
+		t.Fatalf("fallback calls after disabled domain = %d, want %d", fallbackCalls, len(allowed))
+	}
+
+	panelReq := httptest.NewRequest(http.MethodGet, "http://panel.example.com/api/admin/status", nil)
+	panelReq.Host = "panel.example.com"
+	panelResp := httptest.NewRecorder()
+	handler.ServeHTTP(panelResp, panelReq)
+	if panelResp.Code != http.StatusNoContent {
+		t.Fatalf("unrelated host status = %d, want %d", panelResp.Code, http.StatusNoContent)
+	}
+	if fallbackCalls != len(allowed)+1 {
+		t.Fatalf("fallback calls after unrelated host = %d, want %d", fallbackCalls, len(allowed)+1)
 	}
 }
 
 type fakeStatusDomainProvisioner struct {
-	userID    string
-	panelHost string
-	hostname  string
-	err       error
+	userID         string
+	panelHost      string
+	hostname       string
+	mode           string
+	auxDomain      string
+	preferredCNAME string
+	err            error
 }
 
-func (f *fakeStatusDomainProvisioner) ProvisionStatusDomain(userID, panelHost, hostname string) error {
+func (f *fakeStatusDomainProvisioner) ProvisionStatusDomain(userID, panelHost, hostname, mode, auxDomain, preferredCNAME string) error {
 	f.userID = userID
 	f.panelHost = panelHost
 	f.hostname = hostname
+	f.mode = mode
+	f.auxDomain = auxDomain
+	f.preferredCNAME = preferredCNAME
 	return f.err
 }

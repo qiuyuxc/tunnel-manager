@@ -62,22 +62,25 @@ type MonitorTarget struct {
 // Monitor groups targets checked on a schedule and publishable on a
 // token-protected public status page.
 type Monitor struct {
-	ID             string          `json:"id"`
-	UserID         string          `json:"user_id,omitempty"`
-	Name           string          `json:"name"`
-	IntervalSec    int             `json:"interval_sec,omitempty"` // default 60
-	PublicToken    string          `json:"public_token,omitempty"`
-	PublicSlug     string          `json:"public_slug,omitempty"`
-	PublicDomain   string          `json:"public_domain,omitempty"`
-	PublishEnabled bool            `json:"publish_enabled"`
-	AlertEnabled   bool            `json:"alert_enabled,omitempty"`
-	AlertEmails    string          `json:"alert_emails,omitempty"`
-	Targets        []MonitorTarget `json:"targets,omitempty"`
-	PublicTitle    string          `json:"public_title,omitempty"` // status page display title
-	PublicIcon     string          `json:"public_icon,omitempty"`
-	PublicTheme    string          `json:"public_theme,omitempty"`
-	Announcement   string          `json:"announcement,omitempty"` // banner text on the status page
-	CreatedAt      int64           `json:"created_at,omitempty"`
+	ID                   string          `json:"id"`
+	UserID               string          `json:"user_id,omitempty"`
+	Name                 string          `json:"name"`
+	IntervalSec          int             `json:"interval_sec,omitempty"` // default 60
+	PublicToken          string          `json:"public_token,omitempty"`
+	PublicSlug           string          `json:"public_slug,omitempty"`
+	PublicDomain         string          `json:"public_domain,omitempty"`
+	PublicDomainMode     string          `json:"public_domain_mode,omitempty"`
+	PublicAuxDomain      string          `json:"public_aux_domain,omitempty"`
+	PublicPreferredCNAME string          `json:"public_preferred_cname,omitempty"`
+	PublishEnabled       bool            `json:"publish_enabled"`
+	AlertEnabled         bool            `json:"alert_enabled,omitempty"`
+	AlertEmails          string          `json:"alert_emails,omitempty"`
+	Targets              []MonitorTarget `json:"targets,omitempty"`
+	PublicTitle          string          `json:"public_title,omitempty"` // status page display title
+	PublicIcon           string          `json:"public_icon,omitempty"`
+	PublicTheme          string          `json:"public_theme,omitempty"`
+	Announcement         string          `json:"announcement,omitempty"` // banner text on the status page
+	CreatedAt            int64           `json:"created_at,omitempty"`
 }
 
 // CNAMEPreset is a reusable preferred CNAME option.

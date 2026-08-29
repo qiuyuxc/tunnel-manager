@@ -454,6 +454,15 @@ func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
 		if monitors[i].PublishEnabled != reloaded[i].PublishEnabled {
 			t.Fatalf("monitor %s publish = %v, want %v", monitors[i].ID, reloaded[i].PublishEnabled, monitors[i].PublishEnabled)
 		}
+		if monitors[i].PublicDomainMode != reloaded[i].PublicDomainMode {
+			t.Fatalf("monitor %s domain mode = %q, want %q", monitors[i].ID, reloaded[i].PublicDomainMode, monitors[i].PublicDomainMode)
+		}
+		if monitors[i].PublicAuxDomain != reloaded[i].PublicAuxDomain {
+			t.Fatalf("monitor %s auxiliary domain = %q, want %q", monitors[i].ID, reloaded[i].PublicAuxDomain, monitors[i].PublicAuxDomain)
+		}
+		if monitors[i].PublicPreferredCNAME != reloaded[i].PublicPreferredCNAME {
+			t.Fatalf("monitor %s preferred CNAME = %q, want %q", monitors[i].ID, reloaded[i].PublicPreferredCNAME, monitors[i].PublicPreferredCNAME)
+		}
 		if len(reloaded[i].Targets) != len(monitors[i].Targets) {
 			t.Fatalf("monitor %s target count = %d, want %d", monitors[i].ID, len(reloaded[i].Targets), len(monitors[i].Targets))
 		}
@@ -512,23 +521,27 @@ func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
 	s := newTestStore(t, HashPassword("password"))
 	adminID := s.AdminUserID()
 	first := models.Monitor{
-		ID:             "mon-one",
-		UserID:         adminID,
-		Name:           "First",
-		IntervalSec:    60,
-		PublishEnabled: true,
-		PublicToken:    "token-one",
-		PublicSlug:     "first",
+		ID:                   "mon-one",
+		UserID:               adminID,
+		Name:                 "First",
+		IntervalSec:          60,
+		PublishEnabled:       true,
+		PublicToken:          "token-one",
+		PublicSlug:           "first",
+		PublicDomainMode:     "preferred",
+		PublicAuxDomain:      "origin.example.com",
+		PublicPreferredCNAME: "custom.edge.example",
 		Targets: []models.MonitorTarget{
 			{ID: "t-one", Name: "A", URL: "https://a.example.com", Type: "http", CreatedAt: 11, LinkEnabled: true},
 			{ID: "t-two", Name: "B", URL: "https://b.example.com", Type: "tcp"},
 		},
 	}
 	second := models.Monitor{
-		ID:          "mon-two",
-		UserID:      adminID,
-		Name:        "Second",
-		IntervalSec: 120,
+		ID:               "mon-two",
+		UserID:           adminID,
+		Name:             "Second",
+		IntervalSec:      120,
+		PublicDomainMode: "simple",
 		Targets: []models.MonitorTarget{
 			{ID: "t-three", Name: "C", URL: "10.0.0.1:22", Type: "tcp", CreatedAt: 33},
 		},

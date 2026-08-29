@@ -52,23 +52,60 @@
         <label class="fld"><span>自定义域名（留空则只用面板域名访问）</span>
           <input v-model.trim="pubDomain" maxlength="253" placeholder="例如：status.example.com" class="vercel-input" />
           <p class="slug-hint text-muted">
-            填写后访问 <code class="inline-code">https://{{ pubDomain || 'status.example.com' }}</code> 会直接打开本状态页。保存时会自动配置同一 Cloudflare 连接下的 DNS 与隧道路由。
+            填写后访问 <code class="inline-code">https://{{ pubDomain || 'status.example.com' }}</code> 会直接打开本状态页。
+            {{ pubDomainMode === 'simple' ? '直连模式会配置橙云 Tunnel CNAME。' : '优选模式会配置灰云优选 CNAME 与 SaaS Custom Hostname。' }}
           </p></label>
+        <div class="fld domain-mode-field">
+          <span>域名接入方式</span>
+          <div class="status-mode-selector" role="radiogroup" aria-label="自定义域名接入方式">
+            <button type="button" class="status-mode-option" :class="{ active: pubDomainMode === 'simple' }" role="radio" :aria-checked="pubDomainMode === 'simple'" @click="pubDomainMode = 'simple'">
+              <strong>直连</strong><span>橙云 Tunnel</span>
+            </button>
+            <button type="button" class="status-mode-option" :class="{ active: pubDomainMode === 'preferred' }" role="radio" :aria-checked="pubDomainMode === 'preferred'" @click="pubDomainMode = 'preferred'">
+              <strong>优选</strong><span>灰云优选线路</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="pubDomainMode === 'preferred'" class="preferred-domain-fields">
+          <label class="fld preferred-domain-field"><span>辅助回源域名</span>
+            <input v-model.trim="pubAuxDomain" maxlength="253" placeholder="例如：origin.example.com" class="vercel-input" />
+            <p class="slug-hint text-muted">自动开启橙云并指向当前 Tunnel，作为 SaaS Custom Origin。</p>
+          </label>
+          <label class="fld preferred-domain-field"><span>本次优选 CNAME</span>
+            <cname-picker
+              v-model="pubPreferredCNAME"
+              class="status-cname-picker"
+              :presets="configStore.config.cname_presets"
+              :show-default="true"
+              :default-value="configStore.config.preferred_cname"
+              placeholder="选择常用线路或手动输入"
+            />
+            <p class="slug-hint text-muted">留空使用全局默认：{{ configStore.config.preferred_cname || '未配置' }}</p>
+          </label>
+        </div>
         <div v-if="pubDomain" class="domain-guide">
           <span class="caption-mono">自动配置失败时，手动检查 DNS CNAME</span>
           <div class="copy-row">
             <code class="token-box">{{ dnsGuide }}</code>
             <button type="button" class="btn btn-secondary btn-sm" @click="copyText(dnsGuide)">复制</button>
           </div>
+          <span class="caption-mono">手动检查 SaaS Custom Hostname</span>
+          <div class="copy-row">
+            <code class="token-box">{{ saasGuide }}</code>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(saasGuide)">复制</button>
+          </div>
           <span class="caption-mono">手动检查 cloudflared ingress 规则</span>
           <div class="copy-row">
             <code class="token-box">{{ ingressGuide }}</code>
             <button type="button" class="btn btn-secondary btn-sm" @click="copyText(ingressGuide)">复制</button>
           </div>
-          <p class="slug-hint text-muted">
-            隧道匹配不到该主机名会直接返回 404，请求到不了面板。也可以改用通配主机名（如
-            <code class="inline-code">*.{{ apexHint }}</code>）或把隧道末尾的兜底规则指向面板，这样以后新增域名无需再改隧道。
-            面板若是 A 记录直连或走 nginx 反代，则自动配置不适用，需手动配置 DNS 与反向代理。
+          <p v-if="pubDomainMode === 'preferred'" class="slug-hint text-muted">
+            访问域名 CNAME 需要关闭代理；辅助回源域名需要开启代理、指向当前 Tunnel，并作为 SaaS Custom Origin。
+            状态域名 ingress 不要设置 <code class="inline-code">httpHostHeader</code>，否则面板无法识别对应状态页。
+          </p>
+          <p v-else class="slug-hint text-muted">
+            状态域名 CNAME 需要开启代理并指向当前 Tunnel；同名 SaaS Custom Hostname 会在保存时自动清理。
+            状态域名 ingress 仍会保留访客 Host，不设置 <code class="inline-code">httpHostHeader</code>。
           </p>
         </div>
         <label class="fld"><span>公开页标题</span>
@@ -199,6 +236,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
+import CnamePicker from '../components/CNAMEPicker.vue'
 import {
   addMonitorTarget,
   editMonitorTarget,
@@ -211,6 +249,7 @@ import {
   updateMonitor,
   listMonitorAlerts,
   type AlertLog,
+  type BindMode,
   type Heartbeat,
   type MonitorView,
   type TargetStatus,
@@ -238,6 +277,9 @@ const pubIcon = ref('')
 const pubTheme = ref<'' | 'warm'>('')
 const pubSlug = ref('')
 const pubDomain = ref('')
+const pubDomainMode = ref<BindMode>('preferred')
+const pubAuxDomain = ref('')
+const pubPreferredCNAME = ref('')
 const announcement = ref('')
 
 const editOpen = ref(false)
@@ -259,27 +301,61 @@ const slugPreview = computed(() => {
 
 const iconPreview = computed(() => /^(https?:\/\/|\/uploads\/|data:image\/)/.test(pubIcon.value.trim()))
 
-// Everything below the first label of the custom domain, used to suggest a
-// wildcard ingress hostname.
-const apexHint = computed(() => pubDomain.value.split('.').slice(1).join('.') || 'example.com')
-
 const dnsGuide = computed(() => {
-  const tunnel = configStore.config.tunnel_id
+  const tunnelID = configStore.config.tunnel_id
+  const tunnelTarget = tunnelID ? tunnelID + '.cfargotunnel.com' : '<当前 Tunnel 的 cfargotunnel.com 地址>'
+  if (pubDomainMode.value === 'simple') {
+    return [
+      `类型:   CNAME`,
+      `名称:   ${pubDomain.value}`,
+      `目标:   ${tunnelTarget}`,
+      `代理:   已开启（橙云）`,
+    ].join('\n')
+  }
+  const preferred = pubPreferredCNAME.value.trim() || configStore.config.preferred_cname
   return [
-    `类型:   CNAME`,
+    `访问域名 CNAME`,
     `名称:   ${pubDomain.value}`,
-    `目标:   ${tunnel ? tunnel + '.cfargotunnel.com' : '<面板所在隧道的 ID>.cfargotunnel.com'}`,
+    `目标:   ${preferred || '<本次或全局优选 CNAME>'}`,
+    `代理:   已关闭（灰云）`,
+    ``,
+    `辅助回源域名 CNAME`,
+    `名称:   ${pubAuxDomain.value || '<辅助回源域名>'}`,
+    `目标:   ${tunnelTarget}`,
     `代理:   已开启（橙云）`,
   ].join('\n')
 })
 
-const ingressGuide = computed(() => {
-  const service = configStore.config.service_url
+const saasGuide = computed(() => {
+  if (pubDomainMode.value === 'simple') {
+    return [
+      `自定义主机名: ${pubDomain.value}`,
+      `状态:   应不存在（保存时自动清理）`,
+    ].join('\n')
+  }
   return [
-    `主机名: ${pubDomain.value}`,
-    `服务:   ${service || '<面板的本机地址，例如 http://localhost:8080>'}`,
+    `自定义主机名: ${pubDomain.value}`,
+    `Custom Origin: ${pubAuxDomain.value || '<辅助回源域名>'}`,
+    `SSL 验证: HTTP DCV`,
   ].join('\n')
 })
+
+const ingressGuide = computed(() => {
+  const service = configStore.config.service_url || '<面板的本机地址，例如 http://localhost:8080>'
+  const lines = [
+    `访问 Host: ${pubDomain.value}`,
+    `服务:      ${service}`,
+  ]
+  if (pubDomainMode.value === 'preferred') {
+    lines.push(
+      `回源 Host: ${pubAuxDomain.value || '<辅助回源域名>'}`,
+      `服务:      ${service}`,
+    )
+  }
+  lines.push(`Host:      保留原始主机名，不设置 httpHostHeader`)
+  return lines.join('\n')
+})
+
 const urlHint = computed(() =>
   probeType.value === 'tcp' ? '地址，例如 example.com:443 或 10.0.0.2:22' :
   probeType.value === 'icmp' ? '主机或 IP，例如 example.com 或 1.1.1.1' :
@@ -304,6 +380,9 @@ async function load() {
     pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
     pubSlug.value = data.public_slug || ''
     pubDomain.value = data.public_domain || ''
+    pubDomainMode.value = data.public_domain_mode === 'preferred' ? 'preferred' : 'simple'
+    pubAuxDomain.value = data.public_aux_domain || ''
+    pubPreferredCNAME.value = data.public_preferred_cname || ''
     announcement.value = data.announcement || ''
     alertEnabled.value = Boolean(data.alert_enabled)
     alertEmails.value = data.alert_emails || ''
@@ -417,18 +496,25 @@ async function savePublishSettings() {
       public_theme: pubTheme.value,
       public_slug: pubSlug.value.toLowerCase(),
       public_domain: pubDomain.value.toLowerCase(),
+      public_domain_mode: pubDomainMode.value,
+      public_aux_domain: pubAuxDomain.value.toLowerCase(),
+      public_preferred_cname: pubPreferredCNAME.value.toLowerCase(),
       announcement: announcement.value.trim(),
     })
     monitor.value = data
     if (data.domain_warning) {
       message.warning(`设置已保存，但自动配置失败：${data.domain_warning}`)
     } else if (data.public_domain) {
-      message.success('公开页设置已保存，DNS 与隧道路由已自动配置')
+      message.success(pubDomainMode.value === 'simple'
+        ? '公开页设置已保存，直连 Tunnel CNAME 与隧道路由已自动配置'
+        : '公开页设置已保存，优选 CNAME、辅助回源、SaaS 主机名与隧道路由已自动配置'
+      )
     } else {
       message.success('公开页设置已保存')
     }
-  } catch (_) {
-    message.error('保存失败')
+  } catch (e: unknown) {
+    const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
+    message.error(msg || '保存失败')
   }
 }
 
@@ -563,7 +649,7 @@ function copyText(text: string) {
 
 onMounted(() => {
   load()
-  void loadRoutes()
+  void configStore.fetchConfig().then(loadRoutes)
   timer = setInterval(() => { void load() }, 30000)
 })
 onBeforeUnmount(() => { if (timer) clearInterval(timer) })
@@ -612,6 +698,29 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: 6px;
 }
 .slug-hint { margin: 2px 0 0; font-size: 11px; }
+.domain-mode-field { margin-bottom: 12px; }
+.status-mode-selector {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 320px); padding: 3px;
+  background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: 7px;
+}
+.status-mode-option {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-width: 0; height: 48px;
+  padding: 6px 11px; color: var(--color-body); text-align: left; background: transparent;
+  border: 1px solid transparent; border-radius: 5px; cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.status-mode-option strong { font-size: 12.5px; line-height: 1.2; color: var(--color-ink); }
+.status-mode-option span { max-width: 100%; overflow: hidden; font-size: 10.5px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.status-mode-option.active {
+  color: var(--color-ink); background: var(--color-canvas-raised); border-color: var(--color-link);
+}
+.status-mode-option:hover:not(.active) { background: color-mix(in srgb, var(--color-link) 6%, transparent); }
+.preferred-domain-fields {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px;
+}
+.pub-set .preferred-domain-field { min-width: 0; margin-bottom: 0; }
+.status-cname-picker :deep(.cname-input) { height: 34px; font-size: 13px; }
+.status-cname-picker :deep(.picker-toggle) { width: 34px; height: 32px; }
 .domain-guide { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
 .copy-row { display: flex; align-items: flex-start; gap: 8px; }
 .token-box { flex: 1; min-width: 0; padding: 10px 12px; color: var(--color-ink); background: var(--color-canvas); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
@@ -690,6 +799,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 900px) {
   .add-row { grid-template-columns: 1fr; }
+  .preferred-domain-fields { grid-template-columns: 1fr; }
   .bars { order: 5; flex-basis: 100%; }
   .target-row { flex-wrap: wrap; row-gap: 8px; }
 }
