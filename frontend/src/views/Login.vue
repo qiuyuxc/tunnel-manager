@@ -230,11 +230,11 @@ onMounted(() => {
     modeSwitchable.value = data.registration_enabled
     turnstileEnabled.value = data.turnstile_enabled
     turnstileSiteKey.value = data.turnstile_site_key || ''
-    if (data.turnstile_enabled) void renderTurnstile()
     if (router.currentRoute.value.query.mode === 'register' && data.registration_enabled) {
       mode.value = 'register'
-      nextTick(() => document.getElementById('reg-username')?.focus())
     }
+    if (data.turnstile_enabled) nextTick(() => void renderTurnstile())
+    if (mode.value === 'register') nextTick(() => document.getElementById('reg-username')?.focus())
   }).catch(() => {})
 })
 onBeforeUnmount(() => {
@@ -286,7 +286,11 @@ async function renderTurnstile() {
   if (!container || !window.turnstile) return
   turnstileWidgetID.value = window.turnstile.render(container, {
     sitekey: turnstileSiteKey.value,
-    action: mode.value,
+    // 注册/找回密码页共用一个验证组件，却要服务多个被校验的接口
+    // （send-code/register、forgot-password/reset-password）。带页面级
+    // action 会导致这些接口 action 不匹配被拒，因此这些页面不传 action
+    // （siteverify 回显空 action，后端即放行）；登录页只对应 login，保留。
+    action: mode.value === 'login' ? 'login' : undefined,
     callback: (token: string) => { turnstileToken.value = token },
     'expired-callback': () => { turnstileToken.value = '' },
     'error-callback': () => { turnstileToken.value = '' },

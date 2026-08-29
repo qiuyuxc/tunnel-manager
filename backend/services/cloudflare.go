@@ -21,6 +21,7 @@ type CloudflareClient struct {
 	oauth      *CloudflareOAuth
 	store      interface {
 		ActiveCFConnection(string) (models.CFConnection, bool)
+		AdminUserID() string
 	}
 	userID     string
 	pinnedConn *models.CFConnection
@@ -44,6 +45,7 @@ func (c *CloudflareClient) SetOAuth(oauth *CloudflareOAuth) {
 // SetSessionStore wires the store used to resolve per-user connections.
 func (c *CloudflareClient) SetSessionStore(st interface {
 	ActiveCFConnection(string) (models.CFConnection, bool)
+	AdminUserID() string
 }) {
 	c.store = st
 }
@@ -70,6 +72,16 @@ func (c *CloudflareClient) DefaultAccountID() string {
 	return c.accountID
 }
 
+// adminUser reports whether the client is bound to the seeded administrator.
+// Only the administrator may fall back to legacy static credentials; regular
+// users must authorize their own Cloudflare account (multi-user isolation).
+func (c *CloudflareClient) adminUser() bool {
+	if c.store == nil || c.userID == "" {
+		return false
+	}
+	return c.userID == c.store.AdminUserID()
+}
+
 // HasStaticCredentials reports whether legacy environment credentials are usable.
 func (c *CloudflareClient) HasStaticCredentials() bool {
 	return c.apiToken != "" && c.accountID != ""
@@ -83,7 +95,7 @@ func (c *CloudflareClient) accessToken() (string, error) {
 		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.HasToken() {
 			return c.oauth.AccessTokenFor(conn)
 		}
-		if c.apiToken != "" {
+		if c.adminUser() && c.apiToken != "" {
 			return c.apiToken, nil
 		}
 		return "", fmt.Errorf("尚未授权 Cloudflare 账户，请先在账户页完成授权")
@@ -101,6 +113,9 @@ func (c *CloudflareClient) currentAccountID() (string, error) {
 	if c.store != nil && c.userID != "" {
 		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.AccountID != "" {
 			return conn.AccountID, nil
+		}
+		if !c.adminUser() {
+			return "", fmt.Errorf("尚未授权 Cloudflare 账户，请先在账户页完成授权")
 		}
 	}
 	if c.oauth != nil && c.oauth.Connected() {

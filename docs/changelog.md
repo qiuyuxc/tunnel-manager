@@ -2,6 +2,11 @@
 
 整理自仓库发布提交，更早的版本细节见 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)。
 
+## v2.2.1
+
+- 修复注册 / 找回密码人机验证一直不通过：Turnstile 组件 action 与接口校验的 action 不匹配（发送邮箱验证码、找回密码、重置密码），改为仅登录页携带 action
+- 安全修复：普通用户未绑定自己的 Cloudflare OAuth 时不再回退使用管理员的静态凭据，未授权用户无法查看或操作管理员的隧道、域名、DNS 与监控
+
 ## v2.2.0
 
 - 状态页支持绑定独立自定义域名，并按请求 Host 跳转到对应公开页面（状态页 Host 隔离）
