@@ -37,6 +37,8 @@ frontend/src/assets/fonts/*
 !frontend/src/assets/fonts/MiSans-Semibold.woff2
 backend/.accept/
 backend/.fix_key.py
+backend/.preview/
+backend/.dedupe.py
 docs/.server.py
 
 # Local design-language references (working files, not shipped)
