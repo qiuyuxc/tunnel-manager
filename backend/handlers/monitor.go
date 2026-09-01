@@ -40,14 +40,23 @@ func NewMonitorHandler(cf *services.CloudflareClient, st *store.Store) *MonitorH
 
 const monitorConcurrency = 8
 
+// resolveUserID returns the account whose preferences apply to this request.
+// API-key access (no individual account) falls back to the administrator.
+func (h *MonitorHandler) resolveUserID(r *http.Request) string {
+	if user := SessionUser(r); user != nil && !user.IsAPIKey() {
+		return user.ID
+	}
+	return h.st.AdminUserID()
+}
+
 // ServiceStatus handles GET /api/monitor/services.
 func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
-	cfg := h.st.GetConfig()
-	if cfg.TunnelID == "" {
+	prefs := h.st.GetUserPrefs(h.resolveUserID(r))
+	if prefs.TunnelID == "" {
 		writeJSON(w, http.StatusOK, ServicesHealthResponse{Services: []ServiceProbe{}, CheckedAt: nowRFC3339()})
 		return
 	}
-	detail, err := UserCF(r).GetTunnelConfig(cfg.TunnelID)
+	detail, err := UserCF(r).GetTunnelConfig(prefs.TunnelID)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
@@ -94,8 +103,8 @@ func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	writeJSON(w, http.StatusOK, ServicesHealthResponse{
-		TunnelID:   cfg.TunnelID,
-		TunnelName: cfg.TunnelName,
+		TunnelID:   prefs.TunnelID,
+		TunnelName: prefs.TunnelName,
 		CheckedAt:  nowRFC3339(),
 		Services:   results,
 	})
