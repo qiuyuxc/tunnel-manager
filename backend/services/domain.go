@@ -14,8 +14,9 @@ const (
 )
 
 type DomainService struct {
-	cf    *CloudflareClient
-	store *store.Store
+	cf     *CloudflareClient
+	store  *store.Store
+	userID string
 }
 
 func NewDomainService(cf *CloudflareClient, st *store.Store) *DomainService {
@@ -26,7 +27,26 @@ func NewDomainService(cf *CloudflareClient, st *store.Store) *DomainService {
 func (s *DomainService) ForUser(userID string) *DomainService {
 	clone := *s
 	clone.cf = s.cf.ForUser(userID)
+	clone.userID = userID
 	return &clone
+}
+
+// bindSelection resolves the tunnel and origin service for a domain bind.
+// The requesting user's saved selections take precedence; the global
+// configuration is the fallback so legacy single-user setups keep working.
+func (d *DomainService) bindSelection() (tunnelID, serviceURL string) {
+	cfg := d.store.GetConfig()
+	tunnelID, serviceURL = cfg.TunnelID, cfg.ServiceURL
+	if d.userID != "" {
+		prefs := d.store.GetUserPrefs(d.userID)
+		if prefs.TunnelID != "" {
+			tunnelID = prefs.TunnelID
+		}
+		if prefs.ServiceURL != "" {
+			serviceURL = prefs.ServiceURL
+		}
+	}
+	return tunnelID, serviceURL
 }
 
 func NormalizeBindingMode(mode string) (string, error) {
@@ -44,11 +64,11 @@ func (d *DomainService) BindDomain(mainDomain, auxDomain string) (string, error)
 	return d.BindDomainWithPreferredCNAME(mainDomain, auxDomain, "")
 }
 func (d *DomainService) BindDomainWithPreferredCNAME(mainDomain, auxDomain, preferredCNAME string) (string, error) {
-	cfg := d.store.GetConfig()
-	if cfg.ServiceURL == "" {
+	_, serviceURL := d.bindSelection()
+	if serviceURL == "" {
 		return "", fmt.Errorf("service_url 未配置，请先在面板中设置")
 	}
-	_, preferred, err := d.BindDomainWithMode(BindingModePreferred, mainDomain, auxDomain, cfg.ServiceURL, preferredCNAME)
+	_, preferred, err := d.BindDomainWithMode(BindingModePreferred, mainDomain, auxDomain, serviceURL, preferredCNAME)
 	return preferred, err
 }
 func (d *DomainService) BindDomainWithService(mainDomain, auxDomain, serviceURL, preferredCNAME string) (string, error) {
@@ -56,11 +76,11 @@ func (d *DomainService) BindDomainWithService(mainDomain, auxDomain, serviceURL,
 	return preferred, err
 }
 func (d *DomainService) BindDomainWithConfiguredService(mode, mainDomain, auxDomain, preferredCNAME string) (string, string, error) {
-	cfg := d.store.GetConfig()
-	if cfg.ServiceURL == "" {
+	_, serviceURL := d.bindSelection()
+	if serviceURL == "" {
 		return mode, "", fmt.Errorf("service_url 未配置，请先在面板中设置")
 	}
-	return d.BindDomainWithMode(mode, mainDomain, auxDomain, cfg.ServiceURL, preferredCNAME)
+	return d.BindDomainWithMode(mode, mainDomain, auxDomain, serviceURL, preferredCNAME)
 }
 
 // BindDomainWithMode dispatches to simple direct binding or the existing preferred SaaS flow.
@@ -70,9 +90,11 @@ func (d *DomainService) BindDomainWithMode(mode, mainDomain, auxDomain, serviceU
 		return "", "", err
 	}
 	cfg := d.store.GetConfig()
-	if cfg.TunnelID == "" || strings.TrimSpace(serviceURL) == "" {
+	tunnelID, _ := d.bindSelection()
+	if tunnelID == "" || strings.TrimSpace(serviceURL) == "" {
 		return actual, "", fmt.Errorf("tunnel_id 或 service_url 未配置，请先在面板中设置")
 	}
+	cfg.TunnelID = tunnelID
 	mainDomain = strings.TrimSuffix(strings.TrimSpace(mainDomain), ".")
 	auxDomain = strings.TrimSuffix(strings.TrimSpace(auxDomain), ".")
 	if mainDomain == "" {

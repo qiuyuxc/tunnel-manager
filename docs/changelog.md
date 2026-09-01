@@ -2,6 +2,10 @@
 
 整理自仓库发布提交，更早的版本细节见 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)。
 
+## v2.2.2
+
+- 修复域名绑定一直使用全局配置的问题：无论选择哪个隧道 / 转发端口，ingress 与 CNAME 都会落到全局配置的隧道与端口；改为优先使用当前用户自己保存的隧道与转发地址，未配置时回退全局配置
+
 ## v2.2.1
 
 - 修复注册 / 找回密码人机验证一直不通过：Turnstile 组件 action 与接口校验的 action 不匹配（发送邮箱验证码、找回密码、重置密码），改为仅登录页携带 action
