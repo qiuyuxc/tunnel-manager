@@ -231,9 +231,6 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: var(--spacing-xl); }
-
 .settings-grid {
   display: grid;
   gap: var(--spacing-lg);

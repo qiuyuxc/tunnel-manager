@@ -167,9 +167,6 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
-.section { margin-bottom: var(--spacing-xl); }
-.page-header { margin-bottom: var(--spacing-lg); }
-
 .prereq-banner {
   display: flex;
   align-items: flex-start;
@@ -295,7 +292,7 @@ onMounted(async () => {
 .icon-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .mode-selector, .form-fields, .form-fields.simple-fields { grid-template-columns: 1fr; }
   .mode-option { align-items: flex-start; flex-direction: column; gap: 2px; }
 }

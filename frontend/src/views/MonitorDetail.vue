@@ -797,7 +797,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .dlg-code { display: block; padding: 8px 10px; margin-bottom: 14px; border-radius: 6px; background: var(--color-canvas-soft);
   border: 1px solid var(--color-hairline); font-family: var(--font-mono); font-size: 11.5px; color: var(--color-ink); word-break: break-all; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .add-row { grid-template-columns: 1fr; }
   .preferred-domain-fields { grid-template-columns: 1fr; }
   .bars { order: 5; flex-basis: 100%; }

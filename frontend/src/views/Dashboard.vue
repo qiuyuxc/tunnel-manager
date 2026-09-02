@@ -266,11 +266,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .lg-avg.mid { background: var(--color-warning); }
 .lg-avg.bad { background: var(--color-error); }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 768px) {
-  .quick-actions { grid-template-columns: 1fr; }
 }
 
 .metric-card {
@@ -306,5 +303,5 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .action-body strong { font-size: 14px; font-weight: 600; }
 .action-body span { font-size: 12px; color: var(--color-body); line-height: 1.5; }
 @media (max-width: 1024px) { .quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .quick-actions { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .quick-actions { grid-template-columns: 1fr; } }
 </style>

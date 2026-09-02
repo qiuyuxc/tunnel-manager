@@ -178,8 +178,6 @@ async function sendTest() {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-
 .settings-list {
   display: flex;
   flex-direction: column;
@@ -296,7 +294,7 @@ async function sendTest() {
   gap: var(--spacing-sm);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .notify-page { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
   .actions-row { flex-direction: column; }
   .actions-row .btn { width: 100%; justify-content: center; }

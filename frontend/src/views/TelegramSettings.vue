@@ -332,9 +332,6 @@ onUnmounted(() => {
 })
 </script>
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: var(--spacing-xl); }
-
 .settings-list {
   display: flex;
   flex-direction: column;

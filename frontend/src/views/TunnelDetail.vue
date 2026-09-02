@@ -212,13 +212,11 @@ async function submitDelete() {
 onMounted(() => { load() })
 </script>
 <style scoped>
-.page-header { margin-bottom: var(--spacing-xl); }
 .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; color: var(--color-mute); font-size: 12px; font-weight: 500; text-decoration: none; }
 .back-link:hover { color: var(--color-link); }
 .detail-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-lg); }
 .detail-title-row h2 { margin-bottom: 4px; }
 .detail-subtitle { margin: 0; color: var(--color-body); font-size: 13px; }
-.section { margin-bottom: var(--spacing-xl); }
 .info-grid { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(280px, 1.5fr) minmax(160px, 0.7fr); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl); }
 .info-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: var(--spacing-lg); background: var(--color-canvas-raised); border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
 .info-label { color: var(--color-mute); font-size: 12px; font-weight: 500; }
@@ -258,14 +256,14 @@ onMounted(() => { load() })
 .delete-hint code { padding: 1px 5px; color: var(--color-ink); background: var(--color-canvas-soft-2); border-radius: 4px; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
   .info-grid { grid-template-columns: 1fr 1fr; }
   .info-card:nth-child(2) { grid-column: span 2; }
   .route-card { grid-template-columns: 36px minmax(0, 1fr) auto; }
   .route-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .route-service { grid-column: 2 / -1; }
 }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .info-grid { grid-template-columns: 1fr; }
   .info-card:nth-child(2) { grid-column: auto; }
   .detail-title-row { align-items: flex-start; flex-direction: column; }

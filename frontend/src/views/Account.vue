@@ -981,8 +981,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-
 .settings-list {
   display: flex;
   flex-direction: column;
@@ -1408,7 +1406,7 @@ onBeforeUnmount(() => {
   .settings-input-row .btn { width: 100%; max-width: 100%; justify-content: center; }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .account-page { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
   .security-heading,
   .security-state,

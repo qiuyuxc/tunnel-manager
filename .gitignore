@@ -29,12 +29,10 @@ tunnel-web/
 design-preview.html
 *.tar.gz
 
-# Unused MiSans weights (only Bold/Medium/Regular/Semibold are referenced)
-frontend/src/assets/fonts/*
-!frontend/src/assets/fonts/MiSans-Bold.woff2
-!frontend/src/assets/fonts/MiSans-Medium.woff2
-!frontend/src/assets/fonts/MiSans-Regular.woff2
-!frontend/src/assets/fonts/MiSans-Semibold.woff2
+# Full-coverage MiSans weights: build inputs for frontend/scripts/subset-fonts.py,
+# which generates the shipped subsets into frontend/public/fonts/. Download the
+# originals from Xiaomi's official MiSans page when they need regenerating.
+frontend/src/assets/fonts/
 backend/.accept/
 backend/.fix_key.py
 backend/.preview/

@@ -167,9 +167,6 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
-.section { margin-bottom: var(--spacing-xl); }
-.page-header { margin-bottom: var(--spacing-lg); }
-
 .prereq-banner {
   display: flex;
   align-items: flex-start;

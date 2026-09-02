@@ -227,8 +227,8 @@ async function copy(text: string) {
 onMounted(() => { loadTunnels() })
 </script>
 <style scoped>
-.section { margin-bottom: var(--spacing-xl); }
 .page-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-xl); }
+/* The heading sits in a row with the toolbar, so it drops the shared bottom margin. */
 .page-header { margin-bottom: 0; }
 .toolbar { display: flex; gap: var(--spacing-sm); flex-shrink: 0; }
 .tunnel-table-card { overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }

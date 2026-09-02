@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.2.2"
+const Version = "v2.2.3"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -159,6 +159,9 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	// The panel ships a ~450 KB JS bundle and the generated font stylesheet
+	// (116 KB of @font-face rules, ~9 KB gzipped); both are text, so compress.
+	r.Use(chimw.Compress(5))
 	r.Use(mw.CORS)
 	r.Use(handlers.StatusDomainRedirect(st))
 
@@ -320,6 +323,16 @@ func main() {
 
 	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
 		fs := http.FileServer(http.Dir(staticDir))
+		// Font subsets are immutable in practice: a chunk's filename encodes the
+		// weight and unicode-range it was generated for, so let clients keep them
+		// instead of revalidating a dozen files on every reload. fonts.css keeps
+		// revalidating, so re-running scripts/subset-fonts.py still takes effect.
+		r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
+			if strings.HasSuffix(req.URL.Path, ".woff2") {
+				w.Header().Set("Cache-Control", "public, max-age=2592000")
+			}
+			fs.ServeHTTP(w, req)
+		})
 		r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
 			// Try to serve the file directly
 			path := filepath.Join(staticDir, req.URL.Path)

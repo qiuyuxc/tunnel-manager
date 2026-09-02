@@ -284,9 +284,6 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
-.page-header { margin-bottom: var(--spacing-lg); }
-.section { margin-bottom: var(--spacing-xl); }
-
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -550,12 +547,12 @@ onMounted(async () => {
 .tunnel-summary code { color: var(--color-mute); font: 12px/1.4 var(--font-mono); overflow-wrap: anywhere; }
 .tunnel-empty span { color: var(--color-mute); font-size: 14px; }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .settings-grid, .brand-editor { grid-template-columns: 1fr; }
   .settings-card-wide { grid-column: auto; }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .settings-card-header,
   .default-cname-row,
   .settings-input-row {
