@@ -7,6 +7,7 @@
 │  Vue 3 前端   │────▶│  Go 后端 API  │────▶│ Cloudflare API   │
 │  Naive UI    │     │  chi router  │     │ Tunnels / DNS    │
 └──────────────┘     └──────────────┘     └──────────────────┘
+```
 
 单容器运行：前端静态文件由 Go 进程直接托管（`STATIC_DIR=frontend/dist`），没有独立的 Node 运行时。
 

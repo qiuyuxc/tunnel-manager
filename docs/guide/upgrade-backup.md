@@ -32,7 +32,7 @@ docker compose up -d
 
 ```bash
 tar czf tunnel-manager-backup.tar.gz data/ .env
-``
+```
 
 `APP_ENCRYPTION_KEY` 保存在 `.env` 中（32 字节 Base64）。请把备份文件存到运行机之外的位置。
 
