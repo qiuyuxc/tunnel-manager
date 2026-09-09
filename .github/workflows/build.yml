@@ -6,7 +6,9 @@ on:
     tags: ['v*']
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/tunnel-manager
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/tunnel-manager
+  ACR_REGISTRY: crpi-2ulafqan571jasyp.cn-shanghai.personal.cr.aliyuncs.com
+  ACR_IMAGE: crpi-2ulafqan571jasyp.cn-shanghai.personal.cr.aliyuncs.com/tunnel-manager/tunnel
 
 jobs:
   build:
@@ -17,17 +19,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 镜像列表：ghcr 永远推；若配了 ALIYUN_ACR_PASSWORD 则同时推一份到阿里云 ACR。
+      # 注：secrets 不能在 if: 里直接用，故先在步骤里算出 acr=yes/no 再做条件
+      - name: Compose image list
+        id: images
+        env:
+          ACR_PW: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+        run: |
+          IMAGES="${{ env.GHCR_IMAGE }}"
+          if [ -n "$ACR_PW" ]; then
+            echo 'acr=yes' >> "$GITHUB_OUTPUT"
+            IMAGES="${IMAGES}"$'\n'"${{ env.ACR_IMAGE }}"
+          else
+            echo 'acr=no' >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo 'images<<GHCR_ACR_EOF'
+            printf '%s\n' "$IMAGES"
+            echo 'GHCR_ACR_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: docker/login-action@v3
+        if: steps.images.outputs.acr == 'yes'
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
       - name: Extract metadata (tags)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ steps.images.outputs.images }}
           tags: |
             # main 分支推送 -> latest
             type=raw,value=latest,enable={{is_default_branch}}
