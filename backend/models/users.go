@@ -101,18 +101,21 @@ type AppSettings struct {
 	TurnstileEnabled bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey string `json:"turnstile_site_key"`
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
+	// ExperimentalFeatures controls whether lab navigation is exposed.
+	ExperimentalFeatures bool `json:"experimental_features_enabled"`
 }
 
 // AppSettingsView is the admin-facing projection of AppSettings; it never
 // exposes the stored (encrypted) Turnstile secret.
 type AppSettingsView struct {
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	InviteMode          string `json:"invite_mode"`
-	DefaultGroupID      string `json:"default_group_id,omitempty"`
-	EmailVerifyDisabled bool   `json:"email_verify_disabled"`
-	TurnstileEnabled    bool   `json:"turnstile_enabled"`
-	TurnstileSiteKey    string `json:"turnstile_site_key"`
-	TurnstileHasSecret  bool   `json:"turnstile_has_secret"`
+	RegistrationEnabled  bool   `json:"registration_enabled"`
+	InviteMode           string `json:"invite_mode"`
+	DefaultGroupID       string `json:"default_group_id,omitempty"`
+	EmailVerifyDisabled  bool   `json:"email_verify_disabled"`
+	TurnstileEnabled     bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey     string `json:"turnstile_site_key"`
+	TurnstileHasSecret   bool   `json:"turnstile_has_secret"`
+	ExperimentalFeatures bool   `json:"experimental_features_enabled"`
 }
 
 // OAuthSettings holds the Cloudflare OAuth client configured in the admin
@@ -338,7 +341,8 @@ type SaveAppSettingsRequest struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// TurnstileHasSecret is accepted for round-tripping the GET response;
 	// it carries no save semantics.
-	TurnstileHasSecret bool `json:"turnstile_has_secret,omitempty"`
+	TurnstileHasSecret   bool `json:"turnstile_has_secret,omitempty"`
+	ExperimentalFeatures bool `json:"experimental_features_enabled"`
 }
 
 // SaveOAuthRequest is the body of PUT /api/admin/oauth. A blank secret keeps

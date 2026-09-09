@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.2.3"
+const Version = "v2.3.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -108,6 +108,7 @@ func main() {
 	// Service monitoring heartbeat storage and scheduler
 	heartbeatLog := services.NewHeartbeatLog(filepath.Join(filepath.Dir(storePath), "heartbeats.json"))
 	monitorRunner := services.NewRunner(st, heartbeatLog)
+	labRunner := services.NewLabIPSelectorRunner(st, encryptionKey)
 	monitorRunner.SetMailer(func() *services.Mailer {
 		settings := st.GetSMTPSettings()
 		if !settings.Configured() || settings.Password == "" {
@@ -121,6 +122,7 @@ func main() {
 		return services.NewMailer(settings, string(plain))
 	})
 	go monitorRunner.Start(context.Background())
+	go labRunner.Start(context.Background())
 	heartbeatLog.StartFlusher(10 * time.Second)
 
 	// Monitors management
@@ -138,6 +140,7 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
+	labHandler := handlers.NewLabHandler(st, labRunner, encryptionKey)
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
 	userTelegramManager := services.NewUserTelegramManager(st, cf, domainService, encryptionKey)
 	telegramHandler := handlers.NewTelegramHandler(st, telegramBot, userTelegramManager, encryptionKey)
@@ -264,6 +267,12 @@ func main() {
 
 		// Service health monitoring
 		r.Get("/monitor/services", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorHandler.ServiceStatus)))
+
+		// Experimental lab (administrator only)
+		r.Get("/lab/ip-selector", adminOnly(labHandler.GetSettings))
+		r.Put("/lab/ip-selector", adminOnly(labHandler.SaveSettings))
+		r.Get("/lab/ip-selector/status", adminOnly(labHandler.GetStatus))
+		r.Post("/lab/ip-selector/run", adminOnly(labHandler.Run))
 
 		// Monitor projects (uptime-style)
 		r.Get("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.List)))

@@ -21,7 +21,7 @@ func TestGetSiteSettingsIsPublicSafeResponse(t *testing.T) {
 	}
 	var result map[string]interface{}
 	decodeResponse(t, resp, &result)
-	if len(result) != 4 || result["name"] != "My Panel" || result["description"] != "Operations" || result["icon"] != "/icon.png" || result["landing_enabled"] != false {
+	if len(result) != 5 || result["name"] != "My Panel" || result["description"] != "Operations" || result["icon"] != "/icon.png" || result["landing_enabled"] != false || result["experimental_features_enabled"] != false {
 		t.Fatalf("GetSiteSettings() response = %#v", result)
 	}
 }

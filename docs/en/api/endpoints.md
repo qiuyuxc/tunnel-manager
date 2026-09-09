@@ -80,11 +80,22 @@ Ordinary endpoints are checked against group permissions (tunnels / domain bindi
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret |
+| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret, and the experimental-features switch |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth client (client ID / secret / callback / scopes), taking precedence over the environment |
 | GET / PUT | `/api/admin/encryption-key` | Application encryption key (the environment wins; a change needs a restart) |
 | GET / PUT | `/api/admin/smtp` | SMTP settings (encrypted or plain) |
 | POST | `/api/admin/smtp/test` | Send a test email |
+
+## IP optimizer lab (experimental)
+
+The lab is disabled by default; while disabled, these endpoints return `404`. The Secret Key is encrypted at rest and responses only report whether it is configured.
+
+| Method | Path | Description | Auth |
+| --- | --- | --- | --- |
+| GET | `/api/lab/ip-selector` | Read probe, schedule and Huawei Cloud DNS settings | administrator |
+| PUT | `/api/lab/ip-selector` | Save settings; an empty `secret_key` keeps the stored value | administrator |
+| GET | `/api/lab/ip-selector/status` | Read run state, live progress and history | administrator |
+| POST | `/api/lab/ip-selector/run` | Start one asynchronous run; returns `409` if another is active | administrator |
 
 ## Cloudflare OAuth
 

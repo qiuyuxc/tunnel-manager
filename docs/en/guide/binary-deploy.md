@@ -7,8 +7,8 @@ Don't want to run Docker? Download the prebuilt archive — one binary plus the 
 Grab `tunnel-manager_<version>_linux_amd64.tar.gz` for the release you want from [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases) — every `v*` tag is built and attached automatically. Unpack it:
 
 ```bash
-tar xzf tunnel-manager_v2.2.3_linux_amd64.tar.gz
-cd tunnel-manager_v2.2.3_linux_amd64
+tar xzf tunnel-manager_v2.3.0_linux_amd64.tar.gz
+cd tunnel-manager_v2.3.0_linux_amd64
 ```
 
 What's inside:

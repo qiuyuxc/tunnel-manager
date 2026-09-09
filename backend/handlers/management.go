@@ -259,13 +259,14 @@ func (h *ManagementHandler) DeleteInvite(w http.ResponseWriter, r *http.Request)
 func (h *ManagementHandler) GetAppSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.store.GetAppSettings()
 	writeJSON(w, http.StatusOK, models.AppSettingsView{
-		RegistrationEnabled: settings.RegistrationEnabled,
-		InviteMode:          settings.InviteMode,
-		DefaultGroupID:      settings.DefaultGroupID,
-		EmailVerifyDisabled: settings.EmailVerifyDisabled,
-		TurnstileEnabled:    settings.TurnstileEnabled,
-		TurnstileSiteKey:    settings.TurnstileSiteKey,
-		TurnstileHasSecret:  settings.TurnstileSecret != "",
+		RegistrationEnabled:  settings.RegistrationEnabled,
+		InviteMode:           settings.InviteMode,
+		DefaultGroupID:       settings.DefaultGroupID,
+		EmailVerifyDisabled:  settings.EmailVerifyDisabled,
+		TurnstileEnabled:     settings.TurnstileEnabled,
+		TurnstileSiteKey:     settings.TurnstileSiteKey,
+		TurnstileHasSecret:   settings.TurnstileSecret != "",
+		ExperimentalFeatures: settings.ExperimentalFeatures,
 	})
 }
 
@@ -278,12 +279,13 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 	}
 	stored := h.store.GetAppSettings()
 	settings := models.AppSettings{
-		RegistrationEnabled: req.RegistrationEnabled,
-		InviteMode:          req.InviteMode,
-		DefaultGroupID:      req.DefaultGroupID,
-		EmailVerifyDisabled: req.EmailVerifyDisabled,
-		TurnstileEnabled:    req.TurnstileEnabled,
-		TurnstileSiteKey:    strings.TrimSpace(req.TurnstileSiteKey),
+		RegistrationEnabled:  req.RegistrationEnabled,
+		InviteMode:           req.InviteMode,
+		DefaultGroupID:       req.DefaultGroupID,
+		EmailVerifyDisabled:  req.EmailVerifyDisabled,
+		TurnstileEnabled:     req.TurnstileEnabled,
+		TurnstileSiteKey:     strings.TrimSpace(req.TurnstileSiteKey),
+		ExperimentalFeatures: req.ExperimentalFeatures,
 	}
 	if settings.TurnstileEnabled && (settings.TurnstileSiteKey == "" || (req.TurnstileSecret == "" && stored.TurnstileSecret == "")) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "开启人机验证需要填写 Site Key 与 Secret Key"})

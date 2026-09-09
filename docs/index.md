@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Tunnel Manager
   text: Cloudflare Tunnel 可视化管理面板
-  tagline: 通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理和管理员双重身份验证。
+  tagline: 通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理、管理员双重身份验证与实验性 IP 优选。
   actions:
     - theme: brand
       text: 快速开始
@@ -29,6 +29,10 @@ features:
     details: 按 Zone 查询和管理 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态、MX 优先级与多选批量操作。
     link: /guide/dns-management
     linkText: 进入 DNS 管理
+  - title: IP 优选实验室
+    details: 实验性直连探测指定 IP 段，按 Host / SNI 与状态码筛选可用地址，展示实时进度、分段命中统计，并可一键剔除未命中段或更新华为云 DNS。
+    link: /guide/lab-ip-selector
+    linkText: 进入实验室
   - title: 服务监控
     details: HTTP（GET/POST）、TCP、ICMP 三种探测方式，每个监控挂多个目标，仪表盘展示近 24 小时延迟柱图。
     link: /guide/monitors-status

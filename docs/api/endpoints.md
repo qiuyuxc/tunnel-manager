@@ -80,11 +80,22 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret） |
+| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret）、实验性功能开关 |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth 客户端（Client ID / Secret / 回调 / Scopes），优先于环境变量 |
 | GET / PUT | `/api/admin/encryption-key` | 应用加密密钥（环境变量优先；更换后需重启） |
 | GET / PUT | `/api/admin/smtp` | SMTP 邮件服务（加密 / 不加密两种模式） |
 | POST | `/api/admin/smtp/test` | 发送测试邮件 |
+
+## IP 优选实验室（实验性）
+
+默认关闭；关闭时以下接口返回 `404`。Secret Key 仅写入加密存储，响应中只返回是否已配置。
+
+| 方法 | 路径 | 说明 | 鉴权 |
+| --- | --- | --- | --- |
+| GET | `/api/lab/ip-selector` | 获取探测、定时任务与华为云 DNS 配置 | 管理员 |
+| PUT | `/api/lab/ip-selector` | 保存配置；`secret_key` 留空表示保持不变 | 管理员 |
+| GET | `/api/lab/ip-selector/status` | 获取运行状态、实时进度与执行历史 | 管理员 |
+| POST | `/api/lab/ip-selector/run` | 触发一次异步执行；已有任务运行时返回 `409` | 管理员 |
 
 ## Cloudflare OAuth
 

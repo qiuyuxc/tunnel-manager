@@ -72,7 +72,7 @@ Compose reads an `.env` file from the same directory for variable substitution. 
 | --- | --- |
 | Different port | Set `ports` to `"9090:8080"` (host port first) — `"8081:8080"` puts the panel on 8081 |
 | Reverse proxy only | Bind `127.0.0.1:8080:8080` so it listens locally and let Nginx/Caddy forward to it |
-| Pin the version | Replace the `latest` tag with a specific one: released versions accept semantic tags like `v2.2.3` or `2.2`, and any commit can be pinned with `sha-<short-hash>` |
+| Pin the version | Replace the `latest` tag with a specific one: released versions accept semantic tags like `v2.3.0` or `2.2`, and any commit can be pinned with `sha-<short-hash>` |
 | Store data elsewhere | Change the left-hand side of the `volumes` entry to the directory you want |
 
 ## Everyday commands

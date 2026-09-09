@@ -2,6 +2,14 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.3.0
+
+- Added an experimental-features switch: administrators control whether lab navigation is exposed, and the related APIs return `404` while disabled
+- Added the IP optimizer lab with configurable Host, TLS SNI, probe path, accepted status codes, IP ranges, workers, timeout and Top N
+- Added live progress, execution history and per-segment hit statistics, plus one-click copy and removal of zero-hit IP ranges
+- Added scheduled runs and automatic Huawei Cloud DNS A-record updates; the Secret Key is encrypted at rest with the application key using AES-GCM
+- Added bilingual lab documentation, API references and About-page copy
+
 ## v2.2.3
 
 - Much smaller first paint: MiSans now loads as a core subset plus unicode-range shards, where the core subset already covers every character in the interface. First-paint font weight drops from roughly 19 MB to 373 KB, and only uncommon characters in user content pull an extra shard

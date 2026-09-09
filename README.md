@@ -17,6 +17,7 @@ A web control panel for Cloudflare Tunnel. Create and route tunnels, bind domain
 | Tunnels | Create and delete tunnels, add/edit/remove ingress rules, optionally clean up DNS on delete | [Tunnels & routing](https://docs.kukie.cn/en/guide/tunnels) |
 | Domain binding | Two modes — direct CNAME and SaaS custom hostname — with per-group settings for batch binding | [Binding modes](https://docs.kukie.cn/en/guide/domain-binding) · [Batch binding](https://docs.kukie.cn/en/guide/batch-binding) |
 | DNS | Full CRUD for A / AAAA / CNAME / TXT / MX with TTL, proxy status, MX priority and bulk edits | [DNS records](https://docs.kukie.cn/en/guide/dns-management) |
+| IP optimizer lab | Experimental direct probes by Host / SNI and status code, with live progress, per-segment hit statistics, one-click removal of missed ranges and optional Huawei Cloud DNS updates | [IP optimizer lab](https://docs.kukie.cn/en/guide/lab-ip-selector) |
 | Monitoring | HTTP / TCP / ICMP probes, several targets per monitor, 24-hour latency bars | [Service monitoring](https://docs.kukie.cn/en/guide/monitors-status) |
 | Email alerts | Notifies on status transitions only, with SMTP configured from the UI | [Email & alerts](https://docs.kukie.cn/en/guide/email-alerts) |
 | Multi-user | Email registration, group permissions, users and invite codes managed from the admin console | [Multi-user & admin](https://docs.kukie.cn/en/guide/multi-user) |

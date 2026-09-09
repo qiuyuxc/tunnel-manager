@@ -27,7 +27,7 @@ backend/
 ├── auth/              # TOTP、AES-GCM 与恢复码
 ├── db/                # SQLite 连接与版本化 schema 迁移
 ├── handlers/          # HTTP handlers 与认证中间件
-├── services/          # Cloudflare、域名绑定、Telegram 与监控业务逻辑
+├── services/          # Cloudflare、域名绑定、Telegram、监控与 IP 优选业务逻辑
 ├── models/            # 数据类型定义
 ├── store/             # SQLite 存储层（含旧版 JSON 自动迁移）
 └── main.go            # 入口与路由注册
@@ -38,4 +38,5 @@ backend/
 - **凭据链**：优先 OAuth（PKCE + 自动刷新），回落静态 Token；OAuth 令牌经 `APP_ENCRYPTION_KEY` AES-GCM 加密落盘
 - **存储**：单 SQLite 库（默认 `data/tunnel-manager.db`，WAL 模式）；首次启动自动导入旧版 `config.json` 并保留原文件作备份；探测心跳仍写入独立 `heartbeats.json` 定时刷盘
 - **监控**：Runner 协程按间隔调度探测，心跳写入独立 `heartbeats.json` 并定时刷盘
+- **IP 优选实验室**：后台 Runner 调度直连探测，保留输入段映射与执行历史；华为云 Secret Key 使用 AES-GCM 加密落盘
 - **Telegram Bot**：支持长轮询与 Webhook 双模式，仅响应配置中的管理员 ID

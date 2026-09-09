@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Tunnel Manager
   text: A web control panel for Cloudflare Tunnel
-  tagline: Manage tunnels, bind domains, configure DNS with optimized CNAMEs and fallback origins, probe your services and publish a shareable status page — with Telegram bot remote control and two-factor authentication for administrators.
+  tagline: Manage tunnels, bind domains, configure DNS with optimized CNAMEs and fallback origins, probe your services and publish a shareable status page — with Telegram bot remote control, administrator two-factor authentication and an experimental IP optimizer.
   actions:
     - theme: brand
       text: Quick start
@@ -29,6 +29,10 @@ features:
     details: Query and manage A, AAAA, CNAME, TXT and MX records per zone, with TTL, proxy status, MX priority and multi-select bulk operations.
     link: /en/guide/dns-management
     linkText: Open DNS management
+  - title: IP optimizer lab
+    details: Experimentally probe authorized IP ranges with a custom Host and SNI, filter by accepted status codes, watch live progress and per-segment hit statistics, remove missed segments or update Huawei Cloud DNS.
+    link: /en/guide/lab-ip-selector
+    linkText: Open the lab
   - title: Service monitoring
     details: HTTP (GET/POST), TCP and ICMP probes, several targets per monitor, and a dashboard with 24-hour latency bars.
     link: /en/guide/monitors-status

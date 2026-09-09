@@ -75,6 +75,8 @@ type Store struct {
 	verifyCodes      []verifyCodeRecord
 	prefs            map[string]models.UserPrefs
 	appSettings      models.AppSettings
+	labSettings      models.LabIPSelectorSettings
+	labRuns          []models.LabIPSelectorRun
 	smtp             models.SMTPSettings
 	cfConns          []models.CFConnection
 	alertLogs        []models.AlertLog
@@ -313,6 +315,16 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	} else if ok {
 		_ = json.Unmarshal([]byte(appDoc), &s.appSettings)
 	}
+	if labDoc, ok, loadErr := loadSetting(handle, "lab_ip_selector"); loadErr != nil {
+		return false, loadErr
+	} else if ok {
+		_ = json.Unmarshal([]byte(labDoc), &s.labSettings)
+	}
+	if labRunsDoc, ok, loadErr := loadSetting(handle, "lab_ip_selector_runs"); loadErr != nil {
+		return false, loadErr
+	} else if ok {
+		_ = json.Unmarshal([]byte(labRunsDoc), &s.labRuns)
+	}
 	if smtpDoc, ok, loadErr := loadSetting(handle, "smtp"); loadErr != nil {
 		return false, loadErr
 	} else if ok {
@@ -389,6 +401,20 @@ func (s *Store) saveLocked() error {
 		return fmt.Errorf("marshal app settings: %w", err)
 	}
 	if err := upsertSetting(tx, "app", string(appJSON)); err != nil {
+		return err
+	}
+	labJSON, err := json.Marshal(s.labSettings)
+	if err != nil {
+		return fmt.Errorf("marshal lab settings: %w", err)
+	}
+	if err := upsertSetting(tx, "lab_ip_selector", string(labJSON)); err != nil {
+		return err
+	}
+	labRunsJSON, err := json.Marshal(s.labRuns)
+	if err != nil {
+		return fmt.Errorf("marshal lab runs: %w", err)
+	}
+	if err := upsertSetting(tx, "lab_ip_selector_runs", string(labRunsJSON)); err != nil {
 		return err
 	}
 	smtpJSON, err := json.Marshal(s.smtp)

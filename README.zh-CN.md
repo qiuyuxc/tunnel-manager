@@ -17,6 +17,7 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 | 隧道管理 | 新建 / 删除隧道，Ingress 路由增删改，删除可联动清理 DNS | [隧道管理与路由](https://docs.kukie.cn/guide/tunnels) |
 | 域名绑定 | 简化直连与 SaaS 优选双模式，批量绑定逐组独立配置 | [域名绑定模式](https://docs.kukie.cn/guide/domain-binding) · [批量绑定](https://docs.kukie.cn/guide/batch-binding) |
 | DNS 管理 | A / AAAA / CNAME / TXT / MX 增删改查，TTL、代理状态与优先级，支持批量操作 | [DNS 记录管理](https://docs.kukie.cn/guide/dns-management) |
+| IP 优选实验室 | 实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，实时进度、分段统计、一键剔除未命中段，可选自动更新华为云 DNS | [IP 优选实验室](https://docs.kukie.cn/guide/lab-ip-selector) |
 | 服务监控 | HTTP / TCP / ICMP 探测，多目标挂载，24 小时延迟柱图 | [服务监控](https://docs.kukie.cn/guide/monitors-status) |
 | 邮件告警 | 服务状态变化时自动发送邮件通知，SMTP 可视化配置 | [邮件服务与告警](https://docs.kukie.cn/guide/email-alerts) |
 | 多用户 | 邮箱注册、用户组权限、管理后台统一管理用户与邀请码 | [多用户与管理后台](https://docs.kukie.cn/guide/multi-user) |

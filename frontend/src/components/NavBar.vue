@@ -146,6 +146,7 @@ function toggleSidebar() {
 }
 
 const icons = {
+  lab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6.5L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>',
   monitor: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   dashboard: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
   tunnels: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
@@ -171,6 +172,7 @@ const navItems = computed(() => {
     { path: '/monitors', label: '服务监控', icon: icons.monitor, perm: 'monitors', admin: false },
     { path: '/domain', label: '域名绑定', icon: icons.domain, perm: 'domain_bind', admin: false },
     { path: '/dns', label: 'DNS 管理', icon: icons.dns, perm: 'dns', admin: false },
+    { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, perm: '', admin: true, experimental: true },
     { path: '/settings', label: '全局设置', icon: icons.settings, perm: '', admin: true },
     { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, perm: '', admin: false },
     { path: '/admin', label: '管理后台', icon: icons.account, perm: '', admin: true },
@@ -179,6 +181,7 @@ const navItems = computed(() => {
     { path: '/about', label: '关于', icon: icons.about, perm: '', admin: false },
   ]
   return items.filter((item) => {
+    if (item.experimental && !configStore.experimentalFeatures) return false
     if (item.admin) return configStore.isAdmin()
     if (item.perm) return configStore.hasPerm(item.perm)
     return true

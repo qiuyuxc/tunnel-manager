@@ -21,7 +21,7 @@
           </span>
           <div class="about-app-text">
             <strong>Cloudflare Tunnel 可视化管理面板</strong>
-            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、服务状态变化邮件告警，并提供 Telegram Bot 和双重身份验证。</p>
+            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、服务状态变化邮件告警、Telegram Bot 远程管理和双重身份验证；管理员还可开启实验性 IP 优选实验室，按输入段探测、筛选并剔除无命中地址。</p>
             <a class="about-repo" :href="REPO_URL" target="_blank" rel="noopener">
               仓库地址：{{ REPO_URL }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -72,6 +72,8 @@
           <li>状态页按请求 Host 隔离跳转到对应公开页面</li>
           <li>修复监控项目所有者未持久化导致的跨用户访问问题</li>
           <li>恢复每用户 Telegram 长轮询 / Webhook 双模式，Webhook 独立路由验签、账户隔离</li>
+          <li>新增实验性 IP 优选实验室：自定义 Host / SNI 与 IP 段，实时进度、分段统计、一键剔除未命中段</li>
+          <li>IP 优选支持定时执行与华为云 DNS A 记录自动更新，密钥加密存储</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">
@@ -105,6 +107,10 @@
             <p>按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除</p>
           </div>
           <div class="feature-item">
+            <strong>IP 优选实验室</strong>
+            <p>实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，展示实时进度与分段命中，可一键剔除未命中段</p>
+          </div>
+          <div class="feature-item">
             <strong>Telegram Bot</strong>
             <p>在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook</p>
           </div>
@@ -135,7 +141,7 @@
         </div>
         <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
         <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
-        <div class="stack-row"><span>集成</span><code>Cloudflare API · Telegram Bot API · GitHub Actions</code></div>
+        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
       </section>
     </div>
   </div>

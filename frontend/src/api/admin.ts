@@ -88,6 +88,7 @@ export interface AppSettings {
   turnstile_enabled?: boolean
   turnstile_site_key?: string
   turnstile_has_secret?: boolean
+  experimental_features_enabled?: boolean
 }
 
 export interface OAuthConfig {

@@ -91,10 +91,11 @@ type CNAMEPreset struct {
 
 // SiteSettings contains public-facing site branding.
 type SiteSettings struct {
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Icon           string `json:"icon"`
-	LandingEnabled bool   `json:"landing_enabled"`
+	Name                 string `json:"name"`
+	Description          string `json:"description"`
+	Icon                 string `json:"icon"`
+	LandingEnabled       bool   `json:"landing_enabled"`
+	ExperimentalFeatures bool   `json:"experimental_features_enabled"`
 }
 
 // Tunnel represents a Cloudflare Tunnel

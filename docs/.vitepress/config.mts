@@ -71,6 +71,7 @@ export default defineConfig({
                 { text: '域名绑定模式', link: '/guide/domain-binding' },
                 { text: '批量域名绑定', link: '/guide/batch-binding' },
                 { text: 'DNS 记录管理', link: '/guide/dns-management' },
+                { text: 'IP 优选实验室（实验性）', link: '/guide/lab-ip-selector' },
                 { text: '站点品牌与全局设置', link: '/guide/site-branding' },
                 { text: '服务监控与公开状态页', link: '/guide/monitors-status' },
                 { text: 'Telegram Bot 远程管理', link: '/guide/telegram-bot' }
@@ -148,6 +149,7 @@ export default defineConfig({
                 { text: 'Domain binding modes', link: '/en/guide/domain-binding' },
                 { text: 'Batch domain binding', link: '/en/guide/batch-binding' },
                 { text: 'DNS records', link: '/en/guide/dns-management' },
+                { text: 'IP optimizer lab (experimental)', link: '/en/guide/lab-ip-selector' },
                 { text: 'Site branding & global settings', link: '/en/guide/site-branding' },
                 { text: 'Monitoring & status pages', link: '/en/guide/monitors-status' },
                 { text: 'Telegram bot', link: '/en/guide/telegram-bot' }

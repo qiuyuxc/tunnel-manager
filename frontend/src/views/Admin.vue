@@ -158,6 +158,18 @@
       </div>
 
       <div class="admin-card">
+        <h3>实验性功能</h3>
+        <p class="admin-hint">开启后，管理员侧边栏会显示“IP 优选实验室”。该功能允许直连指定 IP 段探测 Host/SNI 可用性与延迟，并可选择自动更新华为云 DNS。关闭后入口与 API 均不暴露。</p>
+        <div class="setting-row">
+          <span class="setting-label">开启实验性功能</span>
+          <n-switch v-model:value="experimentalFeatures" size="small" @update:value="saveSettings">
+            <template #checked>开启</template>
+            <template #unchecked>关闭</template>
+          </n-switch>
+        </div>
+      </div>
+
+      <div class="admin-card">
         <h3>人机验证（Cloudflare Turnstile）</h3>
         <p class="admin-hint">可选防护：开启后登录、注册与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
         <div class="setting-row">
@@ -225,6 +237,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
+import { useConfigStore } from '../stores/config'
 import {
   listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser,
   listGroups, createGroup, updateGroup, deleteGroup,
@@ -249,11 +262,12 @@ const busy = ref(false)
 const message = ref('')
 const messageIsError = ref(false)
 const toast = useMessage()
+const configStore = useConfigStore()
 
 const users = ref<UserView[]>([])
 const groups = ref<UserGroup[]>([])
 const invites = ref<Invite[]>([])
-const settings = ref<AppSettings>({ registration_enabled: true, invite_mode: 'off', default_group_id: '' })
+const settings = ref<AppSettings>({ registration_enabled: true, invite_mode: 'off', default_group_id: '', experimental_features_enabled: false })
 const turnstile = ref({ enabled: false, site_key: '' })
 const turnstileSecret = ref('')
 const turnstileHasSecret = ref(false)
@@ -277,6 +291,10 @@ const encKeySource = ref('none')
 const regOpen = computed({
   get: () => settings.value.registration_enabled,
   set: (v: boolean) => { settings.value.registration_enabled = v },
+})
+const experimentalFeatures = computed({
+  get: () => !!settings.value.experimental_features_enabled,
+  set: (v: boolean) => { settings.value.experimental_features_enabled = v },
 })
 const emailVerify = computed({
   get: () => !settings.value.email_verify_disabled,
@@ -424,7 +442,10 @@ function removeInvite(invite: Invite) {
 }
 
 function saveSettings() {
-  void run(() => updateAppSettings(settings.value), '设置已保存')
+  void run(async () => {
+    await updateAppSettings(settings.value)
+    configStore.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
+  }, '设置已保存')
 }
 
 function saveTurnstile() {
@@ -433,6 +454,7 @@ function saveTurnstile() {
     invite_mode: settings.value.invite_mode,
     default_group_id: settings.value.default_group_id || '',
     email_verify_disabled: !!settings.value.email_verify_disabled,
+    experimental_features_enabled: !!settings.value.experimental_features_enabled,
     turnstile_enabled: turnstile.value.enabled,
     turnstile_site_key: turnstile.value.site_key.trim(),
   }
