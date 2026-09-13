@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The fragment container is the only id the shell needs; every page is
+         built in code, so there is nothing else to name. -->
+    <item name="tm_content" type="id" />
+</resources>

@@ -84,3 +84,25 @@ func (s *Store) SetEncryptionKeyRaw(encoded string) error {
 	}
 	return nil
 }
+
+// AlertsSince returns every alert recorded after the given unix second, oldest
+// first. When more than limit entries qualify the oldest are dropped so a
+// client that was offline for a long time still receives the freshest news
+// instead of a wall of stale ones.
+func (s *Store) AlertsSince(since int64, limit int) []models.AlertLog {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	out := make([]models.AlertLog, 0, limit)
+	for _, entry := range s.alertLogs {
+		if entry.CreatedAt > since {
+			out = append(out, entry)
+		}
+	}
+	if len(out) > limit {
+		out = out[len(out)-limit:]
+	}
+	return out
+}

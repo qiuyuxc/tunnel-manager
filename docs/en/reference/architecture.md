@@ -3,10 +3,13 @@
 ## Overview
 
 ```text
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Vue 3 SPA   │────▶│  Go REST API │────▶│ Cloudflare API   │
-│  Naive UI    │     │  chi router  │     │ Tunnels / DNS    │
-└──────────────┘     └──────────────┘     └──────────────────┘
+┌──────────────┐
+│  Vue 3 SPA   │──┐      ┌──────────────┐      ┌──────────────────┐
+│  Naive UI    │  ├─────▶│  Go REST API │─────▶│ Cloudflare API   │
+├──────────────┤  │      │  chi router  │      │ Tunnels / DNS    │
+│ Android app  │──┘      └──────────────┘      └──────────────────┘
+│  native UI   │
+└──────────────┘
 ```
 
 Single container: the Go process serves the frontend's static files directly (`STATIC_DIR=frontend/dist`), so there is no separate Node runtime.
@@ -17,6 +20,7 @@ Single container: the Go process serves the frontend's static files directly (`S
 | --- | --- |
 | Frontend | Vue 3, TypeScript, Naive UI, Vite, Pinia |
 | Backend | Go, chi, SQLite (`modernc.org/sqlite`, pure-Go driver) |
+| Android app | Java, Gradle, Android SDK (API 26+), hitting the same REST API |
 | Security | Argon2id, TOTP, AES-GCM encryption at rest |
 | Delivery | Multi-stage Docker build, Docker Compose |
 

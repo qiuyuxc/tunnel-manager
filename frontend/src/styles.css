@@ -2,67 +2,76 @@
    one small core file per weight plus unicode-range chunks, so a page fetches
    only the glyphs it renders instead of ~4.7 MB per weight. */
 
-/* === Enterprise Dashboard Tokens === */
+/* === Theme Tokens ===
+   The default "enterprise" theme is drawn from vercel.md, the "warm" theme
+   from Claude.md. Both specs describe marketing pages, so only the surface,
+   text, semantic and component tokens that map onto an app shell are taken —
+   hero gradients and section-scale spacing stay out. Every block repeats the
+   full colour set so dark mode never inherits a light-mode token. */
 
+/* vercel.md — light: near-white canvas, ink text, ink CTAs and indicator. */
 :root {
   --color-canvas: #ffffff;
-  --color-canvas-soft: #f8fafc;
-  --color-canvas-soft-2: #f1f5f9;
+  --color-canvas-soft: #fafafa;
+  --color-canvas-soft-2: #f5f5f5;
   --color-canvas-raised: #ffffff;
-  --color-ink: #0f172a;
-  --color-body: #475569;
-  --color-mute: #64748b;
-  --color-hairline: #e2e8f0;
-  --color-hairline-strong: #cbd5e1;
-  --color-link: #0f172a;
-  --color-link-hover: #334155;
-  --color-focus: #2563eb;
-  --color-success: #10b981;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
-  --color-info: #2563eb;
+  --color-ink: #171717;
+  --color-body: #4d4d4d;
+  --color-mute: #6b6b6b;
+  --color-hairline: #ebebeb;
+  --color-hairline-strong: #a1a1a1;
+  --color-link: #0070f3;
+  --color-link-hover: #0761d1;
+  --color-focus: #171717;
+  --color-success: #0e8a72;
+  --color-error: #ee0000;
+  --color-warning: #f5a623;
+  --color-info: #0070f3;
 
-  --color-sidebar: #0f172a;
-  --color-sidebar-hover: #1e293b;
-  --color-sidebar-active: #2563eb;
-  --color-sidebar-text: #94a3b8;
-  --color-sidebar-text-active: #ffffff;
-  --color-sidebar-hover-text: #ffffff;
-  --color-sidebar-divider: rgba(255, 255, 255, 0.08);
-  --color-brand-icon: #2563eb;
+  /* App shell: canvas sidebar with an ink left-edge indicator on the active row
+     (vercel.md ex-app-shell-row), not a filled accent block. */
+  --color-sidebar: #ffffff;
+  --color-sidebar-hover: #f5f5f5;
+  --color-sidebar-active: #171717;
+  --color-sidebar-active-bg: #f5f5f5;
+  --color-sidebar-text: #4d4d4d;
+  --color-sidebar-text-active: #171717;
+  --color-sidebar-hover-text: #171717;
+  --color-sidebar-divider: #ebebeb;
+  --color-brand-icon: #171717;
 
   --color-header-bg: #ffffff;
-  --color-header-border: #e2e8f0;
+  --color-header-border: #ebebeb;
 
-  --color-status-healthy-bg: #ecfdf5;
-  --color-status-healthy-border: #a7f3d0;
-  --color-status-healthy-text: #047857;
-  --color-status-down-bg: #fef2f2;
-  --color-status-down-border: #fecaca;
-  --color-status-down-text: #b91c1c;
-  --color-status-degraded-bg: #fffbeb;
-  --color-status-degraded-border: #fde68a;
-  --color-status-degraded-text: #b45309;
+  --color-status-healthy-bg: #aaffec;
+  --color-status-healthy-border: #50e3c2;
+  --color-status-healthy-text: #0b6b57;
+  --color-status-down-bg: #f7d4d6;
+  --color-status-down-border: #f0b3b6;
+  --color-status-down-text: #c50000;
+  --color-status-degraded-bg: #ffefcf;
+  --color-status-degraded-border: #f4d79c;
+  --color-status-degraded-text: #ab570a;
 
-  --color-btn-primary-bg: #0f172a;
+  --color-btn-primary-bg: #171717;
   --color-btn-primary-text: #ffffff;
-  --color-btn-primary-hover: #283244;
-  --color-btn-secondary-border: #e2e8f0;
-  --color-btn-secondary-hover-border: #cbd5e1;
-  --color-btn-ghost-hover: #f1f5f9;
+  --color-btn-primary-hover: #383838;
+  --color-btn-secondary-border: #ebebeb;
+  --color-btn-secondary-hover-border: #a1a1a1;
+  --color-btn-ghost-hover: #f5f5f5;
 
-  --color-banner-warning-bg: #fffbeb;
-  --color-banner-warning-border: #fde68a;
-  --color-banner-warning-text: #b45309;
-  --color-banner-info-bg: #eff6ff;
-  --color-banner-info-border: #bfdbfe;
-  --color-banner-info-text: #1d4ed8;
-  --color-result-error-bg: #fef2f2;
-  --color-result-error-border: #fecaca;
-  --color-result-error-text: #b91c1c;
-  --color-result-success-bg: #ecfdf5;
-  --color-result-success-border: #a7f3d0;
-  --color-result-success-text: #047857;
+  --color-banner-warning-bg: #ffefcf;
+  --color-banner-warning-border: #f4d79c;
+  --color-banner-warning-text: #ab570a;
+  --color-banner-info-bg: #d3e5ff;
+  --color-banner-info-border: #a8ccff;
+  --color-banner-info-text: #0761d1;
+  --color-result-error-bg: #f7d4d6;
+  --color-result-error-border: #f0b3b6;
+  --color-result-error-text: #c50000;
+  --color-result-success-bg: #aaffec;
+  --color-result-success-border: #50e3c2;
+  --color-result-success-text: #0b6b57;
 
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -75,6 +84,10 @@
   --max-width: 100%;
   --header-height: 56px;
   --sidebar-width: 240px;
+  /* Height of the phone tab bar. Zero on desktop, where MobileNav renders
+     nothing; pages reserve it as bottom padding so the bar never covers the
+     last row of a list. */
+  --tabbar-height: 0px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -83,170 +96,197 @@
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", monospace;
 }
 
+/* Claude.md — light: tinted cream canvas with warm coral accents. */
 [data-visual-theme="warm"] {
-  --color-canvas: #fffdf8;
-  --color-canvas-soft: #f5f1e8;
-  --color-canvas-soft-2: #ede7db;
-  --color-canvas-raised: #fffdf8;
-  --color-ink: #1b1915;
-  --color-body: #5b554b;
-  --color-mute: #81796d;
-  --color-hairline: #dcd4c7;
-  --color-hairline-strong: #aaa091;
-  --color-link: #a34b2a;
-  --color-link-hover: #82391f;
-  --color-success: #2f6b4d;
-  --color-error: #b44532;
-  --color-warning: #9a611d;
-  --color-info: #a34b2a;
-  --color-focus: #a34b2a;
+  --color-canvas: #faf9f5;
+  --color-canvas-soft: #f5f0e8;
+  --color-canvas-soft-2: #efe9de;
+  --color-canvas-raised: #faf9f5;
+  --color-ink: #141413;
+  --color-body: #3d3d3a;
+  --color-mute: #5f5d57;
+  --color-hairline: #e6dfd8;
+  --color-hairline-strong: #c9c0b2;
+  --color-link: #cc785c;
+  --color-link-hover: #a9583e;
+  --color-focus: #cc785c;
+  --color-success: #5db872;
+  --color-error: #c64545;
+  --color-warning: #d4a017;
+  --color-info: #cc785c;
 
-  --color-sidebar: #1b1915;
-  --color-sidebar-hover: #342f29;
-  --color-sidebar-active: #a34b2a;
-  --color-sidebar-text: #b9b0a3;
-  --color-brand-icon: #a34b2a;
+  --color-sidebar: #faf9f5;
+  --color-sidebar-hover: #f5f0e8;
+  --color-sidebar-active: #141413;
+  --color-sidebar-active-bg: #efe9de;
+  --color-sidebar-text: #3d3d3a;
+  --color-sidebar-text-active: #141413;
+  --color-sidebar-hover-text: #141413;
+  --color-sidebar-divider: #e6dfd8;
+  --color-brand-icon: #cc785c;
 
-  --color-header-bg: #fffdf8;
-  --color-header-border: #dcd4c7;
+  --color-header-bg: #faf9f5;
+  --color-header-border: #e6dfd8;
 
-  --color-status-healthy-bg: #e5f0e7;
-  --color-status-healthy-border: #9cbca3;
-  --color-status-healthy-text: #285b3f;
-  --color-status-down-bg: #f8e7e2;
-  --color-status-down-border: #dfb2a5;
-  --color-status-down-text: #963a2b;
-  --color-status-degraded-bg: #fbf0d9;
-  --color-status-degraded-border: #e8ca91;
-  --color-status-degraded-text: #7e5018;
+  --color-status-healthy-bg: #e4f2e7;
+  --color-status-healthy-border: #b6dcc1;
+  --color-status-healthy-text: #3f7f4f;
+  --color-status-down-bg: #f7e4e4;
+  --color-status-down-border: #e6b6b6;
+  --color-status-down-text: #9e3636;
+  --color-status-degraded-bg: #faf0d7;
+  --color-status-degraded-border: #ead59b;
+  --color-status-degraded-text: #8a6a11;
 
-  --color-btn-primary-bg: #1b1915;
-  --color-btn-primary-text: #fffdf8;
-  --color-btn-primary-hover: #413b33;
-  --color-btn-secondary-border: #bcb1a1;
-  --color-btn-secondary-hover-border: #6f665a;
-  --color-btn-ghost-hover: #ede7db;
+  --color-btn-primary-bg: #cc785c;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-primary-hover: #a9583e;
+  --color-btn-secondary-border: #e6dfd8;
+  --color-btn-secondary-hover-border: #c9c0b2;
+  --color-btn-ghost-hover: #efe9de;
 
-  --color-banner-warning-bg: #fbf0d9;
-  --color-banner-warning-border: #e8ca91;
-  --color-banner-warning-text: #7e5018;
-  --color-banner-info-bg: #e9e3d8;
-  --color-banner-info-border: #cfc5b6;
-  --color-banner-info-text: #403a31;
-  --color-result-error-bg: #f8e7e2;
-  --color-result-error-border: #dfb2a5;
-  --color-result-error-text: #963a2b;
-  --color-result-success-bg: #e5f0e7;
-  --color-result-success-border: #9cbca3;
-  --color-result-success-text: #285b3f;
+  --color-banner-warning-bg: #faf0d7;
+  --color-banner-warning-border: #ead59b;
+  --color-banner-warning-text: #8a6a11;
+  --color-banner-info-bg: #e7f1ef;
+  --color-banner-info-border: #bcdcd5;
+  --color-banner-info-text: #3f7f72;
+  --color-result-error-bg: #f7e4e4;
+  --color-result-error-border: #e6b6b6;
+  --color-result-error-text: #9e3636;
+  --color-result-success-bg: #e4f2e7;
+  --color-result-success-border: #b6dcc1;
+  --color-result-success-text: #3f7f4f;
 }
 
 html[data-sidebar="collapsed"] {
   --sidebar-width: 64px;
 }
 
+/* vercel.md — dark: black canvas, polarity-flipped ink surfaces. */
 [data-theme="dark"] {
-  --color-canvas: #0f172a;
-  --color-canvas-soft: #1e293b;
-  --color-canvas-soft-2: #334155;
-  --color-canvas-raised: #1e293b;
-  --color-ink: #f8fafc;
-  --color-body: #94a3b8;
-  --color-mute: #64748b;
-  --color-hairline: #334155;
-  --color-hairline-strong: #475569;
-  --color-link: #60a5fa;
-  --color-link-hover: #93c5fd;
-  --color-success: #34d399;
-  --color-error: #f87171;
-  --color-warning: #fbbf24;
+  --color-canvas: #0a0a0a;
+  --color-canvas-soft: #000000;
+  --color-canvas-soft-2: #1a1a1a;
+  --color-canvas-raised: #111111;
+  --color-ink: #ededed;
+  --color-body: #a1a1a1;
+  --color-mute: #9a9a9a;
+  --color-hairline: #2a2a2a;
+  --color-hairline-strong: #444444;
+  --color-link: #3291ff;
+  --color-link-hover: #52a8ff;
+  --color-focus: #ededed;
+  --color-success: #50e3c2;
+  --color-error: #ff6369;
+  --color-warning: #f5a623;
+  --color-info: #3291ff;
 
-  --color-sidebar: #020617;
-  --color-sidebar-hover: #0f172a;
-  --color-sidebar-active: #2563eb;
-  --color-sidebar-text: #94a3b8;
-  --color-sidebar-text-active: #ffffff;
+  --color-sidebar: #000000;
+  --color-sidebar-hover: #1a1a1a;
+  --color-sidebar-active: #ededed;
+  --color-sidebar-active-bg: #1a1a1a;
+  --color-sidebar-text: #a1a1a1;
+  --color-sidebar-text-active: #ededed;
+  --color-sidebar-hover-text: #ededed;
+  --color-sidebar-divider: #2a2a2a;
+  --color-brand-icon: #ededed;
 
-  --color-header-bg: #0f172a;
-  --color-header-border: #1e293b;
+  --color-header-bg: #0a0a0a;
+  --color-header-border: #2a2a2a;
 
-  --color-btn-ghost-hover: #1e293b;
+  --color-status-healthy-bg: #0c2b25;
+  --color-status-healthy-border: #1f5c4d;
+  --color-status-healthy-text: #7fe9d3;
+  --color-status-down-bg: #2a1213;
+  --color-status-down-border: #5c2528;
+  --color-status-down-text: #ff8f92;
+  --color-status-degraded-bg: #2b1f0c;
+  --color-status-degraded-border: #5c4520;
+  --color-status-degraded-text: #ffc978;
 
-  --color-btn-primary-bg: #f8fafc;
-  --color-btn-primary-text: #0f172a;
+  --color-btn-primary-bg: #ededed;
+  --color-btn-primary-text: #0a0a0a;
   --color-btn-primary-hover: #ffffff;
-  --color-focus: #60a5fa;
+  --color-btn-secondary-border: #2a2a2a;
+  --color-btn-secondary-hover-border: #444444;
+  --color-btn-ghost-hover: #1a1a1a;
 
-  --color-banner-warning-bg: #382b17;
-  --color-banner-warning-border: #73582c;
-  --color-banner-warning-text: #eccb88;
-  --color-banner-info-bg: #28241e;
-  --color-banner-info-border: #494136;
-  --color-banner-info-text: #f3eee5;
-  --color-result-error-bg: #3b201c;
-  --color-result-error-border: #704137;
-  --color-result-error-text: #f0b8aa;
-  --color-result-success-bg: #1d3226;
-  --color-result-success-border: #496c53;
-  --color-result-success-text: #b2d6ba;
+  --color-banner-warning-bg: #2b1f0c;
+  --color-banner-warning-border: #5c4520;
+  --color-banner-warning-text: #ffc978;
+  --color-banner-info-bg: #10233f;
+  --color-banner-info-border: #1f4d80;
+  --color-banner-info-text: #7cb8ff;
+  --color-result-error-bg: #2a1213;
+  --color-result-error-border: #5c2528;
+  --color-result-error-text: #ff8f92;
+  --color-result-success-bg: #0c2b25;
+  --color-result-success-border: #1f5c4d;
+  --color-result-success-text: #7fe9d3;
 }
 
+/* Claude.md — dark: warm navy surfaces with coral accents. */
 [data-visual-theme="warm"][data-theme="dark"] {
-  --color-canvas: #1d1a16;
-  --color-canvas-soft: #15130f;
-  --color-canvas-soft-2: #28241e;
-  --color-canvas-raised: #1d1a16;
-  --color-ink: #f3eee5;
-  --color-body: #c2b9ab;
-  --color-mute: #958b7c;
-  --color-hairline: #383229;
-  --color-hairline-strong: #5a5145;
+  --color-canvas: #1f1e1b;
+  --color-canvas-soft: #181715;
+  --color-canvas-soft-2: #252320;
+  --color-canvas-raised: #1f1e1b;
+  --color-ink: #faf9f5;
+  --color-body: #a09d96;
+  --color-mute: #a8a49c;
+  --color-hairline: #33312c;
+  --color-hairline-strong: #4a4741;
   --color-link: #e08b67;
-  --color-link-hover: #e9a081;
-  --color-success: #8cb999;
-  --color-error: #e79482;
-  --color-warning: #e2b567;
+  --color-link-hover: #eba98b;
+  --color-focus: #e08b67;
+  --color-success: #5db872;
+  --color-error: #e07a7a;
+  --color-warning: #e8a55a;
   --color-info: #e08b67;
 
-  --color-sidebar: #15130f;
-  --color-sidebar-hover: #28241e;
-  --color-sidebar-active: #a34b2a;
-  --color-sidebar-text: #958b7c;
-  --color-brand-icon: #a34b2a;
+  --color-sidebar: #121110;
+  --color-sidebar-hover: #252320;
+  --color-sidebar-active: #faf9f5;
+  --color-sidebar-active-bg: #252320;
+  --color-sidebar-text: #a09d96;
+  --color-sidebar-text-active: #faf9f5;
+  --color-sidebar-hover-text: #faf9f5;
+  --color-sidebar-divider: #33312c;
+  --color-brand-icon: #cc785c;
 
-  --color-header-bg: #1d1a16;
-  --color-header-border: #383229;
+  --color-header-bg: #181715;
+  --color-header-border: #33312c;
 
-  --color-status-healthy-bg: #1d3226;
-  --color-status-healthy-border: #496c53;
-  --color-status-healthy-text: #b2d6ba;
-  --color-status-down-bg: #3b201c;
-  --color-status-down-border: #704137;
-  --color-status-down-text: #f0b8aa;
-  --color-status-degraded-bg: #382b17;
-  --color-status-degraded-border: #73582c;
-  --color-status-degraded-text: #eccb88;
+  --color-status-healthy-bg: #1e2f24;
+  --color-status-healthy-border: #3f6b4d;
+  --color-status-healthy-text: #a9d4b4;
+  --color-status-down-bg: #33201f;
+  --color-status-down-border: #6b3a38;
+  --color-status-down-text: #eda9a5;
+  --color-status-degraded-bg: #33280f;
+  --color-status-degraded-border: #6b5525;
+  --color-status-degraded-text: #e8c07a;
 
-  --color-btn-primary-bg: #f3eee5;
-  --color-btn-primary-text: #1d1a16;
-  --color-btn-primary-hover: #ffffff;
-  --color-btn-secondary-border: #5a5145;
-  --color-btn-secondary-hover-border: #958b7c;
-  --color-btn-ghost-hover: #28241e;
-  --color-focus: #e08b67;
+  --color-btn-primary-bg: #cc785c;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-primary-hover: #a9583e;
+  --color-btn-secondary-border: #33312c;
+  --color-btn-secondary-hover-border: #4a4741;
+  --color-btn-ghost-hover: #252320;
 
-  --color-banner-warning-bg: #382b17;
-  --color-banner-warning-border: #73582c;
-  --color-banner-warning-text: #eccb88;
-  --color-banner-info-bg: #28241e;
-  --color-banner-info-border: #494136;
-  --color-banner-info-text: #f3eee5;
-  --color-result-error-bg: #3b201c;
-  --color-result-error-border: #704137;
-  --color-result-error-text: #f0b8aa;
-  --color-result-success-bg: #1d3226;
-  --color-result-success-border: #496c53;
-  --color-result-success-text: #b2d6ba;
+  --color-banner-warning-bg: #33280f;
+  --color-banner-warning-border: #6b5525;
+  --color-banner-warning-text: #e8c07a;
+  --color-banner-info-bg: #1b2c29;
+  --color-banner-info-border: #35605a;
+  --color-banner-info-text: #8fd0c4;
+  --color-result-error-bg: #33201f;
+  --color-result-error-border: #6b3a38;
+  --color-result-error-text: #eda9a5;
+  --color-result-success-bg: #1e2f24;
+  --color-result-success-border: #3f6b4d;
+  --color-result-success-text: #a9d4b4;
 }
 
 html {
@@ -307,6 +347,12 @@ select {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  /* Product surfaces take their accent from the theme's own CTA colour rather
+     than {colors.link}: ink for vercel.md, coral for Claude.md. The blue link
+     colour only survives in marketing copy, and the landing / public status
+     pages sit outside .app-shell so they keep it. */
+  --color-link: var(--color-btn-primary-bg);
+  --color-link-hover: var(--color-btn-primary-hover);
 }
 
 .app-main {
@@ -363,8 +409,8 @@ select {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 16px;
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
@@ -406,14 +452,14 @@ select {
 }
 .btn-danger:hover:not(:disabled) { opacity: 0.85; }
 
-.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
-.btn-lg { height: 40px; padding: 0 20px; }
+.btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
+.btn-lg { height: 42px; padding: 0 22px; }
 
 /* Form inputs - keep minimal, Naive UI handles most */
 .vercel-input {
   width: 100%;
-  height: 32px;
-  padding: 0 10px;
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--color-btn-secondary-border);
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -423,7 +469,7 @@ select {
   transition: border-color 120ms ease, box-shadow 120ms ease;
   box-sizing: border-box;
 }
-.vercel-input:focus { border-color: var(--color-focus); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-focus) 12%, transparent); }
+.vercel-input:focus { border-color: var(--color-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 10%, transparent); }
 .vercel-input::placeholder { color: var(--color-mute); }
 .vercel-input.input-error { border-color: var(--color-error); }
 
@@ -497,7 +543,7 @@ select {
    at a width of its own makes the panel look unaligned while the window
    resizes, which is how 11 different breakpoints accumulated here before. */
 @media (max-width: 768px) {
-  :root { --sidebar-width: 0px; }
+  :root { --sidebar-width: 0px; --tabbar-height: 58px; }
   .app-main { margin-left: 0; }
   .page-container { padding: var(--spacing-md); }
   .card-grid-2,
@@ -520,3 +566,97 @@ select {
 .card-header { padding: var(--spacing-md) var(--spacing-lg); border-bottom: 1px solid var(--color-hairline); background: var(--color-canvas-soft); }
 
 .empty-note { padding: 40px; text-align: center; color: var(--color-mute); font-size: 13px; }
+
+/* Settings card + form primitives. Nine views render this chrome, so the
+   definition lives here: a page that re-declares it can still override it
+   (scoped styles win), but a page that forgets gets a real card instead of a
+   wall of unstyled text. */
+.settings-card {
+  min-width: 0;
+  padding: var(--spacing-xl);
+  background: var(--color-canvas-raised);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.settings-card-title {
+  margin-bottom: 6px;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.settings-card-desc {
+  max-width: 720px;
+  color: var(--color-mute);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label { color: var(--color-ink); font-size: 13px; font-weight: 500; }
+
+.field-help { color: var(--color-mute); font-size: 12px; line-height: 1.6; }
+
+.field > .tag { align-self: flex-start; }
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xl);
+}
+
+/* Pill tags. Same tokens as .status-tag, older class names. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 999px;
+  background: var(--color-canvas-soft-2);
+  color: var(--color-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-ok { color: var(--color-status-healthy-text); border-color: var(--color-status-healthy-border); background: var(--color-status-healthy-bg); }
+.tag-warn { color: var(--color-status-degraded-text); border-color: var(--color-status-degraded-border); background: var(--color-status-degraded-bg); }
+.tag-down { color: var(--color-status-down-text); border-color: var(--color-status-down-border); background: var(--color-status-down-bg); }
+
+/* A textarea shares .vercel-input, whose fixed height would squash a multi-row
+   box down to one line. */
+textarea.vercel-input {
+  height: auto;
+  min-height: 112px;
+  padding: 10px 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .settings-card { padding: var(--spacing-lg); }
+  .settings-card-header { flex-direction: column; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+  .actions-row { justify-content: stretch; }
+  .actions-row .btn { flex: 1 1 auto; justify-content: center; }
+}

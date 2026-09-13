@@ -3,10 +3,13 @@
 ## 总体架构
 
 ```text
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Vue 3 前端   │────▶│  Go 后端 API  │────▶│ Cloudflare API   │
-│  Naive UI    │     │  chi router  │     │ Tunnels / DNS    │
-└──────────────┘     └──────────────┘     └──────────────────┘
+┌──────────────┐
+│  Vue 3 前端   │──┐      ┌──────────────┐      ┌──────────────────┐
+│  Naive UI    │  ├─────▶│  Go 后端 API  │─────▶│ Cloudflare API   │
+├──────────────┤  │      │  chi router  │      │ Tunnels / DNS    │
+│ Android App  │──┘      └──────────────┘      └──────────────────┘
+│  原生界面     │
+└──────────────┘
 ```
 
 单容器运行：前端静态文件由 Go 进程直接托管（`STATIC_DIR=frontend/dist`），没有独立的 Node 运行时。
@@ -17,6 +20,7 @@
 | --- | --- |
 | 前端 | Vue 3, TypeScript, Naive UI, Vite, Pinia |
 | 后端 | Go, chi, SQLite（modernc.org/sqlite 纯 Go 驱动） |
+| Android App | Java, Gradle, Android SDK（API 26+），直连同一套 REST API |
 | 安全 | Argon2id、TOTP、AES-GCM 加密存储 |
 | 部署 | Docker multi-stage, Docker Compose |
 

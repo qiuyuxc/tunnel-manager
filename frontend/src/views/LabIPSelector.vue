@@ -377,27 +377,38 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.lab-page { display: flex; flex-direction: column; gap: 18px; }
-.progress-card { padding-bottom: 18px; }
-.progress-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
-.progress-track { height: 10px; border-radius: 999px; background: var(--color-hairline); overflow: hidden; }
+/* The heading sits in a row with the toolbar, so it drops the shared block
+   layout and the shared bottom margin. */
+.lab-page { display: flex; flex-direction: column; gap: 20px; }
+.lab-page .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-xl); flex-wrap: wrap; margin-bottom: 0; }
+.progress-card { padding-bottom: 20px; }
+.progress-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.progress-track { height: 10px; border-radius: 999px; background: var(--color-canvas-soft-2); overflow: hidden; }
 .progress-fill { height: 100%; border-radius: inherit; background: var(--color-btn-primary); transition: width .25s ease; }
 .progress-fill.active::after { content: ""; display: block; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: progress-sheen 1.2s linear infinite; }
-.progress-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; color: var(--color-mute); font-size: 13px; }
+.progress-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--color-body); font-size: 13px; }
 @keyframes progress-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px; }
-.lab-switch-row { display: flex; align-items: end; gap: 22px; flex-wrap: wrap; margin-bottom: 16px; }
-.lab-switch { display: inline-flex; align-items: center; gap: 8px; padding-bottom: 10px; font-size: 14px; }
-.interval-field { min-width: 150px; }
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px 20px; margin-bottom: 22px; }
+.lab-switch-row { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 22px; }
+/* Match the input height so the switch and the field beside it share a baseline. */
+.lab-switch { display: inline-flex; align-items: center; gap: 8px; height: 36px; font-size: 14px; }
+/* A status pill inside a stacked field must not stretch to the full column. */
+.field > .tag { align-self: flex-start; }
+.interval-field { min-width: 160px; }
 .table-wrap { overflow-x: auto; }
 .lab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.lab-table th, .lab-table td { padding: 9px 10px; border-bottom: 1px solid var(--color-hairline); text-align: left; white-space: nowrap; }
+.lab-table th, .lab-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-hairline); text-align: left; white-space: nowrap; }
+.lab-table tbody tr:last-child td { border-bottom: 0; }
 .lab-table th { color: var(--color-mute); font-size: 12px; font-weight: 500; }
 .lab-table .mono { font-family: var(--font-mono); }
 .error-cell { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
-.empty-state { padding: 28px 0; color: var(--color-mute); text-align: center; font-size: 14px; }
+.empty-state { padding: 40px 0; color: var(--color-mute); text-align: center; font-size: 14px; }
 .segment-wrap { max-height: 360px; overflow-y: auto; }
 .segment-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-@media (max-width: 768px) { .header-actions { width: 100%; } }
+@media (max-width: 768px) {
+  .lab-page .page-header { align-items: flex-start; }
+  .header-actions { width: 100%; }
+  .header-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
 </style>

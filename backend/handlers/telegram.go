@@ -76,7 +76,7 @@ func (h *TelegramHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 func (h *TelegramHandler) ReuseFromNotify(w http.ResponseWriter, r *http.Request) {
 	userID := h.requestUserID(r)
 	if err := h.store.ReuseTokenForRemote(userID); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": services.RedactSecrets(err.Error())})
 		return
 	}
 	h.manager.Reconcile()
@@ -141,7 +141,7 @@ func (h *TelegramHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": services.RedactSecrets(err.Error())})
 		return
 	}
 
@@ -185,7 +185,7 @@ func (h *TelegramHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 // SendTest sends a test message to the current user's authorized TG IDs.
 func (h *TelegramHandler) SendTest(w http.ResponseWriter, r *http.Request) {
 	if err := h.manager.SendTest(h.requestUserID(r)); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": services.RedactSecrets(err.Error())})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "测试消息已发送"})

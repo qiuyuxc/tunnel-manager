@@ -669,6 +669,12 @@ type bucketStat struct {
 	Down   int     `json:"down"`
 }
 
+// overviewHours is the width of the dashboard chart window. The API always
+// returns this many hourly buckets, gaps included, so the chart draws twelve
+// slots instead of one oversized bar for whichever hour happened to receive a
+// heartbeat.
+const overviewHours = 12
+
 // Overview handles GET /api/monitors/overview with cross-monitor stats.
 func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
@@ -733,18 +739,22 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	buckets := make([]bucketStat, 0, len(bmap))
-	for _, bk := range bmap {
-		st := bucketStat{Hour: bk.hour, PeakMs: bk.peak, Total: bk.total, Warn: bk.warn, Down: bk.down}
-		if st.Total > 0 {
-			st.AvgMs = float64(bk.sum) / float64(st.Total)
+	currentHourMs := time.Now().UnixMilli()
+	currentHourMs -= currentHourMs % 3600000
+	buckets := make([]bucketStat, 0, overviewHours)
+	for i := overviewHours - 1; i >= 0; i-- {
+		hourMs := currentHourMs - int64(i)*3600000
+		st := bucketStat{Hour: hourMs / 1000}
+		if bk := bmap[hourMs]; bk != nil {
+			st.PeakMs = bk.peak
+			st.Total = bk.total
+			st.Warn = bk.warn
+			st.Down = bk.down
+			if st.Total > 0 {
+				st.AvgMs = float64(bk.sum) / float64(st.Total)
+			}
 		}
 		buckets = append(buckets, st)
-	}
-	for i := 1; i < len(buckets); i++ {
-		for j := i; j > 0 && buckets[j].Hour < buckets[j-1].Hour; j-- {
-			buckets[j], buckets[j-1] = buckets[j-1], buckets[j]
-		}
 	}
 	avg := int64(0)
 	if latCnt > 0 {

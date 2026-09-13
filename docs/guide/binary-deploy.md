@@ -7,8 +7,8 @@
 到 [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases) 下载对应版本的 `tunnel-manager_<版本>_linux_amd64.tar.gz`（每个打了 `v*` 标签的版本都会自动构建并附加）。解包：
 
 ```bash
-tar xzf tunnel-manager_v1.16.1_linux_amd64.tar.gz
-cd tunnel-manager_v1.16.1_linux_amd64
+tar xzf tunnel-manager_v2.4.0_linux_amd64.tar.gz
+cd tunnel-manager_v2.4.0_linux_amd64
 ```
 
 目录内容：
@@ -79,7 +79,7 @@ systemctl daemon-reload && systemctl enable --now tunnel-manager
 
 ## 方式二：从源码自行编译（可选）
 
-需要改动代码、或在不提供预编译包的平台（如 Termux 手机、树莓派等 ARM 设备）上运行时，可在装有 Node.js 与 Go 的机器上自行构建：
+需要改动代码、或在不提供预编译包的平台（如树莓派等 ARM 设备）上运行时，可在装有 Node.js 与 Go 的机器上自行构建：
 
 ```bash
 # 1. 构建前端静态文件

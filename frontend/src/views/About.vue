@@ -66,14 +66,14 @@
           </div>
         </div>
         <ul class="changelog-list">
-          <li>状态页支持绑定独立自定义域名，直连 / 优选双接入</li>
-          <li>优选模式区分访问域名与辅助回源域名，并同步配置双域名 ingress</li>
-          <li>每个监控可单独选择或手填优选 CNAME，留空时使用全局默认值</li>
-          <li>状态页按请求 Host 隔离跳转到对应公开页面</li>
-          <li>修复监控项目所有者未持久化导致的跨用户访问问题</li>
-          <li>恢复每用户 Telegram 长轮询 / Webhook 双模式，Webhook 独立路由验签、账户隔离</li>
-          <li>新增实验性 IP 优选实验室：自定义 Host / SNI 与 IP 段，实时进度、分段统计、一键剔除未命中段</li>
-          <li>IP 优选支持定时执行与华为云 DNS A 记录自动更新，密钥加密存储</li>
+          <li>新增 Android 原生 App：概览、监控、隧道绑定、DNS、IP 优选实验室与通知全部原生实现</li>
+          <li>App 通知接入系统通知渠道，不打开网页也能在手机上收到监控状态变化</li>
+          <li>App 登录页内嵌 Cloudflare Turnstile，人机验证全程在原生页面完成，不再跳转网页</li>
+          <li>登录页与控制台跟随主题偏好切换亮色 / 暗色，与网页端共用一套配色</li>
+          <li>移动端改为底部标签导航与半屏弹窗，窄屏下监控、DNS 等页面不再横向挤压</li>
+          <li>落地页双主题：Vercel 风格（企业蓝）与 Claude 风格（暖色），各含亮色 / 暗色</li>
+          <li>错误信息统一脱敏，Telegram Bot Token 不再出现在日志、状态卡与截图中</li>
+          <li>新增 /api/alerts 告警游标接口，客户端可按 since 增量拉取监控状态变化</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

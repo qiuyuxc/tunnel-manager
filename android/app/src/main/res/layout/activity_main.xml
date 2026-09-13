@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/tm_canvas">
+
+    <ScrollView
+        android:id="@+id/auth_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="28dp">
+
+            <!-- ==== sign-in step ==== -->
+            <LinearLayout
+                android:id="@+id/step_login"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingTop="32dp">
+
+                <ImageView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/logo_mark" />
+
+                <TextView
+                    android:id="@+id/auth_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textColor="?attr/tm_text"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/auth_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="28dp"
+                    android:text="连接到你的控制台"
+                    android:textColor="?attr/tm_muted"
+                    android:textSize="14sp" />
+
+                <TextView
+                    style="@style/FieldLabel"
+                    android:text="服务器地址" />
+                <EditText
+                    android:id="@+id/input_server"
+                    style="@style/FieldInput"
+                    android:layout_marginBottom="16dp"
+                    android:autofillHints="url"
+                    android:hint="http://192.168.1.10:8080"
+                    android:imeOptions="actionNext"
+                    android:inputType="textUri" />
+
+                <TextView
+                    style="@style/FieldLabel"
+                    android:text="用户名或邮箱" />
+                <EditText
+                    android:id="@+id/input_account"
+                    style="@style/FieldInput"
+                    android:layout_marginBottom="16dp"
+                    android:autofillHints="username"
+                    android:hint="admin"
+                    android:imeOptions="actionNext"
+                    android:inputType="text" />
+
+                <TextView
+                    style="@style/FieldLabel"
+                    android:text="密码" />
+                <EditText
+                    android:id="@+id/input_password"
+                    style="@style/FieldInput"
+                    android:layout_marginBottom="16dp"
+                    android:autofillHints="current-password"
+                    android:imeOptions="actionDone"
+                    android:inputType="textPassword" />
+
+                <!-- Cloudflare Turnstile runs in a webview pinned to the console
+                     origin, so the native form can satisfy it without handing the
+                     whole sign-in over to the web page. -->
+                <LinearLayout
+                    android:id="@+id/turnstile_box"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <WebView
+                        android:id="@+id/turnstile_view"
+                        android:layout_width="300dp"
+                        android:layout_height="70dp"
+                        android:background="@android:color/transparent" />
+
+                    <TextView
+                        android:id="@+id/turnstile_hint"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="?attr/tm_muted"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/text_error"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:textColor="?attr/tm_error"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_login"
+                    style="@style/PrimaryButton"
+                    android:text="登录" />
+
+                <Button
+                    android:id="@+id/btn_use_web_login"
+                    style="@style/GhostButton"
+                    android:layout_marginTop="4dp"
+                    android:text="改用网页版登录" />
+            </LinearLayout>
+
+            <!-- ==== two-factor step ==== -->
+            <LinearLayout
+                android:id="@+id/step_two_factor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingTop="32dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/logo_mark" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="两步验证"
+                    android:textColor="?attr/tm_text"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/two_factor_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="28dp"
+                    android:gravity="center"
+                    android:text="请输入验证器中的 6 位验证码"
+                    android:textColor="?attr/tm_muted"
+                    android:textSize="14sp" />
+
+                <TextView
+                    style="@style/FieldLabel"
+                    android:text="验证码" />
+                <EditText
+                    android:id="@+id/input_code"
+                    style="@style/FieldInput"
+                    android:layout_marginBottom="16dp"
+                    android:hint="000000"
+                    android:imeOptions="actionDone"
+                    android:inputType="number"
+                    android:maxLength="6" />
+
+                <TextView
+                    android:id="@+id/text_error_2fa"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:textColor="?attr/tm_error"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_verify"
+                    style="@style/PrimaryButton"
+                    android:text="验证" />
+
+                <Button
+                    android:id="@+id/btn_back_to_login"
+                    style="@style/GhostButton"
+                    android:layout_marginTop="4dp"
+                    android:text="返回" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+</FrameLayout>

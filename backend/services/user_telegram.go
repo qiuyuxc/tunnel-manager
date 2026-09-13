@@ -140,8 +140,8 @@ func (m *UserTelegramManager) Reconcile() {
 		}
 		bot := NewUserTelegramBot(m.store, m.cf, m.ds, uid, meta.token, meta.operatorIDs, meta.mode, meta.webhookURL, meta.webhookSecret)
 		if err := bot.Start(); err != nil {
-			m.startErrors[uid] = err.Error()
-			log.Printf("[user-telegram] start bot for user %s failed: %v", uid, err)
+			m.startErrors[uid] = RedactSecrets(err.Error())
+			log.Printf("[user-telegram] start bot for user %s failed: %s", uid, RedactSecrets(err.Error()))
 			continue
 		}
 		delete(m.startErrors, uid)

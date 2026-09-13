@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The console shell. Colours are applied at runtime from Palette.java, so
+         this theme only has to be a neutral, action-bar-less AppCompat base
+         that Material components accept. -->
+    <style name="Theme.TunnelManager" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/canvas</item>
+        <item name="colorPrimary">@color/ink</item>
+        <item name="colorOnPrimary">@color/canvas</item>
+        <item name="colorSurface">@color/canvas</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="android:statusBarColor">@color/canvas</item>
+        <item name="android:navigationBarColor">@color/canvas</item>
+    </style>
+</resources>

@@ -191,7 +191,7 @@ func (b *TelegramBot) Start() error {
 
 	username, err := b.getMe(cfg)
 	if err != nil {
-		return fmt.Errorf("验证 Token 失败: %w", err)
+		return fmt.Errorf("验证 Token 失败: %s", RedactSecrets(err.Error()))
 	}
 	b.botUsername = username
 	b.mode = cfg.TGMode
@@ -229,7 +229,7 @@ func (b *TelegramBot) Start() error {
 		if err := b.setWebhook(cfg); err != nil {
 			b.running = false
 			cancel()
-			return fmt.Errorf("注册 Webhook 失败: %w", err)
+			return fmt.Errorf("注册 Webhook 失败: %s", RedactSecrets(err.Error()))
 		}
 		log.Printf("[telegram] webhook registered, bot @%s", b.botUsername)
 	} else {
@@ -288,9 +288,9 @@ func (b *TelegramBot) pollLoop(ctx context.Context, cfg models.Config) {
 		updates, err := b.getUpdates(ctx, cfg, b.lastUpdateID+1)
 		if err != nil {
 			b.mu.Lock()
-			b.lastError = err.Error()
+			b.lastError = RedactSecrets(err.Error())
 			b.mu.Unlock()
-			log.Printf("[telegram] poll error: %v", err)
+			log.Printf("[telegram] poll error: %s", RedactSecrets(err.Error()))
 			select {
 			case <-ctx.Done():
 				return

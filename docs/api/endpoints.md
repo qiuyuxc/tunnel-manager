@@ -177,6 +177,7 @@
 | PUT | `/api/monitors/{monitorID}/targets/{targetID}` | 编辑探测目标 |
 | DELETE | `/api/monitors/{monitorID}/targets/{targetID}` | 删除探测目标 |
 | GET | `/api/public/status/{token}` | 公开状态数据，token 可为系统令牌或短路径 |
+| GET | `/api/alerts?since=<unix秒>` | 告警游标流，供手机 App 轮询；`since=0` 只回游标不重放历史 |
 
 `PUT /api/monitors/{monitorID}` 的自定义域名字段：
 
@@ -206,4 +207,3 @@ Telegram 远程控制为每用户独立功能：每个账号配置自己的 Bot 
 | PUT | `/api/telegram/endpoint` | 设置面板级 Telegram API 端点（自定义反代），所有用户 Bot 生效 | 管理员 |
 | POST | `/api/telegram/webhook` | 旧全局 Bot 的 Webhook 入口（向后兼容） | Secret Token |
 | POST | `/api/telegram/webhook/{userID}` | 每用户 Bot 的 Webhook 入口，仅分发到 URL 中 userID 对应的 Bot | Secret Token |
-

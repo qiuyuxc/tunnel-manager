@@ -4,7 +4,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A web control panel for Cloudflare Tunnel. Create and route tunnels, bind domains, manage DNS records and fallback origins, probe your services and publish a shareable status page — with multi-user registration, an admin console, email alerts on status changes, Telegram bot remote control and two-factor authentication for administrators.
+A web control panel for Cloudflare Tunnel, plus a native Android client. Create and route tunnels, bind domains, manage DNS records and fallback origins, probe your services and publish a shareable status page — with multi-user registration, an admin console, email alerts on status changes, Telegram bot remote control and two-factor authentication for administrators.
 
 > 📖 **Documentation**: **[https://docs.kukie.cn/en/](https://docs.kukie.cn/en/)**
 
@@ -24,15 +24,19 @@ A web control panel for Cloudflare Tunnel. Create and route tunnels, bind domain
 | Public status page | Share without login; short paths, custom domains, direct-tunnel or optimized CNAME access, and a custom domain only exposes its own page | [Public status page](https://docs.kukie.cn/en/guide/monitors-status#public-status-page) |
 | Cloudflare connection | OAuth 2.0 with PKCE and automatic token refresh, multiple accounts; static API tokens still work | [OAuth connection](https://docs.kukie.cn/en/guide/cloudflare-oauth) |
 | Telegram bot | Manage tunnels, bindings and DNS records remotely, with confirmation before deletes | [Telegram bot](https://docs.kukie.cn/en/guide/telegram-bot) |
+| Android app | Native client for the same API: overview, monitoring, tunnels, DNS, the IP lab and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
 | Security | Argon2id password hashing, TOTP two-factor auth and one-time recovery codes | [Security & admin auth](https://docs.kukie.cn/en/guide/security) |
 
 ## Architecture
 
 ```text
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Vue 3 SPA   │────▶│  Go REST API │────▶│ Cloudflare API   │
-│  Naive UI    │     │  chi router  │     │ Tunnels / DNS    │
-└──────────────┘     └──────────────┘     └──────────────────┘
+┌──────────────┐
+│  Vue 3 SPA   │──┐      ┌──────────────┐      ┌──────────────────┐
+│  Naive UI    │  ├─────▶│  Go REST API │─────▶│ Cloudflare API   │
+├──────────────┤  │      │  chi router  │      │ Tunnels / DNS    │
+│ Android app  │──┘      └──────────────┘      └──────────────────┘
+│  native UI   │
+└──────────────┘
 ```
 
 ## Quick start
@@ -52,6 +56,7 @@ docker compose logs | grep 密
 **Shorter paths**:
 - Run the prebuilt image — see [Docker Compose deployment](https://docs.kukie.cn/en/guide/docker-compose)
 - No Docker, just the binary — see [Binary deployment](https://docs.kukie.cn/en/guide/binary-deploy)
+- The phone client — build it from `android/`, see [Android app](https://docs.kukie.cn/en/guide/android-app)
 - Published builds: [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)
 
 Environment variables, the OAuth setup walkthrough, enabling two-factor auth and resetting passwords are all covered in the [documentation](https://docs.kukie.cn/en/).
@@ -62,6 +67,7 @@ Environment variables, the OAuth setup walkthrough, enabling two-factor auth and
 | --- | --- |
 | Frontend | Vue 3, TypeScript, Naive UI, Vite, Pinia |
 | Backend | Go, chi, SQLite |
+| Android app | Java, Gradle, Android SDK (API 26+) |
 | Delivery | Multi-stage Docker build, GitHub Actions CI |
 
 ## Development
@@ -72,6 +78,9 @@ cd backend && go run .
 
 # Frontend
 cd frontend && npm install && npm run dev   # /api is proxied to localhost:8080
+
+# Android app
+cd android && ./build.sh
 
 # Checks
 cd backend && go test ./... && go vet ./...

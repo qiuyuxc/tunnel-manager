@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom sheet entrance: rises from off-screen, matching the web sheet's
+     220ms cubic-bezier(0.32, 0.72, 0, 1). -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="220"
+    android:fromYDelta="100%"
+    android:toYDelta="0"
+    android:interpolator="@android:interpolator/fast_out_slow_in" />

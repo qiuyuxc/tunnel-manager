@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ paints its own splash before the process starts. Left alone
+         it would show the launcher icon, and the launch artwork would then draw
+         the same branding again; a blank icon leaves only the background colour,
+         which is the artwork's own top edge. -->
+    <style name="AppTheme.Splash" parent="AppTheme.Splash.Base">
+        <item name="android:windowSplashScreenBackground">@color/splash_day_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon_blank</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+    </style>
+</resources>

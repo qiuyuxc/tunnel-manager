@@ -13,18 +13,32 @@
         <span class="lp-brand-name">{{ store.config.site_name || 'Tunnel Manager' }}</span>
       </router-link>
       <nav class="lp-nav-actions">
-        <button class="lp-theme-toggle" type="button"
-          :title="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
-          :aria-label="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
-          @click="store.toggleDarkMode()">
-          <svg v-if="store.darkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"/>
-            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
-          </svg>
-        </button>
+        <div class="lp-toggles">
+          <button class="lp-icon-btn" type="button"
+            :title="store.visualTheme === 'warm' ? '切换到 Vercel 主题' : '切换到 Claude 主题'"
+            :aria-label="store.visualTheme === 'warm' ? '切换到 Vercel 主题' : '切换到 Claude 主题'"
+            @click="store.toggleVisualTheme()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2a10 10 0 0 0 0 20h1.7a1.8 1.8 0 0 0 1.3-3l-.5-.5a1.8 1.8 0 0 1 1.3-3H18a4 4 0 0 0 4-4A10 10 0 0 0 12 2z"/>
+              <circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/>
+              <circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/>
+              <circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/>
+              <circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/>
+            </svg>
+          </button>
+          <button class="lp-icon-btn" type="button"
+            :title="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
+            :aria-label="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
+            @click="store.toggleDarkMode()">
+            <svg v-if="store.darkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+            </svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+            </svg>
+          </button>
+        </div>
         <template v-if="!store.isAuthenticated">
           <router-link to="/login" class="lp-btn lp-btn-secondary nav-secondary">登录</router-link>
           <router-link v-if="registrationEnabled" to="/login?mode=register" class="lp-btn lp-btn-primary">注册</router-link>
@@ -178,9 +192,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* uDESIGN.md — Linear design language: near-black canvas #010102, lavender
-   #5e6ad2, charcoal surface ladder + hairline borders, product screenshot as
-   protagonist, no gradients, 8px-radius buttons (never pill). */
+/* The landing page rides the app theme instead of carrying its own palette, so
+   it follows both the visual theme (vercel.md / Claude.md) and the light/dark
+   switch. Local aliases keep the rules below readable. */
 .landing-page,
 .landing-page *,
 .landing-page *::before,
@@ -189,22 +203,24 @@ onMounted(() => {
 }
 
 .landing-page {
-  /* Light: inverse Linear surface ladder */
-  --lp-canvas: #ffffff;
-  --lp-surface-1: #f5f6f6;
-  --lp-surface-2: #ededee;
-  --lp-hairline: #e6e7e8;
-  --lp-hairline-strong: #d0d2d5;
-  --lp-ink: #171717;
-  --lp-ink-muted: #3d3d3d;
-  --lp-ink-subtle: #6b6f76;
-  --lp-ink-tertiary: #9ca0a6;
-  --lp-primary: #5e6ad2;
-  --lp-primary-hover: #4b57c0;
-  --lp-primary-text: #ffffff;
-  --lp-success-bg: rgba(39, 166, 68, 0.12);
-  --lp-success-text: #1c8a37;
-  --lp-edge: rgba(255, 255, 255, 0.8);
+  --lp-canvas: var(--color-canvas-soft);
+  --lp-surface-1: var(--color-canvas);
+  /* Cards sit one step above the page in dark mode (11% vs 4%), so the
+     elevated token keeps the hairline visible instead of blending in. */
+  --lp-card: var(--color-canvas-raised);
+  --lp-surface-2: var(--color-canvas-soft-2);
+  --lp-hairline: var(--color-hairline);
+  --lp-hairline-strong: var(--color-hairline-strong);
+  --lp-ink: var(--color-ink);
+  --lp-ink-muted: var(--color-body);
+  --lp-ink-subtle: var(--color-mute);
+  --lp-ink-tertiary: var(--color-mute);
+  --lp-primary: var(--color-btn-primary-bg);
+  --lp-primary-hover: var(--color-btn-primary-hover);
+  --lp-primary-text: var(--color-btn-primary-text);
+  --lp-success-bg: var(--color-result-success-bg);
+  --lp-success-text: var(--color-result-success-text);
+  --lp-edge: color-mix(in srgb, var(--color-ink) 6%, transparent);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -212,25 +228,6 @@ onMounted(() => {
   color: var(--lp-ink);
   font-family: var(--font-sans);
   overflow-x: hidden;
-}
-
-[data-theme="dark"] .landing-page {
-  /* uDESIGN.md Linear dark canvas */
-  --lp-canvas: #010102;
-  --lp-surface-1: #0f1011;
-  --lp-surface-2: #141516;
-  --lp-hairline: #23252a;
-  --lp-hairline-strong: #34343a;
-  --lp-ink: #f7f8f8;
-  --lp-ink-muted: #d0d6e0;
-  --lp-ink-subtle: #8a8f98;
-  --lp-ink-tertiary: #62666d;
-  --lp-primary: #5e6ad2;
-  --lp-primary-hover: #828fff;
-  --lp-primary-text: #ffffff;
-  --lp-success-bg: rgba(39, 166, 68, 0.14);
-  --lp-success-text: #4ade80;
-  --lp-edge: rgba(255, 255, 255, 0.06);
 }
 
 /* ---------- top-nav (56px, sticky) ---------- */
@@ -243,7 +240,7 @@ onMounted(() => {
   justify-content: space-between;
   height: 56px;
   padding: 0 32px;
-  background: var(--lp-canvas);
+  background: var(--lp-surface-1);
   border-bottom: 1px solid var(--lp-hairline);
 }
 
@@ -287,16 +284,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  gap: 10px;
+  gap: 12px;
 }
 
-.lp-theme-toggle {
+.lp-toggles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Vercel's icon-button-circular: canvas surface, hairline ring, full radius. */
+.lp-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  padding: 0;
+  border-radius: 999px;
   background: var(--lp-surface-1);
   border: 1px solid var(--lp-hairline);
   color: var(--lp-ink-subtle);
@@ -304,7 +309,7 @@ onMounted(() => {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.lp-theme-toggle:hover {
+.lp-icon-btn:hover {
   background: var(--lp-surface-2);
   border-color: var(--lp-hairline-strong);
   color: var(--lp-ink);
@@ -383,25 +388,27 @@ onMounted(() => {
 
 .lp-h1 {
   margin: 20px 0 0;
-  font-size: 80px;
+  /* vercel.md display-xl — sentence-case hero at 48px with -2.4px tracking. */
+  font-size: 48px;
   font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -3px;
+  line-height: 1;
+  letter-spacing: -2.4px;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
 .lp-h2 {
   margin: 16px 0 0;
-  font-size: 56px;
+  /* vercel.md display-lg. */
+  font-size: 32px;
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -1.8px;
+  line-height: 1.25;
+  letter-spacing: -1.28px;
 }
 
 .lp-h3 {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.6px;
@@ -430,7 +437,7 @@ onMounted(() => {
   max-width: 820px;
   margin: 64px auto 0;
   text-align: left;
-  background: var(--lp-surface-1);
+  background: var(--lp-card);
   border: 1px solid var(--lp-hairline);
   border-radius: 16px;
   box-shadow: inset 0 1px 0 var(--lp-edge);
@@ -553,7 +560,9 @@ onMounted(() => {
 
 .lp-feature-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Four cards, so let the track count follow the width instead of leaving an
+     orphan on a second row. */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
   margin-top: 48px;
   text-align: left;
@@ -561,7 +570,7 @@ onMounted(() => {
 
 .lp-feature {
   padding: 24px;
-  background: var(--lp-surface-1);
+  background: var(--lp-card);
   border: 1px solid var(--lp-hairline);
   border-radius: 12px;
   transition: background-color 0.15s ease, border-color 0.15s ease;
@@ -605,7 +614,7 @@ onMounted(() => {
 .lp-cta-card {
   padding: 48px 32px;
   text-align: center;
-  background: var(--lp-surface-1);
+  background: var(--lp-card);
   border: 1px solid var(--lp-hairline);
   border-radius: 12px;
   box-shadow: inset 0 1px 0 var(--lp-edge);
@@ -654,24 +663,24 @@ onMounted(() => {
   color: var(--lp-ink-tertiary);
 }
 
-/* ---------- responsive (uDESIGN.md breakpoints) ---------- */
+/* ---------- responsive (shared app breakpoints) ---------- */
 @media (max-width: 1024px) {
-  .lp-feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
   .lp-nav { padding: 0 20px; }
   .lp-main { padding: 0 20px; }
   .lp-hero { padding-top: 72px; }
-  .lp-h1 { font-size: 48px; letter-spacing: -1.6px; }
-  .lp-h2 { font-size: 40px; letter-spacing: -1px; }
+  .lp-h1 { font-size: 36px; letter-spacing: -1.4px; }
+  .lp-h2 { font-size: 28px; letter-spacing: -0.8px; }
   .lp-section { padding-top: 72px; }
   .nav-secondary { display: none; }
 }
 
 @media (max-width: 640px) {
-  .lp-feature-grid { grid-template-columns: 1fr; }
-  .lp-h1 { font-size: 40px; letter-spacing: -1px; }
+  .lp-feature-grid { grid-template-columns: minmax(0, 1fr); }
+  .lp-h1 { font-size: 32px; letter-spacing: -1px; }
   .lp-shot { margin-top: 48px; }
   .lp-row-label { flex-basis: 72px; }
 }

@@ -88,7 +88,7 @@
               v-for="b in ov.buckets"
               :key="b.hour"
               class="bar-col"
-              :class="'h-' + bucketHealth(b)"
+              :class="['h-' + bucketHealth(b), { 'is-empty': !b.total }]"
               :title="bucketTitle(b)"
             >
               <div class="col-inner">
@@ -246,9 +246,12 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .chart { position: relative; padding: 22px 18px 14px; background: var(--color-canvas-raised); }
 .chart-grid-lines { position: absolute; inset: 22px 18px 34px; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
 .chart-grid-lines i { border-top: 1px dashed var(--color-hairline); opacity: .5; }
-.bars { position: relative; display: flex; align-items: flex-end; gap: 10px; height: 140px; z-index: 1; padding-top: 4px; min-width: 0; overflow: hidden; }
-.bar-col { position: relative; flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
+/* Twelve hourly slots. On a phone the track scrolls sideways rather than
+   squeezing every column into a sliver. */
+.bars { position: relative; display: flex; align-items: flex-end; gap: 8px; height: 150px; z-index: 1; padding-top: 4px; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.bar-col { position: relative; flex: 1 1 0; min-width: 20px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
 .col-inner { position: relative; flex: 1; }
+.bar-col.is-empty .col-inner::after { content: ""; position: absolute; left: 27%; right: 27%; bottom: 0; height: 3px; border-radius: 2px; background: var(--color-hairline-strong); opacity: .55; }
 .bar-peak { position: absolute; bottom: 0; left: 10%; right: 10%; border-radius: 3px 3px 0 0;
   background: color-mix(in srgb, var(--color-ink) 10%, transparent); border: 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent); border-bottom: 0; transition: height 300ms ease; }
 .bar-avg { position: absolute; bottom: 0; left: 27%; right: 27%; border-radius: 3px; background: var(--color-ink); transition: height 300ms ease; }
@@ -256,7 +259,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .h-mid .bar-avg { background: var(--color-warning); }
 .h-bad .bar-avg { background: var(--color-error); }
 .h-bad .bar-peak { background: color-mix(in srgb, var(--color-error) 12%, transparent); border-color: color-mix(in srgb, var(--color-error) 25%, transparent); }
-.bar-label { margin-top: 8px; text-align: center; font-size: 10.5px; color: var(--color-mute); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The label is centred on its own tick and allowed to bleed past the column,
+   so a narrow track never clips it into "1…". */
+.bar-label { margin-top: 8px; text-align: center; font-size: 11px; color: var(--color-body); white-space: nowrap; }
 
 .legend { display: flex; justify-content: flex-end; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--color-mute); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -268,6 +273,14 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
 @media (max-width: 1024px) {
   .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .chart { padding: 18px 12px 12px; }
+  .chart-grid-lines { inset: 18px 12px 32px; }
+  /* Keep one label per three hours so they cannot collide in a narrow track. */
+  .bar-col:not(:nth-child(3n + 1)) .bar-label { visibility: hidden; }
+  .legend { flex-wrap: wrap; justify-content: flex-start; gap: 8px 14px; }
 }
 
 .metric-card {

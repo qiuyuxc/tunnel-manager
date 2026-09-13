@@ -117,7 +117,8 @@ func (n *Notifier) sendTelegram(prefs models.UserPrefs, text string) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		log.Printf("[notify] Telegram 通知发送失败: %v", err)
+		// The bot token is part of the URL net/http reports back.
+		log.Printf("[notify] Telegram 通知发送失败: %s", RedactSecrets(err.Error()))
 		return
 	}
 	defer resp.Body.Close()

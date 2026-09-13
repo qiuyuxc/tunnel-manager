@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tunnel Manager</string>
+    <string name="channel_service">后台监控</string>
+    <string name="channel_service_desc">保持告警推送所需的常驻通知，可设为静音</string>
+    <string name="channel_down">状态异常</string>
+    <string name="channel_down_desc">监控目标掉线时提醒</string>
+    <string name="channel_up">恢复通知</string>
+    <string name="channel_up_desc">监控目标恢复时提醒</string>
+</resources>

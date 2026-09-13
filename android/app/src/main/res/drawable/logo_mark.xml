@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same mark the console uses in NavBar.vue, drawn on its native 76x76 grid. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="76"
+    android:viewportHeight="76">
+    <path
+        android:fillColor="?attr/tm_logo"
+        android:pathData="M49 26H27v24l22-24z" />
+    <path
+        android:fillColor="?attr/tm_logo_dim"
+        android:pathData="M38 38L27 50h22L38 38z" />
+</vector>

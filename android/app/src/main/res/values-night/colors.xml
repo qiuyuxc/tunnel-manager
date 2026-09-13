@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors the console's Vercel dark palette (styles.css [data-theme="dark"]). -->
+<resources>
+    <color name="canvas">#000000</color>
+    <color name="surface">#111111</color>
+    <color name="text">#EDEDED</color>
+    <color name="muted">#9A9A9A</color>
+    <color name="border">#2A2A2A</color>
+    <color name="accent">#EDEDED</color>
+    <color name="accent_text">#0A0A0A</color>
+    <color name="error">#FF6369</color>
+    <color name="logo">#EDEDED</color>
+    <color name="logo_dim">#6B6B6B</color>
+    <color name="icon_bg">#131B2D</color>
+    <color name="ink">#EDEDED</color>
+</resources>

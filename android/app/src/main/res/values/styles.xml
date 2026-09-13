@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The sign-in form's two looks. Both are defined here, unqualified, so the
+         screen follows the app's palette preference rather than the system's
+         night mode; MainActivity picks one with setTheme(). The literals match
+         Palette.ENTERPRISE / ENTERPRISE_DARK. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="tm_canvas">#FAFAFA</item>
+        <item name="tm_surface">#FFFFFF</item>
+        <item name="tm_text">#171717</item>
+        <item name="tm_muted">#6B6B6B</item>
+        <item name="tm_border">#EBEBEB</item>
+        <item name="tm_accent">#171717</item>
+        <item name="tm_accent_text">#FFFFFF</item>
+        <item name="tm_error">#EE0000</item>
+        <item name="tm_logo">#171717</item>
+        <item name="tm_logo_dim">#8F8F8F</item>
+        <item name="android:windowBackground">?attr/tm_canvas</item>
+        <item name="android:colorBackground">?attr/tm_canvas</item>
+        <item name="android:textColorPrimary">?attr/tm_text</item>
+        <item name="android:textColorHint">?attr/tm_muted</item>
+        <item name="android:statusBarColor">?attr/tm_canvas</item>
+        <item name="android:navigationBarColor">?attr/tm_canvas</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="AppTheme.Dark" parent="android:Theme.Material.NoActionBar">
+        <item name="tm_canvas">#000000</item>
+        <item name="tm_surface">#111111</item>
+        <item name="tm_text">#EDEDED</item>
+        <item name="tm_muted">#9A9A9A</item>
+        <item name="tm_border">#2A2A2A</item>
+        <item name="tm_accent">#EDEDED</item>
+        <item name="tm_accent_text">#0A0A0A</item>
+        <item name="tm_error">#FF6369</item>
+        <item name="tm_logo">#EDEDED</item>
+        <item name="tm_logo_dim">#6B6B6B</item>
+        <item name="android:windowBackground">?attr/tm_canvas</item>
+        <item name="android:colorBackground">?attr/tm_canvas</item>
+        <item name="android:textColorPrimary">?attr/tm_text</item>
+        <item name="android:textColorHint">?attr/tm_muted</item>
+        <item name="android:statusBarColor">?attr/tm_canvas</item>
+        <item name="android:navigationBarColor">?attr/tm_canvas</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Only used for the window the system paints before MainActivity exists.
+         The night variant lives in values-night; Android 12+ adds its own splash
+         attributes on top of this base. -->
+    <style name="AppTheme.Splash.Base" parent="AppTheme">
+        <item name="android:windowBackground">@color/splash_day_bg</item>
+        <item name="android:colorBackground">@color/splash_day_bg</item>
+        <item name="android:statusBarColor">@color/splash_day_bg</item>
+    </style>
+
+    <style name="AppTheme.Splash" parent="AppTheme.Splash.Base" />
+
+    <style name="FieldLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">?attr/tm_text</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+    </style>
+
+    <style name="FieldInput">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">@drawable/input_bg</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textColor">?attr/tm_text</item>
+        <item name="android:textColorHint">?attr/tm_muted</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <style name="PrimaryButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">@drawable/btn_primary</item>
+        <item name="android:textColor">?attr/tm_accent_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="GhostButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:textColor">?attr/tm_muted</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <!-- The bottom sheet. A dialog rather than a PopupWindow because it has to
+         dim the page behind it and take the back button; every colour inside is
+         applied at runtime from Palette.java, so this only has to be a neutral
+         window with no frame of its own.
+
+         It stays a *floating* window on purpose: a non-floating dialog window
+         never receives input focus, so BACK would fall through to the activity
+         and close the page instead of the sheet. -->
+    <style name="SheetDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowAnimationStyle">@style/SheetDialogAnimation</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
+
+    <style name="SheetDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/sheet_up</item>
+        <item name="android:windowExitAnimation">@anim/sheet_down</item>
+    </style>
+
+    <!-- Confirmation and small form dialogs: centred, dimmed, no frame. -->
+    <style name="ModalDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowAnimationStyle">@style/ModalDialogAnimation</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
+
+    <style name="ModalDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/dialog_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_out</item>
+    </style>
+</resources>

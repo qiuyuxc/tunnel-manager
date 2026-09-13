@@ -670,9 +670,12 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .add-card { margin-bottom: 14px; }
-.add-row { display: grid; grid-template-columns: 180px auto auto 1fr auto; gap: 8px; }
-.type-sel { width: 118px; }
-.method-sel { width: 92px; }
+/* Flex, not a fixed grid: the probe method and the jump switch are optional, so
+   the column count changes with the probe type. A flex row just reflows. */
+.add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.add-row .vercel-input { flex: 0 1 180px; width: auto; min-width: 0; }
+.type-sel { flex: 0 0 118px; }
+.method-sel { flex: 0 0 92px; }
 .link-chk {
   display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--color-body);
   cursor: pointer; user-select: none; white-space: nowrap;
@@ -761,7 +764,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .vercel-input { height: 34px; border-radius: 6px; border: 1px solid var(--color-hairline-strong);
   background: var(--color-canvas-raised); color: var(--color-ink); padding: 0 10px; font-size: 13px; outline: none; }
 .vercel-input:focus { border-color: var(--color-focus); }
-.add-row .url { font-family: var(--font-mono); font-size: 12px; }
+.add-row .url { flex: 1 1 280px; font-family: var(--font-mono); font-size: 12px; }
 
 .target-list { overflow: hidden; }
 .target-row { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--color-hairline); background: var(--color-canvas-raised); }
@@ -798,7 +801,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   border: 1px solid var(--color-hairline); font-family: var(--font-mono); font-size: 11.5px; color: var(--color-ink); word-break: break-all; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 1024px) {
-  .add-row { grid-template-columns: 1fr; }
+  .add-row > * { flex: 1 1 100%; }
   .preferred-domain-fields { grid-template-columns: 1fr; }
   .bars { order: 5; flex-basis: 100%; }
   .target-row { flex-wrap: wrap; row-gap: 8px; }

@@ -1,0 +1,17 @@
+# Gradle caches and build output
+.gradle/
+build/
+app/build/
+
+# Machine-specific SDK path
+local.properties
+
+# IDE state
+.idea/
+*.iml
+*.hprof
+
+# Packaged apps
+*.apk
+*.aab
+captures/

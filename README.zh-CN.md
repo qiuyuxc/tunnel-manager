@@ -4,7 +4,7 @@
 
 [English](README.md) | 简体中文
 
-Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，支持多用户注册与管理后台、状态变化邮件告警，并支持 Telegram Bot 远程管理和管理员双重身份验证。
+Cloudflare Tunnel 可视化管理面板，附带原生 Android 客户端。通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，支持多用户注册与管理后台、状态变化邮件告警，并支持 Telegram Bot 远程管理和管理员双重身份验证。
 
 > 📖 **在线文档**：**[https://docs.kukie.cn](https://docs.kukie.cn)**
 
@@ -24,15 +24,19 @@ Cloudflare Tunnel 可视化管理面板。通过 Web UI 管理隧道、绑定域
 | 公开状态页 | 免登录分享，支持短路径、自定义域名、直连 Tunnel 与优选 CNAME，自定义域名仅开放对应状态页 | [公开状态页](https://docs.kukie.cn/guide/monitors-status#公开状态页) |
 | Cloudflare 连接 | OAuth 2.0（PKCE）自动刷新令牌，多账户切换；兼容静态 Token | [OAuth 连接](https://docs.kukie.cn/guide/cloudflare-oauth) |
 | Telegram Bot | 远程管理隧道、绑定与 DNS 记录，删除二次确认 | [Telegram Bot](https://docs.kukie.cn/guide/telegram-bot) |
+| Android App | 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS、IP 优选实验室与通知，底部标签导航 + 系统通知 | [Android App](https://docs.kukie.cn/guide/android-app) |
 | 安全 | Argon2id 密码哈希、TOTP 双因素验证与一次性恢复码 | [安全与管理员认证](https://docs.kukie.cn/guide/security) |
 
 ## 架构
 
 ```text
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Vue 3 前端   │────▶│  Go 后端 API  │────▶│ Cloudflare API   │
-│  Naive UI    │     │  chi router  │     │ Tunnels / DNS    │
-└──────────────┘     └──────────────┘     └──────────────────┘
+┌──────────────┐
+│  Vue 3 前端   │──┐      ┌──────────────┐      ┌──────────────────┐
+│  Naive UI    │  ├─────▶│  Go 后端 API  │─────▶│ Cloudflare API   │
+├──────────────┤  │      │  chi router  │      │ Tunnels / DNS    │
+│ Android App  │──┘      └──────────────┘      └──────────────────┘
+│  原生界面     │
+└──────────────┘
 ```
 
 ## 快速部署
@@ -52,6 +56,7 @@ docker compose logs | grep 密
 **更简单的姿势**：
 - 拉取预编译镜像运行：见[「Docker Compose 部署详解」](https://docs.kukie.cn/guide/docker-compose)
 - 免 Docker 二进制部署：见[「二进制部署」](https://docs.kukie.cn/guide/binary-deploy)
+- 手机客户端：从 `android/` 本地构建，见[「Android App」](https://docs.kukie.cn/guide/android-app)
 - 已发布版本：[GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)
 
 环境变量、OAuth 配置步骤、双因素验证启用与密码重置等详细说明均见[文档站](https://docs.kukie.cn)。
@@ -62,6 +67,7 @@ docker compose logs | grep 密
 | --- | --- |
 | 前端 | Vue 3, TypeScript, Naive UI, Vite, Pinia |
 | 后端 | Go, chi, SQLite |
+| Android App | Java, Gradle, Android SDK（API 26+） |
 | 部署 | Docker multi-stage, GitHub Actions CI |
 
 ## 开发
@@ -72,6 +78,9 @@ cd backend && go run .
 
 # 前端
 cd frontend && npm install && npm run dev   # /api 代理到 localhost:8080
+
+# Android App
+cd android && ./build.sh
 
 # 验证
 cd backend && go test ./... && go vet ./...

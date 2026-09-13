@@ -2,6 +2,18 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.4.0
+
+- New native Android app: overview, monitoring, tunnels & bindings, DNS, the IP optimizer lab, notifications and About are all native, with a bottom tab bar plus a More page, hitting the same backend API — see [Using the Android app](/en/guide/android-app)
+- App notifications ride the system notification channel: a low-frequency background poll of `/api/alerts` brings status changes to the phone without a browser open
+- Cloudflare Turnstile is embedded in the native login page, so enabling human verification no longer bounces you to the web console and is immune to leftover browser sessions
+- The login page and console follow the theme preference between light and dark (Vercel light / Vercel dark), and the launch splash picks the day or night artwork to match
+- New narrow-screen bottom tab navigation and half-sheet panels; monitoring, DNS and the IP optimizer lab no longer squeeze sideways on a phone
+- Two landing-page looks: Vercel (enterprise blue, light/dark) and Claude (warm, light/dark)
+- Hardened error handling: messages are redacted so a Telegram bot token never reaches a log line, status card or screenshot
+- New `/api/alerts` cursor endpoint so a client can pull monitor state changes incrementally with `since`
+- The overview chart now always returns twelve hourly buckets, empty ones included, instead of one oversized bar for the hour that happened to get a heartbeat
+
 ## v2.3.0
 
 - Added an experimental-features switch: administrators control whether lab navigation is exposed, and the related APIs return `404` while disabled

@@ -7,8 +7,8 @@ Don't want to run Docker? Download the prebuilt archive — one binary plus the 
 Grab `tunnel-manager_<version>_linux_amd64.tar.gz` for the release you want from [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases) — every `v*` tag is built and attached automatically. Unpack it:
 
 ```bash
-tar xzf tunnel-manager_v2.3.0_linux_amd64.tar.gz
-cd tunnel-manager_v2.3.0_linux_amd64
+tar xzf tunnel-manager_v2.4.0_linux_amd64.tar.gz
+cd tunnel-manager_v2.4.0_linux_amd64
 ```
 
 What's inside:
@@ -79,7 +79,7 @@ Download the new archive, replace the binary and `frontend/dist`, restart the se
 
 ## Option 2: build from source (optional)
 
-When you need to change the code, or run on a platform with no prebuilt archive (a phone under Termux, a Raspberry Pi or other ARM devices), build it on any machine with Node.js and Go:
+When you need to change the code, or run on a platform with no prebuilt archive (a Raspberry Pi or another ARM device), build it on any machine with Node.js and Go:
 
 ```bash
 # 1. build the frontend

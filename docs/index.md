@@ -45,4 +45,8 @@ features:
     details: Argon2id 密码哈希、标准 TOTP 双因素验证与一次性恢复码；Telegram Bot 远程执行隧道、绑定与 DNS 操作。
     link: /guide/security
     linkText: 安全配置
+  - title: Android App
+    details: 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS 与 IP 优选实验室均为原生页面，登录页内嵌人机验证，监控状态变化直接走系统通知。
+    link: /guide/android-app
+    linkText: 安装与使用
 ---

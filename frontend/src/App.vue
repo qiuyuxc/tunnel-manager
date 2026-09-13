@@ -64,10 +64,14 @@ configStore.fetchMe()
   .app-main {
     margin-left: 0;
     padding-top: 56px;
+    /* Room for the fixed tab bar, plus whatever the device reserves for its
+       gesture bar. --tabbar-height is 0 on desktop; see styles.css. */
+    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   }
 
   .app-main-login {
     padding-top: 0;
+    padding-bottom: 0;
   }
 }
 </style>

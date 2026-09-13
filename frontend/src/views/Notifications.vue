@@ -6,6 +6,39 @@
     </div>
 
     <div class="settings-list">
+      <section v-if="appShell" class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-title">本机通知</div>
+          <div class="settings-card-desc">
+            由 App 自己在后台轮询服务器，不用开着浏览器也能收到告警；只在这台设备生效，需要手动开启。
+          </div>
+        </div>
+        <div class="event-rows">
+          <div class="event-row">
+            <div>
+              <strong>后台告警推送</strong>
+              <p>{{ hostHint }}</p>
+            </div>
+            <n-switch :value="host.enabled" size="small" :loading="hostBusy" @update:value="toggleHost" />
+          </div>
+          <div class="event-row">
+            <div>
+              <strong>忽略电池优化</strong>
+              <p>系统在息屏后可能限制后台轮询，允许后告警更及时。</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" @click="openBatterySettings">
+              {{ host.battery ? '已允许' : '去允许' }}
+            </button>
+          </div>
+        </div>
+        <p class="field-hint host-note">
+          推送与邮件告警同源：需要在具体监控项目里开启「告警」，且只在状态发生变化时触发。
+        </p>
+        <div class="actions-row host-actions">
+          <button class="btn btn-secondary" @click="sendHostTestNotify">发送本机测试通知</button>
+        </div>
+      </section>
+
       <section class="settings-card">
         <div class="settings-card-header">
           <div class="settings-card-title">通知渠道</div>
@@ -79,9 +112,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { getNotifySettings, updateNotifySettings, testNotify, reuseNotifyFromTelegram, type SaveNotifyPayload } from '../api/notify'
+import {
+  isAppShell,
+  readHostNotifyState,
+  enableHostNotify,
+  disableHostNotify,
+  sendHostTestNotify,
+  openBatterySettings,
+  type HostNotifyState,
+} from '../utils/appHost'
 
 const message = useMessage()
 const channels = ref<string[]>([])
@@ -94,6 +136,36 @@ const tgRemoteBotSet = ref(false)
 const saving = ref(false)
 const testing = ref(false)
 const reusing = ref(false)
+
+// Native-only card. In a browser isAppShell is false and none of this renders.
+const appShell = isAppShell()
+const host = ref<HostNotifyState>({ enabled: false, permission: true, battery: false })
+const hostBusy = ref(false)
+
+const hostHint = computed(() => {
+  if (!host.value.permission) return '系统还没允许本机发送通知，打开开关时会弹出授权。'
+  if (!host.value.enabled) return '已关闭。开启后 App 会常驻一条低调通知来维持轮询。'
+  if (!host.value.battery) return '运行中；建议同时允许忽略电池优化，避免息屏后被系统掐掉。'
+  return '运行中，服务端一有状态变化就会推送到这里。'
+})
+
+function refreshHost() {
+  const state = readHostNotifyState()
+  if (state) host.value = state
+}
+
+/** The permission dialog resolves later, so the shell signals us when it does. */
+function onHostChange() {
+  refreshHost()
+  hostBusy.value = false
+}
+
+function toggleHost(value: boolean) {
+  hostBusy.value = true
+  if (value) enableHostNotify()
+  else disableHostNotify()
+  window.setTimeout(onHostChange, 350)
+}
 
 const channelOptions = [
   { value: '', label: '关闭通知' },
@@ -115,6 +187,8 @@ function setChannels(value: string) {
 }
 
 onMounted(async () => {
+  refreshHost()
+  window.addEventListener('tmhostchange', onHostChange)
   try {
     const { data } = await getNotifySettings()
     channels.value = data.channels || []
@@ -127,6 +201,8 @@ onMounted(async () => {
     message.error('加载失败: ' + (e.response?.data?.error || e.message))
   }
 })
+
+onUnmounted(() => window.removeEventListener('tmhostchange', onHostChange))
 
 async function reuseFromTelegram() {
   reusing.value = true
@@ -293,6 +369,9 @@ async function sendTest() {
   display: flex;
   gap: var(--spacing-sm);
 }
+
+.host-actions { margin-top: var(--spacing-md); }
+.host-note { margin-top: var(--spacing-md); }
 
 @media (max-width: 480px) {
   .notify-page { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }

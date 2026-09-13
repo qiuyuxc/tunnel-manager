@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.3.0"
+const Version = "v2.4.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -287,6 +287,10 @@ func main() {
 		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.EditTarget)))
 		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.RemoveTarget)))
 
+		// Cursor feed of monitor alerts. Polled by the Android shell so alerts
+		// reach the phone without a browser being open.
+		r.Get("/alerts", mw.Auth(monitorsHandler.AlertsFeed))
+
 		// Status-page icon uploads
 		r.Post("/uploads", mw.Auth(mw.RequirePerm(models.PermMonitors, uploadsHandler.UploadImage)))
 
@@ -346,9 +350,18 @@ func main() {
 			// Try to serve the file directly
 			path := filepath.Join(staticDir, req.URL.Path)
 			if _, err := os.Stat(path); os.IsNotExist(err) || strings.HasSuffix(req.URL.Path, "/") {
-				// SPA fallback: serve index.html for missing routes
+				// SPA fallback: serve index.html for missing routes. It must be
+				// revalidated on every load: each build deletes the previous
+				// hashed bundles, so a client that reuses a cached document ends
+				// up requesting assets that no longer exist and renders blank.
+				w.Header().Set("Cache-Control", "no-cache")
 				http.ServeFile(w, req, filepath.Join(staticDir, "index.html"))
 				return
+			}
+			// Vite puts a content hash in every asset filename, so a given URL can
+			// never point at different bytes and clients can keep it indefinitely.
+			if strings.HasPrefix(req.URL.Path, "/assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
 			fs.ServeHTTP(w, req)
 		})

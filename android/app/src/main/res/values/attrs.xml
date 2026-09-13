@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Screen colours for the sign-in form.
+
+     The console paints itself from Palette.java, but the form is inflated from
+     XML, so it needs the palette to arrive through the theme. These attributes
+     are what AppTheme and AppTheme.Dark fill in, which lets the form follow the
+     app's own light/dark choice instead of the system's night mode. -->
+<resources>
+    <attr name="tm_canvas" format="color" />
+    <attr name="tm_surface" format="color" />
+    <attr name="tm_text" format="color" />
+    <attr name="tm_muted" format="color" />
+    <attr name="tm_border" format="color" />
+    <attr name="tm_accent" format="color" />
+    <attr name="tm_accent_text" format="color" />
+    <attr name="tm_error" format="color" />
+    <attr name="tm_logo" format="color" />
+    <attr name="tm_logo_dim" format="color" />
+</resources>

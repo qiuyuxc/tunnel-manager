@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the window-level colours live here; every in-app colour comes from
+     Palette.java so the four palettes can switch without a restart. -->
+<resources>
+    <color name="canvas">#FAFAFA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="text">#171717</color>
+    <color name="muted">#6B6B6B</color>
+    <color name="border">#EBEBEB</color>
+    <color name="accent">#171717</color>
+    <color name="accent_text">#FFFFFF</color>
+    <color name="error">#EE0000</color>
+    <color name="logo">#171717</color>
+    <color name="logo_dim">#8F8F8F</color>
+    <color name="icon_bg">#131B2D</color>
+    <color name="ink">#171717</color>
+    <!-- Top edge of the launch artwork, so the window the system paints before
+         the app exists blends into the illustration instead of flashing. Both
+         are defined here rather than in values-night: which one to use is the
+         app's own light/dark preference, not the system's. -->
+    <color name="splash_day_bg">#5CA1F0</color>
+    <color name="splash_night_bg">#061844</color>
+</resources>

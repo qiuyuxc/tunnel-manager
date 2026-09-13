@@ -45,4 +45,8 @@ features:
     details: Argon2id password hashing, standard TOTP two-factor auth and one-time recovery codes; run tunnel, binding and DNS operations from a Telegram bot.
     link: /en/guide/security
     linkText: Security settings
+  - title: Android app
+    details: A native client for the same API — overview, monitoring, tunnels, DNS and the IP optimizer lab are native screens, the login page embeds human verification, and monitor changes arrive as system notifications.
+    link: /en/guide/android-app
+    linkText: Install & use
 ---
