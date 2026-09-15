@@ -34,7 +34,7 @@ features:
     link: /guide/lab-ip-selector
     linkText: 进入实验室
   - title: 服务监控
-    details: HTTP（GET/POST）、TCP、ICMP 三种探测方式，每个监控挂多个目标，仪表盘展示近 24 小时延迟柱图。
+    details: HTTP（GET/POST）、TCP、ICMP 三种探测方式，每个监控挂多个目标，仪表盘展示近 7 天延迟柱图。
     link: /guide/monitors-status
     linkText: 配置监控
   - title: 公开状态页

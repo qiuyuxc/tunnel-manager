@@ -17,7 +17,7 @@ docker compose up -d
 | 文件 / 目录 | 内容 |
 | --- | --- |
 | `config.json` | 管理员凭据（Argon2id）、隧道选择、绑定记录、监控配置、OAuth 加密令牌、Telegram 设置等全部状态 |
-| `heartbeats.json` | 服务监控的历史心跳数据（近 24 小时延迟图表的来源） |
+| `heartbeats.json` | 服务监控的历史心跳数据（近 7 天延迟图表的来源） |
 | `uploads/` | 公开状态页图片与站点图标上传文件 |
 
 容器内的路径为 `/app/data`，由 `docker-compose.yml` 从宿主机 `./data` 挂载。

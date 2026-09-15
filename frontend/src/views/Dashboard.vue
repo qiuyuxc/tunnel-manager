@@ -51,7 +51,7 @@
     <!-- Monitor Overview -->
     <div class="card section">
       <div class="card-header ov-header">
-        <span class="caption-mono">监控概览 · 近 12 小时</span>
+        <span class="caption-mono">监控概览 · 近 7 天</span>
         <router-link to="/monitors" class="link ov-more">前往监控管理</router-link>
       </div>
 
@@ -64,8 +64,8 @@
       <div v-else-if="ov" class="ov-body">
         <div class="ov-stats">
           <div class="stat">
-            <span class="stat-num">{{ ov.uptime_24h }}<em>%</em></span>
-            <span class="stat-lab">24h 可用率</span>
+            <span class="stat-num">{{ ov.uptime ?? ov.uptime_24h }}<em>%</em></span>
+            <span class="stat-lab">7 天可用率</span>
           </div>
           <div class="stat">
             <span class="stat-num">{{ ov.avg_latency_ms || '—' }}<em v-if="ov.avg_latency_ms">ms</em></span>
@@ -95,7 +95,7 @@
                 <div class="bar-peak" :style="{ height: pctH(b.peak_ms) }"></div>
                 <div class="bar-avg" :style="{ height: pctH(b.avg_ms || (b.total ? Math.max(b.peak_ms * 0.35, 6) : 0)) }"></div>
               </div>
-              <span class="bar-label">{{ hourLabel(b.hour) }}</span>
+              <span class="bar-label">{{ bucketLabel(b.hour) }}</span>
             </div>
           </div>
           <div class="legend">
@@ -201,15 +201,19 @@ function bucketHealth(b: BucketStat) {
   return 'good'
 }
 
-function hourLabel(sec: number) {
+/** One column is a day now; the clock label stays for anything shorter. */
+function bucketLabel(sec: number) {
   const d = new Date(sec * 1000)
-  return isNaN(d.getTime()) ? '' : d.getHours() + '时'
+  if (isNaN(d.getTime())) return ''
+  // A server that predates the field only ever sent hourly buckets.
+  if ((ov.value?.bucket_sec ?? 3600) < 86400) return d.getHours() + '时'
+  return d.getMonth() + 1 + '/' + d.getDate()
 }
 
 function bucketTitle(b: BucketStat) {
-  if (!b.total) return hourLabel(b.hour) + ' · 无数据'
+  if (!b.total) return bucketLabel(b.hour) + ' · 无数据'
   return [
-    hourLabel(b.hour),
+    bucketLabel(b.hour),
     '平均 ' + b.avg_ms + 'ms',
     '峰值 ' + b.peak_ms + 'ms',
     '检测 ' + b.total + ' 次',

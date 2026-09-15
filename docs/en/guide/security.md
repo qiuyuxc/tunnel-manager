@@ -3,7 +3,7 @@
 ## Administrator authentication
 
 - Passwords are hashed with Argon2id; older SHA-256 hashes are migrated automatically on sign-in
-- Sessions last 12 hours
+- Sessions last seven days
 - Ordinary protected endpoints accept either an administrator session or `API_KEY`; the 2FA management endpoints accept **only an administrator session** and cannot be bypassed with `API_KEY`
 
 ## Two-factor authentication (2FA)

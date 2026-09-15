@@ -54,6 +54,9 @@ public class MainActivity extends Activity {
     static final String PREFS = "tunnel_manager_app";
     static final String KEY_SERVER = "server";
     static final String KEY_TOKEN = "token";
+    /** Extra the console sets when it had to drop a session, and its value. */
+    static final String EXTRA_NOTICE = "notice";
+    static final String NOTICE_EXPIRED = "expired";
     private static final String KEY_USERNAME = "username";
     private static final String KEY_ROLE = "role";
 
@@ -199,6 +202,12 @@ public class MainActivity extends Activity {
             // forward.
             clearWebSession();
             prepareTurnstile();
+        }
+        // The console hands back an expired session here; say so once, on the
+        // form the operator is about to use.
+        if (getIntent() != null && NOTICE_EXPIRED.equals(getIntent().getStringExtra(EXTRA_NOTICE))) {
+            getIntent().removeExtra(EXTRA_NOTICE);
+            showError(textError, "登录状态已失效，请重新登录");
         }
         playSplash(signedIn ? this::launchConsole : null);
     }

@@ -621,7 +621,11 @@ export interface OverviewResp {
   ok: number
   warn: number
   down: number
+  uptime: number
+  /** Same number as {@link uptime}; the field predates the seven-day window. */
   uptime_24h: number
+  /** Width of one chart column in seconds — a day in the current window. */
+  bucket_sec: number
   avg_latency_ms: number
   peak_latency_ms: number
   buckets: BucketStat[]

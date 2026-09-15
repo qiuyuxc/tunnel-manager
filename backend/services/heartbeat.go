@@ -9,8 +9,15 @@ import (
 	"time"
 )
 
-// maxHeartbeatsPerTarget bounds retention in memory and on disk.
-const maxHeartbeatsPerTarget = 1200
+// maxHeartbeatsPerTarget bounds retention in memory and on disk: a week of
+// samples at the default 60s interval, which is what the dashboard's seven-day
+// chart reads. A 30s monitor reaches the cap in half the time and keeps the
+// shorter window it fits into.
+const maxHeartbeatsPerTarget = 10080
+
+// heartbeatRetention is the wall-clock window history is kept for, whatever
+// the interval. A little wider than the chart so "today" is never short.
+const heartbeatRetention = 8 * 24 * time.Hour
 
 // Heartbeat is one recorded probe outcome.
 type Heartbeat struct {
@@ -50,12 +57,24 @@ func (l *HeartbeatLog) Append(monitorID, targetID string, hb Heartbeat) {
 	key := heartbeatKey(monitorID, targetID)
 	l.mu.Lock()
 	list := append(l.data[key], hb)
+	l.data[key] = trimHeartbeats(list, hb.T)
+	l.dirty = true
+	l.mu.Unlock()
+}
+
+// trimHeartbeats drops everything older than the retention window, then caps
+// the count so a fast interval cannot grow the file without bound.
+func trimHeartbeats(list []Heartbeat, nowMS int64) []Heartbeat {
+	cutoff := nowMS - int64(heartbeatRetention/time.Millisecond)
+	first := 0
+	for first < len(list) && list[first].T < cutoff {
+		first++
+	}
+	list = list[first:]
 	if len(list) > maxHeartbeatsPerTarget {
 		list = list[len(list)-maxHeartbeatsPerTarget:]
 	}
-	l.data[key] = list
-	l.dirty = true
-	l.mu.Unlock()
+	return list
 }
 
 // Recent returns a copy of entries for one target newer than sinceMS.

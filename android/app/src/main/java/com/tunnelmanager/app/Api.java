@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -29,8 +30,35 @@ final class Api {
 
     private static final ExecutorService POOL = Executors.newFixedThreadPool(4);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static final AtomicBoolean sessionLostFired = new AtomicBoolean();
+    /** Set by the console shell while it is on screen. */
+    private static volatile Runnable sessionLost;
 
     private Api() {
+    }
+
+    /** Registers the console's "the token is dead" handler. */
+    static void watchSession(Runnable listener) {
+        sessionLost = listener;
+        sessionLostFired.set(false);
+    }
+
+    static void stopWatchingSession() {
+        sessionLost = null;
+    }
+
+    /**
+     * Reports a rejected token to the console shell, once.
+     *
+     * Every page can be in flight when a session dies, and the shell's answer is
+     * to leave for the sign-in screen. Firing that twice is what made the app
+     * bounce between the two, so the first rejection wins and the rest are
+     * ignored until a new session is established.
+     */
+    private static void notifySessionLost() {
+        Runnable listener = sessionLost;
+        if (listener == null || !sessionLostFired.compareAndSet(false, true)) return;
+        MAIN.post(listener);
     }
 
     /** A request that failed. {@link #auth} means the session is gone. */
@@ -127,6 +155,7 @@ final class Api {
             int code = conn.getResponseCode();
             InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
             String raw = readAll(in);
+            if (code == 401 && !token.isEmpty()) notifySessionLost();
             if (code >= 400) throw new Failure(code, serverMessage(raw, code));
             return object(raw);
         } catch (Failure e) {
@@ -246,6 +275,7 @@ final class Api {
             int code = conn.getResponseCode();
             InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
             String raw = readAll(in);
+            if (code == 401 && !token.isEmpty()) notifySessionLost();
             if (code >= 400) throw new Failure(code, serverMessage(raw, code));
             return raw;
         } catch (Failure e) {

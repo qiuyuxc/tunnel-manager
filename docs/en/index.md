@@ -34,7 +34,7 @@ features:
     link: /en/guide/lab-ip-selector
     linkText: Open the lab
   - title: Service monitoring
-    details: HTTP (GET/POST), TCP and ICMP probes, several targets per monitor, and a dashboard with 24-hour latency bars.
+    details: HTTP (GET/POST), TCP and ICMP probes, several targets per monitor, and a dashboard with seven days of latency bars.
     link: /en/guide/monitors-status
     linkText: Set up monitoring
   - title: Public status page

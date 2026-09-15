@@ -62,15 +62,20 @@ public class ConsoleActivity extends AppCompatActivity {
     /** Null until the first page lands, so the first {@link #open} always runs. */
     private String currentPath;
     private boolean restoring;
+    /** Set once a dead session has been acted on, so it is acted on once. */
+    private boolean sessionLostHandled;
 
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         Session.init(this);
         if (Session.token().isEmpty()) {
-            backToLogin();
+            backToLogin(null);
             return;
         }
+        // Any 401 from here on means the session died under us; the shell owns
+        // the only sane answer to that, so it registers itself as the handler.
+        Api.watchSession(this::onSessionLost);
         wide = getResources().getConfiguration().screenWidthDp >= UI.WIDE_DP;
         if (saved != null) {
             currentPath = saved.getString(STATE_PATH, currentPath);
@@ -89,6 +94,29 @@ public class ConsoleActivity extends AppCompatActivity {
         setIntent(intent);
         String route = intent.getStringExtra(EXTRA_PATH);
         if (route != null && !route.isEmpty()) open(route);
+    }
+
+    @Override
+    protected void onDestroy() {
+        Api.stopWatchingSession();
+        super.onDestroy();
+    }
+
+    /**
+     * The server stopped accepting the stored token.
+     *
+     * The token has to go before the sign-in screen comes up: leaving it behind
+     * is what made the app relaunch the console straight from the login page,
+     * take another 401 and bounce back, flashing the launch screen forever.
+     *
+     * A request's own failure callback usually arrives right after the shell
+     * was already told, so only the first one leaves.
+     */
+    private void onSessionLost() {
+        if (sessionLostHandled || isFinishing() || isDestroyed()) return;
+        sessionLostHandled = true;
+        Session.logout(this);
+        backToLogin(MainActivity.NOTICE_EXPIRED);
     }
 
     private String initialRoute(Intent intent) {
@@ -446,7 +474,7 @@ public class ConsoleActivity extends AppCompatActivity {
         card.addView(menuSeparator());
         card.addView(menuRow(R.drawable.ic_nav_logout, "退出登录", true, () -> {
             Session.logout(this);
-            backToLogin();
+            backToLogin(null);
         }));
 
         PopupWindow popup = new PopupWindow(card, UI.dp(WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -686,7 +714,7 @@ public class ConsoleActivity extends AppCompatActivity {
             loadAvatar();
             rebuildNav();
         }, failure -> {
-            if (failure.auth) backToLogin();
+            if (failure.auth) onSessionLost();
         });
         Api.async(() -> Api.get("/api/config"), config -> {
             Session.applyConfig(config);
@@ -731,9 +759,10 @@ public class ConsoleActivity extends AppCompatActivity {
         decor.setSystemUiVisibility(flags);
     }
 
-    private void backToLogin() {
+    private void backToLogin(String notice) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (notice != null) intent.putExtra(MainActivity.EXTRA_NOTICE, notice);
         startActivity(intent);
         finish();
     }

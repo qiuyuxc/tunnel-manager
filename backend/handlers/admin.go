@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	defaultSessionTTL   = 12 * time.Hour
+	defaultSessionTTL   = 7 * 24 * time.Hour
 	twoFactorTTL        = 5 * time.Minute
 	maxRequestBodyBytes = 4 << 10
 	maxUsernameLength   = 128

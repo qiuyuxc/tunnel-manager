@@ -17,7 +17,7 @@ The build runs in the same two stages as the initial `install.sh` deployment —
 | File / directory | Contents |
 | --- | --- |
 | `config.json` | The SQLite database, despite the legacy filename: administrator credentials (Argon2id), tunnel selection, binding records, monitor configuration, encrypted OAuth tokens, Telegram settings — all state |
-| `heartbeats.json` | Probe history for service monitoring (what the 24-hour latency chart reads) |
+| `heartbeats.json` | Probe history for service monitoring (what the seven-day latency chart reads) |
 | `uploads/` | Uploaded status-page images and site icons |
 
 Inside the container the path is `/app/data`, mounted from `./data` on the host by `docker-compose.yml`.

@@ -100,16 +100,21 @@ public class DashboardFragment extends PageFragment {
 
         body.addView(stats(overview));
         body.addView(UI.spacer(requireContext(), UI.LG));
-        body.addView(chartCard(overview.optJSONArray("buckets")));
+        body.addView(chartCard(overview));
         body.addView(UI.spacer(requireContext(), UI.LG));
         body.addView(monitorList(monitors));
     }
 
     private View stats(JSONObject overview) {
+        // uptime is the current field; uptime_24h is what servers before the
+        // seven-day window sent, and still send alongside it.
+        double uptime = overview.has("uptime")
+                ? overview.optDouble("uptime")
+                : overview.optDouble("uptime_24h");
         LinearLayout grid = UI.column(requireContext());
         grid.addView(statRow(
                 stat("监控目标", String.valueOf(overview.optInt("targets")), null),
-                stat("24h 可用率", percent(overview.optDouble("uptime_24h")), null)));
+                stat("7 天可用率", percent(uptime), null)));
         grid.addView(UI.spacer(requireContext(), UI.SM));
         grid.addView(statRow(
                 stat("正常 / 异常",
@@ -142,10 +147,11 @@ public class DashboardFragment extends PageFragment {
         return card;
     }
 
-    private View chartCard(@Nullable JSONArray buckets) {
+    private View chartCard(JSONObject overview) {
+        JSONArray buckets = overview.optJSONArray("buckets");
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "近 12 小时"));
-        TextView hint = UI.muted(requireContext(), "每根柱子的高度是那一小时的峰值延迟，颜色代表最差状态");
+        card.addView(UI.cardTitle(requireContext(), "近 7 天"));
+        TextView hint = UI.muted(requireContext(), "每根柱子的高度是当天的峰值延迟，颜色代表当天最差状态");
         UI.margin(hint, 0, UI.XS, 0, 0);
         card.addView(hint);
         if (buckets == null || buckets.length() == 0) {
@@ -155,7 +161,7 @@ public class DashboardFragment extends PageFragment {
         }
 
         ChartView chart = new ChartView(requireContext());
-        chart.setBuckets(buckets);
+        chart.setBuckets(buckets, overview.optInt("bucket_sec", 3600));
         card.addView(chart);
         card.addView(legend());
         return card;

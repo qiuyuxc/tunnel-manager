@@ -14,12 +14,12 @@ import org.json.JSONObject;
 import java.util.Calendar;
 
 /**
- * The dashboard's twelve-hour latency chart.
+ * The dashboard's seven-day latency chart.
  *
- * Same reading as the web chart: each hour is a column with a wide, faint peak
+ * Same reading as the web chart: each day is a column with a wide, faint peak
  * bar behind and a narrow solid average bar in front, coloured by the worst
- * state that hour saw, with dashed grid lines behind both. Drawn on a canvas
- * rather than assembled from views because twelve two-bar columns as nested
+ * state that day saw, with dashed grid lines behind both. Drawn on a canvas
+ * rather than assembled from views because seven two-bar columns as nested
  * layouts measure and allocate far more than they are worth.
  */
 final class ChartView extends View {
@@ -31,9 +31,6 @@ final class ChartView extends View {
     private static final int LABEL_GAP_DP = 8;
     private static final int LABEL_DP = 16;
     private static final int COLUMN_GAP_DP = 8;
-    /** Every third hour is labelled; a phone track cannot seat twelve. */
-    private static final int LABEL_EVERY = 3;
-
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
@@ -41,6 +38,9 @@ final class ChartView extends View {
     private final Calendar calendar = Calendar.getInstance();
 
     private JSONArray buckets = new JSONArray();
+    /** Width of one column in seconds. Hourly is what a server that predates
+     *  {@code bucket_sec} sends, so it is the safe assumption. */
+    private int bucketSec = 3600;
     private long ceiling = 200;
 
     ChartView(Context ctx) {
@@ -52,9 +52,10 @@ final class ChartView extends View {
         labelPaint.setTextAlign(Paint.Align.CENTER);
     }
 
-    /** The API's hourly buckets; an empty list draws the grid and nothing else. */
-    void setBuckets(JSONArray value) {
+    /** The API's buckets; an empty list draws the grid and nothing else. */
+    void setBuckets(JSONArray value, int bucketSec) {
         buckets = value == null ? new JSONArray() : value;
+        this.bucketSec = bucketSec;
         long peak = 0;
         for (int i = 0; i < buckets.length(); i++) {
             peak = Math.max(peak, buckets.optJSONObject(i).optLong("peak_ms"));
@@ -86,14 +87,16 @@ final class ChartView extends View {
         if (count == 0) return;
         float gap = UI.dp(COLUMN_GAP_DP);
         float column = Math.max(UI.dp(4), (right - left - gap * (count - 1)) / count);
+        // Seven days fit a label each; a denser window has to skip some.
+        int labelEvery = count > 12 ? 3 : 1;
 
         for (int i = 0; i < count; i++) {
             JSONObject bucket = buckets.optJSONObject(i);
             float x = left + i * (column + gap);
             drawColumn(canvas, bucket, x, column, trackTop, trackBottom, p);
-            if (i % LABEL_EVERY == 0) {
+            if (i % labelEvery == 0) {
                 float baseline = trackBottom + UI.dp(LABEL_GAP_DP) + UI.dp(11);
-                canvas.drawText(hourLabel(bucket.optLong("hour")), x + column / 2f, baseline, labelPaint);
+                canvas.drawText(bucketLabel(bucket.optLong("hour")), x + column / 2f, baseline, labelPaint);
             }
         }
     }
@@ -177,8 +180,12 @@ final class ChartView extends View {
         return (float) (pct / 100.0 * (trackBottom - trackTop));
     }
 
-    private String hourLabel(long seconds) {
+    /** A date for day-wide buckets, a clock time for anything shorter. */
+    private String bucketLabel(long seconds) {
         calendar.setTimeInMillis(seconds * 1000L);
+        if (bucketSec >= 86400) {
+            return (calendar.get(Calendar.MONTH) + 1) + "/" + calendar.get(Calendar.DAY_OF_MONTH);
+        }
         return calendar.get(Calendar.HOUR_OF_DAY) + "时";
     }
 

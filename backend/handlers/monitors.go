@@ -669,15 +669,29 @@ type bucketStat struct {
 	Down   int     `json:"down"`
 }
 
-// overviewHours is the width of the dashboard chart window. The API always
-// returns this many hourly buckets, gaps included, so the chart draws twelve
-// slots instead of one oversized bar for whichever hour happened to receive a
-// heartbeat.
-const overviewHours = 12
+// overviewDays is the width of the dashboard chart window: one column per day
+// for the last week. The API always returns this many buckets, gaps included,
+// so a quiet week still draws seven slots instead of one oversized bar for
+// whichever hour happened to receive a heartbeat.
+const overviewDays = 7
+
+// overviewBucketSec is the width of one chart column in seconds. Clients label
+// buckets from it (a date rather than a clock time) without having to guess.
+const overviewBucketSec = 24 * 60 * 60
 
 // Overview handles GET /api/monitors/overview with cross-monitor stats.
 func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
-	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
+	loc := time.Local
+	now := time.Now()
+	// Midnight of the first day of the window, in the panel's own timezone, so
+	// a bucket is a calendar day rather than a rolling 24 hours.
+	windowStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).
+		AddDate(0, 0, -(overviewDays - 1))
+	since := windowStart.UnixMilli()
+	dayStart := func(ms int64) int64 {
+		t := time.UnixMilli(ms).In(loc)
+		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc).UnixMilli()
+	}
 	all := h.st.GetConfig().Monitors
 	visible := make([]models.Monitor, 0, len(all))
 	for _, m := range all {
@@ -700,7 +714,7 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	for _, m := range all {
 		for _, t := range m.Targets {
 			targets++
-			list := h.hb.Recent(m.ID, t.ID, dayAgo)
+			list := h.hb.Recent(m.ID, t.ID, since)
 			if len(list) == 0 {
 				downN++
 				continue
@@ -719,7 +733,7 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 				if hb.M > peak {
 					peak = hb.M
 				}
-				hr := hb.T - hb.T%3600000
+				hr := dayStart(hb.T)
 				bk := bmap[hr]
 				if bk == nil {
 					bk = &acc{hour: hr / 1000}
@@ -739,13 +753,11 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	currentHourMs := time.Now().UnixMilli()
-	currentHourMs -= currentHourMs % 3600000
-	buckets := make([]bucketStat, 0, overviewHours)
-	for i := overviewHours - 1; i >= 0; i-- {
-		hourMs := currentHourMs - int64(i)*3600000
-		st := bucketStat{Hour: hourMs / 1000}
-		if bk := bmap[hourMs]; bk != nil {
+	buckets := make([]bucketStat, 0, overviewDays)
+	for i := 0; i < overviewDays; i++ {
+		dayMs := windowStart.AddDate(0, 0, i).UnixMilli()
+		st := bucketStat{Hour: dayMs / 1000}
+		if bk := bmap[dayMs]; bk != nil {
 			st.PeakMs = bk.peak
 			st.Total = bk.total
 			st.Warn = bk.warn
@@ -763,7 +775,7 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	var good, totalChecks int
 	for _, m := range all {
 		for _, t := range m.Targets {
-			for _, hb := range filterSince(h.hb.Recent(m.ID, t.ID, 0), dayAgo) {
+			for _, hb := range h.hb.Recent(m.ID, t.ID, since) {
 				totalChecks++
 				if hb.S == "ok" {
 					good++
@@ -775,12 +787,16 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	if totalChecks > 0 {
 		pct = float64(int(float64(good)/float64(totalChecks)*10000+0.5)) / 100
 	}
+	// uptime_24h repeats uptime: the field predates the seven-day window and is
+	// still sent so a client built before it finds its value.
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"targets":         targets,
 		"ok":              okN,
 		"warn":            warnN,
 		"down":            downN,
+		"uptime":          pct,
 		"uptime_24h":      pct,
+		"bucket_sec":      overviewBucketSec,
 		"avg_latency_ms":  avg,
 		"peak_latency_ms": peak,
 		"buckets":         buckets,

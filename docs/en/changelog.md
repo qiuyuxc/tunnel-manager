@@ -2,6 +2,15 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.4.1
+
+- Fixed the Android app looping on the launch screen after a session expired: the stale credential was never cleared, so the login page relaunched the console immediately, took another 401 and bounced back — over and over. The session is now cleared, the app returns to the sign-in form and says "登录状态已失效，请重新登录"
+- Any `401` from the API is now handed to the console shell as a whole, and handled exactly once; `403` still means "not allowed" and never signs anyone out
+- Session lifetime extended from 12 hours to seven days
+- The dashboard chart window grew from 12 hours to seven days: one column per day (that day's peak latency and worst state), empty days included, instead of compressing a day into one oversized bar
+- Heartbeat history is retained for eight days (up to 10080 samples per target) to feed that window
+- The overview endpoint returns `bucket_sec` and `uptime` (`uptime_24h` is kept for older clients); clients fall back to hourly buckets when the field is missing, so an old server with a new client never mislabels the axis
+
 ## v2.4.0
 
 - New native Android app: overview, monitoring, tunnels & bindings, DNS, the IP optimizer lab, notifications and About are all native, with a bottom tab bar plus a More page, hitting the same backend API — see [Using the Android app](/en/guide/android-app)
