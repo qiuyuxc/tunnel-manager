@@ -25,6 +25,20 @@ const (
 
 var ErrCloudflareOAuthNotConnected = errors.New("Cloudflare OAuth is not connected")
 
+// ErrCloudflareOAuthRejected marks a token request the provider turned down, as
+// opposed to one that never arrived. Only the former means the stored grant is
+// dead and the connection has to be authorized again.
+var ErrCloudflareOAuthRejected = errors.New("Cloudflare OAuth rejected the token request")
+
+// refreshTokenError words a failed refresh for whoever has to act on it: a
+// rejection needs a fresh authorization, anything else is worth a retry.
+func refreshTokenError(err error) error {
+	if errors.Is(err, ErrCloudflareOAuthRejected) {
+		return fmt.Errorf("Cloudflare 授权已失效，请在账户页重新授权：%w", err)
+	}
+	return fmt.Errorf("refresh Cloudflare OAuth token: %w", err)
+}
+
 // CloudflareOAuthConfig contains server-side OAuth client settings.
 type CloudflareOAuthConfig struct {
 	ClientID     string
@@ -201,7 +215,7 @@ func (o *CloudflareOAuth) AccessToken() (string, error) {
 		"refresh_token": {string(refreshToken)},
 	})
 	if err != nil {
-		return "", fmt.Errorf("refresh Cloudflare OAuth token: %w", err)
+		return "", refreshTokenError(err)
 	}
 	if err := o.persistToken(token, config.CFOAuthRefreshToken); err != nil {
 		return "", err
@@ -261,7 +275,7 @@ func (o *CloudflareOAuth) requestToken(values url.Values) (cloudflareOAuthToken,
 		if message == "" {
 			message = resp.Status
 		}
-		return cloudflareOAuthToken{}, fmt.Errorf("Cloudflare OAuth rejected token request: %s", message)
+		return cloudflareOAuthToken{}, fmt.Errorf("%w: %s", ErrCloudflareOAuthRejected, message)
 	}
 	if token.AccessToken == "" {
 		return cloudflareOAuthToken{}, errors.New("Cloudflare OAuth response did not include an access token")
@@ -338,7 +352,7 @@ func (o *CloudflareOAuth) AccessTokenFor(conn models.CFConnection) (string, erro
 		"refresh_token": {string(refreshToken)},
 	})
 	if err != nil {
-		return "", fmt.Errorf("refresh Cloudflare OAuth token: %w", err)
+		return "", refreshTokenError(err)
 	}
 	encAccess, err := auth.EncryptSecret(o.encryptionKey, cloudflareAccessTokenPurpose, []byte(token.AccessToken))
 	if err != nil {

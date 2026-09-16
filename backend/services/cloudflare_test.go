@@ -2,6 +2,9 @@ package services
 
 import (
 	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -86,5 +89,90 @@ func TestStaticCredentialsOnlyFallBackForAdmin(t *testing.T) {
 	accountID, err := boundCF.currentAccountID()
 	if err != nil || accountID != "alice-account" {
 		t.Fatalf("bound user currentAccountID() = %q, %v; want alice-account", accountID, err)
+	}
+}
+
+// TestDeadOAuthConnectionFallsBackToStaticCredentials covers a grant Cloudflare
+// has revoked: the connection can no longer mint a token, but the
+// administrator's environment credentials still work, and without the fallback
+// every Cloudflare-backed page answers 500.
+func TestDeadOAuthConnectionFallsBackToStaticCredentials(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "The provided authorization grant or refresh token is invalid.",
+		})
+	}))
+	defer server.Close()
+
+	st := newOAuthTestStore(t)
+	key := bytes.Repeat([]byte{3}, 32)
+	oauth := NewCloudflareOAuth(st, key, CloudflareOAuthConfig{ClientID: "client-id", ClientSecret: "client-secret"})
+	oauth.httpClient = server.Client()
+	oauth.tokenEndpoint = server.URL + "/token"
+	oauth.now = func() time.Time { return time.Unix(1_800_000_000, 0) }
+
+	access, err := auth.EncryptSecret(key, cloudflareAccessTokenPurpose, []byte("expired-access"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	refresh, err := auth.EncryptSecret(key, cloudflareRefreshTokenPurpose, []byte("revoked-refresh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadConn := func(userID, label string) models.CFConnection {
+		return models.CFConnection{
+			UserID:       userID,
+			Label:        label,
+			AccountID:    label + "-account",
+			AccessToken:  access,
+			RefreshToken: refresh,
+			ExpiresAt:    1_799_990_000, // already past oauth.now()
+		}
+	}
+
+	adminID := st.AdminUserID()
+	adminConn, err := st.CreateCFConnection(deadConn(adminID, "admin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetActiveCFConnection(adminID, adminConn); err != nil {
+		t.Fatal(err)
+	}
+
+	cf := NewCloudflareClient("admin-token", "admin-account")
+	cf.SetOAuth(oauth)
+	cf.SetSessionStore(st)
+
+	// The administrator keeps working on the environment credentials.
+	token, err := cf.ForUser(adminID).accessToken()
+	if err != nil {
+		t.Fatalf("admin accessToken() error = %v; want the static credential fallback", err)
+	}
+	if token != "admin-token" {
+		t.Fatalf("admin accessToken() = %q; want the static credential", token)
+	}
+
+	// A registered user with an equally dead connection gets the error: the
+	// fallback belongs to the administrator, and handing it out would expose
+	// their Cloudflare account to everyone.
+	if err := st.CreateUser(models.User{Username: "bob", Email: "bob@example.com", Role: models.RoleUser}); err != nil {
+		t.Fatal(err)
+	}
+	bob, ok := st.GetUserByUsername("bob")
+	if !ok {
+		t.Fatal("bob not found")
+	}
+	bobConn, err := st.CreateCFConnection(deadConn(bob.ID, "bob"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetActiveCFConnection(bob.ID, bobConn); err != nil {
+		t.Fatal(err)
+	}
+	if token, err := cf.ForUser(bob.ID).accessToken(); err == nil {
+		t.Fatalf("bob accessToken() = %q, nil; want an error rather than the administrator's credential", token)
 	}
 }

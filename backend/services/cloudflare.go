@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -92,8 +93,21 @@ func (c *CloudflareClient) accessToken() (string, error) {
 		return c.oauth.AccessTokenFor(*c.pinnedConn)
 	}
 	if c.userID != "" && c.store != nil {
-		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.HasToken() {
-			return c.oauth.AccessTokenFor(conn)
+		// A connection that cannot produce a token falls back to the environment
+		// credentials for the administrator. A grant that was revoked or whose
+		// refresh token died must not take every Cloudflare-backed page down
+		// with it, and the account page can authorize the connection again.
+		// Registered users get no fallback, which keeps the isolation intact.
+		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.HasToken() && c.oauth != nil {
+			token, err := c.oauth.AccessTokenFor(conn)
+			if err == nil {
+				return token, nil
+			}
+			if !c.adminUser() || c.apiToken == "" {
+				return "", err
+			}
+			log.Printf("Cloudflare OAuth 连接 %s 不可用，改用静态凭据：%v", conn.ID, err)
+			return c.apiToken, nil
 		}
 		if c.adminUser() && c.apiToken != "" {
 			return c.apiToken, nil

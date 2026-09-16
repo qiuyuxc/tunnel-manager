@@ -26,6 +26,22 @@ func TestUpdateAppSettingsAcceptsRoundTrippedFields(t *testing.T) {
 	}
 }
 
+func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
+	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	h := NewManagementHandler(st, nil)
+	get := performJSON(t, h.GetAppSettings, http.MethodGet, "", "", "")
+	if get.Code != http.StatusOK {
+		t.Fatalf("GetAppSettings() = %d: %s", get.Code, get.Body.String())
+	}
+	// Clients hand the document they were given straight back, and the decoder
+	// refuses unknown fields. Every field the GET emits therefore needs a
+	// counterpart on the request, or saving the form is a 400 for everyone.
+	put := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", get.Body.String(), "")
+	if put.Code != http.StatusOK {
+		t.Fatalf("UpdateAppSettings(round-tripped GET) = %d: %s", put.Code, put.Body.String())
+	}
+}
+
 func TestUpdateAppSettingsRejectsEnableWithoutKeys(t *testing.T) {
 	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
 	h := NewManagementHandler(st, nil)

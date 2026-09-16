@@ -495,6 +495,12 @@ type SaveAppSettingsRequest struct {
 	PasskeyOrigins             string `json:"passkey_origins"`
 	PasskeyAndroidPackage      string `json:"passkey_android_package"`
 	PasskeyAndroidFingerprints string `json:"passkey_android_fingerprints"`
+	// PasskeyAdminReady and PasskeyAndroidFingerprintsEffective only ever come
+	// out of the GET response. They are accepted here so a client can send the
+	// document back unchanged — the decoder rejects unknown fields, so a view
+	// field with no counterpart here turns every save into a 400.
+	PasskeyAdminReady                   bool     `json:"passkey_admin_ready,omitempty"`
+	PasskeyAndroidFingerprintsEffective []string `json:"passkey_android_fingerprints_effective,omitempty"`
 	// Rate limiting uses pointers for the same reason as the other switches:
 	// a partial save (the Turnstile form, say) must leave the limits alone.
 	RateLimitEnabled            *bool `json:"rate_limit_enabled"`
