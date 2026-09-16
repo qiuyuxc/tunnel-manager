@@ -42,6 +42,34 @@ func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
 	}
 }
 
+func TestUpdateAppSettingsRejectsMismatchedPasskeyRelyingParty(t *testing.T) {
+	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	h := NewManagementHandler(st, nil)
+	// Renaming the relying party without moving the origins leaves a pair that
+	// fails every passkey request; the save has to be refused, not stored.
+	body := `{"passkey_rp_id":"m.veits.bond","passkey_origins":"https://cf.kukie.cn"}`
+	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", body, "")
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("mismatched passkey settings = %d: %s", resp.Code, resp.Body.String())
+	}
+	if stored := st.GetAppSettings(); stored.PasskeyRPID != "" || stored.PasskeyOrigins != "" {
+		t.Fatalf("rejected pair was stored: %#v", stored)
+	}
+}
+
+func TestUpdateAppSettingsAcceptsMatchedPasskeyRelyingParty(t *testing.T) {
+	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	h := NewManagementHandler(st, nil)
+	body := `{"passkey_rp_id":"m.veits.bond","passkey_origins":"https://m.veits.bond"}`
+	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", body, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("matched passkey settings = %d: %s", resp.Code, resp.Body.String())
+	}
+	if stored := st.GetAppSettings(); stored.PasskeyRPID != "m.veits.bond" {
+		t.Fatalf("relying party = %q; want m.veits.bond", stored.PasskeyRPID)
+	}
+}
+
 func TestUpdateAppSettingsRejectsEnableWithoutKeys(t *testing.T) {
 	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
 	h := NewManagementHandler(st, nil)

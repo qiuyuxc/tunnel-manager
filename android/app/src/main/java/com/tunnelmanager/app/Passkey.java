@@ -66,11 +66,19 @@ final class Passkey {
 
     /** Creates a new credential; {@code options} is the panel's public_key. */
     static void register(Context ctx, JSONObject options, Callback callback) {
-        CredentialManager manager = CredentialManager.create(ctx);
-        CreatePublicKeyCredentialRequest request =
-                new CreatePublicKeyCredentialRequest(options.toString());
-        // The async API is typed on the base response; the public-key variant is
-        // the only thing this request can produce.
+        // Building the request and reaching Credential Manager can both fail
+        // before any callback exists. Letting that escape leaves the caller
+        // waiting forever with its busy flag set, and the UI goes quiet instead
+        // of saying what went wrong.
+        CredentialManager manager;
+        CreatePublicKeyCredentialRequest request;
+        try {
+            manager = CredentialManager.create(ctx);
+            request = new CreatePublicKeyCredentialRequest(options.toString());
+        } catch (Exception e) {
+            callback.onError(new Exception("无法发起通行密钥绑定：" + describe(e, "系统拒绝了请求")));
+            return;
+        }
         manager.createCredentialAsync(ctx, request, null, ctx.getMainExecutor(),
                 new CredentialManagerCallback<CreateCredentialResponse, CreateCredentialException>() {
                     @Override
@@ -96,10 +104,17 @@ final class Passkey {
 
     /** Asserts an existing credential; {@code options} is the panel's public_key. */
     static void authenticate(Context ctx, JSONObject options, Callback callback) {
-        CredentialManager manager = CredentialManager.create(ctx);
-        GetCredentialRequest request = new GetCredentialRequest.Builder()
-                .addCredentialOption(new GetPublicKeyCredentialOption(options.toString()))
-                .build();
+        CredentialManager manager;
+        GetCredentialRequest request;
+        try {
+            manager = CredentialManager.create(ctx);
+            request = new GetCredentialRequest.Builder()
+                    .addCredentialOption(new GetPublicKeyCredentialOption(options.toString()))
+                    .build();
+        } catch (Exception e) {
+            callback.onError(new Exception("无法发起通行密钥验证：" + describe(e, "系统拒绝了请求")));
+            return;
+        }
         manager.getCredentialAsync(ctx, request, null, ctx.getMainExecutor(),
                 new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                     @Override

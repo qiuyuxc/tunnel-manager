@@ -1497,7 +1497,7 @@ public class AdminFragment extends PageFragment {
     private View passkeySettingsCard() {
         Context ctx = requireContext();
         LinearLayout card = cardHead("通行密钥",
-                "通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。留空按访问域名自动推导；反向代理或多域名场景可显式指定，来源需与依赖方同域或为其子域。",
+                "通行密钥要求 HTTPS，依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同域下的子域都能用。「允许的来源」只在需要限定同一依赖方下放开哪几个子域时才填，须与依赖方 ID 同域或为其子域；一个依赖方 ID 覆盖不了两个不同的域名。",
                 null, null);
 
         passkeyRPIDInput = UI.input(ctx, "依赖方 ID，如 panel.example.com");

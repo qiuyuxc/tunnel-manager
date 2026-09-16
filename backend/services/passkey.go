@@ -109,6 +109,27 @@ func PasskeyCredentialID(credential *webauthn.Credential) string {
 	return base64.RawURLEncoding.EncodeToString(credential.ID)
 }
 
+// ValidatePasskeySettings rejects a relying party and origin list that can never
+// work together, at the moment they are saved.
+//
+// The pair is only consumed when a ceremony starts, and an explicit origin list
+// overrides the one derived from the request, so a relying party that no longer
+// matches the stored origins fails every passkey request with a mismatch. That
+// is a bad place to discover a typo: nothing about the settings page suggests
+// the two fields have to agree.
+func ValidatePasskeySettings(rpID, origins string) error {
+	rpID = passkeyHost(rpID)
+	if rpID == "" {
+		return nil
+	}
+	for _, origin := range splitOrigins(origins) {
+		if err := validatePasskeyOrigin(origin, rpID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ResolveRelyingParty derives the relying party for a request: administrator
 // overrides win, otherwise the panel host (seeded from the first administrator
 // login) and the request's own host.
@@ -289,8 +310,13 @@ func (s *PasskeyService) BeginDiscoverableLogin(r *http.Request) (*protocol.Cred
 }
 
 // FinishLogin validates an assertion and reports which account it belongs to.
-// When expectedUserID is empty the account is resolved from the browser's user
-// handle (usernameless login).
+//
+// Which validator runs follows the ceremony, not the caller: BeginLogin names
+// the account up front and BeginDiscoverableLogin does not, and the library
+// refuses a session that is validated the other way round. expectedUserID is
+// therefore only a cross-check for flows that already know who they expect —
+// passing it as the switch instead made every named-account sign-in fail with
+// "Session was not initiated as a client-side discoverable login".
 func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID string, raw []byte) (string, *webauthn.Credential, RelyingParty, error) {
 	instance, rp, err := s.webauthnFor(r)
 	if err != nil {
@@ -308,8 +334,8 @@ func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID stri
 		return "", nil, rp, fmt.Errorf("通行密钥数据无效: %w", err)
 	}
 
-	if expectedUserID != "" {
-		user, err := s.loadPasskeyUser(expectedUserID)
+	if ceremony.userID != "" {
+		user, err := s.loadPasskeyUser(ceremony.userID)
 		if err != nil {
 			return "", nil, rp, err
 		}
@@ -317,7 +343,7 @@ func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID stri
 		if err != nil {
 			return "", nil, rp, fmt.Errorf("通行密钥验证失败: %w", err)
 		}
-		return expectedUserID, credential, rp, nil
+		return ceremony.userID, credential, rp, nil
 	}
 
 	handler := func(_ []byte, userHandle []byte) (webauthn.User, error) {
@@ -389,10 +415,16 @@ func randomPasskeyToken() (string, error) {
 
 // splitOrigins parses the administrator's origin list (comma or whitespace
 // separated) into normalized origins.
+// splitOrigins reads the origin list a person typed. Besides the ASCII comma the
+// field documents it accepts the full-width one a Chinese input method produces,
+// and either width of space. A separator that is silently taken for part of a
+// value collapses the whole list into one unparseable origin, which then fails
+// with a message about paths and fragments rather than about separators.
 func splitOrigins(raw string) []string {
 	out := []string{}
 	for _, candidate := range strings.FieldsFunc(raw, func(r rune) bool {
-		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+		return r == ',' || r == '，' || r == ' ' || r == '\u3000' ||
+			r == '\t' || r == '\n' || r == '\r'
 	}) {
 		trimmed := strings.TrimSuffix(strings.TrimSpace(candidate), "/")
 		if trimmed != "" {

@@ -1,9 +1,13 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +16,100 @@ import (
 	"tunnel-manager/models"
 	"tunnel-manager/store"
 )
+
+// TestFinishLoginFollowsTheCeremonyThatStarted covers the sign-in handler, which
+// calls FinishLogin without naming an account — the ceremony already knows. A
+// ceremony started by BeginLogin carries the account, and validating it as
+// usernameless makes the library refuse the assertion outright with "Session was
+// not initiated as a client-side discoverable login". The Android app signs in
+// this way, so it could not get in at all.
+func TestFinishLoginFollowsTheCeremonyThatStarted(t *testing.T) {
+	svc, st := newPasskeyTestService(t)
+	if err := st.CreateUser(models.User{Username: "xik", Email: "xik@example.com", Role: models.RoleUser}); err != nil {
+		t.Fatal(err)
+	}
+	account, ok := st.GetUserByUsername("xik")
+	if !ok {
+		t.Fatal("account not found")
+	}
+	encoded, err := EncodePasskeyCredential(&webauthn.Credential{ID: []byte{1, 2, 3, 4}, PublicKey: []byte{5, 6, 7}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.AddPasskey(models.Passkey{ID: "pk-1", UserID: account.ID, Name: "test", Credential: encoded}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "https://panel.example.com/api/auth/passkey/login/finish", nil)
+	options, token, _, err := svc.BeginLogin(req, account.ID)
+	if err != nil {
+		t.Fatalf("BeginLogin() error = %v", err)
+	}
+
+	// Shaped so the assertion clears parsing and the relying-party and challenge
+	// checks, which is what makes the validator underneath it observable. The
+	// user handle is what the usernameless path uses to find the account, so it
+	// is supplied too, for the same reason: an earlier failure would mask the
+	// error being guarded against.
+	rpIDHash := sha256.Sum256([]byte("panel.example.com"))
+	authenticatorData := append(rpIDHash[:], 0x01, 0, 0, 0, 0) // flags=UP, signCount=0
+	clientData := fmt.Sprintf(`{"type":"webauthn.get","challenge":"%s","origin":"https://panel.example.com"}`,
+		options.Response.Challenge.String())
+	assertion := fmt.Sprintf(
+		`{"id":"AQIDBA","rawId":"AQIDBA","type":"public-key","response":{"clientDataJSON":"%s","authenticatorData":"%s","signature":"AAAA","userHandle":"%s"}}`,
+		base64.RawURLEncoding.EncodeToString([]byte(clientData)),
+		base64.RawURLEncoding.EncodeToString(authenticatorData),
+		base64.RawURLEncoding.EncodeToString([]byte(account.ID)))
+
+	_, _, _, err = svc.FinishLogin(req, token, "", []byte(assertion))
+	if err == nil {
+		t.Fatal("FinishLogin() accepted a fabricated assertion")
+	}
+	if strings.Contains(err.Error(), "discoverable") {
+		t.Fatalf("a named-account ceremony was validated as usernameless: %v", err)
+	}
+}
+
+// TestValidatePasskeySettingsCatchesMismatchedPair covers the shape an
+// administrator lands on after renaming the panel: the relying party moves to
+// the new domain, the stored origins keep naming the old one, and every
+// ceremony then fails with a mismatch. The pair has to be refused up front.
+func TestValidatePasskeySettingsCatchesMismatchedPair(t *testing.T) {
+	cases := []struct {
+		name    string
+		rpID    string
+		origins string
+		wantErr string
+	}{
+		{"matching pair", "panel.example.com", "https://panel.example.com", ""},
+		{"origin below the relying party", "example.com", "https://panel.example.com", ""},
+		{"several origins", "example.com", "https://a.example.com, https://b.example.com", ""},
+		{"empty relying party defers to the request", "", "https://panel.example.com", ""},
+		{"empty origins defer to the request", "panel.example.com", "", ""},
+		{"relying party renamed, origins left behind", "m.veits.bond", "https://cf.kukie.cn", "不匹配"},
+		{"origin is a parent of the relying party", "panel.example.com", "https://example.com", "不匹配"},
+		{"origin carries a path", "panel.example.com", "https://panel.example.com/login", "不能带路径"},
+		{"full-width comma separates", "example.com", "https://a.example.com，https://b.example.com", ""},
+		{"full-width space separates", "example.com", "https://a.example.com\u3000https://b.example.com", ""},
+		// Two unrelated domains cannot share one relying party, however they are
+		// separated; the list has to be refused rather than half-applied.
+		{"full-width comma hides a foreign origin", "m.veits.bond", "https://cf.kukie.cn，https://m.veits.bond", "不匹配"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidatePasskeySettings(tc.rpID, tc.origins)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidatePasskeySettings(%q, %q) = %v; want nil", tc.rpID, tc.origins, err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("ValidatePasskeySettings(%q, %q) = %v; want an error containing %q", tc.rpID, tc.origins, err, tc.wantErr)
+			}
+		})
+	}
+}
 
 func newPasskeyTestService(t *testing.T) (*PasskeyService, *store.Store) {
 	t.Helper()

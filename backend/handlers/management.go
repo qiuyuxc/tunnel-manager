@@ -383,6 +383,12 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "开启人机验证需要填写 Site Key 与 Secret Key"})
 		return
 	}
+	// Refuse a relying party that contradicts the stored origins instead of
+	// storing it and failing every passkey request later.
+	if err := services.ValidatePasskeySettings(settings.PasskeyRPID, settings.PasskeyOrigins); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error() + "；依赖方 ID 与来源需要同时修改"})
+		return
+	}
 	if req.TurnstileSecret != "" {
 		encrypted, err := auth.EncryptSecret(h.encryptionKey, turnstileSecretPurpose, []byte(req.TurnstileSecret))
 		if err != nil {

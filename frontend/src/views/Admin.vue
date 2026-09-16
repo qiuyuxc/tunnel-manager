@@ -192,7 +192,7 @@
 
       <div class="admin-card">
         <h3>通行密钥</h3>
-        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 必须与访问域名一致。留空时按访问域名自动推导（沿用面板域名）；反向代理或多域名场景可在此显式指定，来源需与依赖方 ID 同域或为其子域。</p>
+        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同一个域下的所有子域都能用。只有在需要限定来源（同一依赖方下只放开某几个子域）时才填「允许的来源」，它必须与依赖方 ID 同域或为其子域——一个依赖方 ID 覆盖不了两个不同的域名，换域名后已绑定的通行密钥会失效，需要重新绑定。</p>
         <div class="admin-form">
           <input v-model="settings.passkey_rp_id" type="text" placeholder="依赖方 ID，如 panel.example.com" class="vercel-input" />
           <input v-model="settings.passkey_origins" type="text" placeholder="允许的来源，逗号分隔，如 https://panel.example.com" class="vercel-input" />
