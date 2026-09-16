@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 )
@@ -46,6 +48,32 @@ func NormalizeAndroidFingerprints(raw string) []string {
 		if hash := normalizeFingerprint(candidate); hash != "" {
 			out = append(out, hash)
 		}
+	}
+	return out
+}
+
+// AndroidOriginPrefix starts the origin Android's Credential Manager reports
+// when an app, rather than a browser, runs a ceremony against a web relying
+// party.
+const AndroidOriginPrefix = "android:apk-key-hash:"
+
+// AndroidOrigins returns the origins the native app presents for this panel: the
+// signing certificate's SHA-256, base64url encoded, one per configured
+// fingerprint.
+//
+// Credential Manager does not report the site's origin — it reports the app's
+// own key hash, and the library compares that as a plain string. Leaving these
+// out of the relying party's origins is why the app cannot register or use a
+// passkey while the browser manages both.
+func (s AppSettings) AndroidOrigins() []string {
+	fingerprints := s.AndroidFingerprints()
+	out := make([]string, 0, len(fingerprints))
+	for _, fingerprint := range fingerprints {
+		raw, err := hex.DecodeString(strings.ReplaceAll(fingerprint, ":", ""))
+		if err != nil || len(raw) != 32 {
+			continue
+		}
+		out = append(out, AndroidOriginPrefix+base64.RawURLEncoding.EncodeToString(raw))
 	}
 	return out
 }

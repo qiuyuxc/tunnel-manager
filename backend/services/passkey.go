@@ -164,6 +164,11 @@ func (s *PasskeyService) ResolveRelyingParty(r *http.Request) (RelyingParty, err
 			return RelyingParty{}, err
 		}
 	}
+	// Appended rather than validated: these are derived from the signing
+	// certificates the panel already publishes in assetlinks.json, not typed in,
+	// and they are what the native app presents instead of the site origin. The
+	// site origin stays first so the account page keeps showing it.
+	origins = append(origins, settings.AndroidOrigins()...)
 	return RelyingParty{ID: rpID, Origins: origins}, nil
 }
 

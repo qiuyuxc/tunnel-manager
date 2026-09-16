@@ -7,15 +7,38 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"tunnel-manager/models"
 	"tunnel-manager/store"
 )
+
+// TestResolveRelyingPartyAllowsTheAppOrigin guards the native app. Credential
+// Manager reports android:apk-key-hash:<signing cert hash> instead of the site
+// origin, and the library matches that as a plain string, so it has to be in the
+// allowed origins or every app ceremony is refused while the browser works.
+func TestResolveRelyingPartyAllowsTheAppOrigin(t *testing.T) {
+	svc, _ := newPasskeyTestService(t)
+	req := httptest.NewRequest(http.MethodPost, "https://panel.example.com/api/account/passkeys/begin", nil)
+
+	rp, err := svc.ResolveRelyingParty(req)
+	if err != nil {
+		t.Fatalf("ResolveRelyingParty() error = %v", err)
+	}
+	if rp.Origins[0] != "https://panel.example.com" {
+		t.Fatalf("origins = %#v; want the site origin first so the account page shows it", rp.Origins)
+	}
+	appOrigin := models.AppSettings{}.AndroidOrigins()[0]
+	if !protocol.IsOriginInHaystack(appOrigin, rp.Origins) {
+		t.Fatalf("origins = %#v; the app origin %q would be refused", rp.Origins, appOrigin)
+	}
+}
 
 // TestFinishLoginFollowsTheCeremonyThatStarted covers the sign-in handler, which
 // calls FinishLogin without naming an account — the ceremony already knows. A
@@ -117,6 +140,21 @@ func newPasskeyTestService(t *testing.T) (*PasskeyService, *store.Store) {
 	return NewPasskeyService(st), st
 }
 
+// siteOrigins drops the app origins every relying party carries. Those come from
+// the panel's signing certificates rather than from the request, so filtering
+// them out lets a test assert how the site's own origin was derived.
+func siteOrigins(rp RelyingParty) []string {
+	appOrigins := models.AppSettings{}.AndroidOrigins()
+	out := []string{}
+	for _, origin := range rp.Origins {
+		if slices.Contains(appOrigins, origin) {
+			continue
+		}
+		out = append(out, origin)
+	}
+	return out
+}
+
 func TestResolveRelyingPartyFromRequestHost(t *testing.T) {
 	svc, _ := newPasskeyTestService(t)
 	req := httptest.NewRequest(http.MethodPost, "https://panel.example.com/api/auth/passkey/login/begin", nil)
@@ -128,7 +166,7 @@ func TestResolveRelyingPartyFromRequestHost(t *testing.T) {
 	if rp.ID != "panel.example.com" {
 		t.Fatalf("relying party id = %q, want the request host", rp.ID)
 	}
-	if len(rp.Origins) != 1 || rp.Origins[0] != "https://panel.example.com" {
+	if origins := siteOrigins(rp); len(origins) != 1 || origins[0] != "https://panel.example.com" {
 		t.Fatalf("origins = %#v, want the request origin", rp.Origins)
 	}
 }
@@ -150,7 +188,7 @@ func TestResolveRelyingPartyHonoursAdministratorOverrides(t *testing.T) {
 	if rp.ID != "example.com" {
 		t.Fatalf("relying party id = %q, want the configured override", rp.ID)
 	}
-	if len(rp.Origins) != 2 || rp.Origins[0] != "https://panel.example.com" || rp.Origins[1] != "https://alt.example.com" {
+	if origins := siteOrigins(rp); len(origins) != 2 || origins[0] != "https://panel.example.com" || origins[1] != "https://alt.example.com" {
 		t.Fatalf("origins = %#v, want the configured list without the trailing slash", rp.Origins)
 	}
 }
@@ -181,7 +219,7 @@ func TestResolveRelyingPartyLocalhostKeepsPort(t *testing.T) {
 	if rp.ID != "localhost" {
 		t.Fatalf("relying party id = %q, want localhost without the port", rp.ID)
 	}
-	if len(rp.Origins) != 1 || rp.Origins[0] != "http://localhost:8080" {
+	if origins := siteOrigins(rp); len(origins) != 1 || origins[0] != "http://localhost:8080" {
 		t.Fatalf("origins = %#v, want the plain http origin with its port", rp.Origins)
 	}
 }
@@ -196,7 +234,7 @@ func TestResolveRelyingPartyAcceptsHTTPSBehindProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveRelyingParty() error = %v", err)
 	}
-	if len(rp.Origins) != 2 || rp.Origins[0] != "http://panel.example.com" || rp.Origins[1] != "https://panel.example.com" {
+	if origins := siteOrigins(rp); len(origins) != 2 || origins[0] != "http://panel.example.com" || origins[1] != "https://panel.example.com" {
 		t.Fatalf("origins = %#v, want both schemes for a real domain", rp.Origins)
 	}
 }
