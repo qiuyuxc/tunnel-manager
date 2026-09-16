@@ -26,6 +26,8 @@ Ordinary endpoints are checked against group permissions (tunnels / domain bindi
 
 ## Sign-in & sessions
 
+Every authentication entry point (sign-in, the second step, passkey sign-in, registration, email codes, password recovery and reset) sits behind the sign-in rate limiter: attempts are counted per account and per source IP, and an exhausted budget answers `429` with a `Retry-After` header (seconds) plus a `retry_after` field and a message in the body. Thresholds and the off switch live under "system settings → sign-in protection"; see [Security and administrator authentication](/en/guide/security#sign-in-rate-limiting) for the mechanics.
+
 | Method | Path | Description | Auth |
 | --- | --- | --- | --- |
 | POST | `/api/admin/login` | Sign in (`account` accepts an email or a username); returns a challenge when 2FA is on | none |
@@ -80,11 +82,48 @@ Ordinary endpoints are checked against group permissions (tunnels / domain bindi
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret, and the experimental-features switch |
+| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret, the experimental-features switch, audit retention (`audit_retention_days`), the passkey relying party (`passkey_rp_id` / `passkey_origins`), the panel-wide password switch (`password_login_disabled`) and sign-in rate limiting (`rate_limit_enabled`, `rate_limit_per_account`, `rate_limit_per_ip`, `rate_limit_window_minutes`, `rate_limit_familiar_multiplier`, `rate_limit_notify`); omitted fields keep their stored value |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth client (client ID / secret / callback / scopes), taking precedence over the environment |
 | GET / PUT | `/api/admin/encryption-key` | Application encryption key (the environment wins; a change needs a restart) |
 | GET / PUT | `/api/admin/smtp` | SMTP settings (encrypted or plain) |
 | POST | `/api/admin/smtp/test` | Send a test email |
+
+### Audit trail
+
+Records administrator and configuration changes: sign-ins and sign-outs, users and groups, invite codes, system settings, tunnels and ingress rules, domain bindings, DNS records, monitors and their targets, and IP-selector lab runs. Read-only browsing is not recorded. Retention is configured under system settings, and expired rows are pruned hourly.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/admin/audit-logs` | Page through the trail; filters are `actor` (fuzzy username match, also accepts an account ID), `category`, `action`, `from` / `to` (unix seconds) and `page` / `page_size` (default 50, max 200) |
+| GET | `/api/admin/audit-logs/stats` | Totals for the `days` window (default 7, max 90): operations `total`, failures `failed`, active accounts `actors` and today's operations `today` |
+
+Every row carries the time, the actor (account ID and username), category and action, the target object, the source IP and whether it succeeded.
+
+## Passkeys (WebAuthn)
+
+A passkey replaces the password with the fingerprint, face unlock or hardware key on the device. The relying party id is derived from the request host (falling back to the panel host) and can be overridden under "system settings → passkeys" for reverse proxies or multi-domain setups; HTTPS is required (localhost excepted). When the relying party cannot be resolved the account page says so and hides the binding entry point.
+
+| Method | Path | Description | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/auth/passkey/login/begin` | Start a passwordless sign-in; `account` is optional and only narrows what the browser offers — leave it out for a discoverable ceremony | none |
+| POST | `/api/auth/passkey/login/finish` | Verify the assertion and finish; the passkey is a strong factor on its own, so no TOTP is layered on top | none |
+| POST | `/api/admin/login/2fa/passkey/begin` | Switch the second step to a passkey after a password sign-in | challenge |
+| POST | `/api/admin/login/2fa/passkey/finish` | Verify the assertion and complete the two-step sign-in | challenge |
+| GET | `/api/account/passkeys` | List this account's passkeys, the relying party and the password switch | user session |
+| POST | `/api/account/passkeys/begin` | Begin binding; requires the current password | user session |
+| POST | `/api/account/passkeys/finish` | Finish binding and store the credential (`name` is a label, auto-numbered when blank) | user session |
+| PUT | `/api/account/passkeys/{id}` | Rename | user session |
+| DELETE | `/api/account/passkeys/{id}` | Delete, requires the current password; refuses to remove the last one while password sign-in is off | user session |
+| PUT | `/api/account/password-login` | Toggle this account's password sign-in, requires the current password; turning it off needs a bound passkey first | user session |
+| PUT | `/api/admin/users/{id}/password-login` | Force another account's password switch, used to recover an account that lost its passkey | administrator |
+
+Every registration flow returns `{ceremony_token, public_key}`, where `public_key` is the browser's WebAuthn dictionary and `ceremony_token` must be echoed back verbatim by the matching finish call (single-use, valid for five minutes). The `-allow-password-login` command-line flag clears the panel-wide switch and every account switch, for when the install has locked itself out.
+
+The native app additionally needs Digital Asset Links, which the backend serves at the site root (no authentication required):
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/.well-known/assetlinks.json` | Android Digital Asset Links: the package name and SHA-256 certificate fingerprints come from system settings (`passkey_android_package` / `passkey_android_fingerprints`, falling back to the shared debug keystore's hash); with no valid fingerprint it answers `404` rather than a broken document |
 
 ## IP optimizer lab (experimental)
 
@@ -168,7 +207,7 @@ Requires the `monitors` permission. Monitors are isolated by creator: ordinary u
 | --- | --- | --- |
 | GET | `/api/monitors` | List monitors and target states |
 | POST | `/api/monitors` | Create a monitor |
-| GET | `/api/monitors/overview` | Global summary statistics |
+| GET | `/api/monitors/overview` | Global summary statistics; each bucket carries an `issues` array (`omitempty`, listing only the targets that saw a warn or a down sample that day) with the target identity, `warn` / `down` counts, `incident_count` and the `incidents` outage windows (start and end time, state, run length, status code and error) that the chart drills into |
 | PUT | `/api/monitors/{monitorID}` | Update configuration (public page, alert switch, recipients …) |
 | DELETE | `/api/monitors/{monitorID}` | Delete a monitor |
 | POST | `/api/monitors/{monitorID}/check` | Run one probe immediately |

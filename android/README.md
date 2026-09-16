@@ -11,7 +11,18 @@
 ./build.sh install  # 构建后 adb install -r
 ```
 
-最低支持 Android 8.0（API 26）。打包完成后 APK 会镜像一份到 `~/tunnel/TunnelManager-debug.apk` 与 `~/storage/downloads/TunnelManager-debug.apk`（目录存在时）。Gradle daemon 常驻时增量构建约十几秒，冷构建约一分半。
+最低支持 Android 8.0（API 26）；通行密钥需要 Android 9（API 28）及以上，低版本仍保留密码登录。
+
+## 通行密钥
+
+App 使用 Android Credential Manager（`androidx.credentials`）读写通行密钥，后端下发的是未包裹的 WebAuthn 字典，因此 App 只做透传，不参与挑战的编解码。
+
+Android 要求面板通过数字资产链接证明域名归属，才能为该域名创建 / 使用通行密钥：
+
+- 面板需以 HTTPS 访问，且依赖方 ID 与访问域名一致；
+- `https://<域名>/.well-known/assetlinks.json` 必须列出本 App 的包名（`com.tunnelmanager.app`）与签名证书 SHA-256 指纹。后端已提供该端点，包名与指纹在管理后台「系统设置 → 通行密钥」维护，默认预填仓库共用调试密钥的指纹。
+
+更换签名密钥（例如改用 release 签名）后，用 `apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk` 或 `keytool -list -v -keystore <keystore> | grep SHA256` 取得新指纹并填入面板，否则系统会拒绝通行密钥流程。打包完成后 APK 会镜像一份到 `~/tunnel/TunnelManager-debug.apk` 与 `~/storage/downloads/TunnelManager-debug.apk`（目录存在时）。Gradle daemon 常驻时增量构建约十几秒，冷构建约一分半。
 
 ## 签名
 
@@ -21,9 +32,10 @@
 
 ```text
 app/src/main/java/com/tunnelmanager/app/
-├── MainActivity.java      # 登录、Turnstile 与启动闪屏
+├── MainActivity.java      # 登录、通行密钥、Turnstile 与启动闪屏
 ├── ConsoleActivity.java   # 控制台外壳：侧边栏 / 底部标签与主题切换
 ├── Nav.java               # 导航表，对应 frontend/src/navigation.ts
+├── Passkey.java           # 通行密钥：Credential Manager 封装
 ├── Palette.java           # 由 styles.css 生成，勿手改
 └── *Fragment.java         # 各原生页面
 

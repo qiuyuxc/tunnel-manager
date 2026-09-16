@@ -26,6 +26,8 @@
 
 ## 登录与会话
 
+所有认证入口（登录、两步验证、通行密钥登录、注册、邮箱验证码、找回与重置密码）都受登录限流保护：账号与来源 IP 分别计数，额度耗尽时返回 `429`，响应头带 `Retry-After`（秒），响应体带 `retry_after` 与提示文案；阈值与开关见「系统设置 → 登录保护」，机制详见[安全与管理员认证](/guide/security#登录限流)。
+
 | 方法 | 路径 | 说明 | 鉴权 |
 | --- | --- | --- | --- |
 | POST | `/api/admin/login` | 登录（`account` 支持邮箱或用户名），开启 2FA 时返回 challenge | 无 |
@@ -80,11 +82,48 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret）、实验性功能开关 |
+| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret）、实验性功能开关、审计日志保留天数（`audit_retention_days`）、通行密钥依赖方（`passkey_rp_id` / `passkey_origins`）、全局禁用密码登录（`password_login_disabled`）与登录限流（`rate_limit_enabled`、`rate_limit_per_account`、`rate_limit_per_ip`、`rate_limit_window_minutes`、`rate_limit_familiar_multiplier`、`rate_limit_notify`）；省略字段保持原值 |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth 客户端（Client ID / Secret / 回调 / Scopes），优先于环境变量 |
 | GET / PUT | `/api/admin/encryption-key` | 应用加密密钥（环境变量优先；更换后需重启） |
 | GET / PUT | `/api/admin/smtp` | SMTP 邮件服务（加密 / 不加密两种模式） |
 | POST | `/api/admin/smtp/test` | 发送测试邮件 |
+
+### 审计日志
+
+记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道与隧道规则、域名绑定、DNS 记录、监控项目与目标、IP 优选实验室。只读浏览不计入。保留时长在系统设置中配置，超期日志每小时自动清理。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/admin/audit-logs` | 分页查询审计日志；支持 `actor`（用户名模糊匹配，也接受账号 ID）、`category`、`action`、`from` / `to`（Unix 秒）与 `page` / `page_size`（默认 50，上限 200） |
+| GET | `/api/admin/audit-logs/stats` | 统计概览：`days`（默认 7，上限 90）窗口内的操作总数 `total`、失败数 `failed`、活跃账号数 `actors` 与今日操作数 `today` |
+
+每条日志包含时间、操作人（账号 ID 与用户名）、分类与操作类型、目标对象、来源 IP 与成功 / 失败结果。
+
+## 通行密钥（WebAuthn）
+
+通行密钥用设备上的指纹、面容或硬件安全密钥替代密码。依赖方 ID 默认按访问域名自动推导（沿用面板域名），反向代理或多域名场景可在「系统设置 → 通行密钥」覆盖；要求 HTTPS（localhost 例外）。依赖方解析失败时账户页会提示，且不会展示绑定入口。
+
+| 方法 | 路径 | 说明 | 鉴权 |
+| --- | --- | --- | --- |
+| POST | `/api/auth/passkey/login/begin` | 开始免密登录；`account` 可选，填了只缩小浏览器提供的凭据范围，留空为无用户名（discoverable）流程 | 无 |
+| POST | `/api/auth/passkey/login/finish` | 校验断言并完成登录；通行密钥本身即强因子，不再叠加 TOTP | 无 |
+| POST | `/api/admin/login/2fa/passkey/begin` | 密码登录进入 2FA 后，改用通行密钥完成第二步 | Challenge |
+| POST | `/api/admin/login/2fa/passkey/finish` | 校验断言并完成 2FA 登录 | Challenge |
+| GET | `/api/account/passkeys` | 列出本账户的通行密钥、依赖方信息与密码登录开关状态 | 用户会话 |
+| POST | `/api/account/passkeys/begin` | 开始绑定，需提交当前密码 | 用户会话 |
+| POST | `/api/account/passkeys/finish` | 完成绑定并保存凭据（`name` 为备注名，留空自动编号） | 用户会话 |
+| PUT | `/api/account/passkeys/{id}` | 重命名 | 用户会话 |
+| DELETE | `/api/account/passkeys/{id}` | 删除，需当前密码；已禁用密码登录时不允许删除最后一个 | 用户会话 |
+| PUT | `/api/account/password-login` | 开关本账户的密码登录，需当前密码；开启（禁用密码登录）前必须已绑定通行密钥 | 用户会话 |
+| PUT | `/api/admin/users/{id}/password-login` | 管理员强制开关某账户的密码登录，用于账户丢失通行密钥后恢复 | 管理员 |
+
+所有注册流程都返回 `{ceremony_token, public_key}`，`public_key` 为浏览器 WebAuthn 字典，`ceremony_token` 需在对应的 finish 请求中原样回传（一次性、5 分钟有效）。命令行 `-allow-password-login` 可关闭全局开关并清除所有账户开关，用于面板被锁死时恢复。
+
+原生 App 还需要数字资产链接，后端在站点根路径提供（无需鉴权）：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/.well-known/assetlinks.json` | Android 数字资产链接：包名与 SHA-256 签名指纹取自系统设置（`passkey_android_package` / `passkey_android_fingerprints`，留空时用仓库共用调试密钥的指纹）；没有有效指纹时返回 404 而不是错误内容 |
 
 ## IP 优选实验室（实验性）
 
@@ -168,7 +207,7 @@
 | --- | --- | --- |
 | GET | `/api/monitors` | 列出监控与目标状态 |
 | POST | `/api/monitors` | 新建监控 |
-| GET | `/api/monitors/overview` | 全局概览统计 |
+| GET | `/api/monitors/overview` | 全局概览统计；每个时间桶带 `issues` 数组（`omitempty`，只列出当天出现过异常的目标），内含目标标识、`warn` / `down` 计数、`incident_count` 与 `incidents` 异常时间段（起止时间、状态、连续次数、状态码与错误信息），供图表下钻 |
 | PUT | `/api/monitors/{monitorID}` | 更新监控配置（公开页 / 告警开关 / 收件邮箱等） |
 | DELETE | `/api/monitors/{monitorID}` | 删除监控 |
 | POST | `/api/monitors/{monitorID}/check` | 立即执行一次检测 |

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +14,10 @@ import (
 	"tunnel-manager/services"
 	"tunnel-manager/store"
 )
+
+// maxAuditRetentionDays bounds the audit retention window (about ten years);
+// administrators normally pick one of the presets offered by the panel.
+const maxAuditRetentionDays = 3650
 
 // ManagementHandler implements the admin backend: users, groups, invites,
 // registration settings and the SMTP relay.
@@ -80,6 +85,7 @@ func (h *ManagementHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	created, _ := h.store.GetUserByUsername(req.Username)
+	SetAuditTarget(r, req.Username)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -173,6 +179,7 @@ func (h *ManagementHandler) CreateGroup(w http.ResponseWriter, r *http.Request) 
 		writeManagementError(w, err)
 		return
 	}
+	SetAuditTarget(r, group.Name)
 	writeJSON(w, http.StatusCreated, group)
 }
 
@@ -226,6 +233,7 @@ func (h *ManagementHandler) CreateInvite(w http.ResponseWriter, r *http.Request)
 		writeManagementError(w, err)
 		return
 	}
+	SetAuditTarget(r, invite.Code)
 	writeJSON(w, http.StatusCreated, invite)
 }
 
@@ -258,15 +266,37 @@ func (h *ManagementHandler) DeleteInvite(w http.ResponseWriter, r *http.Request)
 // GetAppSettings handles GET /api/admin/settings.
 func (h *ManagementHandler) GetAppSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.store.GetAppSettings()
+	// The panel only lets an administrator turn password sign-in off once one of
+	// them can still get in with a passkey.
+	passkeyAdminReady := false
+	if count, err := h.store.CountAdminsWithPasskeys(); err != nil {
+		log.Printf("count administrators with passkeys: %v", err)
+	} else {
+		passkeyAdminReady = count > 0
+	}
 	writeJSON(w, http.StatusOK, models.AppSettingsView{
-		RegistrationEnabled:  settings.RegistrationEnabled,
-		InviteMode:           settings.InviteMode,
-		DefaultGroupID:       settings.DefaultGroupID,
-		EmailVerifyDisabled:  settings.EmailVerifyDisabled,
-		TurnstileEnabled:     settings.TurnstileEnabled,
-		TurnstileSiteKey:     settings.TurnstileSiteKey,
-		TurnstileHasSecret:   settings.TurnstileSecret != "",
-		ExperimentalFeatures: settings.ExperimentalFeatures,
+		RegistrationEnabled:                 settings.RegistrationEnabled,
+		InviteMode:                          settings.InviteMode,
+		DefaultGroupID:                      settings.DefaultGroupID,
+		EmailVerifyDisabled:                 settings.EmailVerifyDisabled,
+		TurnstileEnabled:                    settings.TurnstileEnabled,
+		TurnstileSiteKey:                    settings.TurnstileSiteKey,
+		TurnstileHasSecret:                  settings.TurnstileSecret != "",
+		ExperimentalFeatures:                settings.ExperimentalFeatures,
+		AuditRetentionDays:                  settings.AuditRetentionDays,
+		PasswordLoginDisabled:               settings.PasswordLoginDisabled,
+		PasskeyRPID:                         settings.PasskeyRPID,
+		PasskeyOrigins:                      settings.PasskeyOrigins,
+		PasskeyAdminReady:                   passkeyAdminReady,
+		PasskeyAndroidPackage:               settings.PasskeyAndroidPackage,
+		PasskeyAndroidFingerprints:          settings.PasskeyAndroidFingerprints,
+		PasskeyAndroidFingerprintsEffective: settings.AndroidFingerprints(),
+		RateLimitEnabled:                    !settings.RateLimitDisabled,
+		RateLimitPerAccount:                 settings.RateLimitPerAccount,
+		RateLimitPerIP:                      settings.RateLimitPerIP,
+		RateLimitWindowMinutes:              settings.RateLimitWindowMinutes,
+		RateLimitFamiliarMultiplier:         settings.RateLimitFamiliarMultiplier,
+		RateLimitNotify:                     settings.RateLimitNotify,
 	})
 }
 
@@ -278,14 +308,76 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 		return
 	}
 	stored := h.store.GetAppSettings()
+	passwordLoginDisabled := stored.PasswordLoginDisabled
+	if req.PasswordLoginDisabled != nil {
+		if *req.PasswordLoginDisabled && !stored.PasswordLoginDisabled {
+			ready, err := h.store.CountAdminsWithPasskeys()
+			if err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "操作失败"})
+				return
+			}
+			if ready == 0 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "请先为至少一名启用的管理员绑定通行密钥，再禁用密码登录"})
+				return
+			}
+		}
+		passwordLoginDisabled = *req.PasswordLoginDisabled
+	}
+	auditRetention := stored.AuditRetentionDays
+	if req.AuditRetentionDays != nil {
+		auditRetention = *req.AuditRetentionDays
+		if auditRetention > maxAuditRetentionDays {
+			auditRetention = maxAuditRetentionDays
+		}
+	}
+	// Every rate-limit field arrives as a pointer so a partial save (the
+	// Turnstile form, say) leaves the limits alone instead of resetting them to
+	// the zero value, which would silently mean "use the default".
+	rateLimitDisabled := stored.RateLimitDisabled
+	if req.RateLimitEnabled != nil {
+		rateLimitDisabled = !*req.RateLimitEnabled
+	}
+	rateLimitPerAccount := stored.RateLimitPerAccount
+	if req.RateLimitPerAccount != nil {
+		rateLimitPerAccount = *req.RateLimitPerAccount
+	}
+	rateLimitPerIP := stored.RateLimitPerIP
+	if req.RateLimitPerIP != nil {
+		rateLimitPerIP = *req.RateLimitPerIP
+	}
+	rateLimitWindow := stored.RateLimitWindowMinutes
+	if req.RateLimitWindowMinutes != nil {
+		rateLimitWindow = *req.RateLimitWindowMinutes
+	}
+	rateLimitFamiliar := stored.RateLimitFamiliarMultiplier
+	if req.RateLimitFamiliarMultiplier != nil {
+		rateLimitFamiliar = *req.RateLimitFamiliarMultiplier
+	}
+	rateLimitNotify := stored.RateLimitNotify
+	if req.RateLimitNotify != nil {
+		rateLimitNotify = *req.RateLimitNotify
+	}
+
 	settings := models.AppSettings{
-		RegistrationEnabled:  req.RegistrationEnabled,
-		InviteMode:           req.InviteMode,
-		DefaultGroupID:       req.DefaultGroupID,
-		EmailVerifyDisabled:  req.EmailVerifyDisabled,
-		TurnstileEnabled:     req.TurnstileEnabled,
-		TurnstileSiteKey:     strings.TrimSpace(req.TurnstileSiteKey),
-		ExperimentalFeatures: req.ExperimentalFeatures,
+		RegistrationEnabled:         req.RegistrationEnabled,
+		InviteMode:                  req.InviteMode,
+		DefaultGroupID:              req.DefaultGroupID,
+		EmailVerifyDisabled:         req.EmailVerifyDisabled,
+		TurnstileEnabled:            req.TurnstileEnabled,
+		TurnstileSiteKey:            strings.TrimSpace(req.TurnstileSiteKey),
+		ExperimentalFeatures:        req.ExperimentalFeatures,
+		AuditRetentionDays:          auditRetention,
+		PasswordLoginDisabled:       passwordLoginDisabled,
+		PasskeyRPID:                 strings.TrimSpace(req.PasskeyRPID),
+		PasskeyOrigins:              strings.TrimSpace(req.PasskeyOrigins),
+		PasskeyAndroidPackage:       strings.TrimSpace(req.PasskeyAndroidPackage),
+		PasskeyAndroidFingerprints:  strings.TrimSpace(req.PasskeyAndroidFingerprints),
+		RateLimitDisabled:           rateLimitDisabled,
+		RateLimitPerAccount:         rateLimitPerAccount,
+		RateLimitPerIP:              rateLimitPerIP,
+		RateLimitWindowMinutes:      rateLimitWindow,
+		RateLimitFamiliarMultiplier: rateLimitFamiliar,
+		RateLimitNotify:             rateLimitNotify,
 	}
 	if settings.TurnstileEnabled && (settings.TurnstileSiteKey == "" || (req.TurnstileSecret == "" && stored.TurnstileSecret == "")) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "开启人机验证需要填写 Site Key 与 Secret Key"})
@@ -304,6 +396,26 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 	if err := h.store.SetAppSettings(settings); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "保存设置失败"})
 		return
+	}
+	// Flipping the panel-wide password switch is security relevant enough to
+	// deserve its own audit entry next to the settings change.
+	if passwordLoginDisabled != stored.PasswordLoginDisabled {
+		action := models.AuditActionPasswordLoginGlobalOn
+		if passwordLoginDisabled {
+			action = models.AuditActionPasswordLoginGlobalOff
+		}
+		entry := models.AuditLog{
+			Category: models.AuditCategoryPasskey,
+			Action:   action,
+			Target:   "面板",
+			IP:       clientIP(r),
+			Success:  true,
+		}
+		if actor := SessionUser(r); actor != nil {
+			entry.ActorID = actor.ID
+			entry.ActorName = actor.Username
+		}
+		recordAuditEntry(h.store, entry)
 	}
 	h.GetAppSettings(w, r)
 }

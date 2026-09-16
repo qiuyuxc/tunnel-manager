@@ -6,7 +6,9 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -49,8 +51,25 @@ final class ChartView extends View {
         labelPaint.setColor(p.body);
         labelPaint.setTextSize(TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP, 11, getResources().getDisplayMetrics()));
-        labelPaint.setTextAlign(Paint.Align.CENTER);
-    }
+	labelPaint.setTextAlign(Paint.Align.CENTER);
+	touchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
+	// Clickable so the column hit test also works through accessibility.
+	setClickable(true);
+	}
+
+/** Tapping a column opens that day's detail; the host owns the sheet. */
+interface OnColumnTap {
+	void onColumnTap(JSONObject bucket);
+}
+
+private OnColumnTap onColumnTap;
+private final int touchSlop;
+private float downX;
+private float downY;
+
+void setOnColumnTap(OnColumnTap listener) {
+	onColumnTap = listener;
+}
 
     /** The API's buckets; an empty list draws the grid and nothing else. */
     void setBuckets(JSONArray value, int bucketSec) {
@@ -85,8 +104,8 @@ final class ChartView extends View {
 
         int count = buckets.length();
         if (count == 0) return;
-        float gap = UI.dp(COLUMN_GAP_DP);
-        float column = Math.max(UI.dp(4), (right - left - gap * (count - 1)) / count);
+		float gap = UI.dp(COLUMN_GAP_DP);
+		float column = columnWidth(left, right, count);
         // Seven days fit a label each; a denser window has to skip some.
         int labelEvery = count > 12 ? 3 : 1;
 
@@ -99,6 +118,60 @@ final class ChartView extends View {
                 canvas.drawText(bucketLabel(bucket.optLong("hour")), x + column / 2f, baseline, labelPaint);
             }
         }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+	if (onColumnTap == null || buckets.length() == 0) return super.onTouchEvent(event);
+	switch (event.getActionMasked()) {
+		case MotionEvent.ACTION_DOWN:
+			downX = event.getX();
+			downY = event.getY();
+			return true;
+		case MotionEvent.ACTION_UP:
+			// A drag that scrolled the page is not a tap. The parent normally
+			// sends a cancel once it takes the gesture, so this is belt and braces.
+			if (Math.abs(event.getX() - downX) <= touchSlop
+				&& Math.abs(event.getY() - downY) <= touchSlop) {
+				JSONObject bucket = bucketAt(event.getX());
+				if (bucket != null && bucket.optInt("total") > 0) {
+					performClick();
+					onColumnTap.onColumnTap(bucket);
+				}
+			}
+			return true;
+		default:
+			return super.onTouchEvent(event);
+	}
+    }
+
+    @Override
+    public boolean performClick() {
+	return super.performClick();
+    }
+
+    /**
+     * The bucket under an x coordinate, or null for the side padding. The
+     * gap between two columns counts towards whichever is nearer: at this
+     * width a dead zone between bars is not something to aim at.
+     */
+    private JSONObject bucketAt(float x) {
+	int count = buckets.length();
+	if (count == 0) return null;
+	float left = UI.dp(SIDE_DP);
+	float right = getWidth() - UI.dp(SIDE_DP);
+	if (x < left || x > right) return null;
+	float gap = UI.dp(COLUMN_GAP_DP);
+	int index = (int) ((x - left) / (columnWidth(left, right, count) + gap));
+	if (index < 0) index = 0;
+	if (index >= count) index = count - 1;
+	return buckets.optJSONObject(index);
+    }
+
+    /** Column width for a track; shared so hit testing matches the draw. */
+    private float columnWidth(float left, float right, int count) {
+	float gap = UI.dp(COLUMN_GAP_DP);
+	return Math.max(UI.dp(4), (right - left - gap * (count - 1)) / count);
     }
 
     private void drawGrid(Canvas canvas, float left, float right, float top, float bottom, Palette p) {

@@ -48,6 +48,9 @@ type User struct {
 	CreatedAt              int64
 	LastLoginAt            int64
 	ActiveCFConnectionID   string
+	// PasswordLoginDisabled blocks password sign-in for this account; it can
+	// only be set while at least one passkey is bound.
+	PasswordLoginDisabled bool
 }
 
 // UserView is the API-safe projection of a user.
@@ -66,6 +69,10 @@ type UserView struct {
 	CreatedAt     int64    `json:"created_at"`
 	LastLoginAt   int64    `json:"last_login_at"`
 	Permissions   []string `json:"permissions,omitempty"`
+	// Passkeys counts bound passkeys; PasswordLoginDisabled reports whether
+	// the account can still sign in with a password.
+	Passkeys              int  `json:"passkeys"`
+	PasswordLoginDisabled bool `json:"password_login_disabled"`
 }
 
 // UserGroup bundles a set of permissions granted to invited users.
@@ -103,19 +110,153 @@ type AppSettings struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// ExperimentalFeatures controls whether lab navigation is exposed.
 	ExperimentalFeatures bool `json:"experimental_features_enabled"`
+	// AuditRetentionDays is how long audit entries are kept. Zero means the
+	// default window (models.DefaultAuditRetentionDays); a negative value
+	// keeps entries forever.
+	AuditRetentionDays int `json:"audit_retention_days"`
+	// PasswordLoginDisabled turns off password sign-in for the whole panel:
+	// every account must use a passkey. Only settable while an active
+	// administrator has one bound, so the panel cannot lock itself out.
+	PasswordLoginDisabled bool `json:"password_login_disabled"`
+	// PasskeyRPID overrides the WebAuthn relying party id; empty derives it
+	// from the panel host (or the request host). PasskeyOrigins lists extra
+	// accepted origins, comma or space separated; empty derives them from the
+	// request scheme and host.
+	PasskeyRPID    string `json:"passkey_rp_id,omitempty"`
+	PasskeyOrigins string `json:"passkey_origins,omitempty"`
+	// PasskeyAndroidPackage and PasskeyAndroidFingerprints feed
+	// /.well-known/assetlinks.json, which the native Android app needs before
+	// Credential Manager will create or use a passkey for this domain. The
+	// fingerprints are SHA-256 certificate hashes, comma or newline separated;
+	// empty means the shared debug keystore this project builds with.
+	PasskeyAndroidPackage      string `json:"passkey_android_package,omitempty"`
+	PasskeyAndroidFingerprints string `json:"passkey_android_fingerprints,omitempty"`
+	// Sign-in rate limiting. The account budget is the hard stop against
+	// guessing one password; the address budget stops a single machine walking
+	// a list of accounts. A zero threshold means "never configured" and
+	// resolves to the default; a negative one disables that dimension.
+	//
+	// The switch is stored inverted so an upgraded panel is protected by
+	// default: a settings document written before this feature existed has no
+	// field at all, and the zero value has to mean "on".
+	RateLimitDisabled           bool `json:"rate_limit_disabled"`
+	RateLimitPerAccount         int  `json:"rate_limit_per_account"`
+	RateLimitPerIP              int  `json:"rate_limit_per_ip"`
+	RateLimitWindowMinutes      int  `json:"rate_limit_window_minutes"`
+	RateLimitFamiliarMultiplier int  `json:"rate_limit_familiar_multiplier"`
+	RateLimitNotify             bool `json:"rate_limit_notify"`
+}
+
+// Sign-in rate limit defaults and bounds. The bounds exist so a hand-edited
+// settings document cannot turn a typo into a week-long lockout, or a
+// multiplier into an unlimited budget.
+const (
+	DefaultRateLimitPerAccount   = 5
+	DefaultRateLimitPerIP        = 20
+	DefaultRateLimitWindowMin    = 15
+	DefaultRateLimitFamiliarMult = 3
+
+	MaxRateLimitPerAccount   = 1000
+	MaxRateLimitPerIP        = 100000
+	MaxRateLimitWindowMin    = 24 * 60
+	MaxRateLimitFamiliarMult = 50
+)
+
+// RateLimits is the resolved sign-in rate limit: stored values with defaults
+// filled in and ranges clamped. A threshold of zero reaches the limiter as
+// zero, which is how that dimension is switched off.
+type RateLimits struct {
+	Enabled            bool
+	PerAccount         int
+	PerIP              int
+	WindowMinutes      int
+	FamiliarMultiplier int
+	Notify             bool
+}
+
+// RateLimits resolves the stored sign-in rate limit. Nothing here is a
+// security boundary on its own — it only decides what the limiter is told.
+func (a AppSettings) RateLimits() RateLimits {
+	return RateLimits{
+		Enabled:            !a.RateLimitDisabled,
+		PerAccount:         resolveLimit(a.RateLimitPerAccount, DefaultRateLimitPerAccount, MaxRateLimitPerAccount),
+		PerIP:              resolveLimit(a.RateLimitPerIP, DefaultRateLimitPerIP, MaxRateLimitPerIP),
+		WindowMinutes:      resolveWindow(a.RateLimitWindowMinutes),
+		FamiliarMultiplier: resolveMultiplier(a.RateLimitFamiliarMultiplier),
+		Notify:             a.RateLimitNotify,
+	}
+}
+
+// resolveLimit turns one stored threshold into an effective one: zero means
+// the default, negative means off, anything else is clamped to the bound.
+func resolveLimit(stored, fallback, max int) int {
+	switch {
+	case stored == 0:
+		return fallback
+	case stored < 0:
+		return 0
+	case stored > max:
+		return max
+	default:
+		return stored
+	}
+}
+
+func resolveWindow(stored int) int {
+	if stored <= 0 {
+		return DefaultRateLimitWindowMin
+	}
+	if stored > MaxRateLimitWindowMin {
+		return MaxRateLimitWindowMin
+	}
+	return stored
+}
+
+// A multiplier below one would tighten the limit for familiar networks,
+// which is the opposite of what it is for; one means no relaxation.
+func resolveMultiplier(stored int) int {
+	switch {
+	case stored <= 0:
+		return DefaultRateLimitFamiliarMult
+	case stored > MaxRateLimitFamiliarMult:
+		return MaxRateLimitFamiliarMult
+	default:
+		return stored
+	}
 }
 
 // AppSettingsView is the admin-facing projection of AppSettings; it never
 // exposes the stored (encrypted) Turnstile secret.
 type AppSettingsView struct {
-	RegistrationEnabled  bool   `json:"registration_enabled"`
-	InviteMode           string `json:"invite_mode"`
-	DefaultGroupID       string `json:"default_group_id,omitempty"`
-	EmailVerifyDisabled  bool   `json:"email_verify_disabled"`
-	TurnstileEnabled     bool   `json:"turnstile_enabled"`
-	TurnstileSiteKey     string `json:"turnstile_site_key"`
-	TurnstileHasSecret   bool   `json:"turnstile_has_secret"`
-	ExperimentalFeatures bool   `json:"experimental_features_enabled"`
+	RegistrationEnabled   bool   `json:"registration_enabled"`
+	InviteMode            string `json:"invite_mode"`
+	DefaultGroupID        string `json:"default_group_id,omitempty"`
+	EmailVerifyDisabled   bool   `json:"email_verify_disabled"`
+	TurnstileEnabled      bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey      string `json:"turnstile_site_key"`
+	TurnstileHasSecret    bool   `json:"turnstile_has_secret"`
+	ExperimentalFeatures  bool   `json:"experimental_features_enabled"`
+	AuditRetentionDays    int    `json:"audit_retention_days"`
+	PasswordLoginDisabled bool   `json:"password_login_disabled"`
+	PasskeyRPID           string `json:"passkey_rp_id"`
+	PasskeyOrigins        string `json:"passkey_origins"`
+	// PasskeyAdminReady reports whether at least one active administrator has a
+	// passkey bound, i.e. whether the global password switch may be enabled.
+	PasskeyAdminReady bool `json:"passkey_admin_ready"`
+	// Android asset links: the package name and the SHA-256 certificate
+	// fingerprints served to the native app, plus the effective list the
+	// endpoint really serves after defaults and normalization.
+	PasskeyAndroidPackage               string   `json:"passkey_android_package"`
+	PasskeyAndroidFingerprints          string   `json:"passkey_android_fingerprints"`
+	PasskeyAndroidFingerprintsEffective []string `json:"passkey_android_fingerprints_effective"`
+	// Sign-in rate limiting, exactly as stored. The admin form edits these;
+	// the limiter reads the resolved values from AppSettings.RateLimits.
+	RateLimitEnabled            bool `json:"rate_limit_enabled"`
+	RateLimitPerAccount         int  `json:"rate_limit_per_account"`
+	RateLimitPerIP              int  `json:"rate_limit_per_ip"`
+	RateLimitWindowMinutes      int  `json:"rate_limit_window_minutes"`
+	RateLimitFamiliarMultiplier int  `json:"rate_limit_familiar_multiplier"`
+	RateLimitNotify             bool `json:"rate_limit_notify"`
 }
 
 // OAuthSettings holds the Cloudflare OAuth client configured in the admin
@@ -343,6 +484,25 @@ type SaveAppSettingsRequest struct {
 	// it carries no save semantics.
 	TurnstileHasSecret   bool `json:"turnstile_has_secret,omitempty"`
 	ExperimentalFeatures bool `json:"experimental_features_enabled"`
+	// AuditRetentionDays is how long the audit trail is kept. Zero means the
+	// default window, a negative value keeps entries forever. Omitted keeps
+	// the stored value, so partial saves do not reset the window.
+	AuditRetentionDays *int `json:"audit_retention_days"`
+	// PasswordLoginDisabled is a pointer so a partial save (for example the
+	// Turnstile form) leaves the stored switch alone.
+	PasswordLoginDisabled      *bool  `json:"password_login_disabled"`
+	PasskeyRPID                string `json:"passkey_rp_id"`
+	PasskeyOrigins             string `json:"passkey_origins"`
+	PasskeyAndroidPackage      string `json:"passkey_android_package"`
+	PasskeyAndroidFingerprints string `json:"passkey_android_fingerprints"`
+	// Rate limiting uses pointers for the same reason as the other switches:
+	// a partial save (the Turnstile form, say) must leave the limits alone.
+	RateLimitEnabled            *bool `json:"rate_limit_enabled"`
+	RateLimitPerAccount         *int  `json:"rate_limit_per_account"`
+	RateLimitPerIP              *int  `json:"rate_limit_per_ip"`
+	RateLimitWindowMinutes      *int  `json:"rate_limit_window_minutes"`
+	RateLimitFamiliarMultiplier *int  `json:"rate_limit_familiar_multiplier"`
+	RateLimitNotify             *bool `json:"rate_limit_notify"`
 }
 
 // SaveOAuthRequest is the body of PUT /api/admin/oauth. A blank secret keeps

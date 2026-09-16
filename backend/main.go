@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.4.1"
+const Version = "v2.5.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -41,6 +41,7 @@ func main() {
 	// CLI flags for password management
 	resetPassword := flag.Bool("reset-password", false, "Generate a new random admin password")
 	setPassword := flag.String("set-password", "", "Set admin password to a specific value")
+	allowPasswordLogin := flag.Bool("allow-password-login", false, "Re-enable password sign-in for the panel and every account")
 	flag.Parse()
 
 	storePath := os.Getenv("STORE_PATH")
@@ -68,6 +69,34 @@ func main() {
 		fmt.Printf("  用户名: %s\n", username)
 		fmt.Printf("  新密码: %s\n", newPassword)
 		fmt.Printf("  请登录后立即修改密码！\n")
+		fmt.Printf("========================================\n")
+		return
+	}
+
+	// Recovery path for a panel that switched to passkeys only: clearing the
+	// switch needs no working sign-in method, which is exactly the situation
+	// this flag exists for.
+	if *allowPasswordLogin {
+		st := store.NewStore(storePath)
+		settings := st.GetAppSettings()
+		settings.PasswordLoginDisabled = false
+		if err := st.SetAppSettings(settings); err != nil {
+			log.Fatalf("re-enable password sign-in: %v", err)
+		}
+		cleared := 0
+		for _, user := range st.ListUsers() {
+			if !user.PasswordLoginDisabled {
+				continue
+			}
+			if err := st.SetUserPasswordLoginDisabled(user.ID, false); err != nil {
+				log.Fatalf("re-enable password sign-in for %s: %v", user.Username, err)
+			}
+			cleared++
+		}
+		fmt.Printf("========================================\n")
+		fmt.Printf("  已恢复密码登录\n")
+		fmt.Printf("  面板开关：关闭\n")
+		fmt.Printf("  账户开关：清除 %d 个\n", cleared)
 		fmt.Printf("========================================\n")
 		return
 	}
@@ -123,6 +152,7 @@ func main() {
 	})
 	go monitorRunner.Start(context.Background())
 	go labRunner.Start(context.Background())
+	go pruneAuditLogsLoop(st)
 	heartbeatLog.StartFlusher(10 * time.Second)
 
 	// Monitors management
@@ -147,15 +177,29 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(st, encryptionKey)
 	managementHandler := handlers.NewManagementHandler(st, encryptionKey)
+	auditHandler := handlers.NewAuditHandler(st)
+	passkeyService := services.NewPasskeyService(st)
+	passkeyHandler := handlers.NewPasskeyHandler(st, passkeyService, adminHandler)
 
 	notifier := services.NewNotifier(st, encryptionKey)
 	adminHandler.SetNotifier(notifier)
+
+	// Sign-in rate limiting. Counters are in memory, so a restart clears every
+	// lockout — the panel can always be reached again by the operator who owns
+	// the process, which is the property that matters more than persistence.
+	throttle := handlers.NewThrottle(st)
+	adminHandler.SetThrottle(throttle)
+	authHandler.SetThrottle(throttle)
+	throttle.SetNotifier(func(userID, username, ip string, retryAfter time.Duration) {
+		notifier.NotifyLockout(username, ip, retryAfter)
+	})
 	notifyHandler := handlers.NewNotifyHandler(st, encryptionKey, notifier)
 
 	mw := &handlers.Middleware{
 		APIKey:       apiKey,
 		AdminHandler: adminHandler,
 		CF:           cf,
+		Store:        st,
 	}
 
 	// Setup router
@@ -198,34 +242,59 @@ func main() {
 		r.Get("/admin/2fa/status", mw.SessionOnly(adminHandler.TOTPStatus))
 		r.Post("/admin/2fa/disable", mw.SessionOnly(adminHandler.DisableTOTP))
 
+		// Passkeys: account management is session-only (an API key has no
+		// account to bind a credential to), while the sign-in ceremonies are
+		// public and complete a login by themselves.
+		r.Get("/account/passkeys", mw.SessionOnly(passkeyHandler.Settings))
+		r.Post("/account/passkeys/begin", mw.SessionOnly(passkeyHandler.BeginRegistration))
+		r.Post("/account/passkeys/finish", mw.SessionOnly(passkeyHandler.FinishRegistration))
+		r.Put("/account/passkeys/{id}", mw.SessionOnly(passkeyHandler.Rename))
+		r.Delete("/account/passkeys/{id}", mw.SessionOnly(passkeyHandler.Delete))
+		r.Put("/account/password-login", mw.SessionOnly(passkeyHandler.UpdatePasswordLogin))
+		r.Post("/auth/passkey/login/begin", passkeyHandler.LoginBegin)
+		r.Post("/auth/passkey/login/finish", passkeyHandler.LoginFinish)
+		r.Post("/admin/login/2fa/passkey/begin", passkeyHandler.TwoFactorBegin)
+		r.Post("/admin/login/2fa/passkey/finish", passkeyHandler.TwoFactorFinish)
+
 		// Admin backend (administrator only)
 		adminOnly := func(next http.HandlerFunc) http.HandlerFunc {
 			return mw.Auth(mw.RequireAdmin(next))
 		}
+		// audit records one entry per mutating request once the handler
+		// returns; read-only routes are left unwrapped.
+		audit := mw.Audit
+		pathParam := handlers.PathParam
 		r.Route("/admin", func(r chi.Router) {
 			r.Get("/users", adminOnly(managementHandler.ListUsers))
-			r.Post("/users", adminOnly(managementHandler.CreateUser))
-			r.Put("/users/{id}/status", adminOnly(managementHandler.UpdateUserStatus))
-			r.Put("/users/{id}/group", adminOnly(managementHandler.UpdateUserGroup))
-			r.Put("/users/{id}/password", adminOnly(managementHandler.ResetUserPassword))
-			r.Delete("/users/{id}", adminOnly(managementHandler.DeleteUser))
+			r.Post("/users", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserCreate, nil, managementHandler.CreateUser)))
+			r.Put("/users/{id}/status", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserStatus, mw.UserTarget("id"), managementHandler.UpdateUserStatus)))
+			r.Put("/users/{id}/group", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserGroup, mw.UserTarget("id"), managementHandler.UpdateUserGroup)))
+			r.Put("/users/{id}/password", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserPassword, mw.UserTarget("id"), managementHandler.ResetUserPassword)))
+			r.Delete("/users/{id}", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserDelete, mw.UserTarget("id"), managementHandler.DeleteUser)))
+			// Restores password sign-in for an account that disabled it and lost
+			// its passkey; the handler writes its own audit entry.
+			r.Put("/users/{id}/password-login", adminOnly(passkeyHandler.AdminUpdatePasswordLogin))
 			r.Get("/groups", adminOnly(managementHandler.ListGroups))
-			r.Post("/groups", adminOnly(managementHandler.CreateGroup))
-			r.Put("/groups/{id}", adminOnly(managementHandler.UpdateGroup))
-			r.Delete("/groups/{id}", adminOnly(managementHandler.DeleteGroup))
+			r.Post("/groups", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupCreate, nil, managementHandler.CreateGroup)))
+			r.Put("/groups/{id}", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupUpdate, mw.GroupTarget("id"), managementHandler.UpdateGroup)))
+			r.Delete("/groups/{id}", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupDelete, mw.GroupTarget("id"), managementHandler.DeleteGroup)))
 			r.Get("/invites", adminOnly(managementHandler.ListInvites))
-			r.Post("/invites", adminOnly(managementHandler.CreateInvite))
-			r.Put("/invites/{code}", adminOnly(managementHandler.UpdateInvite))
-			r.Delete("/invites/{code}", adminOnly(managementHandler.DeleteInvite))
+			r.Post("/invites", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteCreate, nil, managementHandler.CreateInvite)))
+			r.Put("/invites/{code}", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteUpdate, nil, managementHandler.UpdateInvite)))
+			r.Delete("/invites/{code}", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteDelete, nil, managementHandler.DeleteInvite)))
 			r.Get("/settings", adminOnly(managementHandler.GetAppSettings))
-			r.Put("/settings", adminOnly(managementHandler.UpdateAppSettings))
+			r.Put("/settings", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSettingsUpdate, nil, managementHandler.UpdateAppSettings)))
 			r.Get("/smtp", adminOnly(managementHandler.GetSMTP))
-			r.Put("/smtp", adminOnly(managementHandler.UpdateSMTP))
-			r.Post("/smtp/test", adminOnly(managementHandler.TestSMTP))
+			r.Put("/smtp", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSMTPUpdate, nil, managementHandler.UpdateSMTP)))
+			r.Post("/smtp/test", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSMTPTest, nil, managementHandler.TestSMTP)))
 			r.Get("/oauth", adminOnly(managementHandler.GetOAuthConfig))
-			r.Put("/oauth", adminOnly(managementHandler.SaveOAuthConfig))
+			r.Put("/oauth", adminOnly(audit(models.AuditCategorySettings, models.AuditActionOAuthUpdate, nil, managementHandler.SaveOAuthConfig)))
 			r.Get("/encryption-key", adminOnly(managementHandler.GetEncryptionKeyStatus))
-			r.Put("/encryption-key", adminOnly(managementHandler.SaveEncryptionKey))
+			r.Put("/encryption-key", adminOnly(audit(models.AuditCategorySettings, models.AuditActionEncryptionKeyUpdate, nil, managementHandler.SaveEncryptionKey)))
+
+			// Audit trail of every recorded operation (administrator only).
+			r.Get("/audit-logs", adminOnly(auditHandler.List))
+			r.Get("/audit-logs/stats", adminOnly(auditHandler.Stats))
 		})
 
 		// Cloudflare OAuth endpoints. The callback authenticates through single-use state.
@@ -240,52 +309,52 @@ func main() {
 		r.Get("/config", mw.Auth(configHandler.GetConfig))
 		r.Post("/config/tunnel", mw.Auth(configHandler.SetTunnelSelection))
 		r.Post("/config/service", mw.Auth(configHandler.SetServiceURL))
-		r.Post("/config/preferred-cname", mw.Auth(mw.RequireAdmin(configHandler.SetPreferredCNAME)))
-		r.Put("/config/site", mw.Auth(mw.RequireAdmin(configHandler.SetSiteSettings)))
-		r.Put("/config/cname-presets", mw.Auth(mw.RequireAdmin(configHandler.SetCNAMEPresets)))
+		r.Post("/config/preferred-cname", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionPreferredCNAME, nil, configHandler.SetPreferredCNAME))))
+		r.Put("/config/site", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionSiteUpdate, nil, configHandler.SetSiteSettings))))
+		r.Put("/config/cname-presets", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionCNAMEPresetsUpdate, nil, configHandler.SetCNAMEPresets))))
 
 		// Tunnel endpoints
 		r.Get("/tunnels", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.ListTunnels)))
-		r.Post("/tunnels", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.CreateTunnel)))
+		r.Post("/tunnels", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelCreate, nil, tunnelHandler.CreateTunnel))))
 		r.Get("/tunnels/{tunnelID}", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.GetTunnelDetail)))
-		r.Delete("/tunnels/{tunnelID}", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.DeleteTunnel)))
-		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.AddIngressRule)))
-		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.UpdateIngressRule)))
-		r.Delete("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.DeleteIngressRule)))
+		r.Delete("/tunnels/{tunnelID}", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelDelete, pathParam("tunnelID"), tunnelHandler.DeleteTunnel))))
+		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressAdd, pathParam("tunnelID"), tunnelHandler.AddIngressRule))))
+		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressUpdate, pathParam("tunnelID"), tunnelHandler.UpdateIngressRule))))
+		r.Delete("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressDelete, pathParam("tunnelID"), tunnelHandler.DeleteIngressRule))))
 		r.Get("/zones", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.ListZones)))
 
 		// DNS record endpoints
 		r.Get("/zones/{zoneID}/dns-records", mw.Auth(mw.RequirePerm(models.PermDNS, dnsHandler.List)))
-		r.Post("/zones/{zoneID}/dns-records", mw.Auth(mw.RequirePerm(models.PermDNS, dnsHandler.Create)))
-		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, dnsHandler.Update)))
-		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, dnsHandler.Delete)))
+		r.Post("/zones/{zoneID}/dns-records", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSCreate, nil, dnsHandler.Create))))
+		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSUpdate, nil, dnsHandler.Update))))
+		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSDelete, pathParam("recordID"), dnsHandler.Delete))))
 
 		// Domain binding endpoints
-		r.Post("/domain/bind", mw.Auth(mw.RequirePerm(models.PermDomainBind, domainHandler.BindDomain)))
-		r.Post("/domain/bind-batch", mw.Auth(mw.RequirePerm(models.PermDomainBind, domainHandler.BindDomainsBatch)))
-		r.Post("/domain/fallback", mw.Auth(mw.RequirePerm(models.PermDomainBind, domainHandler.SetFallbackOrigin)))
+		r.Post("/domain/bind", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBind, nil, domainHandler.BindDomain))))
+		r.Post("/domain/bind-batch", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBindBatch, nil, domainHandler.BindDomainsBatch))))
+		r.Post("/domain/fallback", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainFallback, nil, domainHandler.SetFallbackOrigin))))
 
 		// Service health monitoring
 		r.Get("/monitor/services", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorHandler.ServiceStatus)))
 
 		// Experimental lab (administrator only)
 		r.Get("/lab/ip-selector", adminOnly(labHandler.GetSettings))
-		r.Put("/lab/ip-selector", adminOnly(labHandler.SaveSettings))
+		r.Put("/lab/ip-selector", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabSettingsUpdate, nil, labHandler.SaveSettings)))
 		r.Get("/lab/ip-selector/status", adminOnly(labHandler.GetStatus))
-		r.Post("/lab/ip-selector/run", adminOnly(labHandler.Run))
+		r.Post("/lab/ip-selector/run", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabRun, nil, labHandler.Run)))
 
 		// Monitor projects (uptime-style)
 		r.Get("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.List)))
-		r.Post("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Create)))
+		r.Post("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCreate, nil, monitorsHandler.Create))))
 		r.Get("/monitors/overview", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Overview)))
 		r.Get("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Get)))
-		r.Put("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Update)))
-		r.Delete("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Delete)))
+		r.Put("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorUpdate, mw.MonitorTarget("monitorID"), monitorsHandler.Update))))
+		r.Delete("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorDelete, mw.MonitorTarget("monitorID"), monitorsHandler.Delete))))
 		r.Get("/monitors/{monitorID}/alerts", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.AlertLogs)))
-		r.Post("/monitors/{monitorID}/check", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.CheckNow)))
-		r.Post("/monitors/{monitorID}/targets", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.AddTarget)))
-		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.EditTarget)))
-		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.RemoveTarget)))
+		r.Post("/monitors/{monitorID}/check", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCheck, mw.MonitorTarget("monitorID"), monitorsHandler.CheckNow))))
+		r.Post("/monitors/{monitorID}/targets", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetAdd, mw.MonitorTarget("monitorID"), monitorsHandler.AddTarget))))
+		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetUpdate, mw.MonitorTarget("monitorID"), monitorsHandler.EditTarget))))
+		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetDelete, mw.MonitorTarget("monitorID"), monitorsHandler.RemoveTarget))))
 
 		// Cursor feed of monitor alerts. Polled by the Android shell so alerts
 		// reach the phone without a browser being open.
@@ -304,7 +373,7 @@ func main() {
 		r.Get("/telegram/status", mw.Auth(telegramHandler.GetStatus))
 		r.Post("/telegram/test", mw.Auth(telegramHandler.SendTest))
 		r.Post("/telegram/reuse", mw.Auth(telegramHandler.ReuseFromNotify))
-		r.Put("/telegram/endpoint", mw.Auth(mw.RequireAdmin(telegramHandler.SaveAPIEndpoint)))
+		r.Put("/telegram/endpoint", mw.Auth(mw.RequireAdmin(audit(models.AuditCategoryTelegram, models.AuditActionTelegramEndpointUpdate, nil, telegramHandler.SaveAPIEndpoint))))
 		r.Post("/telegram/webhook", telegramHandler.Webhook)              // legacy global bot: no auth, verified via secret token
 		r.Post("/telegram/webhook/{userID}", telegramHandler.UserWebhook) // per-user bot: no auth, verified via secret token
 
@@ -331,6 +400,10 @@ func main() {
 	if staticDir == "" {
 		staticDir = "frontend/dist"
 	}
+	// Android Digital Asset Links: fetched from the site root, so it has to be
+	// registered before the SPA catch-all swallows the path.
+	r.Get("/.well-known/assetlinks.json", passkeyHandler.AssetLinks)
+
 	// Uploaded status-page images (before the SPA catch-all)
 	r.Get("/uploads/*", uploadsHandler.Serve)
 
@@ -418,6 +491,23 @@ func loadDotEnv(paths ...string) {
 		}
 		log.Printf("loaded environment overrides from %s", path)
 		return
+	}
+}
+
+// pruneAuditLogsLoop drops audit entries outside the configured retention
+// window: once at startup, then hourly.
+func pruneAuditLogsLoop(st *store.Store) {
+	for {
+		if days := st.GetAppSettings().EffectiveAuditRetentionDays(); days > 0 {
+			cutoff := time.Now().AddDate(0, 0, -days).Unix()
+			removed, err := st.PruneAuditLogs(cutoff)
+			if err != nil {
+				log.Printf("prune audit logs: %v", err)
+			} else if removed > 0 {
+				log.Printf("已清理 %d 条过期审计日志（保留 %d 天）", removed, days)
+			}
+		}
+		time.Sleep(time.Hour)
 	}
 }
 

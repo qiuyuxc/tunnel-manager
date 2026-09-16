@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -217,6 +218,7 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	SetAuditTarget(r, m.Name)
 	writeJSON(w, http.StatusOK, h.enrich(m, false))
 }
 
@@ -661,12 +663,177 @@ func (h *MonitorsHandler) CheckNow(w http.ResponseWriter, r *http.Request) {
 }
 
 type bucketStat struct {
-	Hour   int64   `json:"hour"`
-	AvgMs  float64 `json:"avg_ms"`
-	PeakMs int64   `json:"peak_ms"`
-	Total  int     `json:"total"`
-	Warn   int     `json:"warn"`
-	Down   int     `json:"down"`
+	Hour   int64         `json:"hour"`
+	AvgMs  float64       `json:"avg_ms"`
+	PeakMs int64         `json:"peak_ms"`
+	Total  int           `json:"total"`
+	Warn   int           `json:"warn"`
+	Down   int           `json:"down"`
+	Issues []bucketIssue `json:"issues,omitempty"`
+}
+
+// maxBucketIncidents caps how many separate outage windows one target reports
+// per day. A flapping target can otherwise turn a single bucket into hundreds
+// of entries; IncidentCnt still carries the true total.
+const maxBucketIncidents = 12
+
+// bucketIssue is one target's share of a chart bucket, listed only when that
+// day saw a warn or a down sample. The overview bar aggregates every target
+// into one column, so without this the reader can see that a day went wrong
+// but not which service was behind it.
+type bucketIssue struct {
+	MonitorID   string           `json:"monitor_id"`
+	MonitorName string           `json:"monitor_name"`
+	TargetID    string           `json:"target_id"`
+	TargetName  string           `json:"target_name"`
+	URL         string           `json:"url,omitempty"`
+	Total       int              `json:"total"`
+	Warn        int              `json:"warn"`
+	Down        int              `json:"down"`
+	PeakMs      int64            `json:"peak_ms"`
+	AvgMs       float64          `json:"avg_ms"`
+	Incidents   []bucketIncident `json:"incidents"`
+	IncidentCnt int              `json:"incident_count"`
+}
+
+// bucketIncident is one unbroken run of non-ok probes on a target. Times are
+// unix seconds, matching the bucket's own Hour field.
+type bucketIncident struct {
+	From  int64  `json:"from"`
+	To    int64  `json:"to"`
+	State string `json:"state"`
+	Count int    `json:"count"`
+	Code  int    `json:"code,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
+// issueAcc accumulates one target's samples inside one bucket and tracks the
+// run in progress, so consecutive failures collapse into a single incident.
+type issueAcc struct {
+	monitorID   string
+	monitorName string
+	targetID    string
+	targetName  string
+	url         string
+	total       int
+	warn        int
+	down        int
+	sum         int64
+	peak        int64
+	incidents   []bucketIncident
+	count       int
+	open        *bucketIncident
+}
+
+// observe folds one probe into the run being tracked. An ok sample closes it.
+func (a *issueAcc) observe(hb services.Heartbeat) {
+	if hb.S == "ok" {
+		a.closeRun()
+		return
+	}
+	if a.open == nil {
+		a.open = &bucketIncident{From: hb.T / 1000, To: hb.T / 1000, State: hb.S}
+		a.count++
+	}
+	run := a.open
+	run.To = hb.T / 1000
+	run.Count++
+	// down outranks warn for the whole run, so an incident that began as a slow
+	// response still reads as an outage once it fails outright.
+	if hb.S == "down" {
+		run.State = "down"
+	}
+	if run.Code == 0 && hb.C != 0 {
+		run.Code = hb.C
+	}
+	if run.Error == "" && hb.E != "" {
+		run.Error = hb.E
+	}
+}
+
+// closeRun files the run in progress, keeping only the first few.
+func (a *issueAcc) closeRun() {
+	if a.open == nil {
+		return
+	}
+	if len(a.incidents) < maxBucketIncidents {
+		a.incidents = append(a.incidents, *a.open)
+	}
+	a.open = nil
+}
+
+// issueAccFor returns the accumulator for one target inside one bucket,
+// creating it on first sight.
+func issueAccFor(issues map[int64]map[string]*issueAcc, dayMs int64, m models.Monitor, t models.MonitorTarget) *issueAcc {
+	day := issues[dayMs]
+	if day == nil {
+		day = map[string]*issueAcc{}
+		issues[dayMs] = day
+	}
+	key := m.ID + "|" + t.ID
+	a := day[key]
+	if a == nil {
+		a = &issueAcc{
+			monitorID:   m.ID,
+			monitorName: m.Name,
+			targetID:    t.ID,
+			targetName:  t.Name,
+			url:         t.URL,
+		}
+		day[key] = a
+	}
+	return a
+}
+
+// bucketIssues flattens one day's per-target accumulators into the response
+// list, worst first. Targets that stayed healthy all day are dropped: the bar
+// already says the day was fine, and listing them would bury the ones that
+// were not.
+func bucketIssues(day map[string]*issueAcc) []bucketIssue {
+	if len(day) == 0 {
+		return nil
+	}
+	out := make([]bucketIssue, 0, len(day))
+	for _, a := range day {
+		if a.warn == 0 && a.down == 0 {
+			continue
+		}
+		issue := bucketIssue{
+			MonitorID:   a.monitorID,
+			MonitorName: a.monitorName,
+			TargetID:    a.targetID,
+			TargetName:  a.targetName,
+			URL:         a.url,
+			Total:       a.total,
+			Warn:        a.warn,
+			Down:        a.down,
+			PeakMs:      a.peak,
+			Incidents:   a.incidents,
+			IncidentCnt: a.count,
+		}
+		if a.total > 0 {
+			issue.AvgMs = float64(a.sum) / float64(a.total)
+		}
+		out = append(out, issue)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	// Stable order: worst first, then by name, so two identical requests and
+	// both clients agree on the listing.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Down != out[j].Down {
+			return out[i].Down > out[j].Down
+		}
+		if out[i].Warn != out[j].Warn {
+			return out[i].Warn > out[j].Warn
+		}
+		if out[i].MonitorName != out[j].MonitorName {
+			return out[i].MonitorName < out[j].MonitorName
+		}
+		return out[i].TargetName < out[j].TargetName
+	})
+	return out
 }
 
 // overviewDays is the width of the dashboard chart window: one column per day
@@ -704,13 +871,16 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	var okN, warnN, downN int
 	var latSum, peak int64
 	latCnt := 0
-	type acc struct {
+	type bucketAcc struct {
 		hour       int64
 		sum, peak  int64
 		total      int
 		warn, down int
 	}
-	bmap := map[int64]*acc{}
+	bmap := map[int64]*bucketAcc{}
+	// issues is keyed by bucket then by monitor|target, so the same walk that
+	// builds the bars also records who was behind them.
+	issues := map[int64]map[string]*issueAcc{}
 	for _, m := range all {
 		for _, t := range m.Targets {
 			targets++
@@ -727,6 +897,10 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 			default:
 				downN++
 			}
+			// The run being tracked belongs to one day, so a target that fails
+			// across midnight reports a window on each side of it.
+			var day int64 = -1
+			var issue *issueAcc
 			for _, hb := range list {
 				latSum += hb.M
 				latCnt++
@@ -736,7 +910,7 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 				hr := dayStart(hb.T)
 				bk := bmap[hr]
 				if bk == nil {
-					bk = &acc{hour: hr / 1000}
+					bk = &bucketAcc{hour: hr / 1000}
 					bmap[hr] = bk
 				}
 				bk.total++
@@ -750,6 +924,28 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 				case "warn":
 					bk.warn++
 				}
+				if hr != day {
+					if issue != nil {
+						issue.closeRun()
+					}
+					day = hr
+					issue = issueAccFor(issues, hr, m, t)
+				}
+				issue.total++
+				issue.sum += hb.M
+				if hb.M > issue.peak {
+					issue.peak = hb.M
+				}
+				switch hb.S {
+				case "down":
+					issue.down++
+				case "warn":
+					issue.warn++
+				}
+				issue.observe(hb)
+			}
+			if issue != nil {
+				issue.closeRun()
 			}
 		}
 	}
@@ -766,6 +962,7 @@ func (h *MonitorsHandler) Overview(w http.ResponseWriter, r *http.Request) {
 				st.AvgMs = float64(bk.sum) / float64(st.Total)
 			}
 		}
+		st.Issues = bucketIssues(issues[dayMs])
 		buckets = append(buckets, st)
 	}
 	avg := int64(0)

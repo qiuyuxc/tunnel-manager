@@ -44,6 +44,12 @@ Sign-in, registration and password recovery can be put behind Cloudflare Turnsti
 
 The Turnstile secret is stored AES-GCM encrypted with `APP_ENCRYPTION_KEY`, and API responses never return the key itself.
 
+## Sign-in rate limiting
+
+Password sign-in, the second step, passkey sign-in, registration, email codes, and password recovery and reset are all rate limited. Once an account or a source IP exceeds its budget, requests are refused for a while with `429` and a `Retry-After` header (seconds), and the body carries `retry_after` with a message. A successful sign-in clears that account's failure count.
+
+A network the account has signed in from before counts as familiar and gets a wider budget. The numbers, the off switch and the optional administrator notification are configured under **admin console → settings → sign-in protection**. Throttled attempts are written to the audit trail as `login_throttled`.
+
 ## What `APP_ENCRYPTION_KEY` protects
 
 The key covers all of the following and must be backed up together with the `data/` directory:

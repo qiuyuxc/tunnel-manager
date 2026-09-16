@@ -8,6 +8,7 @@ import (
 
 	"tunnel-manager/models"
 	"tunnel-manager/services"
+	"tunnel-manager/store"
 )
 
 // Middleware holds shared dependencies for handlers
@@ -15,6 +16,8 @@ type Middleware struct {
 	APIKey       string
 	AdminHandler *AdminHandler
 	CF           *services.CloudflareClient
+	// Store backs the audit trail written by Audit.
+	Store *store.Store
 }
 
 // contextKey carries the authenticated identity through a request.

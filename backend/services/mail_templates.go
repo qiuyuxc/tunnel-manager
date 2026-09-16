@@ -48,6 +48,24 @@ func LoginNotifyEmail(username, when, remoteIP string) (string, string) {
 	return plain, emailShell("Tunnel Manager", "登录通知", inner)
 }
 
+// LockoutNotifyEmail renders the sign-in lockout alert sent to
+// administrators when an account runs out of attempts.
+func LockoutNotifyEmail(username, when, remoteIP, wait string, limit int) (string, string) {
+	plain := fmt.Sprintf(
+		"账户「%s」的登录失败次数已达到上限（%d 次），该账户已被暂时锁定。\n时间：%s\n来源 IP：%s\n解锁时间：约 %s后\n\n如果这不是您本人的操作，说明有人正在尝试猜测该账户的密码。",
+		username, limit, when, remoteIP, wait)
+	inner := fmt.Sprintf(
+		"<table style=\"border-collapse:collapse;font-size:14px;width:100%%;\">"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">账户</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">时间</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">来源 IP</td><td style=\"padding:6px 0;color:#111827;\">%s</td></tr>"+
+			"<tr><td style=\"padding:6px 0;color:#6b7280;\">解锁</td><td style=\"padding:6px 0;color:#111827;\">约 %s后</td></tr>"+
+			"</table>"+
+			"<p style=\"margin:16px 0 0;font-size:14px;color:#6b7280;\">该账户的登录失败次数已达到上限（%d 次）。如果不是本人操作，说明有人正在尝试猜测密码。</p>",
+		html.EscapeString(username), html.EscapeString(when), html.EscapeString(remoteIP), html.EscapeString(wait), limit)
+	return plain, emailShell("Tunnel Manager", "登录保护告警", inner)
+}
+
 // NotifyTestEmail renders the per-user channel test notification.
 func NotifyTestEmail() (string, string) {
 	plain := "这是一条来自 Tunnel Manager 的测试通知。如果收到本消息，说明通知配置正常。"

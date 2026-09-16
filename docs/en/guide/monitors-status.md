@@ -13,6 +13,7 @@ Add probe targets to a monitor and the system checks them on your interval and s
 - A monitor can carry several targets, each editable later, each with its own "link out" switch.
 - Changing a target's **address**, **type** or **method** clears its history and starts the statistics over.
 - The dashboard shows a seven-day latency chart, one column per day (peak latency plus the worst state that day saw).
+- Columns are clickable: the day's detail opens with the outage windows grouped by target (start time, run length, state and failure reason), and each row jumps to that monitor.
 
 ## Public status page
 

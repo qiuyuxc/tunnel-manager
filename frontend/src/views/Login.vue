@@ -128,6 +128,10 @@
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '登录中...' : '登录' }}
               </button>
+              <button v-if="passkeySupported" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handlePasskeyLogin">
+                <span v-if="passkeyBusy" class="spinner"></span>
+                {{ passkeyBusy ? '等待验证...' : '使用通行密钥登录' }}
+              </button>
               <button type="button" class="link-btn" @click="switchMode('forgot')">忘记密码？</button>
             </form>
           </template>
@@ -162,6 +166,10 @@
                 <span v-if="loading" class="spinner"></span>
                 {{ loading ? '验证中...' : '验证并登录' }}
               </button>
+              <button v-if="passkeySupported && passkeyFactorAvailable" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handlePasskeyFactor">
+                <span v-if="passkeyBusy" class="spinner"></span>
+                {{ passkeyBusy ? '等待验证...' : '使用通行密钥验证' }}
+              </button>
               <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="resetChallenge()">
                 返回密码登录
               </button>
@@ -175,8 +183,10 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { completeTwoFactorLogin, login as loginApi } from '../api'
 import { getAuthConfig, sendRegisterCode, register, forgotPassword, resetPassword, type AuthConfig } from '../api/admin'
+import { beginPasskeyLogin, beginPasskeyTwoFactor, finishPasskeyLogin, finishPasskeyTwoFactor } from '../api/passkey'
 import { useConfigStore } from '../stores/config'
 const router = useRouter()
 const store = useConfigStore()
@@ -206,6 +216,10 @@ const remainingSeconds = ref(0)
 const failedFactorAttempts = ref(0)
 const loading = ref(false)
 const error = ref('')
+// 通行密钥：仅浏览器支持 WebAuthn 时展示入口
+const passkeySupported = ref(false)
+const passkeyBusy = ref(false)
+const passkeyFactorAvailable = ref(false)
 const mounted = ref(false)
 const shaking = ref(false)
 const usernameInput = ref<HTMLInputElement | null>(null)
@@ -218,6 +232,7 @@ let shakeTimer: number | undefined
 let disposed = false
 const countdown = ref('05:00')
 onMounted(() => {
+  passkeySupported.value = browserSupportsWebAuthn()
   entranceFrame = requestAnimationFrame(() => {
     entranceFrame = undefined
     if (!disposed) mounted.value = true
@@ -313,6 +328,56 @@ function takeTurnstileToken(): string {
   return token
 }
 
+// 通行密钥免密登录：用户名可选，留空则由浏览器挑选已绑定的通行密钥。
+async function handlePasskeyLogin() {
+  if (passkeyBusy.value) return
+  passkeyBusy.value = true
+  error.value = ''
+  try {
+    const { data } = await beginPasskeyLogin(form.username.trim())
+    const credential = await startAuthentication({ optionsJSON: data.public_key })
+    const response = await finishPasskeyLogin({ ceremony_token: data.ceremony_token, credential })
+    store.setAuth(response.data.token, response.data.username)
+    await router.replace('/dashboard')
+  } catch (e: any) {
+    if (e?.name === 'NotAllowedError' || e?.name === 'AbortError') {
+      error.value = '已取消通行密钥验证'
+    } else {
+      error.value = e.response?.data?.error || e.message || '通行密钥登录失败'
+    }
+    triggerShake()
+  } finally {
+    passkeyBusy.value = false
+  }
+}
+
+// 2FA 的通行密钥分支：密码已通过，这里只证明持有通行密钥。
+async function handlePasskeyFactor() {
+  if (passkeyBusy.value || !challengeToken.value) return
+  passkeyBusy.value = true
+  error.value = ''
+  try {
+    const { data } = await beginPasskeyTwoFactor(challengeToken.value)
+    const credential = await startAuthentication({ optionsJSON: data.public_key })
+    const response = await finishPasskeyTwoFactor({
+      challenge_token: challengeToken.value,
+      ceremony_token: data.ceremony_token,
+      credential,
+    })
+    store.setAuth(response.data.token, response.data.username)
+    await router.replace('/dashboard')
+  } catch (e: any) {
+    if (e?.name === 'NotAllowedError' || e?.name === 'AbortError') {
+      error.value = '已取消通行密钥验证'
+    } else {
+      error.value = e.response?.data?.error || e.message || '通行密钥验证失败'
+    }
+    triggerShake()
+  } finally {
+    passkeyBusy.value = false
+  }
+}
+
 async function handleLogin() {
   if (!form.username || !form.password) {
     error.value = '请输入用户名和密码'
@@ -341,6 +406,7 @@ async function handleLogin() {
       }
       challengeToken.value = response.data.challenge_token
       challengeExpiresAt.value = expiresAt
+      passkeyFactorAvailable.value = !!response.data.passkeys_available
       form.password = ''
       factorCode.value = ''
       failedFactorAttempts.value = 0

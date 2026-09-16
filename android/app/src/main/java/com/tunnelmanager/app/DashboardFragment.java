@@ -1,11 +1,14 @@
 package com.tunnelmanager.app;
 
+import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -17,6 +20,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -151,7 +157,7 @@ public class DashboardFragment extends PageFragment {
         JSONArray buckets = overview.optJSONArray("buckets");
         LinearLayout card = UI.card(requireContext());
         card.addView(UI.cardTitle(requireContext(), "近 7 天"));
-        TextView hint = UI.muted(requireContext(), "每根柱子的高度是当天的峰值延迟，颜色代表当天最差状态");
+        TextView hint = UI.muted(requireContext(), "每根柱子的高度是当天的峰值延迟，颜色代表当天最差状态；点柱子看是谁的问题");
         UI.margin(hint, 0, UI.XS, 0, 0);
         card.addView(hint);
         if (buckets == null || buckets.length() == 0) {
@@ -160,9 +166,11 @@ public class DashboardFragment extends PageFragment {
             return card;
         }
 
-        ChartView chart = new ChartView(requireContext());
-        chart.setBuckets(buckets, overview.optInt("bucket_sec", 3600));
-        card.addView(chart);
+	ChartView chart = new ChartView(requireContext());
+	chart.setBuckets(buckets, overview.optInt("bucket_sec", 3600));
+	// The bar only says the day went wrong; tapping it opens who and when.
+	chart.setOnColumnTap(this::showBucketDetail);
+	card.addView(chart);
         card.addView(legend());
         return card;
     }
@@ -292,6 +300,159 @@ public class DashboardFragment extends PageFragment {
             names.addView(line);
         }
         return row;
+    }
+
+    // ------------------------------------------------------- chart drill-down
+
+    /**
+     * The bar says a day went wrong; this says who and when. Built from the
+     * per-target {@code issues} the overview returns with every bucket, so the
+     * sheet and the bar cannot disagree about the day.
+     */
+    private void showBucketDetail(JSONObject bucket) {
+	Context ctx = requireContext();
+	Sheet.Builder sheet = Sheet.of(ctx, dayLabel(bucket.optLong("hour")) + " 的问题");
+	sheet.content(bucketStats(bucket));
+
+	JSONArray issues = bucket.optJSONArray("issues");
+	if (issues == null || issues.length() == 0) {
+		sheet.content(UI.muted(ctx, "这一天没有出现异常。"));
+		sheet.show();
+		return;
+	}
+	sheet.label("涉及 " + issues.length() + " 个目标");
+	for (int i = 0; i < issues.length(); i++) {
+		JSONObject issue = issues.optJSONObject(i);
+		if (issue != null) sheet.content(issueCard(issue));
+	}
+	sheet.show();
+    }
+
+    /** The day's totals, on one wrapping line so five figures fit a phone. */
+    private View bucketStats(JSONObject bucket) {
+	List<String> bits = new ArrayList<>();
+	bits.add("检测 " + bucket.optInt("total") + " 次");
+	if (bucket.optInt("warn") > 0) bits.add("异常 " + bucket.optInt("warn"));
+	if (bucket.optInt("down") > 0) bits.add("不可达 " + bucket.optInt("down"));
+	if (bucket.optLong("peak_ms") > 0) bits.add("峰值 " + bucket.optLong("peak_ms") + "ms");
+	double avg = bucket.optDouble("avg_ms", 0);
+	if (avg > 0) bits.add("平均 " + Math.round(avg) + "ms");
+	TextView line = UI.muted(requireContext(), TextUtils.join(" · ", bits));
+	UI.margin(line, UI.MD, UI.MD, UI.MD, 0);
+	return line;
+    }
+
+    /** One target's day: what failed, and each stretch it was failing. */
+    private View issueCard(JSONObject issue) {
+	Palette p = Theme.p();
+	LinearLayout card = UI.column(requireContext());
+	card.setBackground(UI.roundedStroke(p.canvasRaised, UI.RADIUS_LG, p.hairline, 1));
+	card.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
+
+	LinearLayout head = UI.row(requireContext());
+	String name = issue.optString("monitor_name", "") + " · " + issue.optString("target_name", "");
+	head.addView(UI.strong(requireContext(), name),
+		new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+	ImageView chevron = new ImageView(requireContext());
+	chevron.setImageResource(R.drawable.ic_nav_chevron);
+	chevron.setColorFilter(p.mute);
+	head.addView(chevron, new LinearLayout.LayoutParams(UI.dp(15), UI.dp(15)));
+	card.addView(head);
+
+	List<String> meta = new ArrayList<>();
+	if (issue.optInt("down") > 0) meta.add("不可达 " + issue.optInt("down"));
+	if (issue.optInt("warn") > 0) meta.add("异常 " + issue.optInt("warn"));
+	if (issue.optLong("peak_ms") > 0) meta.add("峰值 " + issue.optLong("peak_ms") + "ms");
+	if (!meta.isEmpty()) {
+		TextView line = UI.muted(requireContext(), TextUtils.join(" · ", meta));
+		UI.margin(line, 0, 2, 0, 0);
+		card.addView(line);
+	}
+
+	JSONArray incidents = issue.optJSONArray("incidents");
+	int shown = incidents == null ? 0 : incidents.length();
+	if (shown > 0) card.addView(UI.divider(requireContext()));
+	for (int i = 0; i < shown; i++) {
+		JSONObject inc = incidents.optJSONObject(i);
+		if (inc != null) card.addView(incidentRow(inc));
+	}
+	int windows = issue.optInt("incident_count", shown);
+	if (windows > shown) {
+		TextView more = UI.muted(requireContext(), "另有 " + (windows - shown) + " 段未列出");
+		UI.margin(more, 0, UI.SM, 0, 0);
+		card.addView(more);
+	}
+
+	// The whole card is the tap target: the phone sheet is narrow enough
+	// that a chevron-only affordance would be a miss.
+	Drawable resting = card.getBackground();
+	card.setBackground(UI.pressable(resting, p.btnGhostHover));
+	card.setClickable(true);
+	card.setOnClickListener(v -> {
+		Sheet.dismissVisible();
+		openRoute("/monitors/" + issue.optString("monitor_id", ""));
+	});
+	return card;
+    }
+
+    /** One outage window: the clock range, the worst state, and the cause. */
+    private View incidentRow(JSONObject inc) {
+	Palette p = Theme.p();
+	boolean down = "down".equals(inc.optString("state", ""));
+
+	LinearLayout row = UI.row(requireContext());
+	row.setGravity(Gravity.TOP);
+	row.addView(UI.text(requireContext(), incidentRange(inc), 12, p.ink, Typeface.NORMAL));
+
+	LinearLayout.LayoutParams stateLp = new LinearLayout.LayoutParams(
+		ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+	stateLp.leftMargin = UI.dp(UI.SM);
+	row.addView(UI.text(requireContext(), down ? "不可达" : "降级", 12,
+		down ? p.error : p.warning, Typeface.BOLD), stateLp);
+
+	String cause = incidentCause(inc);
+	if (!cause.isEmpty()) {
+		TextView line = UI.muted(requireContext(), cause);
+		line.setMaxLines(2);
+		line.setEllipsize(TextUtils.TruncateAt.END);
+		LinearLayout.LayoutParams causeLp = new LinearLayout.LayoutParams(
+			0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		causeLp.leftMargin = UI.dp(UI.SM);
+		row.addView(line, causeLp);
+	}
+	UI.margin(row, 0, UI.SM, 0, 0);
+	return row;
+    }
+
+    /** "11:53–12:26", or a single clock time when the window is one sample. */
+    private static String incidentRange(JSONObject inc) {
+	String from = clock(inc.optLong("from"));
+	String to = clock(inc.optLong("to"));
+	return from.equals(to) ? from : from + "–" + to;
+    }
+
+    private static String clock(long seconds) {
+	Calendar c = Calendar.getInstance();
+	c.setTimeInMillis(seconds * 1000L);
+	return String.format(Locale.US, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
+    }
+
+    /** The probe's own message beats the bare status code. */
+    private static String incidentCause(JSONObject inc) {
+	List<String> bits = new ArrayList<>();
+	int count = inc.optInt("count");
+	if (count > 1) bits.add("连续 " + count + " 次");
+	String error = inc.optString("error", "");
+	if (!error.isEmpty()) bits.add(error);
+	else if (inc.optInt("code") > 0) bits.add("HTTP " + inc.optInt("code"));
+	return TextUtils.join(" · ", bits);
+    }
+
+    /** A date for the day-wide buckets the overview sends. */
+    private static String dayLabel(long seconds) {
+	Calendar c = Calendar.getInstance();
+	c.setTimeInMillis(seconds * 1000L);
+	return (c.get(Calendar.MONTH) + 1) + "/" + c.get(Calendar.DAY_OF_MONTH);
     }
 
     private static String percent(double value) {

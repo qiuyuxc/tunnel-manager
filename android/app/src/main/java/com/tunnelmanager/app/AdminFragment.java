@@ -1,5 +1,6 @@
 package com.tunnelmanager.app;
 
+import android.content.Context;
 import android.graphics.Typeface;
 import android.text.InputType;
 import android.view.Gravity;
@@ -18,11 +19,14 @@ import androidx.annotation.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.IntConsumer;
 
 /**
  * 管理后台 — users, groups, invites, registration policy and mail.
@@ -33,7 +37,47 @@ import java.util.Locale;
  */
 public class AdminFragment extends PageFragment {
 
-    private static final String[] TABS = {"用户", "用户组", "邀请码", "系统设置", "邮件服务"};
+    private static final String[] TABS = {"用户", "用户组", "邀请码", "系统设置", "邮件服务", "审计"};
+    /** Audit categories, mirroring the web panel's filter list. */
+    private static final String[] AUDIT_CATEGORIES = {
+            "", "auth", "passkey", "user", "group", "invite", "settings",
+            "tunnel", "domain", "dns", "monitor", "lab", "telegram"};
+    private static final String[] AUDIT_CATEGORY_LABELS = {
+            "全部", "登录认证", "通行密钥", "用户管理", "用户组", "邀请码", "系统设置",
+            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "IP 优选实验室", "TG 机器人"};
+    private static final String[] AUDIT_RANGE_LABELS = {"全部", "今天", "近 7 天", "近 30 天"};
+    private static final String[] AUDIT_ACTIONS = {
+            "login", "login_failed", "logout",
+            "passkey_add", "passkey_remove", "passkey_rename", "passkey_login", "passkey_login_failed",
+            "password_login_disable", "password_login_enable",
+            "password_login_global_disable", "password_login_global_enable",
+            "user_create", "user_status", "user_group", "user_password", "user_delete",
+            "group_create", "group_update", "group_delete",
+            "invite_create", "invite_update", "invite_delete",
+            "settings_update", "site_update", "cname_presets_update", "preferred_cname_update",
+            "smtp_update", "smtp_test", "oauth_update", "encryption_key_update",
+            "tunnel_create", "tunnel_delete", "ingress_add", "ingress_update", "ingress_delete",
+            "domain_bind", "domain_bind_batch", "domain_fallback",
+            "dns_create", "dns_update", "dns_delete",
+            "monitor_create", "monitor_update", "monitor_delete", "monitor_check",
+            "target_add", "target_update", "target_delete",
+            "lab_settings_update", "lab_run", "telegram_endpoint_update"};
+    private static final String[] AUDIT_ACTION_LABELS = {
+            "登录成功", "登录失败", "退出登录",
+            "绑定通行密钥", "删除通行密钥", "重命名通行密钥", "通行密钥登录", "通行密钥登录失败",
+            "禁用密码登录", "恢复密码登录",
+            "全局禁用密码登录", "全局恢复密码登录",
+            "创建用户", "启用 / 禁用用户", "调整用户组", "重置用户密码", "删除用户",
+            "创建用户组", "修改用户组", "删除用户组",
+            "生成邀请码", "启用 / 停用邀请码", "删除邀请码",
+            "修改注册策略", "修改站点设置", "修改 CNAME 预设", "修改优选 CNAME",
+            "修改邮件服务", "发送测试邮件", "修改 OAuth 客户端", "修改加密密钥",
+            "创建隧道", "删除隧道", "新增隧道规则", "修改隧道规则", "删除隧道规则",
+            "绑定域名", "批量绑定域名", "设置回退源",
+            "新增 DNS 记录", "修改 DNS 记录", "删除 DNS 记录",
+            "创建监控项目", "修改监控项目", "删除监控项目", "手动检测监控",
+            "新增监控目标", "修改监控目标", "删除监控目标",
+            "修改实验室设置", "执行 IP 优选", "修改 TG API 端点"};
     private static final String[] INVITE_MODES = {"off", "optional", "required"};
     private static final String[] INVITE_LABELS = {"关闭", "选填", "必填"};
     private static final String[] PERMISSIONS = {"tunnels", "domain_bind", "dns", "monitors", "oauth_connect"};
@@ -118,6 +162,43 @@ public class AdminFragment extends PageFragment {
     private EditText smtpPasswordInput;
     private EditText smtpFromInput;
     private EditText testMailInput;
+
+    /** Passkey settings, edited on the 系统设置 tab. */
+    private String passkeyRPID = "";
+    private String passkeyOrigins = "";
+    private String androidPackage = "";
+    private String androidFingerprints = "";
+    private String androidFingerprintsEffective = "";
+    private boolean passwordLoginDisabled = false;
+    private boolean passkeyAdminReady = false;
+    private EditText passkeyRPIDInput;
+    private EditText passkeyOriginsInput;
+    private EditText androidPackageInput;
+	private EditText androidFingerprintsInput;
+
+	/** Sign-in rate limit, edited on the 系统设置 tab. Blank means "use the
+	 *  default", which is how the backend reads a zero. */
+	private String rateLimitPerAccount = "0";
+	private String rateLimitPerIP = "0";
+	private String rateLimitWindow = "0";
+	private String rateLimitFamiliar = "0";
+	private EditText rateLimitPerAccountInput;
+	private EditText rateLimitPerIPInput;
+	private EditText rateLimitWindowInput;
+	private EditText rateLimitFamiliarInput;
+
+	/** Audit tab state; the trail loads the first time the tab is opened. */
+    private static final int AUDIT_PAGE_SIZE = 20;
+    private JSONArray auditLogs = new JSONArray();
+    private JSONObject auditStats = new JSONObject();
+    private int auditTotal = 0;
+    private int auditPage = 1;
+    private int auditCategory = 0;
+    private int auditRange = 0;
+    private String auditActor = "";
+    private EditText auditActorInput;
+    private boolean auditLoading = false;
+    private boolean auditLoaded = false;
 
     @Override
     String route() {
@@ -210,6 +291,14 @@ public class AdminFragment extends PageFragment {
         turnstileSiteKey = settings.optString("turnstile_site_key", "");
         turnstileHasSecret = settings.optBoolean("turnstile_has_secret", false);
         turnstileSecret = "";
+        passkeyRPID = settings.optString("passkey_rp_id", "");
+        passkeyOrigins = settings.optString("passkey_origins", "");
+        androidPackage = settings.optString("passkey_android_package", "");
+        androidFingerprints = settings.optString("passkey_android_fingerprints", "");
+        JSONArray effective = settings.optJSONArray("passkey_android_fingerprints_effective");
+        androidFingerprintsEffective = effective == null ? "" : effective.toString();
+        passwordLoginDisabled = settings.optBoolean("password_login_disabled", false);
+        passkeyAdminReady = settings.optBoolean("passkey_admin_ready", false);
     }
 
     // -------------------------------------------------------------- rendering
@@ -232,6 +321,10 @@ public class AdminFragment extends PageFragment {
             if (oauthRedirectInput != null) oauthRedirect = oauthRedirectInput.getText().toString().trim();
             if (oauthScopesInput != null) oauthScopes = oauthScopesInput.getText().toString().trim();
             if (encKeyField != null) encKeyInput = encKeyField.getText().toString().trim();
+            if (passkeyRPIDInput != null) passkeyRPID = passkeyRPIDInput.getText().toString().trim();
+            if (passkeyOriginsInput != null) passkeyOrigins = passkeyOriginsInput.getText().toString().trim();
+            if (androidPackageInput != null) androidPackage = androidPackageInput.getText().toString().trim();
+            if (androidFingerprintsInput != null) androidFingerprints = androidFingerprintsInput.getText().toString().trim();
         } else {
             if (smtpHostInput != null) smtpHost = smtpHostInput.getText().toString().trim();
             if (smtpPortInput != null) smtpPort = smtpPortInput.getText().toString().trim();
@@ -279,6 +372,9 @@ public class AdminFragment extends PageFragment {
                 break;
             case 4:
                 smtpTab();
+                break;
+            case 5:
+                auditTab();
                 break;
             default:
                 usersTab();
@@ -537,6 +633,13 @@ public class AdminFragment extends PageFragment {
         boolean active = "active".equals(user.optString("status"));
         top.addView(tag(active ? "正常" : "已禁用", active));
         UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
+        int passkeys = user.optInt("passkeys", 0);
+        top.addView(tag(passkeys > 0 ? passkeys + " 个通行密钥" : "仅密码", passkeys > 0));
+        UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
+        if (user.optBoolean("password_login_disabled", false)) {
+            top.addView(tag("已禁用密码", false));
+            UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
+        }
         box.addView(top);
 
         List<String> meta = new ArrayList<>();
@@ -566,6 +669,9 @@ public class AdminFragment extends PageFragment {
                         active ? "已禁用" : "已启用"))
                 .item(R.drawable.ic_nav_admin, "更换用户组", () -> pickGroupFor(user))
                 .item(R.drawable.ic_nav_edit, "重置密码", () -> promptResetPassword(user))
+                .item(R.drawable.ic_nav_logout, user.optBoolean("password_login_disabled", false)
+                                ? "恢复密码登录" : "禁用密码登录",
+                        () -> setUserPasswordLogin(user, !user.optBoolean("password_login_disabled", false)))
                 .item(R.drawable.ic_nav_trash, "删除用户", () -> confirmRemoveUser(user))
                 .show();
     }
@@ -951,6 +1057,80 @@ public class AdminFragment extends PageFragment {
         body.addView(oauthCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(encryptionCard());
+        body.addView(UI.spacer(requireContext(), UI.MD));
+	body.addView(passkeySettingsCard());
+	body.addView(UI.spacer(requireContext(), UI.MD));
+	body.addView(rateLimitCard());
+    }
+
+    /**
+     * Sign-in rate limiting. The account budget is the real defence — it cannot
+     * be shed by changing address — while the address budget stops one machine
+     * working through a list of accounts.
+     */
+    private View rateLimitCard() {
+	Context ctx = requireContext();
+	LinearLayout card = cardHead("登录保护",
+		"登录、二次验证、注册、验证码、找回与重置密码都受此限制。账号额度是真正的防线，换 IP 绕不过去；IP 额度用来挡住一台机器横扫多个账号。任一触发即返回 429 并附带解锁时间。",
+		null, null);
+
+	UI.addRow(card, toggleRow("启用登录限流", settings.optBoolean("rate_limit_enabled", false), true, next -> {
+	settingsPut("rate_limit_enabled", next);
+	saveSettings();
+	}), UI.SM);
+
+	rateLimitPerAccountInput = numberInput(ctx, "0 = 默认 5 次，负数 = 不限", rateLimitPerAccount);
+	card.addView(UI.field(ctx, "每账号失败次数", rateLimitPerAccountInput, UI.SM));
+
+	rateLimitPerIPInput = numberInput(ctx, "0 = 默认 20 次，负数 = 不限", rateLimitPerIP);
+	card.addView(UI.field(ctx, "每 IP 失败次数", rateLimitPerIPInput, UI.SM));
+
+	rateLimitWindowInput = numberInput(ctx, "0 = 默认 15 分钟", rateLimitWindow);
+	card.addView(UI.field(ctx, "统计窗口（分钟）", rateLimitWindowInput, UI.SM));
+
+	rateLimitFamiliarInput = numberInput(ctx, "0 = 默认 3 倍，1 = 不放宽", rateLimitFamiliar);
+	card.addView(UI.field(ctx, "熟悉来源的额度倍数", rateLimitFamiliarInput, UI.SM));
+	card.addView(UI.muted(ctx, "90 天内登录过的网段（IPv4 记 /24，IPv6 记 /64）会给更宽的账号额度。放宽是倍数而不是放行，所以熟悉的网段也会用完。"));
+
+	TextView save = UI.button(ctx, busy ? "保存中…" : "保存限流设置", UI.BTN_PRIMARY);
+	save.setEnabled(!busy);
+	save.setOnClickListener(v -> saveRateLimitSettings());
+	UI.margin(save, 0, UI.MD, 0, 0);
+	card.addView(save);
+
+	UI.addRow(card, toggleRow("锁定时通知管理员", settings.optBoolean("rate_limit_notify", false), true, next -> {
+	settingsPut("rate_limit_notify", next);
+	saveSettings();
+	}), UI.MD);
+	card.addView(UI.muted(ctx, "走各管理员自己配置的通知渠道（TG / 邮件），并沿用「登录通知」开关。"));
+	return card;
+    }
+
+    /** A signed numeric field; the limit accepts a negative for "no limit". */
+    private EditText numberInput(Context ctx, String hint, String value) {
+	EditText input = UI.input(ctx, hint);
+	input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+	input.setText(value);
+	return input;
+    }
+
+    private void saveRateLimitSettings() {
+	capture();
+	JSONObject payload = settingsWithPasskeys(null);
+	busy = true;
+	banner = "";
+	render();
+	Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
+	busy = false;
+	banner = "登录保护设置已保存";
+	bannerError = false;
+	load();
+	}, failure -> {
+	busy = false;
+	banner = "保存失败: " + failure.getMessage();
+	bannerError = true;
+	render();
+	});
     }
 
     private boolean regOpen() {
@@ -1303,6 +1483,362 @@ public class AdminFragment extends PageFragment {
 
     private interface Callable {
         JSONObject call() throws Exception;
+    }
+
+    // --------------------------------------------------------------- passkeys
+
+    /**
+     * Relying party, Android asset links and the panel-wide password switch.
+     *
+     * The panel refuses to switch password sign-in off until an active
+     * administrator has a passkey, so the toggle stays disabled until the server
+     * says it is safe.
+     */
+    private View passkeySettingsCard() {
+        Context ctx = requireContext();
+        LinearLayout card = cardHead("通行密钥",
+                "通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。留空按访问域名自动推导；反向代理或多域名场景可显式指定，来源需与依赖方同域或为其子域。",
+                null, null);
+
+        passkeyRPIDInput = UI.input(ctx, "依赖方 ID，如 panel.example.com");
+        passkeyRPIDInput.setText(passkeyRPID);
+        card.addView(UI.field(ctx, "依赖方 ID", passkeyRPIDInput, UI.SM));
+
+        passkeyOriginsInput = UI.input(ctx, "允许的来源，逗号分隔");
+        passkeyOriginsInput.setText(passkeyOrigins);
+        card.addView(UI.field(ctx, "允许的来源", passkeyOriginsInput, UI.SM));
+
+        androidPackageInput = UI.input(ctx, "com.tunnelmanager.app");
+        androidPackageInput.setText(androidPackage);
+        card.addView(UI.field(ctx, "Android 包名", androidPackageInput, UI.SM));
+
+        androidFingerprintsInput = UI.textArea(ctx, "SHA-256 指纹，逗号或换行分隔");
+        androidFingerprintsInput.setText(androidFingerprints);
+        card.addView(UI.field(ctx, "Android 签名指纹", androidFingerprintsInput, UI.SM));
+        card.addView(UI.muted(ctx, androidFingerprintsEffective.isEmpty()
+                ? "当前没有生效的签名指纹，App 无法使用通行密钥。"
+                : "当前生效：" + androidFingerprintsEffective));
+        card.addView(UI.muted(ctx, "App 通过 /.well-known/assetlinks.json 校验域名归属，指纹取自签名证书（keytool 或 apksigner 的 SHA-256）。"));
+
+        TextView save = UI.button(ctx, busy ? "保存中…" : "保存通行密钥设置", UI.BTN_PRIMARY);
+        save.setEnabled(!busy);
+        save.setOnClickListener(v -> savePasskeySettings());
+        UI.margin(save, 0, UI.MD, 0, 0);
+        card.addView(save);
+
+        card.addView(UI.divider(ctx));
+        UI.addRow(card, toggleRow("禁用密码登录（全站）", passwordLoginDisabled, passkeyAdminReady,
+                next -> setGlobalPasswordLogin(next)), UI.MD);
+        card.addView(UI.muted(ctx, passkeyAdminReady
+                ? "开启后所有账户都只能用通行密钥登录；某个账户丢失通行密钥时，可在用户列表里恢复它的密码登录。"
+                : "需至少一名启用的管理员已绑定通行密钥，避免面板被锁死。"));
+        return card;
+    }
+
+    private void savePasskeySettings() {
+        capture();
+        JSONObject payload = settingsWithPasskeys(null);
+        busy = true;
+        banner = "";
+        render();
+        Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
+            busy = false;
+            banner = "通行密钥设置已保存";
+            bannerError = false;
+            load();
+        }, failure -> {
+            busy = false;
+            banner = failure.getMessage();
+            bannerError = true;
+            load();
+        });
+    }
+
+    private void setGlobalPasswordLogin(boolean disabled) {
+        capture();
+        JSONObject payload = settingsWithPasskeys(disabled);
+        busy = true;
+        banner = "";
+        render();
+        Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
+            busy = false;
+            banner = disabled ? "已禁用密码登录（全站）" : "已恢复密码登录（全站）";
+            bannerError = false;
+            load();
+        }, failure -> {
+            busy = false;
+            banner = failure.getMessage();
+            bannerError = true;
+            // Re-read instead of trusting the local switch: the server refused it.
+            load();
+        });
+    }
+
+    /**
+     * The cached settings document plus the edited passkey fields.
+     *
+     * The endpoint replaces the whole document, so every other field travels
+     * with it; a null password switch keeps whatever the server already has.
+     */
+    private JSONObject settingsWithPasskeys(Boolean passwordLoginOff) {
+        JSONObject payload;
+        try {
+            payload = new JSONObject(settings.toString());
+        } catch (Exception e) {
+            payload = new JSONObject();
+        }
+        put(payload, "passkey_rp_id", passkeyRPID);
+        put(payload, "passkey_origins", passkeyOrigins);
+        put(payload, "passkey_android_package", androidPackage);
+        put(payload, "passkey_android_fingerprints", androidFingerprints);
+		if (passwordLoginOff != null) put(payload, "password_login_disabled", passwordLoginOff);
+		// Carried on every save for the same reason as the passkey fields: a
+		// partial save must not reset them to zero, which would read as "use the
+		// default" rather than "leave alone".
+		put(payload, "rate_limit_per_account", draftInt(rateLimitPerAccount));
+		put(payload, "rate_limit_per_ip", draftInt(rateLimitPerIP));
+		put(payload, "rate_limit_window_minutes", draftInt(rateLimitWindow));
+		put(payload, "rate_limit_familiar_multiplier", draftInt(rateLimitFamiliar));
+		return payload;
+    }
+
+    /** Reads a draft into an int; anything unparseable falls back to the
+     *  backend default, which is what a zero means. */
+    private static int draftInt(String value) {
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+    }
+
+    private static void put(JSONObject target, String key, Object value) {
+        try {
+            target.put(key, value);
+        } catch (org.json.JSONException ignored) {
+            // JSONObject.put only throws on NaN/Infinity.
+        }
+    }
+
+    /** Restores or disables password sign-in for one account. */
+    private void setUserPasswordLogin(JSONObject user, boolean disabled) {
+        run(() -> Api.put("/api/admin/users/" + user.optString("id") + "/password-login",
+                        new JSONObject().put("disabled", disabled)),
+                disabled ? "已禁用该账户的密码登录" : "已恢复该账户的密码登录");
+    }
+
+    // ----------------------------------------------------------------- audit
+
+    private void auditTab() {
+        if (!auditLoaded) {
+            // First visit: fetch the trail, which renders again on arrival.
+            auditLoaded = true;
+            loadAudit();
+            return;
+        }
+        Context ctx = requireContext();
+        body.addView(auditStatsCard());
+        body.addView(UI.spacer(ctx, UI.MD));
+        body.addView(auditFilterCard());
+        body.addView(UI.spacer(ctx, UI.MD));
+        body.addView(auditListCard());
+    }
+
+    private View auditStatsCard() {
+        Context ctx = requireContext();
+        LinearLayout card = cardHead("审计概览", "近 7 天的操作统计。", null, null);
+        LinearLayout row = UI.row(ctx);
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("total", 0)), "操作"));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("failed", 0)), "失败"));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("today", 0)), "今日"));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("actors", 0)), "活跃账号"));
+        card.addView(row);
+        return card;
+    }
+
+    private View auditStat(Context ctx, String value, String label) {
+        LinearLayout box = UI.column(ctx);
+        box.addView(UI.text(ctx, value, 20, Theme.p().ink, Typeface.BOLD));
+        box.addView(UI.muted(ctx, label));
+        UI.weight(box, 1f);
+        return box;
+    }
+
+    private View auditFilterCard() {
+        Context ctx = requireContext();
+        LinearLayout card = cardHead("筛选", null, "查询", () -> {
+            auditPage = 1;
+            loadAudit();
+        });
+
+        auditActorInput = UI.input(ctx, "搜索用户（用户名）");
+        auditActorInput.setText(auditActor);
+        UI.addRow(card, auditActorInput, UI.SM);
+
+        UI.addRow(card, auditPicker(ctx, "时间范围", AUDIT_RANGE_LABELS[auditRange],
+            "选择时间范围", AUDIT_RANGE_LABELS, index -> {
+            auditRange = index;
+            auditPage = 1;
+            loadAudit();
+        }), UI.MD);
+
+        UI.addRow(card, auditPicker(ctx, "操作类型", AUDIT_CATEGORY_LABELS[auditCategory],
+            "选择操作类型", AUDIT_CATEGORY_LABELS, index -> {
+            auditCategory = index;
+            auditPage = 1;
+            loadAudit();
+        }), UI.MD);
+
+        return card;
+    }
+
+    /**
+     * A labelled field that opens a bottom sheet rather than a dropdown.
+     *
+     * The web panel can afford an inline select; on a phone the same two lists
+     * as chips and a segmented control pushed the log itself below the fold.
+     * Every other picker in the app (TTL, DNS type, user group) is a sheet, so
+     * these follow that instead.
+     */
+    private View auditPicker(Context ctx, String label, String current, String sheetTitle,
+                             String[] options, IntConsumer onPick) {
+        TextView button = UI.button(ctx, current, UI.BTN_SECONDARY);
+        button.setOnClickListener(v -> {
+            Sheet.Builder sheet = Sheet.of(ctx, sheetTitle);
+            for (int i = 0; i < options.length; i++) {
+                        final int index = i;
+                        sheet.item(R.drawable.ic_nav_check, options[i], () -> onPick.accept(index));
+            }
+            sheet.show();
+        });
+        return UI.field(ctx, label, button);
+    }
+
+    private View auditListCard() {
+        Context ctx = requireContext();
+        LinearLayout card = cardHead("日志", null, "刷新", () -> loadAudit());
+        if (auditLoading) {
+            card.addView(UI.muted(ctx, "加载中…"));
+            return card;
+        }
+        if (auditLogs.length() == 0) {
+            card.addView(emptyState("没有符合条件的日志。"));
+            return card;
+        }
+        int pages = Math.max(1, (auditTotal + AUDIT_PAGE_SIZE - 1) / AUDIT_PAGE_SIZE);
+        card.addView(UI.muted(ctx, "共 " + auditTotal + " 条 · 第 " + auditPage + " / " + pages + " 页"));
+        for (int i = 0; i < auditLogs.length(); i++) {
+            JSONObject entry = auditLogs.optJSONObject(i);
+            if (entry == null) continue;
+            UI.addRow(card, auditEntryRow(entry), UI.MD);
+        }
+
+        LinearLayout pager = UI.row(ctx);
+        TextView prev = UI.button(ctx, "上一页", UI.BTN_SECONDARY);
+        prev.setEnabled(auditPage > 1);
+        prev.setOnClickListener(v -> {
+            auditPage--;
+            loadAudit();
+        });
+        pager.addView(prev);
+        TextView next = UI.button(ctx, "下一页", UI.BTN_SECONDARY);
+        next.setEnabled(auditPage < pages);
+        next.setOnClickListener(v -> {
+            auditPage++;
+            loadAudit();
+        });
+        UI.margin(next, UI.SM, 0, 0, 0);
+        pager.addView(next);
+        UI.addRow(card, pager, UI.MD);
+        return card;
+    }
+
+    private View auditEntryRow(JSONObject entry) {
+        Context ctx = requireContext();
+        LinearLayout box = UI.column(ctx);
+        box.setBackground(UI.roundedStroke(Theme.p().canvasSoft2, UI.RADIUS_MD, Theme.p().hairline, 1));
+        box.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
+
+        boolean success = entry.optBoolean("success", true);
+        LinearLayout top = UI.row(ctx);
+        top.addView(UI.strong(ctx, auditActionLabel(entry.optString("action", ""))),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        top.addView(tag(success ? "成功" : "失败", success));
+        box.addView(top);
+
+        List<String> meta = new ArrayList<>();
+        meta.add("操作人：" + defaulted(entry.optString("actor_name", "")));
+        String target = entry.optString("target", "");
+        if (!target.isEmpty()) meta.add("对象：" + target);
+        String ip = entry.optString("ip", "");
+        if (!ip.isEmpty()) meta.add("IP：" + ip);
+        TextView caption = UI.muted(ctx, join(meta, " · "));
+        UI.margin(caption, 0, UI.XS, 0, 0);
+        box.addView(caption);
+        TextView when = UI.mono(ctx, formatTime(entry.optLong("created_at", 0)), Theme.p().mute);
+        UI.margin(when, 0, UI.XS, 0, 0);
+        box.addView(when);
+        return box;
+    }
+
+    private void loadAudit() {
+        if (auditActorInput != null) auditActor = auditActorInput.getText().toString().trim();
+        auditLoading = true;
+        banner = "";
+        render();
+
+        final String actor = auditActor;
+        final String category = AUDIT_CATEGORIES[auditCategory];
+        final long from = auditFrom();
+        final int page = auditPage;
+        Api.async(() -> {
+            StringBuilder path = new StringBuilder("/api/admin/audit-logs?page=").append(page)
+                    .append("&page_size=").append(AUDIT_PAGE_SIZE);
+            if (!actor.isEmpty()) {
+                path.append("&actor=").append(URLEncoder.encode(actor, StandardCharsets.UTF_8));
+            }
+            if (!category.isEmpty()) path.append("&category=").append(category);
+            if (from > 0) path.append("&from=").append(from);
+            JSONObject payload = new JSONObject();
+            payload.put("logs", Api.get(path.toString()));
+            payload.put("stats", Api.get("/api/admin/audit-logs/stats?days=7"));
+            return payload;
+        }, payload -> {
+            auditLoading = false;
+            JSONObject logs = orEmpty(payload.optJSONObject("logs"));
+            auditLogs = array(logs, "logs");
+            auditTotal = logs.optInt("total", 0);
+            auditPage = Math.max(1, logs.optInt("page", 1));
+            auditStats = orEmpty(payload.optJSONObject("stats"));
+            render();
+        }, failure -> {
+            auditLoading = false;
+            banner = "读取审计日志失败：" + failure.getMessage();
+            bannerError = true;
+            render();
+        });
+    }
+
+    /** The "from" second for the selected range, in local time. */
+    private long auditFrom() {
+        if (auditRange == 0) return 0;
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        if (auditRange == 1) {
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            calendar.set(java.util.Calendar.MINUTE, 0);
+            calendar.set(java.util.Calendar.SECOND, 0);
+            calendar.set(java.util.Calendar.MILLISECOND, 0);
+        } else {
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, auditRange == 2 ? -7 : -30);
+        }
+        return calendar.getTimeInMillis() / 1000L;
+    }
+
+    private static String auditActionLabel(String action) {
+        for (int i = 0; i < AUDIT_ACTIONS.length; i++) {
+            if (AUDIT_ACTIONS[i].equals(action)) return AUDIT_ACTION_LABELS[i];
+        }
+        return action.isEmpty() ? "未知操作" : action;
     }
 
     private View emptyState(String message) {

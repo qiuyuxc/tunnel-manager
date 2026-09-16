@@ -33,7 +33,7 @@
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>用户名</th><th>邮箱</th><th>角色</th><th>用户组</th><th>状态</th><th>最近登录</th><th>操作</th></tr>
+              <tr><th>用户名</th><th>邮箱</th><th>角色</th><th>用户组</th><th>状态</th><th>登录方式</th><th>最近登录</th><th>操作</th></tr>
             </thead>
             <tbody>
               <tr v-for="user in users" :key="user.id">
@@ -42,10 +42,15 @@
                 <td><span class="tag" :class="user.role === 'admin' ? 'tag-admin' : ''">{{ user.role === 'admin' ? '管理员' : '用户' }}</span></td>
                 <td>{{ groupName(user.group_id) }}</td>
                 <td><span class="tag" :class="user.status === 'active' ? 'tag-ok' : 'tag-down'">{{ user.status === 'active' ? '正常' : '已禁用' }}</span></td>
+                <td>
+                  <span class="tag" :class="user.passkeys > 0 ? 'tag-ok' : ''">{{ user.passkeys > 0 ? user.passkeys + ' 个通行密钥' : '仅密码' }}</span>
+                  <span v-if="user.password_login_disabled" class="tag tag-down">已禁用密码</span>
+                </td>
                 <td>{{ formatTime(user.last_login_at) }}</td>
                 <td class="actions">
                   <button class="btn btn-ghost" type="button" @click="toggleUserStatus(user)">{{ user.status === 'active' ? '禁用' : '启用' }}</button>
                   <button class="btn btn-ghost" type="button" @click="changeGroup(user)">改组</button>
+                  <button v-if="user.password_login_disabled" class="btn btn-ghost" type="button" @click="restorePasswordLogin(user)">恢复密码登录</button>
                   <button class="btn btn-ghost" type="button" @click="resetPassword(user)">重置密码</button>
                   <button class="btn btn-ghost danger" type="button" @click="removeUser(user)">删除</button>
                 </td>
@@ -170,6 +175,65 @@
       </div>
 
       <div class="admin-card">
+        <h3>审计日志</h3>
+        <p class="admin-hint">记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道、域名绑定、DNS 记录与服务监控。只读浏览不计入，可在「审计日志」标签页按用户、操作类型与时间范围筛选。</p>
+        <div class="setting-row">
+          <span class="setting-label">保留时长</span>
+          <select v-model.number="settings.audit_retention_days" class="vercel-input narrow" @change="saveSettings">
+            <option :value="30">30 天</option>
+            <option :value="90">90 天</option>
+            <option :value="180">180 天</option>
+            <option :value="365">365 天</option>
+            <option :value="-1">永久保留</option>
+          </select>
+          <small class="text-muted">超期日志每小时自动清理一次</small>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>通行密钥</h3>
+        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 必须与访问域名一致。留空时按访问域名自动推导（沿用面板域名）；反向代理或多域名场景可在此显式指定，来源需与依赖方 ID 同域或为其子域。</p>
+        <div class="admin-form">
+          <input v-model="settings.passkey_rp_id" type="text" placeholder="依赖方 ID，如 panel.example.com" class="vercel-input" />
+          <input v-model="settings.passkey_origins" type="text" placeholder="允许的来源，逗号分隔，如 https://panel.example.com" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">禁用密码登录</span>
+          <n-switch v-model:value="passwordLoginOff" size="small" :disabled="!settings.passkey_admin_ready" @update:value="saveSettings">
+            <template #checked>仅通行密钥</template>
+            <template #unchecked>允许密码</template>
+          </n-switch>
+          <small v-if="!settings.passkey_admin_ready" class="text-muted">需至少一名启用的管理员已绑定通行密钥，避免面板被锁死</small>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>登录保护</h3>
+        <p class="admin-hint">登录、二次验证、注册、验证码、找回与重置密码都受此限制。账号额度是真正的防线——换 IP 绕不过去；IP 额度用来挡住一台机器横扫多个账号。任一触发即返回 429 并附带解锁时间。</p>
+        <div class="setting-row">
+          <span class="setting-label">启用登录限流</span>
+          <n-switch v-model:value="settings.rate_limit_enabled" size="small" @update:value="saveSettings" />
+        </div>
+        <div class="admin-form">
+          <label class="field-label">每账号失败次数<small>0 = 默认 5 次，填负数表示不限</small></label>
+          <input v-model.number="settings.rate_limit_per_account" type="number" class="vercel-input" />
+          <label class="field-label">每 IP 失败次数<small>0 = 默认 20 次，填负数表示不限</small></label>
+          <input v-model.number="settings.rate_limit_per_ip" type="number" class="vercel-input" />
+          <label class="field-label">统计窗口（分钟）<small>0 = 默认 15 分钟</small></label>
+          <input v-model.number="settings.rate_limit_window_minutes" type="number" class="vercel-input" />
+          <label class="field-label">熟悉来源的额度倍数<small>90 天内登录过的网段给更宽的额度。0 = 默认 3 倍，1 = 不放宽</small></label>
+          <input v-model.number="settings.rate_limit_familiar_multiplier" type="number" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">锁定时通知管理员</span>
+          <n-switch v-model:value="settings.rate_limit_notify" size="small" @update:value="saveSettings" />
+          <small class="text-muted">走各管理员自己配置的通知渠道（TG / 邮件），并沿用「登录通知」开关</small>
+        </div>
+      </div>
+
+      <div class="admin-card">
         <h3>人机验证（Cloudflare Turnstile）</h3>
         <p class="admin-hint">可选防护：开启后登录、注册与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
         <div class="setting-row">
@@ -231,23 +295,92 @@
         </div>
       </div>
     </section>
+
+    <section v-show="activeTab === 'audit'" class="admin-section">
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <h3>审计日志</h3>
+          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="loadAudit">刷新</button>
+        </div>
+        <div class="audit-stats">
+          <div class="audit-stat">
+            <span class="audit-stat-value">{{ auditStats.total }}</span>
+            <span class="audit-stat-label">近 7 天操作</span>
+          </div>
+          <div class="audit-stat">
+            <span class="audit-stat-value" :class="{ danger: auditStats.failed > 0 }">{{ auditStats.failed }}</span>
+            <span class="audit-stat-label">近 7 天失败</span>
+          </div>
+          <div class="audit-stat">
+            <span class="audit-stat-value">{{ auditStats.today }}</span>
+            <span class="audit-stat-label">今日操作</span>
+          </div>
+          <div class="audit-stat">
+            <span class="audit-stat-value">{{ auditStats.actors }}</span>
+            <span class="audit-stat-label">近 7 天活跃账号</span>
+          </div>
+        </div>
+        <form class="admin-form audit-filters" @submit.prevent="applyAuditFilters">
+          <input v-model="auditFilters.actor" type="text" placeholder="搜索用户（用户名）" class="vercel-input" />
+          <select v-model="auditFilters.action" class="vercel-input">
+            <option value="">全部操作</option>
+            <optgroup v-for="group in auditActionGroups" :key="group.category" :label="group.label">
+              <option v-for="item in group.items" :key="item.action" :value="item.action">{{ item.label }}</option>
+            </optgroup>
+          </select>
+          <input v-model="auditFilters.fromDate" type="date" class="vercel-input narrow" aria-label="开始日期" />
+          <span class="text-muted">至</span>
+          <input v-model="auditFilters.toDate" type="date" class="vercel-input narrow" aria-label="结束日期" />
+          <button class="btn btn-primary" type="submit" :disabled="auditLoading">查询</button>
+          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="resetAuditFilters">重置</button>
+        </form>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr><th>时间</th><th>操作人</th><th>操作</th><th>对象</th><th>来源 IP</th><th>结果</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in auditLogs" :key="log.id">
+                <td>{{ formatTime(log.created_at) }}</td>
+                <td class="mono">{{ log.actor_name || '—' }}</td>
+                <td>{{ auditActionLabel(log) }}</td>
+                <td>{{ log.target || '—' }}</td>
+                <td class="mono">{{ log.ip || '—' }}</td>
+                <td><span class="tag" :class="log.success ? 'tag-ok' : 'tag-down'">{{ log.success ? '成功' : '失败' }}</span></td>
+              </tr>
+              <tr v-if="!auditLoading && !auditLogs.length">
+                <td colspan="6" class="text-muted">没有符合条件的日志</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="audit-pager">
+          <span class="text-muted">共 {{ auditTotal }} 条</span>
+          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage <= 1" @click="changeAuditPage(auditPage - 1)">上一页</button>
+          <span class="text-muted">第 {{ auditPage }} / {{ auditPageCount }} 页</span>
+          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage >= auditPageCount" @click="changeAuditPage(auditPage + 1)">下一页</button>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
 import {
-  listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser,
+  listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser, setUserPasswordLogin,
   listGroups, createGroup, updateGroup, deleteGroup,
   listInvites, createInvite, updateInvite, deleteInvite,
   getAppSettings, updateAppSettings,
   getSMTP, updateSMTP, testSMTP,
   getOAuthConfig, updateOAuthConfig,
   getEncryptionKeyStatus, saveEncryptionKey,
+  listAuditLogs, getAuditStats, auditActionLabel, AUDIT_CATEGORY_LABELS, AUDIT_ACTIONS,
   ALL_PERMISSIONS, PERMISSION_LABELS,
   type UserView, type UserGroup, type Invite, type AppSettings,
+  type AuditLog, type AuditStats, type AuditQuery,
 } from '../api/admin'
 
 const tabs = [
@@ -256,6 +389,7 @@ const tabs = [
   { key: 'invites', label: '邀请码' },
   { key: 'settings', label: '系统设置' },
   { key: 'smtp', label: '邮件服务' },
+  { key: 'audit', label: '审计日志' },
 ]
 const activeTab = ref('users')
 const busy = ref(false)
@@ -292,6 +426,10 @@ const regOpen = computed({
   get: () => settings.value.registration_enabled,
   set: (v: boolean) => { settings.value.registration_enabled = v },
 })
+const passwordLoginOff = computed({
+  get: () => !!settings.value.password_login_disabled,
+  set: (v: boolean) => { settings.value.password_login_disabled = v },
+})
 const experimentalFeatures = computed({
   get: () => !!settings.value.experimental_features_enabled,
   set: (v: boolean) => { settings.value.experimental_features_enabled = v },
@@ -321,6 +459,68 @@ function formatTime(seconds: number) {
   return new Date(seconds * 1000).toLocaleString()
 }
 
+const auditLogs = ref<AuditLog[]>([])
+const auditStats = ref<AuditStats>({ total: 0, failed: 0, today: 0, actors: 0 })
+const auditTotal = ref(0)
+const auditPage = ref(1)
+const auditPageSize = 50
+const auditLoading = ref(false)
+const auditFilters = ref({ actor: '', action: '', fromDate: '', toDate: '' })
+const auditPageCount = computed(() => Math.max(1, Math.ceil(auditTotal.value / auditPageSize)))
+const auditActionGroups = computed(() =>
+  Object.entries(AUDIT_CATEGORY_LABELS)
+    .map(([category, label]) => ({ category, label, items: AUDIT_ACTIONS.filter((item) => item.category === category) }))
+    .filter((group) => group.items.length > 0),
+)
+
+/** 日期输入（YYYY-MM-DD）转换为当天起止的 Unix 秒。 */
+function auditDayStart(value: string) {
+  return value ? Math.floor(new Date(value + 'T00:00:00').getTime() / 1000) : 0
+}
+
+function auditDayEnd(value: string) {
+  return value ? Math.floor(new Date(value + 'T23:59:59').getTime() / 1000) : 0
+}
+
+async function loadAudit() {
+  auditLoading.value = true
+  try {
+    const params: AuditQuery = { page: auditPage.value, page_size: auditPageSize }
+    const actor = auditFilters.value.actor.trim()
+    if (actor) params.actor = actor
+    if (auditFilters.value.action) params.action = auditFilters.value.action
+    const from = auditDayStart(auditFilters.value.fromDate)
+    const to = auditDayEnd(auditFilters.value.toDate)
+    if (from) params.from = from
+    if (to) params.to = to
+    const [page, stats] = await Promise.all([listAuditLogs(params), getAuditStats(7)])
+    auditLogs.value = page.data.logs
+    auditTotal.value = page.data.total
+    auditPage.value = page.data.page
+    auditStats.value = stats.data
+  } catch (e: any) {
+    notify('加载审计日志失败: ' + (e.response?.data?.error || e.message), true)
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+function applyAuditFilters() {
+  auditPage.value = 1
+  void loadAudit()
+}
+
+function resetAuditFilters() {
+  auditFilters.value = { actor: '', action: '', fromDate: '', toDate: '' }
+  auditPage.value = 1
+  void loadAudit()
+}
+
+function changeAuditPage(page: number) {
+  auditPage.value = Math.min(Math.max(1, page), auditPageCount.value)
+  void loadAudit()
+}
+
 async function loadAll() {
   busy.value = true
   try {
@@ -328,7 +528,8 @@ async function loadAll() {
     users.value = u.data.users
     groups.value = g.data.groups
     invites.value = i.data.invites
-    settings.value = s.data
+    // 0/未设置表示默认窗口（90 天），-1 表示永久保留。
+    settings.value = { ...s.data, audit_retention_days: s.data.audit_retention_days || 90 }
     turnstile.value.enabled = !!s.data.turnstile_enabled
     turnstile.value.site_key = s.data.turnstile_site_key || ''
     turnstileHasSecret.value = !!s.data.turnstile_has_secret
@@ -378,6 +579,10 @@ function changeGroup(user: UserView) {
   const picked = window.prompt('输入目标用户组的编号：\n' + options + '\n留空 = 默认用户组', user.group_id)
   if (picked === null) return
   void run(() => setUserGroup(user.id, picked.trim()), '用户组已更新')
+}
+
+function restorePasswordLogin(user: UserView) {
+  void run(() => setUserPasswordLogin(user.id, false), '已恢复 ' + user.username + ' 的密码登录')
 }
 
 function resetPassword(user: UserView) {
@@ -449,7 +654,9 @@ function saveSettings() {
 }
 
 function saveTurnstile() {
+  // 带上完整设置：只保存人机验证时不能把通行密钥、审计保留期等字段清空。
   const payload: Partial<AppSettings> & { turnstile_secret?: string } = {
+    ...settings.value,
     registration_enabled: settings.value.registration_enabled,
     invite_mode: settings.value.invite_mode,
     default_group_id: settings.value.default_group_id || '',
@@ -461,6 +668,11 @@ function saveTurnstile() {
   if (turnstileSecret.value) payload.turnstile_secret = turnstileSecret.value
   void run(() => updateAppSettings(payload), '人机验证设置已保存')
 }
+
+// 审计日志按需加载：切到该标签页时才请求，避免每次进入后台都多两次查询。
+watch(activeTab, (tab) => {
+  if (tab === 'audit') void loadAudit()
+})
 
 onMounted(() => {
   void loadAll()
@@ -622,6 +834,17 @@ async function sendTestMail() {
 .admin-form .btn { padding: 5px 14px; font-size: 12px; }
 .admin-form .vercel-input { height: auto; }
 .admin-hint { font-size: 12px; color: var(--color-mute); margin: 0 0 var(--spacing-sm); }
+/* 登录保护表单：数字输入上面各带一行说明。 */
+.field-label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--color-body); }
+.field-label small { font-size: 11px; color: var(--color-mute); }
 .smtp-form { border-bottom: none; margin-bottom: 0; }
+.audit-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: var(--spacing-md); }
+.audit-stat { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); background: var(--color-canvas-soft); }
+.audit-stat-value { font-size: 20px; font-weight: 600; color: var(--color-ink); }
+.audit-stat-value.danger { color: var(--color-error); }
+.audit-stat-label { font-size: 12px; color: var(--color-mute); }
+.audit-filters { align-items: center; }
+.audit-pager { display: flex; align-items: center; gap: 10px; margin-top: var(--spacing-sm); flex-wrap: wrap; }
+@media (max-width: 640px) { .audit-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 

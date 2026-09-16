@@ -37,6 +37,9 @@ backend/.accept/
 backend/.fix_key.py
 backend/.preview/
 backend/.dedupe.py
+backend/.scratch/
+backend/.tmp/
+backend/.tmpread/
 docs/.server.py
 
 # Local design-language references (working files, not shipped)

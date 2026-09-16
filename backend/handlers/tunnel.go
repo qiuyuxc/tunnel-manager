@@ -61,6 +61,7 @@ func (h *TunnelHandler) CreateTunnel(w http.ResponseWriter, r *http.Request) {
 		response.Token = token
 		response.RunCommand = "cloudflared tunnel run --token " + token
 	}
+	SetAuditTarget(r, response.Name)
 	writeJSON(w, http.StatusCreated, response)
 }
 

@@ -399,9 +399,17 @@ func copyUser(user models.User) models.User {
 func (s *Store) ListUsers() []models.UserView {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	// Bound credentials live outside the cache, so the counts come from one
+	// grouped query instead of one query per account.
+	counts, err := s.passkeyCounts()
+	if err != nil {
+		log.Printf("count passkeys per account: %v", err)
+	}
 	views := make([]models.UserView, 0, len(s.users))
 	for i := range s.users {
-		views = append(views, s.userViewLocked(&s.users[i]))
+		view := s.userViewLocked(&s.users[i])
+		view.Passkeys = counts[s.users[i].ID]
+		views = append(views, view)
 	}
 	return views
 }
@@ -421,6 +429,8 @@ func (s *Store) userViewLocked(user *models.User) models.UserView {
 		CreatedAt:     user.CreatedAt,
 		LastLoginAt:   user.LastLoginAt,
 		Permissions:   append([]string(nil), models.AllPermissions...),
+		// Passkeys is filled in by ListUsers, which batches the counts.
+		PasswordLoginDisabled: user.PasswordLoginDisabled,
 	}
 	if group := s.findGroupLocked(user.GroupID); group != nil {
 		view.GroupName = group.Name
@@ -592,6 +602,15 @@ func (s *Store) DeleteUser(id string) error {
 			s.prefs[id] = models.UserPrefs{}
 		}
 		return err
+	}
+	// Bound passkeys and learned networks are stored outside the cached
+	// configuration, so they are removed explicitly once the account is really
+	// gone.
+	if err := s.deletePasskeysForUser(id); err != nil {
+		log.Printf("delete passkeys of removed account %s: %v", id, err)
+	}
+	if err := s.deleteFamiliarIPsForUser(id); err != nil {
+		log.Printf("delete familiar networks of removed account %s: %v", id, err)
 	}
 	return nil
 }

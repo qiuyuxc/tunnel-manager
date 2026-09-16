@@ -2,6 +2,28 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.5.0
+
+- Passkeys (WebAuthn): the account page binds fingerprints, face unlock or a hardware security key; the sign-in page accepts a passkey on its own, and an account with two-factor enabled can use one instead of a TOTP code
+- "Disable password sign-in" comes in two sizes: an account can turn off its own password (a passkey must be bound first), and an administrator can require passkeys for the whole panel; the panel-wide switch only turns on once an active administrator has a passkey, so the install cannot lock itself out
+- There is always a way back in: `-allow-password-login` clears the panel switch and every account switch, and the account list has a one-click "restore password sign-in" action
+- The relying party is derived from the request host (falling back to the panel host); reverse proxies and multi-domain setups can set the relying party id and allowed origins under "system settings → passkeys", where each origin must share the relying party's domain
+- Binding, removing and renaming a passkey are audited, as are passkey sign-in successes and failures (a new "passkey" category); failed attempts keep the source IP
+- Operations that would break the sign-in path are refused: removing the last passkey, disabling password sign-in without one, deleting an account
+- The Android app gains the same passkey support: sign in with a passkey, use one for the second step, and bind / rename / remove credentials or toggle password sign-in from the account page; the admin console gains an audit tab (account, operation type and time-range filters, paging and totals) plus the passkey settings
+- The backend serves `/.well-known/assetlinks.json`: Android checks the domain through Digital Asset Links, and the package name plus SHA-256 certificate fingerprints are maintained under "system settings → passkeys", prefilled with the shared debug keystore's hash
+- New dependencies: `github.com/go-webauthn/webauthn` on the backend, `@simplewebauthn/browser` on the frontend, `androidx.credentials` in the app
+- New sign-in rate limiting: repeated failures hit a sliding window counted separately per account and per source IP, answering `429` with `Retry-After`; it covers password sign-in, the second step, passkey sign-in, registration, email codes and password resets
+- Familiar subnets earn extra room: a successful sign-in remembers the source subnet (IPv4 grouped by `/24`, IPv6 by `/64`, valid for 90 days, up to 32 per account) and failures from it are multiplied against the base budget, while unknown IPs stay on the default
+- Thresholds and the kill switch live under "system settings → sign-in protection" (account / IP budget, window, familiar multiplier, and whether to email the administrator on a lockout)
+- The overview chart drills down: tapping a column lists that day's incidents grouped by target, with start time, run length, state and failure reason, and jumps to the monitor; the Android app supports the same tap
+- New audit trail: the admin panel gains an audit tab that records sign-ins and sign-outs, user and group changes, invite codes, system settings (SMTP, OAuth and the encryption key included), tunnels and ingress rules, domain bindings, DNS records, monitors and their targets, and IP-selector lab runs
+- The trail searches by account name, filters by operation type and time range, paginates, and summarizes the last seven days: operations, failures, today's activity and active accounts
+- Successful logins, failed logins (two-factor included) and sign-outs are recorded; failed attempts keep the source IP, which is what makes brute-force attempts visible
+- Retention defaults to 90 days and is configurable per install (30 / 90 / 180 / 365 days or keep forever); expired rows are pruned hourly
+- Audit rows live in their own append-only `audit_logs` table (migration v13) rather than in the configuration document, so the trail never slows down configuration saves
+- Read-only browsing is not recorded, and `/api/admin/audit-logs` plus `/api/admin/audit-logs/stats` are administrator-only
+
 ## v2.4.1
 
 - Fixed the Android app looping on the launch screen after a session expired: the stale credential was never cleared, so the login page relaunched the console immediately, took another 401 and bounced back — over and over. The session is now cleared, the app returns to the sign-in form and says "登录状态已失效，请重新登录"

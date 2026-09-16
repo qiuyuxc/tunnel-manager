@@ -10,8 +10,8 @@ android {
         applicationId = "com.tunnelmanager.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 241
-        versionName = "2.4.1"
+        versionCode = 250
+        versionName = "2.5.0"
     }
 
     // The debug key is the one build.sh already generated, so `adb install -r`
@@ -52,4 +52,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    // Passkeys: Credential Manager plus its Google Play services provider.
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
 }

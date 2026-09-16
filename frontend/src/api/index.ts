@@ -164,6 +164,8 @@ export interface TwoFactorChallengeResponse {
   two_factor_required: true
   challenge_token: string
   expires_at: string
+  /** 该账户已绑定通行密钥，可以用通行密钥完成这一步 */
+  passkeys_available?: boolean
 }
 
 export type LoginResult = LoginResponse | TwoFactorChallengeResponse
@@ -607,6 +609,39 @@ export function removeMonitorTarget(id: string, targetId: string) {
   return api.delete<MonitorView>(`/monitors/${id}/targets/${targetId}`)
 }
 
+/** 一次连续异常的区间。时间戳是 unix 秒，和 bucket 的 hour 一致。 */
+export interface BucketIncident {
+  from: number
+  to: number
+  /** 区间内最差的状态：warn 或 down */
+  state: string
+  /** 区间内落进来的探测次数 */
+  count: number
+  code?: number
+  error?: string
+}
+
+/**
+ * 单个监控目标在某一天里的异常明细。只有当这天出现过 warn 或 down 时才会
+ * 出现——概览的柱子把所有目标汇总成一根，没有这个就只看得出「这天有问题」，
+ * 看不出是谁的问题。
+ */
+export interface BucketIssue {
+  monitor_id: string
+  monitor_name: string
+  target_id: string
+  target_name: string
+  url?: string
+  total: number
+  warn: number
+  down: number
+  peak_ms: number
+  avg_ms: number
+  incidents: BucketIncident[]
+  /** 真实区间总数；incidents 超过上限时会被截断 */
+  incident_count: number
+}
+
 export interface BucketStat {
   hour: number
   avg_ms: number
@@ -614,6 +649,8 @@ export interface BucketStat {
   total: number
   warn: number
   down: number
+  /** 只包含当天出过问题的目标，按严重程度排序 */
+  issues?: BucketIssue[]
 }
 
 export interface OverviewResp {

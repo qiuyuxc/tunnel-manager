@@ -233,6 +233,104 @@
         </div>
       </section>
 
+      <section class="settings-card security-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.06s' }" aria-labelledby="passkey-title">
+        <div class="security-heading">
+          <div>
+            <p class="security-kicker">Passwordless sign-in</p>
+            <h3 id="passkey-title" class="settings-card-title">通行密钥</h3>
+            <p class="settings-card-desc">用指纹、面容或硬件安全密钥登录，不必输入密码；绑定后还可以关闭本账户的密码登录。</p>
+          </div>
+          <div class="status-stamp" :class="'stamp-' + passkeyStamp.tone" role="status" aria-live="polite">
+            <span class="stamp-mark" aria-hidden="true"></span>
+            <span>
+              <small>Passkeys</small>
+              <strong>{{ passkeyStamp.label }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="security-rule" aria-hidden="true"></div>
+
+        <div class="security-content">
+          <div v-if="passkeyLoading" class="security-state compact-state">
+            <span class="state-pulse" aria-hidden="true"></span>
+            <div><strong>正在读取通行密钥</strong><p>正在读取本账户已绑定的凭据。</p></div>
+          </div>
+
+          <div v-else-if="!passkeys.available" class="security-state unavailable-state">
+            <div class="status-copy">
+              <strong>当前域名无法使用通行密钥</strong>
+              <p>通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在管理后台「系统设置 → 通行密钥」填写依赖方 ID 与允许的来源。</p>
+            </div>
+          </div>
+
+          <template v-else>
+            <div v-if="!passkeys.passkeys.length" class="security-state disabled-state">
+              <div class="status-copy">
+                <strong>尚未绑定通行密钥</strong>
+                <p>依赖方：<code>{{ passkeys.rp_id }}</code>。绑定后可以用设备上的指纹、面容或安全密钥直接登录。</p>
+              </div>
+            </div>
+            <ul v-else class="passkey-list">
+              <li v-for="item in passkeys.passkeys" :key="item.id" class="passkey-row">
+                <div class="passkey-info">
+                  <span class="passkey-name">
+                    <strong>{{ item.name }}</strong>
+                    <span v-if="item.backup_eligible" class="conn-badge">{{ item.backup_state ? '已同步' : '可同步' }}</span>
+                  </span>
+                  <span class="passkey-meta">
+                    添加于 {{ formatPasskeyDate(item.created_at) }}
+                    <template v-if="item.last_used_at"> · 最近使用 {{ formatPasskeyDate(item.last_used_at) }}</template>
+                  </span>
+                </div>
+                <div class="passkey-actions">
+                  <button class="btn btn-ghost" type="button" :disabled="passkeyBusy" @click="renamePasskeyEntry(item)">重命名</button>
+                  <button class="btn btn-ghost danger" type="button" :disabled="passkeyBusy" @click="removePasskeyEntry(item)">删除</button>
+                </div>
+              </li>
+            </ul>
+
+            <form class="passkey-form" @submit.prevent="addPasskey">
+              <div class="field">
+                <label class="field-label" for="passkey-name">名称</label>
+                <input id="passkey-name" v-model="passkeyName" type="text" class="vercel-input" placeholder="如 MacBook 指纹" maxlength="60" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="passkey-password">当前密码</label>
+                <input
+                  id="passkey-password"
+                  v-model="passkeyPassword"
+                  type="password"
+                  class="vercel-input"
+                  placeholder="添加、删除或切换密码登录时需要"
+                  autocomplete="current-password"
+                />
+              </div>
+              <button class="btn btn-primary" type="submit" :disabled="passkeyBusy || !passkeyPassword">
+                {{ passkeyBusy ? '等待验证...' : '添加通行密钥' }}
+              </button>
+            </form>
+
+            <div class="passkey-switch">
+              <div>
+                <strong>禁用密码登录</strong>
+                <p>开启后本账户只能用通行密钥登录，请至少保留一个可用的通行密钥。</p>
+                <p v-if="passkeys.password_login_disabled_globally">面板已全局禁用密码登录，所有账户都必须使用通行密钥。</p>
+              </div>
+              <button
+                class="btn btn-secondary"
+                :class="{ 'danger-outline': !passkeys.password_login_disabled }"
+                type="button"
+                :disabled="passkeyBusy || !passkeyPassword"
+                @click="togglePasswordLogin"
+              >
+                {{ passkeys.password_login_disabled ? '恢复密码登录' : '禁用密码登录' }}
+              </button>
+            </div>
+          </template>
+        </div>
+      </section>
+
       <section class="settings-card cloudflare-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.08s' }" aria-labelledby="cloudflare-title">
         <div class="cloudflare-heading">
           <div>
@@ -383,6 +481,17 @@ import {
   type TOTPSetupResponse,
   type TOTPStatusResponse,
 } from '../api'
+import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
+import {
+  beginPasskeyRegistration,
+  deletePasskey,
+  finishPasskeyRegistration,
+  getPasskeySettings,
+  renamePasskey,
+  setPasswordLoginDisabled,
+  type PasskeySettings,
+  type PasskeyView,
+} from '../api/passkey'
 import { useConfigStore } from '../stores/config'
 
 const message = useMessage()
@@ -596,6 +705,12 @@ async function changeCloudflareAccount(event: Event) {
   } finally {
     selectingAccount.value = false
   }
+}
+
+// 通行密钥时间戳为 Unix 秒。
+function formatPasskeyDate(seconds: number) {
+  if (!seconds) return '—'
+  return new Date(seconds * 1000).toLocaleString()
 }
 
 function formatOAuthExpiry(value: string) {
@@ -949,6 +1064,122 @@ async function savePassword() {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// 通行密钥
+
+const passkeys = ref<PasskeySettings>({
+  passkeys: [],
+  password_login_disabled: false,
+  password_login_disabled_globally: false,
+  rp_id: '',
+  origin: '',
+  available: false,
+})
+const passkeyLoading = ref(false)
+const passkeyBusy = ref(false)
+const passkeyName = ref('')
+const passkeyPassword = ref('')
+
+const passkeyStamp = computed(() => {
+  if (!passkeys.value.available) return { label: '不可用', tone: 'neutral' }
+  if (!passkeys.value.passkeys.length) return { label: '未绑定', tone: 'neutral' }
+  return { label: '已绑定 ' + passkeys.value.passkeys.length + ' 个', tone: 'success' }
+})
+
+async function loadPasskeys() {
+  passkeyLoading.value = true
+  try {
+    const { data } = await getPasskeySettings()
+    if (disposed) return
+    passkeys.value = data
+  } catch (error: any) {
+    if (!disposed) message.error(apiError(error, '读取通行密钥失败'))
+  } finally {
+    if (!disposed) passkeyLoading.value = false
+  }
+}
+
+async function addPasskey() {
+  if (passkeyBusy.value) return
+  if (!browserSupportsWebAuthn()) {
+    message.error('当前浏览器不支持通行密钥')
+    return
+  }
+  passkeyBusy.value = true
+  try {
+    const { data } = await beginPasskeyRegistration(passkeyPassword.value)
+    const credential = await startRegistration({ optionsJSON: data.public_key })
+    await finishPasskeyRegistration({
+      ceremony_token: data.ceremony_token,
+      name: passkeyName.value.trim(),
+      credential,
+    })
+    passkeyName.value = ''
+    message.success('通行密钥已绑定')
+    await loadPasskeys()
+  } catch (error: any) {
+    if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') message.warning('已取消通行密钥绑定')
+    else message.error(apiError(error, '绑定通行密钥失败'))
+  } finally {
+    passkeyBusy.value = false
+  }
+}
+
+function renamePasskeyEntry(item: PasskeyView) {
+  const name = window.prompt('通行密钥名称', item.name)
+  if (!name || name.trim() === item.name) return
+  void (async () => {
+    try {
+      await renamePasskey(item.id, name.trim())
+      message.success('名称已更新')
+      await loadPasskeys()
+    } catch (error: any) {
+      message.error(apiError(error, '重命名失败'))
+    }
+  })()
+}
+
+function removePasskeyEntry(item: PasskeyView) {
+  if (!passkeyPassword.value) {
+    message.warning('请先填写当前密码')
+    return
+  }
+  dialog.warning({
+    title: '删除通行密钥',
+    content: '确定删除「' + item.name + '」？删除后该设备将无法再用于登录。',
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deletePasskey(item.id, passkeyPassword.value)
+        message.success('通行密钥已删除')
+        await loadPasskeys()
+      } catch (error: any) {
+        message.error(apiError(error, '删除失败'))
+      }
+    },
+  })
+}
+
+async function togglePasswordLogin() {
+  if (!passkeyPassword.value) {
+    message.warning('请先填写当前密码')
+    return
+  }
+  const disabled = !passkeys.value.password_login_disabled
+  passkeyBusy.value = true
+  try {
+    const { data } = await setPasswordLoginDisabled(disabled, passkeyPassword.value)
+    passkeys.value = data
+    message.success(disabled ? '已禁用密码登录，请使用通行密钥登录' : '已恢复密码登录')
+  } catch (error: any) {
+    message.error(apiError(error, '操作失败'))
+  } finally {
+    passkeyBusy.value = false
+  }
+}
+
 onMounted(async () => {
   nickname.value = store.nickname || ''
   newEmail.value = ''
@@ -962,6 +1193,7 @@ onMounted(async () => {
   })
   void loadTwoFactorStatus()
   void loadCloudflareStatus()
+  void loadPasskeys()
   void handleCloudflareOAuthResult()
 })
 
@@ -1445,4 +1677,19 @@ onBeforeUnmount(() => {
   border: 1px solid currentColor;
 }
 .connection-actions { display: flex; gap: 4px; }
+.passkey-list { list-style: none; margin: 0 0 var(--spacing-md); padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.passkey-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
+.passkey-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.passkey-name { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--color-ink); }
+.passkey-meta { font-size: 12px; color: var(--color-mute); }
+.passkey-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.passkey-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: var(--spacing-sm) 0; border-top: 1px dashed var(--color-hairline); }
+.passkey-form .field { display: flex; flex-direction: column; gap: 4px; }
+.passkey-form .vercel-input { min-width: 200px; }
+.passkey-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: var(--spacing-sm); border-top: 1px dashed var(--color-hairline); }
+.passkey-switch strong { font-size: 13px; color: var(--color-ink); }
+.passkey-switch p { margin: 2px 0 0; font-size: 12px; color: var(--color-mute); }
+@media (max-width: 640px) {
+  .passkey-row, .passkey-switch { flex-direction: column; align-items: flex-start; }
+}
 </style>

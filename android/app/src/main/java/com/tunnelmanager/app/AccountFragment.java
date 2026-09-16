@@ -78,6 +78,12 @@ public class AccountFragment extends PageFragment {
     private List<String> recoveryCodes = new ArrayList<>();
     private String tfNotice = "";
 
+    /** /api/account/passkeys: bound credentials, relying party and the switch. */
+    private JSONObject pk = new JSONObject();
+    private EditText pkNameInput;
+    private EditText pkPasswordInput;
+    private boolean pkBusy = false;
+
     private boolean loading = true;
     private boolean busy = false;
     private String statusMessage = "";
@@ -121,6 +127,10 @@ public class AccountFragment extends PageFragment {
             } catch (Api.Failure failure) {
                 payload.put("cf_error", failure.getMessage());
             }
+            try {
+                payload.put("pk", Api.get("/api/account/passkeys"));
+            } catch (Api.Failure ignored) {
+            }
             return payload;
         }, payload -> {
             loading = false;
@@ -128,6 +138,7 @@ public class AccountFragment extends PageFragment {
             tf = payload.optJSONObject("tf") == null ? new JSONObject() : payload.optJSONObject("tf");
             cf = payload.optJSONObject("cf") == null ? new JSONObject() : payload.optJSONObject("cf");
             cfError = payload.optString("cf_error", "");
+            pk = payload.optJSONObject("pk") == null ? new JSONObject() : payload.optJSONObject("pk");
             Session.applyConfig(me);
             nicknameDraft = me.optString("nickname", "");
             avatarUrl = me.optString("avatar", "");
@@ -179,6 +190,8 @@ public class AccountFragment extends PageFragment {
         body.addView(emailCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(twoFactorCard());
+        body.addView(UI.spacer(requireContext(), UI.MD));
+        body.addView(passkeyCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(cloudflareCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
@@ -995,6 +1008,312 @@ public class AccountFragment extends PageFragment {
             statusOk = false;
             render();
         });
+    }
+
+    // -------------------------------------------------------------- passkeys
+
+    /**
+     * Passkeys: bind, rename and remove credentials, and switch password sign-in
+     * off for this account.
+     *
+     * The panel resolves the relying party, so this card only reports what it
+     * answers and hides the actions when the domain cannot run WebAuthn at all
+     * (a bare IP address or a plain http origin, for instance).
+     */
+    private View passkeyCard() {
+        Context ctx = requireContext();
+        LinearLayout card = card("通行密钥", "用指纹、面容或安全硬件密钥登录，不必输入密码；绑定后还可以关闭本账户的密码登录。");
+
+        if (!Passkey.supported()) {
+            card.addView(UI.banner(ctx, "本机 Android 版本过低（需 Android 9 及以上），无法使用通行密钥。", true));
+            return card;
+        }
+        if (!pk.optBoolean("available", false)) {
+            card.addView(UI.banner(ctx,
+                    "当前域名无法使用通行密钥：通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在管理后台「系统设置 → 通行密钥」配置。", true));
+            return card;
+        }
+
+        JSONArray list = pk.optJSONArray("passkeys");
+        if (list == null || list.length() == 0) {
+            card.addView(UI.muted(ctx, "尚未绑定通行密钥。依赖方：" + pk.optString("rp_id", "—")));
+        } else {
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject item = list.optJSONObject(i);
+                if (item == null) continue;
+                if (i > 0) card.addView(UI.divider(ctx));
+                card.addView(passkeyRow(item));
+            }
+        }
+
+        pkNameInput = UI.input(ctx, "名称，如 MacBook 指纹");
+        card.addView(UI.field(ctx, "新通行密钥名称", pkNameInput, UI.MD));
+        pkPasswordInput = UI.input(ctx, "当前密码");
+        pkPasswordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        card.addView(UI.field(ctx, "当前密码", pkPasswordInput, UI.SM));
+        card.addView(UI.muted(ctx, "添加、删除通行密钥或切换密码登录都需要验证当前密码。"));
+
+        TextView add = UI.button(ctx, pkBusy ? "处理中…" : "添加通行密钥", UI.BTN_PRIMARY);
+        add.setEnabled(!pkBusy);
+        add.setOnClickListener(v -> addPasskey());
+        UI.margin(add, 0, UI.MD, 0, 0);
+        card.addView(add);
+
+        card.addView(UI.divider(ctx));
+
+        boolean off = pk.optBoolean("password_login_disabled", false);
+        LinearLayout switchRow = UI.row(ctx);
+        switchRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout copy = UI.column(ctx);
+        copy.addView(UI.strong(ctx, "禁用密码登录"));
+        TextView hint = UI.muted(ctx, off
+                ? "本账户只能用通行密钥登录，请保留至少一个可用的通行密钥。"
+                : "开启后本账户只能用通行密钥登录。");
+        UI.margin(hint, 0, 2, 0, 0);
+        copy.addView(hint);
+        if (pk.optBoolean("password_login_disabled_globally", false)) {
+            TextView global = UI.muted(ctx, "面板已全局禁用密码登录，所有账户都必须使用通行密钥。");
+            UI.margin(global, 0, 2, 0, 0);
+            copy.addView(global);
+        }
+        UI.weight(copy, 1f);
+        switchRow.addView(copy);
+
+        TextView toggle = UI.button(ctx, off ? "恢复密码登录" : "禁用密码登录",
+                off ? UI.BTN_SECONDARY : UI.BTN_DANGER);
+        toggle.setEnabled(!pkBusy);
+        toggle.setOnClickListener(v -> togglePasswordLogin());
+        switchRow.addView(toggle);
+        UI.margin(switchRow, 0, UI.MD, 0, 0);
+        card.addView(switchRow);
+
+        return card;
+    }
+
+    private View passkeyRow(JSONObject item) {
+        Context ctx = requireContext();
+        LinearLayout row = UI.row(ctx);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout info = UI.column(ctx);
+        LinearLayout nameRow = UI.row(ctx);
+        nameRow.setGravity(Gravity.CENTER_VERTICAL);
+        nameRow.addView(UI.strong(ctx, item.optString("name", "通行密钥")));
+        if (item.optBoolean("backup_eligible", false)) {
+            TextView tag = UI.tag(ctx, item.optBoolean("backup_state", false) ? "已同步" : "可同步", true);
+            UI.margin(tag, UI.SM, 0, 0, 0);
+            nameRow.addView(tag);
+        }
+        info.addView(nameRow);
+        info.addView(UI.muted(ctx, passkeyMeta(item)));
+        UI.weight(info, 1f);
+        row.addView(info);
+
+        TextView rename = UI.button(ctx, "重命名", UI.BTN_GHOST);
+        rename.setEnabled(!pkBusy);
+        rename.setOnClickListener(v -> renamePasskey(item));
+        row.addView(rename);
+
+        TextView remove = UI.button(ctx, "删除", UI.BTN_GHOST);
+        remove.setTextColor(Theme.p().error);
+        remove.setEnabled(!pkBusy);
+        remove.setOnClickListener(v -> confirmRemovePasskey(item));
+        UI.margin(remove, UI.XS, 0, 0, 0);
+        row.addView(remove);
+
+        return row;
+    }
+
+    /** "添加于 … · 最近使用 …", in the console's local time. */
+    private String passkeyMeta(JSONObject item) {
+        StringBuilder meta = new StringBuilder("添加于 ").append(stamp(item.optLong("created_at", 0)));
+        long used = item.optLong("last_used_at", 0);
+        if (used > 0) meta.append(" · 最近使用 ").append(stamp(used));
+        return meta.toString();
+    }
+
+    private static String stamp(long seconds) {
+        if (seconds <= 0) return "—";
+        java.text.DateFormat format = java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.SHORT, java.text.DateFormat.SHORT);
+        return format.format(new java.util.Date(seconds * 1000L));
+    }
+
+    private void addPasskey() {
+        String password = pkPassword();
+        if (password.isEmpty()) {
+            statusMessage = "请先填写当前密码";
+            statusOk = false;
+            render();
+            return;
+        }
+        final String name = pkNameInput == null ? "" : pkNameInput.getText().toString().trim();
+        pkBusy = true;
+        statusMessage = "";
+        render();
+        Api.async(() -> {
+            JSONObject body = new JSONObject();
+            body.put("password", password);
+            return Api.post("/api/account/passkeys/begin", body);
+        }, begin -> Passkey.register(requireContext(), begin.optJSONObject("public_key"), new Passkey.Callback() {
+            @Override
+            public void onResult(JSONObject credential) {
+                finishAddPasskey(begin.optString("ceremony_token", ""), name, credential);
+            }
+
+            @Override
+            public void onError(Exception error) {
+                pkBusy = false;
+                statusMessage = error.getMessage();
+                statusOk = false;
+                render();
+            }
+        }), failure -> {
+            pkBusy = false;
+            statusMessage = "绑定失败：" + failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private void finishAddPasskey(String ceremonyToken, String name, JSONObject credential) {
+        Api.async(() -> {
+            JSONObject body = new JSONObject();
+            body.put("ceremony_token", ceremonyToken);
+            body.put("name", name);
+            body.put("credential", credential);
+            return Api.post("/api/account/passkeys/finish", body);
+        }, payload -> {
+            pkBusy = false;
+            statusMessage = "通行密钥已绑定";
+            statusOk = true;
+            reloadPasskeys();
+        }, failure -> {
+            pkBusy = false;
+            statusMessage = "绑定失败：" + failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private void renamePasskey(JSONObject item) {
+        final String id = item.optString("id", "");
+        EditText input = UI.input(requireContext(), "通行密钥名称");
+        input.setText(item.optString("name", ""));
+        Modal.of(requireContext(), "重命名通行密钥")
+                .content(input)
+                .cancel("取消")
+                .confirm("保存", false, () -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) return;
+                    pkBusy = true;
+                    render();
+                    Api.async(() -> {
+                        JSONObject body = new JSONObject();
+                        body.put("name", name);
+                        return Api.put("/api/account/passkeys/" + id, body);
+                    }, payload -> {
+                        pkBusy = false;
+                        statusMessage = "名称已更新";
+                        statusOk = true;
+                        reloadPasskeys();
+                    }, failure -> {
+                        pkBusy = false;
+                        statusMessage = "重命名失败：" + failure.getMessage();
+                        statusOk = false;
+                        render();
+                    });
+                })
+                .show();
+    }
+
+    private void confirmRemovePasskey(JSONObject item) {
+        Modal.of(requireContext(), "删除通行密钥")
+                .message("确定删除「" + item.optString("name", "通行密钥") + "」？删除后该设备将无法再用于登录。")
+                .cancel("取消")
+                .confirm("删除", true, () -> removePasskey(item.optString("id", "")))
+                .show();
+    }
+
+    private void removePasskey(String id) {
+        String password = pkPassword();
+        if (password.isEmpty()) {
+            statusMessage = "请先填写当前密码";
+            statusOk = false;
+            render();
+            return;
+        }
+        pkBusy = true;
+        statusMessage = "";
+        render();
+        Api.async(() -> {
+            JSONObject body = new JSONObject();
+            body.put("password", password);
+            return Api.delete("/api/account/passkeys/" + id, body);
+        }, payload -> {
+            pkBusy = false;
+            statusMessage = "通行密钥已删除";
+            statusOk = true;
+            reloadPasskeys();
+        }, failure -> {
+            pkBusy = false;
+            statusMessage = failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private void togglePasswordLogin() {
+        String password = pkPassword();
+        if (password.isEmpty()) {
+            statusMessage = "请先填写当前密码";
+            statusOk = false;
+            render();
+            return;
+        }
+        final boolean disabled = !pk.optBoolean("password_login_disabled", false);
+        pkBusy = true;
+        statusMessage = "";
+        render();
+        Api.async(() -> {
+            JSONObject body = new JSONObject();
+            body.put("disabled", disabled);
+            body.put("password", password);
+            return Api.put("/api/account/password-login", body);
+        }, payload -> {
+            pkBusy = false;
+            pk = payload;
+            statusMessage = disabled ? "已禁用密码登录，请使用通行密钥登录" : "已恢复密码登录";
+            statusOk = true;
+            pkPasswordInput = null;
+            render();
+        }, failure -> {
+            pkBusy = false;
+            statusMessage = failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private void reloadPasskeys() {
+        pkBusy = true;
+        render();
+        Api.async(() -> Api.get("/api/account/passkeys"), payload -> {
+            pkBusy = false;
+            pk = payload;
+            pkPasswordInput = null;
+            pkNameInput = null;
+            render();
+        }, failure -> {
+            pkBusy = false;
+            statusMessage = "读取通行密钥失败：" + failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private String pkPassword() {
+        return pkPasswordInput == null ? "" : pkPasswordInput.getText().toString();
     }
 
     /**

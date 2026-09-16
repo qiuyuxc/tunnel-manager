@@ -27,6 +27,40 @@ const (
 type AuthHandler struct {
 	store         *store.Store
 	encryptionKey []byte
+	// throttle rate-limits the unauthenticated endpoints below. Nil disables
+	// the limit, which is what tests unrelated to throttling want.
+	throttle *Throttle
+}
+
+// SetThrottle wires the sign-in rate limiter.
+func (h *AuthHandler) SetThrottle(t *Throttle) {
+	h.throttle = t
+}
+
+// guardAuth applies the rate limit to one unauthenticated request.
+//
+// key identifies what the request is aimed at — an email address, usually —
+// so one mailbox cannot be bombed, while the address budget covers a caller
+// working through a list of them. Unlike sign-in there is no account to
+// relax for: nothing here proves who the caller is.
+func (h *AuthHandler) guardAuth(w http.ResponseWriter, r *http.Request, key string) bool {
+	if h.throttle == nil {
+		return true
+	}
+	if ok, wait := h.throttle.Guard(r, key, ""); !ok {
+		writeTooManyAttempts(w, wait)
+		return false
+	}
+	return true
+}
+
+// chargeAuth books one request against the same budgets. Every request that
+// gets past the guard is charged: for these endpoints the request itself is
+// the cost, whether it ends in a sent code, a new account or an error.
+func (h *AuthHandler) chargeAuth(r *http.Request, key string) {
+	if h.throttle != nil {
+		h.throttle.Fail(r, key, "")
+	}
 }
 
 // NewAuthHandler creates the registration handler.
@@ -84,6 +118,10 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
 		return
 	}
+	if !h.guardAuth(w, r, email) {
+		return
+	}
+	h.chargeAuth(r, email)
 	mailer := h.mailer()
 	if mailer == nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮件服务未配置，请联系管理员"})
@@ -138,6 +176,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
 		return
 	}
+	if !h.guardAuth(w, r, req.Email) {
+		return
+	}
+	h.chargeAuth(r, req.Email)
 	if len(req.Password) < 6 || len(req.Password) > maxPasswordLength {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "密码长度需在 6-1024 位之间"})
 		return
@@ -325,6 +367,10 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
 		return
 	}
+	if !h.guardAuth(w, r, email) {
+		return
+	}
+	h.chargeAuth(r, email)
 	mailer := h.mailer()
 	if mailer == nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮件服务未配置，请联系管理员通过后台重置密码"})
@@ -372,6 +418,10 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
 		return
 	}
+	if !h.guardAuth(w, r, email) {
+		return
+	}
+	h.chargeAuth(r, email)
 	if len(req.NewPassword) < 6 || len(req.NewPassword) > maxPasswordLength {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "密码长度需在 6-1024 位之间"})
 		return

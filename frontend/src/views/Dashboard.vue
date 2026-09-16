@@ -88,8 +88,13 @@
               v-for="b in ov.buckets"
               :key="b.hour"
               class="bar-col"
-              :class="['h-' + bucketHealth(b), { 'is-empty': !b.total }]"
+              :class="['h-' + bucketHealth(b), { 'is-empty': !b.total, 'is-clickable': b.total }]"
               :title="bucketTitle(b)"
+              :role="b.total ? 'button' : undefined"
+              :tabindex="b.total ? 0 : undefined"
+              @click="openDetail(b)"
+              @keydown.enter.prevent="openDetail(b)"
+              @keydown.space.prevent="openDetail(b)"
             >
               <div class="col-inner">
                 <div class="bar-peak" :style="{ height: pctH(b.peak_ms) }"></div>
@@ -153,12 +158,60 @@
         </router-link>
       </div>
     </div>
+
+    <!-- 柱子点开后的当日明细：概览的柱子把所有目标汇总成一根，这里补上是谁 -->
+    <SheetPanel :open="detailOpen" :title="detailTitle" @close="detailOpen = false">
+      <template v-if="detail">
+        <div class="detail-stats">
+          <span>检测 {{ detail.total }} 次</span>
+          <span v-if="detail.warn" class="warnc">异常 {{ detail.warn }}</span>
+          <span v-if="detail.down" class="downc">不可达 {{ detail.down }}</span>
+          <span v-if="detail.peak_ms">峰值 {{ detail.peak_ms }}ms</span>
+          <span v-if="detail.avg_ms">平均 {{ Math.round(detail.avg_ms) }}ms</span>
+        </div>
+
+        <div v-if="!detailIssues.length" class="detail-empty">这一天没有出现异常。</div>
+
+        <template v-else>
+          <div class="group-label">涉及 {{ detailIssues.length }} 个目标</div>
+          <router-link
+            v-for="issue in detailIssues"
+            :key="issue.monitor_id + '/' + issue.target_id"
+            class="issue-row"
+            :to="'/monitors/' + issue.monitor_id"
+            @click="detailOpen = false"
+          >
+            <div class="issue-head">
+              <span class="issue-name">{{ issue.monitor_name }} · {{ issue.target_name }}</span>
+              <span class="issue-chevron" v-html="navIcons.chevron" />
+            </div>
+            <div class="issue-meta">
+              <span v-if="issue.down" class="downc">不可达 {{ issue.down }}</span>
+              <span v-if="issue.warn" class="warnc">异常 {{ issue.warn }}</span>
+              <span v-if="issue.peak_ms">峰值 {{ issue.peak_ms }}ms</span>
+            </div>
+            <div v-for="(inc, i) in issue.incidents" :key="i" class="incident">
+              <span class="incident-time">{{ incidentRange(inc) }}</span>
+              <span :class="inc.state === 'down' ? 'downc' : 'warnc'">
+                {{ inc.state === 'down' ? '不可达' : '降级' }}
+              </span>
+              <span v-if="incidentDetail(inc)" class="incident-cause">{{ incidentDetail(inc) }}</span>
+            </div>
+            <div v-if="issue.incident_count > issue.incidents.length" class="incident-more">
+              另有 {{ issue.incident_count - issue.incidents.length }} 段未列出
+            </div>
+          </router-link>
+        </template>
+      </template>
+    </SheetPanel>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { getMonitorOverview, type BucketStat, type OverviewResp } from '../api'
+import { getMonitorOverview, type BucketIncident, type BucketStat, type OverviewResp } from '../api'
+import { icons as navIcons } from '../navigation'
+import SheetPanel from '../components/SheetPanel.vue'
 import { useConfigStore } from '../stores/config'
 
 const configStore = useConfigStore()
@@ -222,6 +275,42 @@ function bucketTitle(b: BucketStat) {
   ].filter(Boolean).join(' · ')
 }
 
+// ------------------------------------------------------- chart drill-down
+
+const detail = ref<BucketStat | null>(null)
+const detailOpen = ref(false)
+
+const detailIssues = computed(() => detail.value?.issues ?? [])
+const detailTitle = computed(() => (detail.value ? bucketLabel(detail.value.hour) + ' 的问题' : ''))
+
+/** An empty day has nothing to drill into, so it stays inert. */
+function openDetail(b: BucketStat) {
+  if (!b.total) return
+  detail.value = b
+  detailOpen.value = true
+}
+
+function clock(sec: number) {
+  const d = new Date(sec * 1000)
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+}
+
+/** A single-sample window would read as "09:05–09:05"; collapse it. */
+function incidentRange(inc: BucketIncident) {
+  const from = clock(inc.from)
+  const to = clock(inc.to)
+  return from === to ? from : from + '–' + to
+}
+
+/** The probe's own message is more specific than the bare status code. */
+function incidentDetail(inc: BucketIncident) {
+  const bits: string[] = []
+  if (inc.count > 1) bits.push('连续 ' + inc.count + ' 次')
+  const cause = inc.error || (inc.code ? 'HTTP ' + inc.code : '')
+  if (cause) bits.push(cause)
+  return bits.join(' · ')
+}
+
 onMounted(async () => {
   await configStore.fetchConfig()
   await loadOverview()
@@ -266,6 +355,28 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 /* The label is centred on its own tick and allowed to bleed past the column,
    so a narrow track never clips it into "1…". */
 .bar-label { margin-top: 8px; text-align: center; font-size: 11px; color: var(--color-body); white-space: nowrap; }
+.bar-col.is-clickable { cursor: pointer; }
+.bar-col.is-clickable:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; border-radius: 4px; }
+.bar-col.is-clickable:active { opacity: .7; }
+
+/* Chart drill-down (inside SheetPanel) */
+.detail-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 12px 10px 4px; font-size: 12px; color: var(--color-body); }
+.detail-empty { padding: 10px; font-size: 13px; color: var(--color-mute); }
+
+.group-label { padding: 14px 10px 5px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-mute); }
+
+.issue-row { display: block; padding: 12px 10px; border: 1px solid var(--color-hairline); border-radius: 10px; color: inherit; text-decoration: none; }
+.issue-row + .issue-row { margin-top: 8px; }
+.issue-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.issue-name { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.issue-chevron { flex: 0 0 auto; color: var(--color-mute); }
+.issue-chevron :deep(svg) { display: block; width: 14px; height: 14px; }
+.issue-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; font-size: 11px; color: var(--color-mute); }
+
+.incident { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--color-hairline); font-size: 11px; color: var(--color-body); }
+.incident-time { font-variant-numeric: tabular-nums; color: var(--color-ink); }
+.incident-cause { color: var(--color-mute); }
+.incident-more { margin-top: 6px; font-size: 11px; color: var(--color-mute); }
 
 .legend { display: flex; justify-content: flex-end; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--color-mute); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }

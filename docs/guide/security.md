@@ -44,6 +44,12 @@ docker compose exec tunnel-manager ./tunnel-manager --set-password=新密码
 
 Turnstile Secret 通过 `APP_ENCRYPTION_KEY` 以 AES-GCM 加密存储，接口响应不会返回密钥本身。
 
+## 登录限流
+
+密码登录、两步验证、通行密钥登录、注册、邮箱验证码、找回与重置密码都受登录限流保护。同一账号或同一来源 IP 的失败次数超出额度后会暂时拒绝请求，返回 `429` 与 `Retry-After`（秒），响应体带 `retry_after` 与提示文案；登录成功会清空该账号的失败计数。
+
+登录成功过的网段视为常用网段，额度更宽。数值、开关与触发时的管理员通知都在 **管理后台 → 设置 → 登录保护** 配置。被限流的尝试写入审计日志（操作类型 `login_throttled`）。
+
 ## `APP_ENCRYPTION_KEY` 备份清单
 
 该密钥同时保护以下数据，必须与 `data/` 目录一起备份：

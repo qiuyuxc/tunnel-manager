@@ -315,6 +315,10 @@ type TwoFactorChallengeResponse struct {
 	TwoFactorRequired bool      `json:"two_factor_required"`
 	ChallengeToken    string    `json:"challenge_token"`
 	ExpiresAt         time.Time `json:"expires_at"`
+	// PasskeysAvailable reports whether the account can complete this step with
+	// a passkey instead of a TOTP code, so the client only offers the choice
+	// when it can actually succeed.
+	PasskeysAvailable bool `json:"passkeys_available,omitempty"`
 }
 
 // TwoFactorLoginRequest completes a challenged login.

@@ -46,6 +46,43 @@ func (n *Notifier) NotifyLogin(userID, username, remoteIP string) {
 	go n.deliver(prefs, "Tunnel Manager 登录通知", text, htmlBody)
 }
 
+// NotifyLockout tells the administrators that an account just spent its
+// sign-in budget.
+//
+// It goes to every active administrator rather than to the account that was
+// attacked: the owner may be the one guessing, and the operator is the one
+// who can act on it. Delivery reuses each administrator's own channels and
+// the existing login switch, so a panel with notifications off stays quiet.
+func (n *Notifier) NotifyLockout(username, remoteIP string, retryAfter time.Duration) {
+	if n == nil {
+		return
+	}
+	limits := n.store.GetAppSettings().RateLimits()
+	text, htmlBody := LockoutNotifyEmail(username, time.Now().Format("2006-01-02 15:04:05"), remoteIP, humanizeWait(retryAfter), limits.PerAccount)
+	for _, admin := range n.store.ListUsers() {
+		if admin.Role != models.RoleAdmin {
+			continue
+		}
+		prefs := n.store.GetUserPrefs(admin.ID)
+		if len(prefs.NotifyChannels) == 0 || !prefs.NotifyEvents[models.NotifyEventLogin] {
+			continue
+		}
+		go n.deliver(prefs, "Tunnel Manager 登录保护告警", text, htmlBody)
+	}
+}
+
+// humanizeWait phrases a lockout the way a person would say it.
+func humanizeWait(d time.Duration) string {
+	seconds := int(d.Seconds() + 0.5)
+	if seconds < 60 {
+		if seconds < 1 {
+			seconds = 1
+		}
+		return fmt.Sprintf("%d 秒", seconds)
+	}
+	return fmt.Sprintf("%d 分钟", (seconds+59)/60)
+}
+
 // SendTest delivers a test message through the account's current channels.
 func (n *Notifier) SendTest(userID string) error {
 	if n == nil {

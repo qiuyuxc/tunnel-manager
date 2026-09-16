@@ -217,6 +217,59 @@ const schemaV12 = `ALTER TABLE user_prefs ADD COLUMN tg_remote_mode TEXT NOT NUL
 ALTER TABLE user_prefs ADD COLUMN tg_webhook_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE user_prefs ADD COLUMN tg_webhook_secret TEXT NOT NULL DEFAULT '';`
 
+// schemaV13 adds the administrator audit trail: one append-only row per
+// mutating operation, filterable by account, action and time range.
+const schemaV13 = `CREATE TABLE audit_logs (
+	id         INTEGER PRIMARY KEY AUTOINCREMENT,
+	created_at INTEGER NOT NULL DEFAULT 0,
+	actor_id   TEXT NOT NULL DEFAULT '',
+	actor_name TEXT NOT NULL DEFAULT '',
+	category   TEXT NOT NULL DEFAULT '',
+	action     TEXT NOT NULL DEFAULT '',
+	target     TEXT NOT NULL DEFAULT '',
+	ip         TEXT NOT NULL DEFAULT '',
+	success    INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX idx_audit_logs_created ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_id, created_at);
+CREATE INDEX idx_audit_logs_action ON audit_logs(category, action, created_at);
+`
+
+// schemaV14 adds passkeys (WebAuthn credentials) and the per-account
+// password-login switch. The passkeys table deliberately carries no foreign key
+// to users: saveLocked rewrites the whole users table (DELETE + INSERT) on every
+// configuration change, which would cascade-delete every bound credential.
+const schemaV14 = `CREATE TABLE passkeys (
+	id           TEXT PRIMARY KEY,
+	user_id      TEXT NOT NULL,
+	name         TEXT NOT NULL DEFAULT '',
+	credential   TEXT NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL DEFAULT 0,
+	last_used_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_passkeys_user ON passkeys(user_id);
+
+ALTER TABLE users ADD COLUMN password_login_disabled INTEGER NOT NULL DEFAULT 0;
+`
+
+// schemaV15 records the networks each account has signed in from, so a later
+// attempt from the same neighbourhood can be told apart from one that is not.
+// Like passkeys it carries no foreign key to users: saveLocked rewrites the
+// users table wholesale, which would cascade-delete every learned network.
+const schemaV15 = `CREATE TABLE familiar_ips (
+	user_id    TEXT NOT NULL,
+	subnet     TEXT NOT NULL,
+	first_seen INTEGER NOT NULL DEFAULT 0,
+	last_seen  INTEGER NOT NULL DEFAULT 0,
+	seen_count INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, subnet)
+);
+
+CREATE INDEX idx_familiar_ips_user ON familiar_ips(user_id);
+`
+
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
@@ -230,6 +283,9 @@ var migrations = []migration{
 	{version: 10, stmts: schemaV10},
 	{version: 11, stmts: schemaV11},
 	{version: 12, stmts: schemaV12},
+	{version: 13, stmts: schemaV13},
+	{version: 14, stmts: schemaV14},
+	{version: 15, stmts: schemaV15},
 }
 
 // Open opens (creating when missing) the SQLite database at path with the

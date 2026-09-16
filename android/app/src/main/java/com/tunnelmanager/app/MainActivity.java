@@ -91,6 +91,12 @@ public class MainActivity extends Activity {
     private Button btnVerify;
     private Button btnWebLogin;
     private Button btnBackToLogin;
+    private Button btnPasskeyLogin;
+    private Button btnPasskeyVerify;
+    private static final String PASSKEY_LOGIN_LABEL = "使用通行密钥登录";
+    private static final String PASSKEY_VERIFY_LABEL = "使用通行密钥验证";
+    /** True when the challenged account has a passkey, so the 2FA step can offer it. */
+    private boolean passkeysAvailable;
     private ProgressBar progress;
     private WebView web;
     private View turnstileBox;
@@ -148,6 +154,8 @@ public class MainActivity extends Activity {
         btnVerify = findViewById(R.id.btn_verify);
         btnWebLogin = findViewById(R.id.btn_use_web_login);
         btnBackToLogin = findViewById(R.id.btn_back_to_login);
+        btnPasskeyLogin = findViewById(R.id.btn_passkey_login);
+        btnPasskeyVerify = findViewById(R.id.btn_passkey_verify);
         progress = findViewById(R.id.progress);
         web = findViewById(R.id.webview);
         turnstileBox = findViewById(R.id.turnstile_box);
@@ -164,6 +172,11 @@ public class MainActivity extends Activity {
 
         btnLogin.setOnClickListener(v -> doLogin());
         btnVerify.setOnClickListener(v -> doVerify());
+        // Passkeys need the platform credential APIs; older devices keep the
+        // password form alone.
+        btnPasskeyLogin.setVisibility(Passkey.supported() ? View.VISIBLE : View.GONE);
+        btnPasskeyLogin.setOnClickListener(v -> doPasskeyLogin());
+        btnPasskeyVerify.setOnClickListener(v -> doPasskeyVerify());
         btnWebLogin.setOnClickListener(v -> {
             unloadTurnstile();
             openConsole(true);
@@ -632,6 +645,9 @@ public class MainActivity extends Activity {
                 JSONObject o = new JSONObject(r.body);
                 if (o.optBoolean("two_factor_required", false)) {
                     challengeToken = o.optString("challenge_token", "");
+                    passkeysAvailable = o.optBoolean("passkeys_available", false);
+                    btnPasskeyVerify.setVisibility(Passkey.supported() && passkeysAvailable
+                            ? View.VISIBLE : View.GONE);
                     stepLogin.setVisibility(View.GONE);
                     stepTwoFactor.setVisibility(View.VISIBLE);
                     hide(textError2fa);
@@ -702,8 +718,176 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // -------------------------------------------------------------- passkeys
+
+    /**
+     * Signs in with a passkey instead of a password.
+     *
+     * The panel's options are handed to Credential Manager untouched, and the
+     * response it produces goes straight back to the finish endpoint, so the
+     * challenge never passes through the app.
+     */
+    private void doPasskeyLogin() {
+        final String server = normalizeServer(inputServer.getText().toString());
+        final String account = inputAccount.getText().toString().trim();
+        if (server.isEmpty()) {
+            showError(textError, "请填写服务器地址");
+            inputServer.requestFocus();
+            return;
+        }
+        hide(textError);
+        prefs.edit().putString(KEY_SERVER, server).apply();
+        setBusy(btnPasskeyLogin, true, "等待验证…");
+
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("account", account);
+                final Resp begin = postJson(server + "/api/auth/passkey/login/begin", body.toString(), null);
+                if (begin.code != 200) {
+                    ui.post(() -> {
+                        setBusy(btnPasskeyLogin, false, PASSKEY_LOGIN_LABEL);
+                        showError(textError, apiError(begin));
+                    });
+                    return;
+                }
+                final JSONObject options = new JSONObject(begin.body);
+                ui.post(() -> Passkey.authenticate(this, options.optJSONObject("public_key"),
+                        new Passkey.Callback() {
+                            @Override
+                            public void onResult(JSONObject credential) {
+                                finishPasskeyLogin(server, options.optString("ceremony_token", ""), credential);
+                            }
+
+                            @Override
+                            public void onError(Exception error) {
+                                setBusy(btnPasskeyLogin, false, PASSKEY_LOGIN_LABEL);
+                                showError(textError, error.getMessage());
+                            }
+                        }));
+            } catch (Exception e) {
+                ui.post(() -> {
+                    setBusy(btnPasskeyLogin, false, PASSKEY_LOGIN_LABEL);
+                    showError(textError, networkError(e));
+                });
+            }
+        }).start();
+    }
+
+    private void finishPasskeyLogin(final String server, final String ceremonyToken, JSONObject credential) {
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("ceremony_token", ceremonyToken);
+                body.put("credential", credential);
+                final Resp r = postJson(server + "/api/auth/passkey/login/finish", body.toString(), null);
+                ui.post(() -> {
+                    setBusy(btnPasskeyLogin, false, PASSKEY_LOGIN_LABEL);
+                    onPasskeyResponse(r, server, textError);
+                });
+            } catch (Exception e) {
+                ui.post(() -> {
+                    setBusy(btnPasskeyLogin, false, PASSKEY_LOGIN_LABEL);
+                    showError(textError, networkError(e));
+                });
+            }
+        }).start();
+    }
+
+    /** Second factor by passkey: the password step already produced the challenge. */
+    private void doPasskeyVerify() {
+        final String server = prefs.getString(KEY_SERVER, "");
+        if (challengeToken.isEmpty() || server.isEmpty()) {
+            showError(textError2fa, "验证会话已失效，请重新登录");
+            return;
+        }
+        hide(textError2fa);
+        setBusy(btnPasskeyVerify, true, "等待验证…");
+
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("challenge_token", challengeToken);
+                final Resp begin = postJson(server + "/api/admin/login/2fa/passkey/begin", body.toString(), null);
+                if (begin.code != 200) {
+                    ui.post(() -> {
+                        setBusy(btnPasskeyVerify, false, PASSKEY_VERIFY_LABEL);
+                        showError(textError2fa, apiError(begin));
+                    });
+                    return;
+                }
+                final JSONObject options = new JSONObject(begin.body);
+                ui.post(() -> Passkey.authenticate(this, options.optJSONObject("public_key"),
+                        new Passkey.Callback() {
+                            @Override
+                            public void onResult(JSONObject credential) {
+                                finishPasskeyVerify(server, options.optString("ceremony_token", ""), credential);
+                            }
+
+                            @Override
+                            public void onError(Exception error) {
+                                setBusy(btnPasskeyVerify, false, PASSKEY_VERIFY_LABEL);
+                                showError(textError2fa, error.getMessage());
+                            }
+                        }));
+            } catch (Exception e) {
+                ui.post(() -> {
+                    setBusy(btnPasskeyVerify, false, PASSKEY_VERIFY_LABEL);
+                    showError(textError2fa, networkError(e));
+                });
+            }
+        }).start();
+    }
+
+    private void finishPasskeyVerify(final String server, final String ceremonyToken, JSONObject credential) {
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("challenge_token", challengeToken);
+                body.put("ceremony_token", ceremonyToken);
+                body.put("credential", credential);
+                final Resp r = postJson(server + "/api/admin/login/2fa/passkey/finish", body.toString(), null);
+                ui.post(() -> {
+                    setBusy(btnPasskeyVerify, false, PASSKEY_VERIFY_LABEL);
+                    onPasskeyResponse(r, server, textError2fa);
+                });
+            } catch (Exception e) {
+                ui.post(() -> {
+                    setBusy(btnPasskeyVerify, false, PASSKEY_VERIFY_LABEL);
+                    showError(textError2fa, networkError(e));
+                });
+            }
+        }).start();
+    }
+
+    /** Both passkey paths land here: the finish call returns the session. */
+    private void onPasskeyResponse(Resp r, String server, TextView errorView) {
+        if (r.code != 200) {
+            showError(errorView, apiError(r));
+            return;
+        }
+        try {
+            JSONObject o = new JSONObject(r.body);
+            prefs.edit()
+                    .putString(KEY_SERVER, server)
+                    .putString(KEY_TOKEN, o.optString("token", ""))
+                    .putString(KEY_USERNAME, o.optString("username", ""))
+                    .putString(KEY_ROLE, o.optString("role", ""))
+                    .apply();
+        } catch (Exception e) {
+            showError(errorView, "响应解析失败");
+            return;
+        }
+        challengeToken = "";
+        inputPassword.setText("");
+        inputCode.setText("");
+        launchConsole();
+    }
+
     private void backToLogin() {
         challengeToken = "";
+        passkeysAvailable = false;
+        btnPasskeyVerify.setVisibility(View.GONE);
         stepTwoFactor.setVisibility(View.GONE);
         stepLogin.setVisibility(View.VISIBLE);
         hide(textError);
