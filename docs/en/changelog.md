@@ -2,6 +2,19 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.6.0
+
+- The native Android interface adopts graphite and mint colors, with updated sign-in, panels, buttons and floating navigation, while keeping light/dark themes and reduced effects
+- The More menu adds an account summary and a network tool grid, including a direct batch-binding entry; role and permission checks still apply
+- Tunnel lists gain name/ID search and counted status filters for healthy, degraded, offline, inactive and unknown states; routes and destructive actions are grouped separately in details
+- Global creation, the tunnel list and empty states share a creation sheet with a fixed submit area, duplicate-submit protection, and run-command, token and warning feedback
+- Monitor lists show actual seven-day uptime and per-service history; details let users switch services to inspect response trends, with real sample times and gaps rather than invented healthy segments
+- Adding/editing services, check intervals and public status pages move into separate sheets with draft and submission feedback; removing a service or project requires confirmation
+- About gains an updated brand header and release notes, and displays the installed app version, build number and server version separately; the Android package is now 2.6.0, build 260
+- The backend can store its state in PostgreSQL: set `DATABASE_URL` to move off the default SQLite file, with tables and migrations created on startup and `DATA_DIR` naming the upload and heartbeat directory. Adds the `github.com/jackc/pgx/v5` dependency; deployment and backup documentation updated
+- A web install wizard replaces the startup banner: until an account exists the panel serves only the setup page, where you pick SQLite or PostgreSQL (the connection is tested first and accepts a host name or a Unix socket directory) and type the administrator name and password; the service restarts into the sign-in page when it finishes
+- No default administrator password is generated or printed to the logs any more (it used to be `admin123` or a random password in the startup banner); `ADMIN_PASSWORD` still creates the account at boot, and `DATABASE_URL` / `STORE_PATH` still take precedence over the wizard, so container deployments are unchanged
+
 ## v2.5.0
 
 - Passkeys (WebAuthn): the account page binds fingerprints, face unlock or a hardware security key; the sign-in page accepts a passkey on its own, and an account with two-factor enabled can use one instead of a TOTP code

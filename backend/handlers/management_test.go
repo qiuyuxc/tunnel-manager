@@ -2,15 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"path/filepath"
 	"testing"
 
 	"tunnel-manager/models"
-	"tunnel-manager/store"
 )
 
 func TestUpdateAppSettingsAcceptsRoundTrippedFields(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)
 	// The GET response now carries turnstile_has_secret; PUT must accept it
 	// back verbatim instead of failing with "invalid request body".
@@ -27,7 +25,7 @@ func TestUpdateAppSettingsAcceptsRoundTrippedFields(t *testing.T) {
 }
 
 func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)
 	get := performJSON(t, h.GetAppSettings, http.MethodGet, "", "", "")
 	if get.Code != http.StatusOK {
@@ -43,7 +41,7 @@ func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
 }
 
 func TestUpdateAppSettingsRejectsMismatchedPasskeyRelyingParty(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)
 	// Renaming the relying party without moving the origins leaves a pair that
 	// fails every passkey request; the save has to be refused, not stored.
@@ -58,7 +56,7 @@ func TestUpdateAppSettingsRejectsMismatchedPasskeyRelyingParty(t *testing.T) {
 }
 
 func TestUpdateAppSettingsAcceptsMatchedPasskeyRelyingParty(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)
 	body := `{"passkey_rp_id":"m.veits.bond","passkey_origins":"https://m.veits.bond"}`
 	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", body, "")
@@ -71,7 +69,7 @@ func TestUpdateAppSettingsAcceptsMatchedPasskeyRelyingParty(t *testing.T) {
 }
 
 func TestUpdateAppSettingsRejectsEnableWithoutKeys(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)
 	body := `{"turnstile_enabled":true,"turnstile_site_key":"","turnstile_secret":""}`
 	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", body, "")

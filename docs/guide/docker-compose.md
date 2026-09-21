@@ -66,6 +66,17 @@ services:
 
 compose 会自动读取同目录下的 `.env` 文件做变量替换。把 Cloudflare 凭据、`API_KEY`、`APP_ENCRYPTION_KEY` 都写在这里（模板见 [.env.example](https://github.com/qiuyuxc/tunnel-manager/blob/main/.env.example)），不要写进 yml 提交到仓库。变量含义见[快速开始](/guide/getting-started#环境变量)。
 
+## 可选 PostgreSQL
+
+compose 文件里带一个 `postgres` 服务，默认不启动（挂在 `postgres` profile 下）。要用就一次带两个变量起来：
+
+```bash
+export DATABASE_URL="postgres://tunnel:tunnel@postgres:5432/tunnel_manager?sslmode=disable"
+docker compose --profile postgres up -d
+```
+
+数据落在 `./data/postgres`，与 SQLite 文件互不影响。换库等于全新实例：首次打开面板会进入安装引导，在这个库里创建管理员账户（容器里设置了 `ADMIN_PASSWORD` 时直接用它，不再询问）。库名、用户名和密码可以在 `postgres` 服务的环境变量里改，记得与 `DATABASE_URL` 保持一致。
+
 ## 常见修改
 
 | 想做什么 | 改哪里 |
@@ -88,9 +99,8 @@ docker compose pull && docker compose up -d
 DOCKER_BUILDKIT=1 docker compose build --no-cache
 docker compose up -d
 
-# 看日志（含初始密码）
+# 看日志
 docker compose logs -f
-docker compose logs | grep 密
 
 # 容器内执行命令（如密码重置 CLI）
 docker compose exec tunnel-manager ./tunnel-manager --reset-password

@@ -9,7 +9,6 @@ import (
 
 	"tunnel-manager/models"
 	"tunnel-manager/services"
-	"tunnel-manager/store"
 )
 
 // The dashboard chart is a week of calendar days: seven buckets, gaps included,
@@ -17,7 +16,7 @@ import (
 // which is what made the chart draw one oversized bar.
 func TestOverviewReturnsSevenDailyBuckets(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.AddMonitor(models.Monitor{
 		ID:     "monitor-1",
 		UserID: st.AdminUserID(),

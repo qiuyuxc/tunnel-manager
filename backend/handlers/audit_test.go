@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -14,7 +13,7 @@ import (
 
 func newAuditTestMiddleware(t *testing.T) (*Middleware, *store.Store) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	return &Middleware{Store: st}, st
 }
 
@@ -147,7 +146,7 @@ func TestAuditMiddlewareResolvesPathTargets(t *testing.T) {
 }
 
 func TestAuditHandlerListsAndSummarizes(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewAuditHandler(st)
 	for _, entry := range []models.AuditLog{
 		{ActorID: "u1", ActorName: "alice", Category: models.AuditCategoryUser, Action: models.AuditActionUserCreate, Target: "bob", IP: "10.0.0.1", Success: true},
@@ -186,7 +185,7 @@ func TestAuditHandlerListsAndSummarizes(t *testing.T) {
 }
 
 func TestAuditRetentionRoundTrip(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, []byte("0123456789abcdef0123456789abcdef"))
 
 	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "/api/admin/settings",

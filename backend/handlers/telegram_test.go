@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -27,7 +26,7 @@ func encryptTGToken(key []byte, token string) (string, error) {
 // the per-user bot manager; no bot is started until the test reconciles.
 func newTelegramTestHandler(t *testing.T) (*TelegramHandler, *store.Store, *services.UserTelegramManager, *services.TelegramBot, []byte) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	key := bytes.Repeat([]byte{9}, 32)
 	cf := services.NewCloudflareClient("token", "acct")
 	ds := services.NewDomainService(cf, st)

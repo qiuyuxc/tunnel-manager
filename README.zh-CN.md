@@ -47,11 +47,7 @@ cd tunnel-manager
 ./install.sh
 ```
 
-脚本会引导填写 Cloudflare OAuth 客户端或兼容的 API Token，生成管理员配置和 `APP_ENCRYPTION_KEY`，然后构建并启动服务（默认 `8080` 端口）。首次启动后获取初始密码：
-
-```bash
-docker compose logs | grep 密
-```
+脚本会引导填写 Cloudflare OAuth 客户端或兼容的 API Token，生成 `APP_ENCRYPTION_KEY`，然后构建并启动服务（默认 `8080` 端口）。首次打开面板会进入安装引导：选择 SQLite 或 PostgreSQL、测试连接，再自己设置管理员用户名与密码——密码不会打印到日志。
 
 **更简单的姿势**：
 - 拉取预编译镜像运行：见[「Docker Compose 部署详解」](https://docs.kukie.cn/guide/docker-compose)
@@ -66,7 +62,7 @@ docker compose logs | grep 密
 | 层 | 技术 |
 | --- | --- |
 | 前端 | Vue 3, TypeScript, Naive UI, Vite, Pinia |
-| 后端 | Go, chi, SQLite |
+| 后端 | Go, chi, SQLite / PostgreSQL |
 | Android App | Java, Gradle, Android SDK（API 26+） |
 | 部署 | Docker multi-stage, GitHub Actions CI |
 

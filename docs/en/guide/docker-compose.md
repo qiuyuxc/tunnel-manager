@@ -66,6 +66,17 @@ This is the path `install.sh` takes. Those three `build.args` mirrors only affec
 
 Compose reads an `.env` file from the same directory for variable substitution. Put the Cloudflare credentials, `API_KEY` and `APP_ENCRYPTION_KEY` there (template: [.env.example](https://github.com/qiuyuxc/tunnel-manager/blob/main/.env.example)) rather than committing them inside the yml. Each variable is described under [Quick start](/en/guide/getting-started#environment-variables).
 
+## Optional PostgreSQL
+
+The compose file ships a `postgres` service that stays off by default (it sits behind the `postgres` profile). Start it with both variables set:
+
+```bash
+export DATABASE_URL="postgres://tunnel:tunnel@postgres:5432/tunnel_manager?sslmode=disable"
+docker compose --profile postgres up -d
+```
+
+Its data lives in `./data/postgres` and does not touch the SQLite file. A new database means a fresh instance: the first visit to the panel runs the install wizard and creates the administrator account in it (an `ADMIN_PASSWORD` in the container skips the question). The user, password and database name can be changed on the `postgres` service as long as `DATABASE_URL` matches.
+
 ## Common adjustments
 
 | Goal | What to change |
@@ -88,9 +99,8 @@ docker compose pull && docker compose up -d
 DOCKER_BUILDKIT=1 docker compose build --no-cache
 docker compose up -d
 
-# logs, including the initial password (the banner is in Chinese)
+# logs
 docker compose logs -f
-docker compose logs | grep 密
 
 # run a command inside the container, e.g. the password-reset CLI
 docker compose exec tunnel-manager ./tunnel-manager --reset-password

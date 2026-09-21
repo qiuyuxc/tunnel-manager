@@ -16,7 +16,8 @@ docker compose up -d
 
 | 文件 / 目录 | 内容 |
 | --- | --- |
-| `config.json` | 管理员凭据（Argon2id）、隧道选择、绑定记录、监控配置、OAuth 加密令牌、Telegram 设置等全部状态 |
+| `config.db` | SQLite 数据库：管理员凭据（Argon2id）、隧道选择、绑定记录、监控配置、OAuth 加密令牌、Telegram 设置等全部状态（二进制部署默认 `tunnel-manager.db`） |
+| `setup.json` | 安装引导保存的存储配置（选用的数据库及其连接信息，权限 `600`）；由环境变量指定存储时没有这个文件，其中的数据库密码属于敏感信息 |
 | `heartbeats.json` | 服务监控的历史心跳数据（近 7 天延迟图表的来源） |
 | `uploads/` | 公开状态页图片与站点图标上传文件 |
 
@@ -35,6 +36,15 @@ tar czf tunnel-manager-backup.tar.gz data/ .env
 ```
 
 `APP_ENCRYPTION_KEY` 保存在 `.env` 中（32 字节 Base64）。请把备份文件存到运行机之外的位置。
+
+换成 PostgreSQL 时，`data/config.db` 不再承载状态，备份集相应改为数据库 + 上传目录：
+
+```bash
+pg_dump --format=custom --file=tunnel-manager.pgdump "$DATABASE_URL"
+tar czf tunnel-manager-backup.tar.gz data/uploads data/heartbeats.json .env
+```
+
+`pg_dump` 与 `APP_ENCRYPTION_KEY` 同样必须成对保存；恢复时先建库再 `pg_restore`，密钥保持原值。
 
 ## 恢复到新机器
 

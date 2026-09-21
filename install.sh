@@ -103,7 +103,7 @@ else
     read -p "CF_ACCOUNT_ID: " CF_AID
   fi
   read -p "API_KEY (可选，直接回车跳过): " API_KEY
-  read -p "ADMIN_PASSWORD (可选，直接回车随机生成): " ADMIN_PASS
+  read -p "ADMIN_PASSWORD (可选，留空则首次打开面板时在安装引导里设置): " ADMIN_PASS
   APP_ENCRYPTION_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d '\n')
 
   cat > .env <<EOF
@@ -141,11 +141,10 @@ if [ -n "$CF_OAUTH_CLIENT_ID" ]; then
 fi
 echo ""
 
-# Show password hint
+# Show the sign-in hint
 if [ -z "$ADMIN_PASS" ]; then
-  echo "  ⚠️  未设置密码，已自动生成"
-  echo "  查看日志获取初始密码:"
-  echo "    $COMPOSE logs | grep 密码"
+  echo "  🔐 首次打开面板会进入安装引导：选择数据库并设置管理员用户名与密码"
+  echo "     提示: 想在启动时就建好账户，可在 .env 里设置 ADMIN_PASSWORD"
 else
   echo "  🔑 管理员密码: $ADMIN_PASS"
 fi

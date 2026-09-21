@@ -61,12 +61,13 @@ type verifyCodeRecord struct {
 	ExpiresAt int64
 }
 
-// Store manages application state with SQLite persistence and an in-memory
+// Store manages application state with database persistence and an in-memory
 // cache. All accessor methods operate on the cache; saveLocked persists the
 // full state inside a single transaction.
 type Store struct {
 	mu               sync.RWMutex
-	filePath         string
+	dsn              string
+	dialect          db.Dialect
 	config           models.Config
 	users            []models.User
 	groups           []models.UserGroup
@@ -88,20 +89,25 @@ type Store struct {
 // settingsKey is the app_settings row holding the flat settings document.
 const settingsKey = "config"
 
-// NewStore creates a new Store backed by the SQLite database at the given
-// path. A path ending in .json is treated as a legacy configuration file:
-// the database is stored next to it with a .db extension and the JSON
+// NewStore creates a new Store backed by the database named by dsn. A
+// postgres:// URL selects a PostgreSQL server; any other value is a SQLite
+// file path. A path ending in .json is treated as a legacy configuration
+// file: the database is stored next to it with a .db extension and the JSON
 // document is imported once on first run.
-func NewStore(filePath string) *Store {
-	resolved := ResolveDBPath(filePath)
-	if dir := filepath.Dir(resolved); dir != "" {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			log.Fatalf("create store directory: %v", err)
+func NewStore(dsn string) *Store {
+	resolved := dsn
+	if !db.IsPostgresDSN(dsn) {
+		resolved = ResolveDBPath(dsn)
+		if dir := filepath.Dir(resolved); dir != "" {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				log.Fatalf("create store directory: %v", err)
+			}
 		}
 	}
 	s := &Store{
-		filePath: resolved,
-		prefs:    map[string]models.UserPrefs{},
+		dsn:     resolved,
+		dialect: db.DetectDialect(resolved),
+		prefs:   map[string]models.UserPrefs{},
 		config: models.Config{
 			PreferredCNAME: "cf.090227.xyz",
 			CNAMEPresets: []models.CNAMEPreset{
@@ -120,29 +126,26 @@ func NewStore(filePath string) *Store {
 
 // ResolveDBPath maps a legacy .json store path onto the .db database path.
 func ResolveDBPath(path string) string {
-	if strings.HasSuffix(path, ".json") {
-		return strings.TrimSuffix(path, ".json") + ".db"
-	}
-	return path
+	return db.ResolvePath(path)
 }
 
 func (s *Store) load() {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
-		log.Fatalf("open store database %s: %v", s.filePath, err)
+		log.Fatalf("open store database %s: %v", s.dsn, err)
 	}
 	defer handle.Close()
-	if err := db.Migrate(handle); err != nil {
-		log.Fatalf("migrate store database %s: %v", s.filePath, err)
+	if err := db.Migrate(handle, s.dialect); err != nil {
+		log.Fatalf("migrate store database %s: %v", s.dsn, err)
 	}
 
 	fresh, err := s.loadFromDB(handle)
 	if err != nil {
-		log.Fatalf("load store database %s: %v", s.filePath, err)
+		log.Fatalf("load store database %s: %v", s.dsn, err)
 	}
 	if !fresh {
 		s.applyDefaults(false)
-	} else if legacy := legacyJSONPath(s.filePath); legacy != "" {
+	} else if legacy := legacyJSONPath(s.dsn); legacy != "" {
 		cfg, err := readLegacyConfig(legacy)
 		if err == nil {
 			s.config = cfg
@@ -150,39 +153,21 @@ func (s *Store) load() {
 			if err := s.saveLocked(); err != nil {
 				log.Fatalf("import legacy configuration: %v", err)
 			}
-			log.Printf("已从 %s 迁移配置到 SQLite，原文件保留作备份", legacy)
+			log.Printf("已从 %s 导入配置到数据库，原文件保留作备份", legacy)
 		} else {
-			log.Printf("读取旧配置 %s 失败，按全新安装初始化: %v", legacy, err)
-			s.bootstrapAdminPassword()
+			log.Printf("读取旧配置 %s 失败，等待安装引导重新初始化: %v", legacy, err)
 		}
-	} else {
-		s.bootstrapAdminPassword()
 	}
 	s.seedUsers()
 }
 
-// bootstrapAdminPassword generates the first-run administrator password and
-// prints the banner. The account row itself is created by seedUsers.
-func (s *Store) bootstrapAdminPassword() {
-	password := os.Getenv("ADMIN_PASSWORD")
-	if password == "" {
-		password = "admin123"
-	}
-	s.config.AdminPasswordHash = hashPassword(password)
-	if err := s.saveLocked(); err != nil {
-		log.Fatalf("save initial administrator password: %v", err)
-	}
-	log.Printf("========================================")
-	log.Printf("  首次启动，已生成管理员账户：")
-	log.Printf("  用户名: %s", s.config.AdminUsername)
-	log.Printf("  密  码: %s", password)
-	log.Printf("  请登录后立即修改密码！")
-	log.Printf("========================================")
-}
-
 // legacyJSONPath returns the legacy JSON configuration to import for a
-// database path, or "" when none exists.
+// SQLite database path, or "" when none exists. A PostgreSQL DSN has no
+// neighbouring file to import from.
 func legacyJSONPath(dbPath string) string {
+	if db.IsPostgresDSN(dbPath) {
+		return ""
+	}
 	var candidates []string
 	if jsonPath := strings.TrimSuffix(dbPath, ".db") + ".json"; jsonPath != dbPath {
 		candidates = append(candidates, jsonPath)
@@ -338,7 +323,7 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 // preset and monitor tables. The caller must hold s.mu for runtime
 // mutations; load may call it before the store is published.
 func (s *Store) saveLocked() error {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

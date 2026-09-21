@@ -1,5 +1,12 @@
 # Security & admin auth
 
+## The administrator account
+
+A panel starts with no accounts at all: opening it runs the install wizard, where you pick the database (SQLite or PostgreSQL, with a connection test) and choose the administrator name and password yourself. No password is generated and none is written to the logs — the one you type is hashed with Argon2id and stored.
+
+- Unattended installs can set `ADMIN_PASSWORD` before the first start so the account exists at boot; when `DATABASE_URL` / `STORE_PATH` already name the storage, the wizard only asks for the account
+- Forgot it? Reset it with the CLI below; a reset never bypasses 2FA
+
 ## Administrator authentication
 
 - Passwords are hashed with Argon2id; older SHA-256 hashes are migrated automatically on sign-in

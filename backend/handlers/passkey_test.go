@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -361,7 +360,7 @@ func TestNormalizeAndroidFingerprints(t *testing.T) {
 }
 
 func TestGlobalPasswordSwitchRequiresAdministratorPasskey(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewManagementHandler(st, []byte("0123456789abcdef0123456789abcdef"))
 
 	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "/api/admin/settings",

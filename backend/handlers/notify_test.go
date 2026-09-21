@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 
 func newNotifyTestHandler(t *testing.T) (*NotifyHandler, *store.Store, string) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.SetAdminCredentials("admin", store.HashPassword("password")); err != nil {
 		t.Fatal(err)
 	}

@@ -15,7 +15,7 @@ var ErrPasskeyNotFound = errors.New("passkey not found")
 
 // ListPasskeys returns one account's passkeys, oldest first.
 func (s *Store) ListPasskeys(userID string) ([]models.Passkey, error) {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -41,7 +41,7 @@ func (s *Store) ListPasskeys(userID string) ([]models.Passkey, error) {
 // passkeyCounts reports how many passkeys each account has bound, for the
 // administrator's account list.
 func (s *Store) passkeyCounts() (map[string]int, error) {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -66,7 +66,7 @@ func (s *Store) passkeyCounts() (map[string]int, error) {
 
 // CountPasskeys reports how many passkeys an account has bound.
 func (s *Store) CountPasskeys(userID string) (int, error) {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return 0, fmt.Errorf("open database: %w", err)
 	}
@@ -84,7 +84,7 @@ func (s *Store) AddPasskey(entry models.Passkey) error {
 	if entry.CreatedAt == 0 {
 		entry.CreatedAt = time.Now().Unix()
 	}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -111,7 +111,7 @@ func (s *Store) DeletePasskey(id, userID string) error {
 // UpdatePasskeyCredential rewrites a stored credential after an assertion,
 // which is how the signature counter (and the backup flags) stay current.
 func (s *Store) UpdatePasskeyCredential(id, credential string, usedAt int64) error {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -127,7 +127,7 @@ func (s *Store) UpdatePasskeyCredential(id, credential string, usedAt int64) err
 // execPasskey runs a statement scoped to one credential and reports a missing
 // row as ErrPasskeyNotFound.
 func (s *Store) execPasskey(query string, args ...interface{}) error {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -185,7 +185,7 @@ func (s *Store) CountAdminsWithPasskeys() (int, error) {
 		return 0, nil
 	}
 
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return 0, fmt.Errorf("open database: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *Store) CountAdminsWithPasskeys() (int, error) {
 // passkeys table has no foreign key (saveLocked rewrites users on every save,
 // which would cascade-delete credentials), so deletion is explicit.
 func (s *Store) deletePasskeysForUser(userID string) error {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

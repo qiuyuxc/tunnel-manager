@@ -30,7 +30,7 @@ cd tunnel-manager_v2.4.0_linux_amd64
 # └── data/                # 首次运行自动生成
 
 export STATIC_DIR=frontend/dist
-export STORE_PATH=data/config.json
+export STORE_PATH=data/tunnel-manager.db
 export PORT=8080
 export APP_ENCRYPTION_KEY=<Base64 的 32 字节密钥>
 # Cloudflare 凭据二选一：OAuth 三件套 或 CF_API_TOKEN + CF_ACCOUNT_ID
@@ -43,7 +43,24 @@ export APP_ENCRYPTION_KEY=<Base64 的 32 字节密钥>
 openssl rand -base64 32
 ```
 
-首次启动会自动生成管理员账户，密码打印在标准输出中——记得保留这份启动日志。
+首次打开面板会进入安装引导：面板没有任何账户时只提供安装页面，先选数据库（SQLite 或 PostgreSQL）并测试连接，再填写管理员用户名与密码。密码由你设置，不会打印到日志。
+
+想跳过选择，可以不设置 `STORE_PATH` 与 `DATABASE_URL`——引导会把结果写进 `data/setup.json`，之后的启动照常使用它。
+
+## 选用 PostgreSQL
+
+默认存储是 SQLite 单文件，个人使用足够；需要多实例、外部备份或已经有 PostgreSQL 时，把存储换成数据库服务即可：
+
+```bash
+export DATABASE_URL="postgres://tunnel:tunnel@127.0.0.1:5432/tunnel_manager?sslmode=disable"
+export DATA_DIR=data
+```
+
+- `DATABASE_URL` 支持 `postgres://` 与 `postgresql://` 两种写法，其余连接参数（`sslmode`、`connect_timeout`、多主机等）透传给驱动
+- 目标库需要预先建好，表结构与迁移由程序在启动时自动创建，无需手工执行 SQL
+- `DATA_DIR` 指定上传文件与心跳日志的存放目录；数据库在远端时默认值是工作目录下的 `data/`，可用它接已有目录
+- 设置 `DATABASE_URL` 后 `STORE_PATH` 不再生效；两者都为空时仍是 `data/tunnel-manager.db`
+- 现有 SQLite 数据不会自动搬迁：换库等于全新实例，首次启动会重新走安装引导创建管理员账户，需要按[升级、备份与恢复](/guide/upgrade-backup)自行导出旧数据
 
 ::: tip
 `STATIC_DIR` 指向的前端文件与二进制应来自**同一个发布包**，前后端版本混搭可能出现接口不匹配。
@@ -75,7 +92,7 @@ systemctl daemon-reload && systemctl enable --now tunnel-manager
 
 ## 升级
 
-下载新版本包替换二进制与 `frontend/dist` 并重启服务即可；数据仍在 `STORE_PATH` 指向的 JSON 中，备份恢复流程与 [Docker 部署](/guide/docker-compose)通用，详见[升级、备份与恢复](/guide/upgrade-backup)。
+下载新版本包替换二进制与 `frontend/dist` 并重启服务即可；数据仍在 `STORE_PATH` 指向的 SQLite 文件（或 `DATABASE_URL` 指向的数据库）中，备份恢复流程与 [Docker 部署](/guide/docker-compose)通用，详见[升级、备份与恢复](/guide/upgrade-backup)。
 
 ## 方式二：从源码自行编译（可选）
 

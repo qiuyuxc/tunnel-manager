@@ -2,15 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"path/filepath"
 	"testing"
 
 	"tunnel-manager/services"
-	"tunnel-manager/store"
 )
 
 func TestLabAPIHiddenWhileExperimentalFeaturesDisabled(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	h := NewLabHandler(st, services.NewLabIPSelectorRunner(st, nil), nil)
 
 	resp := performJSON(t, h.GetSettings, http.MethodGet, "/api/lab/ip-selector", "", "")
@@ -24,7 +22,7 @@ func TestLabAPIHiddenWhileExperimentalFeaturesDisabled(t *testing.T) {
 }
 
 func TestLabSettingsSaveRejectsInvalidTargets(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	settings := st.GetAppSettings()
 	settings.ExperimentalFeatures = true
 	if err := st.SetAppSettings(settings); err != nil {

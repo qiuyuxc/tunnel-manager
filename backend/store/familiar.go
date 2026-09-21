@@ -59,7 +59,7 @@ func (s *Store) RememberFamiliarIP(userID, ip string) error {
 	if userID == "" || subnet == "" {
 		return nil
 	}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -94,7 +94,7 @@ func (s *Store) IsFamiliarIP(userID, ip string) bool {
 	if userID == "" || subnet == "" {
 		return false
 	}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return false
 	}
@@ -110,7 +110,7 @@ func (s *Store) IsFamiliarIP(userID, ip string) bool {
 
 // ListFamiliarIPs returns one account's learned networks, most recent first.
 func (s *Store) ListFamiliarIPs(userID string) ([]string, error) {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -139,7 +139,7 @@ func (s *Store) deleteFamiliarIPsForUser(userID string) error {
 	if userID == "" {
 		return nil
 	}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

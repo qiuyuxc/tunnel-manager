@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -18,7 +17,7 @@ import (
 
 func newUserTelegramTestManager(t *testing.T) (*UserTelegramManager, *store.Store, []byte) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	key := bytes.Repeat([]byte{7}, 32)
 	cf := NewCloudflareClient("token", "acct")
 	ds := NewDomainService(cf, st)

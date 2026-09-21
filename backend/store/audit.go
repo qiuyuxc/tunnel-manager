@@ -20,7 +20,7 @@ func (s *Store) RecordAudit(entry models.AuditLog) error {
 	if entry.CreatedAt == 0 {
 		entry.CreatedAt = time.Now().Unix()
 	}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -51,7 +51,7 @@ func (s *Store) QueryAuditLogs(q models.AuditQuery) (models.AuditPage, error) {
 	}
 	out := models.AuditPage{Logs: []models.AuditLog{}, Page: page, PageSize: size}
 
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return out, fmt.Errorf("open database: %w", err)
 	}
@@ -86,7 +86,7 @@ func (s *Store) QueryAuditLogs(q models.AuditQuery) (models.AuditPage, error) {
 // number of entries recorded since todayFrom.
 func (s *Store) AuditStats(from, todayFrom int64) (models.AuditStats, error) {
 	stats := models.AuditStats{}
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return stats, fmt.Errorf("open database: %w", err)
 	}
@@ -107,7 +107,7 @@ func (s *Store) AuditStats(from, todayFrom int64) (models.AuditStats, error) {
 // PruneAuditLogs deletes every entry older than cutoff and reports how many
 // rows were removed.
 func (s *Store) PruneAuditLogs(cutoff int64) (int64, error) {
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		return 0, fmt.Errorf("open database: %w", err)
 	}

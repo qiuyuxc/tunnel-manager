@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"tunnel-manager/models"
-	"tunnel-manager/store"
 )
 
 func TestProvisionStatusDomainUsesAuxOriginAndCustomPreferredCNAME(t *testing.T) {
@@ -250,7 +248,7 @@ func TestProvisionStatusDomainDoesNotWriteWithoutPanelIngress(t *testing.T) {
 
 func newStatusDomainTestService(t *testing.T, server *httptest.Server) (*DomainService, string) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	userID := st.AdminUserID()
 	if err := st.SetUserTunnelSelection(userID, "tunnel-id", "Panel tunnel"); err != nil {
 		t.Fatal(err)

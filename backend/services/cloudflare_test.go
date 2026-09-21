@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"tunnel-manager/auth"
 	"tunnel-manager/models"
-	"tunnel-manager/store"
 )
 
 // TestStaticCredentialsOnlyFallBackForAdmin guards multi-user isolation: a
@@ -20,7 +18,7 @@ import (
 // resolve the administrator's static token or account id, otherwise they
 // could list and manage the administrator's tunnels.
 func TestStaticCredentialsOnlyFallBackForAdmin(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	adminID := st.AdminUserID()
 	if err := st.CreateUser(models.User{Username: "alice", Email: "alice@example.com", Role: models.RoleUser}); err != nil {
 		t.Fatal(err)

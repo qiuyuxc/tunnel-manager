@@ -45,7 +45,7 @@
         </div>
         <div class="version-table">
           <div class="version-row">
-            <span>当前版本</span>
+            <span>服务端版本</span>
             <strong>{{ currentVersion }}</strong>
           </div>
           <div class="version-row">
@@ -62,18 +62,17 @@
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">本版本亮点</div>
-            <div class="settings-card-desc">当前版本（{{ currentVersion }}）的重点变化。</div>
+            <div class="settings-card-desc">v2.6.0 的重点变化，以 Android 原生体验更新为主。</div>
           </div>
         </div>
         <ul class="changelog-list">
-          <li>新增 Android 原生 App：概览、监控、隧道绑定、DNS、IP 优选实验室与通知全部原生实现</li>
-          <li>App 通知接入系统通知渠道，不打开网页也能在手机上收到监控状态变化</li>
-          <li>App 登录页内嵌 Cloudflare Turnstile，人机验证全程在原生页面完成，不再跳转网页</li>
-          <li>登录页与控制台跟随主题偏好切换亮色 / 暗色，与网页端共用一套配色</li>
-          <li>移动端改为底部标签导航与半屏弹窗，窄屏下监控、DNS 等页面不再横向挤压</li>
-          <li>落地页双主题：Vercel 风格（企业蓝）与 Claude 风格（暖色），各含亮色 / 暗色</li>
-          <li>错误信息统一脱敏，Telegram Bot Token 不再出现在日志、状态卡与截图中</li>
-          <li>新增 /api/alerts 告警游标接口，客户端可按 since 增量拉取监控状态变化</li>
+          <li>原生 App 统一石墨与薄荷绿配色、圆角面板和浮动导航，保留深浅主题与轻量效果</li>
+          <li>更多菜单增加账户摘要与工具网格，常用入口继续按权限展示</li>
+          <li>隧道支持名称或 ID 搜索与状态筛选，当前选择、应用路由和危险操作分区更清楚</li>
+          <li>全局新建、隧道列表和空状态共用创建弹层，保留运行命令、令牌及失败反馈</li>
+          <li>监控列表增加真实七天可用率与服务历史条，未知、异常和空数据分别展示</li>
+          <li>监控详情增加可切换服务的响应趋势，添加、编辑、检查间隔和公开链接改为独立弹层</li>
+          <li>App 关于页分别显示安装包版本与服务端版本，不再将两者混淆</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

@@ -3,11 +3,14 @@ import Dashboard from '../views/Dashboard.vue'
 import Login from '../views/Login.vue'
 import Landing from '../views/Landing.vue'
 import { useConfigStore } from '../stores/config'
+import { setupStatus } from '../api/setup'
 import LabIPSelector from '../views/LabIPSelector.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    // The wizard stands alone: no sidebar, no sign-in, nothing else to reach.
+    { path: '/setup', name: 'setup', component: () => import('../views/Setup.vue'), meta: { setup: true, public: true } },
     { path: '/login', name: 'login', component: Login },
     { path: '/', name: 'landing', component: Landing, meta: { public: true } },
     { path: '/home', redirect: '/' },
@@ -30,7 +33,19 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to, _from) => {
+router.beforeEach(async (to, from) => {
+  // An instance without an administrator serves the install wizard and nothing
+  // else; a panel that is already installed answers 404 and never sees /setup.
+  let wizard = await setupStatus()
+  if (wizard && !to.meta.setup) {
+    // Leaving the wizard means an install may have just finished: re-read once,
+    // because a stale "needs setup" would send the sign-in page back to the
+    // route we are on, which vue-router quietly turns into a no-op navigation.
+    if (from.meta.setup) wizard = await setupStatus(true)
+    if (wizard) return '/setup'
+  }
+  if (!wizard && to.meta.setup) return '/login'
+  if (wizard) return true
   const store = useConfigStore()
   if (!store.siteSettingsLoaded) {
     await store.fetchSiteSettings()

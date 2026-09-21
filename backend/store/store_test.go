@@ -70,6 +70,21 @@ func TestEnableTOTPPersistsState(t *testing.T) {
 	if !enabled || secret != "v1:encrypted-secret" || step != 123 || count != 2 {
 		t.Fatalf("persisted state = (%v, %q, %d, %d)", enabled, secret, step, count)
 	}
+	if isPostgresTest() {
+		handle, err := db.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer handle.Close()
+		var stored string
+		if err := handle.QueryRow(`SELECT totp_recovery_code_hashes FROM users WHERE id = ?`, reloaded.AdminUserID()).Scan(&stored); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(stored, "recovery-one") || strings.Contains(stored, "recovery-two") {
+			t.Fatal("config contains plaintext recovery code")
+		}
+		return
+	}
 	data, err := os.ReadFile(ResolveDBPath(path))
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +119,7 @@ func TestConsumeRecoveryCodeRejectsReuse(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("recovery count = %d, want 1", count)
 	}
-	reloaded := NewStore(s.filePath)
+	reloaded := NewStore(s.dsn)
 	if err := reloaded.ConsumeRecoveryCode(reloaded.AdminUserID(), candidate); !errors.Is(err, ErrRecoveryCodeNotFound) {
 		t.Fatalf("reloaded ConsumeRecoveryCode() error = %v, want ErrRecoveryCodeNotFound", err)
 	}
@@ -171,7 +186,7 @@ func TestAuthSensitiveSaveFailuresRollBack(t *testing.T) {
 			}
 			s, _ := newStoreWithConfig(t, initial)
 			before := cloneConfig(t, s.GetConfig())
-			s.filePath = filepath.Join(t.TempDir(), "missing", "config.json")
+			breakStore(t, s)
 
 			if err := tt.mutate(s); err == nil {
 				t.Fatal("mutation succeeded with unwritable path")
@@ -188,7 +203,7 @@ func TestValidatePasswordMigrationRollsBackOnSaveFailure(t *testing.T) {
 	password := "legacy password"
 	legacy := sha256Hex(password)
 	s := newTestStore(t, legacy)
-	s.filePath = filepath.Join(t.TempDir(), "missing", "config.json")
+	breakStore(t, s)
 
 	if !s.ValidatePassword(password, legacy) {
 		t.Fatal("ValidatePassword() rejected valid legacy password")
@@ -218,7 +233,7 @@ func TestSetAdminUsernamePreservesMigratedPasswordHash(t *testing.T) {
 	if username != "new-admin" || after != migrated {
 		t.Fatalf("credentials = (%q, %q), want username changed and hash preserved", username, after)
 	}
-	reloaded := NewStore(s.filePath)
+	reloaded := NewStore(s.dsn)
 	username, after = reloaded.GetAdminCredentials()
 	if username != "new-admin" || after != migrated {
 		t.Fatalf("persisted credentials = (%q, %q), want username changed and hash preserved", username, after)
@@ -308,7 +323,7 @@ func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reloaded := NewStore(s.filePath)
+	reloaded := NewStore(s.dsn)
 	config := reloaded.GetConfig()
 	if config.SiteName != "My Panel" || config.SiteDescription != "Operations" || config.SiteIcon != "https://example.com/icon.png" || !config.LandingEnabled {
 		t.Fatalf("persisted site settings = %#v", config)
@@ -323,6 +338,9 @@ func TestSiteCNAMEAndTunnelSettingsPersist(t *testing.T) {
 }
 
 func TestDatabaseFileHasPrivatePermissions(t *testing.T) {
+	if isPostgresTest() {
+		t.Skip("file permissions are a SQLite-only concern")
+	}
 	s, path := newStoreWithConfig(t, models.Config{AdminUsername: "admin", AdminPasswordHash: HashPassword("password")})
 	dbPath := ResolveDBPath(path)
 	if err := s.SetAdminUsername("new-admin"); err != nil {
@@ -367,7 +385,7 @@ func TestSetAdminPasswordHashPreservesUsername(t *testing.T) {
 func TestSetAdminCredentialsReturnsSaveFailure(t *testing.T) {
 	s := newTestStore(t, HashPassword("password"))
 	before := s.GetConfig()
-	s.filePath = filepath.Join(t.TempDir(), "missing", "config.json")
+	breakStore(t, s)
 	if err := s.SetAdminCredentials("changed", HashPassword("changed")); err == nil {
 		t.Fatal("SetAdminCredentials succeeded with missing parent")
 	}
@@ -422,15 +440,31 @@ func newEnabledTOTPStore(t *testing.T, step int64, hashes []string) *Store {
 
 func newStoreWithConfig(t *testing.T, config models.Config) (*Store, string) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "config.json")
+	dsn := testDSN(t)
+	if isPostgresTest() {
+		// PostgreSQL has no neighbouring JSON store to import, so apply the
+		// configuration the way the importer would: replace the bootstrapped
+		// defaults and reseed the administrator.
+		s := NewStore(dsn)
+		s.mu.Lock()
+		s.config = config
+		s.applyDefaults(false)
+		s.users = nil
+		s.groups = nil
+		s.prefs = map[string]models.UserPrefs{}
+		s.adminID = ""
+		s.mu.Unlock()
+		s.seedUsers()
+		return s, dsn
+	}
 	data, err := json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := os.WriteFile(dsn, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	return NewStore(path), path
+	return NewStore(dsn), dsn
 }
 
 func TestMonitorsAndTargetsPersistAcrossReload(t *testing.T) {
@@ -489,7 +523,7 @@ func TestReloadAssignsOrphanedMonitorsToAdministrator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handle, err := db.Open(s.filePath)
+	handle, err := db.Open(s.dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +535,7 @@ func TestReloadAssignsOrphanedMonitorsToAdministrator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reloaded := NewStore(s.filePath)
+	reloaded := NewStore(s.dsn)
 	monitors := reloaded.GetConfig().Monitors
 	if len(monitors) != 1 {
 		t.Fatalf("monitor count = %d, want 1", len(monitors))
@@ -552,7 +586,7 @@ func newTestStoreWithMonitors(t *testing.T) (*Store, string) {
 	if err := s.AddMonitor(second); err != nil {
 		t.Fatal(err)
 	}
-	return s, s.filePath
+	return s, s.dsn
 }
 
 func runConcurrently(count int, operation func() error) []error {
@@ -631,7 +665,7 @@ func TestUserWebhookSettingsPersistAcrossRestart(t *testing.T) {
 		t.Fatalf("SetUserWebhookSecret: %v", err)
 	}
 
-	reloaded := NewStore(s.filePath)
+	reloaded := NewStore(s.dsn)
 	prefs := reloaded.GetUserPrefs(adminID)
 	if !prefs.TGRemoteEnabled {
 		t.Fatal("remote enabled flag lost after restart")
@@ -650,7 +684,7 @@ func TestUserWebhookSettingsPersistAcrossRestart(t *testing.T) {
 	if err := s.SetUserRemoteSettings(adminID, false, "7330290970", "", "", "", ""); err != nil {
 		t.Fatalf("SetUserRemoteSettings polling: %v", err)
 	}
-	reloaded = NewStore(s.filePath)
+	reloaded = NewStore(s.dsn)
 	if got := reloaded.GetUserPrefs(adminID).TGRemoteMode; got != "polling" {
 		t.Fatalf("default mode = %q, want polling", got)
 	}

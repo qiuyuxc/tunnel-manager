@@ -43,7 +43,24 @@ Generate `APP_ENCRYPTION_KEY` with:
 openssl rand -base64 32
 ```
 
-The first start creates the administrator account and prints its password to standard output — keep that startup log.
+The first visit to the panel opens the install wizard: with no account yet, only the setup page is served. Pick the database (SQLite or PostgreSQL), test the connection, then choose the administrator name and password. You set the password yourself and it is never printed to the logs.
+
+To let the wizard own the storage choice as well, leave both `STORE_PATH` and `DATABASE_URL` unset: the result is written to `data/setup.json` and reused on every later start.
+
+## Using PostgreSQL
+
+SQLite in a single file is enough for one instance. Switch the store to a PostgreSQL server when you need several instances, external backups, or already run one:
+
+```bash
+export DATABASE_URL="postgres://tunnel:tunnel@127.0.0.1:5432/tunnel_manager?sslmode=disable"
+export DATA_DIR=data
+```
+
+- `DATABASE_URL` accepts both `postgres://` and `postgresql://`; every other connection parameter (`sslmode`, `connect_timeout`, multiple hosts) is passed to the driver
+- The database itself must exist; tables and migrations are created on startup, so there is no SQL to run by hand
+- `DATA_DIR` holds uploads and heartbeat logs. It defaults to `data/` in the working directory when the database is remote
+- `DATABASE_URL` takes precedence over `STORE_PATH`; with neither set the store stays at `data/tunnel-manager.db`
+- Existing SQLite data is not migrated: a new database means a fresh instance whose install wizard creates a new administrator account. Export the old data as described in [Upgrade, backup & restore](/en/guide/upgrade-backup)
 
 ::: tip
 The frontend files that `STATIC_DIR` points at and the binary should come from the **same release archive**; mixing versions can mean the API and the UI disagree.
@@ -75,7 +92,7 @@ Give `.env` mode `600` — it holds your encryption key and Cloudflare credentia
 
 ## Upgrading
 
-Download the new archive, replace the binary and `frontend/dist`, restart the service. Your data stays in the SQLite database that `STORE_PATH` points at; the backup and restore procedure is shared with [Docker deployment](/en/guide/docker-compose) and covered in [Upgrade, backup & restore](/en/guide/upgrade-backup).
+Download the new archive, replace the binary and `frontend/dist`, restart the service. Your data stays in the SQLite database that `STORE_PATH` points at, or in the server `DATABASE_URL` names; the backup and restore procedure is shared with [Docker deployment](/en/guide/docker-compose) and covered in [Upgrade, backup & restore](/en/guide/upgrade-backup).
 
 ## Option 2: build from source (optional)
 

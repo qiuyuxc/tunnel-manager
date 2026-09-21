@@ -2,7 +2,6 @@ package store
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -30,7 +29,7 @@ func TestSubnetOfKeepsOnlyTheNeighbourhood(t *testing.T) {
 // The point of learning a /24 rather than the exact address: a dynamic address
 // that moves inside the same pool still counts as the same place.
 func TestFamiliarIPMatchesTheWholeSubnet(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	user := st.AdminUserID()
 
 	if err := st.RememberFamiliarIP(user, "203.0.113.57"); err != nil {
@@ -48,7 +47,7 @@ func TestFamiliarIPMatchesTheWholeSubnet(t *testing.T) {
 }
 
 func TestFamiliarIPIsPerAccount(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	if err := st.RememberFamiliarIP(st.AdminUserID(), "203.0.113.57"); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +63,7 @@ func TestFamiliarIPIsPerAccount(t *testing.T) {
 }
 
 func TestRememberFamiliarIPIgnoresUnparseableAddresses(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	if err := st.RememberFamiliarIP(st.AdminUserID(), "garbage"); err != nil {
 		t.Fatalf("RememberFamiliarIP() error = %v", err)
 	}
@@ -80,7 +79,7 @@ func TestRememberFamiliarIPIgnoresUnparseableAddresses(t *testing.T) {
 // Repeated sign-ins from one place must not pile up rows, and a roaming user
 // must not grow the table without bound.
 func TestRememberFamiliarIPPrunesAndDedupes(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	user := st.AdminUserID()
 
 	for i := 0; i < 5; i++ {
@@ -111,7 +110,7 @@ func TestRememberFamiliarIPPrunesAndDedupes(t *testing.T) {
 }
 
 func TestDeleteUserForgetsLearnedNetworks(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	if err := st.CreateUser(models.User{Username: "bob", PasswordHash: HashPassword("password")}); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +137,7 @@ func TestDeleteUserForgetsLearnedNetworks(t *testing.T) {
 // Trust has to expire: a network visited once must not widen the budget for
 // whoever uses it next, months later.
 func TestFamiliarIPExpiresAfterTheWindow(t *testing.T) {
-	st := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := testStore(t)
 	user := st.AdminUserID()
 	if err := st.RememberFamiliarIP(user, "203.0.113.57"); err != nil {
 		t.Fatal(err)
@@ -147,7 +146,7 @@ func TestFamiliarIPExpiresAfterTheWindow(t *testing.T) {
 		t.Fatal("a network just learned was not familiar")
 	}
 
-	handle, err := db.Open(st.filePath)
+	handle, err := db.Open(st.dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

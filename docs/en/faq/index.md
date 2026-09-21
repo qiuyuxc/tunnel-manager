@@ -4,13 +4,15 @@
 
 ### Where do I find the initial password?
 
-It is generated on first start and printed to the container logs. The startup banner is in Chinese, so grep for the password label:
+There is none: until an account exists, opening the panel runs the install wizard, where you choose the administrator name and password yourself. Neither is written to the logs.
 
-```bash
-docker compose logs | grep 密
-```
+For unattended installs, set `ADMIN_PASSWORD` before the first start instead — it becomes the administrator password and the panel goes straight to the sign-in page.
 
-You can also set `ADMIN_PASSWORD` before the first start to choose it yourself.
+### The install wizard did not appear, or I want to change databases
+
+The wizard only appears while the panel has no accounts at all. To run it again (a different SQLite / PostgreSQL target, or different connection details): when the wizard chose the storage, delete `setup.json` from the data directory and restart; when `DATABASE_URL` / `STORE_PATH` names the storage, the wizard never asks — change the environment instead.
+
+A different database means a fresh instance: it holds no accounts, so the next visit runs the install wizard, and old data is not migrated (see [Upgrade, backup & restore](/en/guide/upgrade-backup)).
 
 ### I forgot the password
 

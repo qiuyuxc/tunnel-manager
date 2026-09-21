@@ -32,9 +32,11 @@ func newID() string {
 	return hex.EncodeToString(b)
 }
 
-// seedUsers creates the built-in default group and the administrator account
-// on first boot, migrating the legacy document credentials and TOTP state
-// into the users table.
+// seedUsers creates the built-in default group on first boot and migrates a
+// legacy document's administrator credentials and TOTP state into the users
+// table. A fresh install gets no administrator here: the setup wizard creates
+// one from a password the operator typed, which is also why no password is
+// ever generated and printed.
 func (s *Store) seedUsers() {
 	if len(s.users) > 0 {
 		s.mu.Lock()
@@ -48,38 +50,89 @@ func (s *Store) seedUsers() {
 		return
 	}
 
-	now := time.Now().Unix()
-	s.groups = append(s.groups, models.UserGroup{
+	s.ensureDefaultGroupLocked()
+
+	passwordHash := s.config.AdminPasswordHash
+	if passwordHash == "" {
+		if password := os.Getenv("ADMIN_PASSWORD"); password != "" {
+			passwordHash = hashPassword(password)
+		}
+	}
+	if passwordHash == "" {
+		// Nothing to migrate and no ADMIN_PASSWORD: the instance stays
+		// uninstalled until the setup wizard supplies the first account.
+		if err := s.saveLocked(); err != nil {
+			log.Printf("seed user tables: %v", err)
+		}
+		return
+	}
+
+	s.attachAdminLocked(s.config.AdminUsername, passwordHash)
+
+	if err := s.saveLocked(); err != nil {
+		log.Printf("seed user tables: %v", err)
+	}
+}
+
+// CreateAdmin adds the first administrator account with a password the
+// operator chose in the setup wizard. It refuses to touch a store that already
+// has accounts, so an installed panel can never be taken over through it.
+func (s *Store) CreateAdmin(username, password string) error {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return errors.New("请填写管理员用户名")
+	}
+	if len(password) < 6 || len(password) > 1024 {
+		return errors.New("密码长度需在 6-1024 位之间")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.users) > 0 {
+		return errors.New("该数据库已有账户，无法重复初始化")
+	}
+	s.ensureDefaultGroupLocked()
+	s.attachAdminLocked(username, hashPassword(password))
+	return s.saveLocked()
+}
+
+// Installed reports whether any account exists, which is what separates a
+// fresh install (the wizard runs) from a configured panel.
+func (s *Store) Installed() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.users) > 0
+}
+
+// ensureDefaultGroupLocked creates the built-in group when the user tables are
+// still empty.
+func (s *Store) ensureDefaultGroupLocked() {
+	if len(s.groups) > 0 {
+		return
+	}
+	group := models.UserGroup{
 		ID:          newID(),
 		Name:        "默认用户组",
 		Permissions: append([]string(nil), models.AllPermissions...),
 		Builtin:     true,
-		CreatedAt:   now,
-	})
+		CreatedAt:   time.Now().Unix(),
+	}
+	s.groups = append(s.groups, group)
 	if s.appSettings.DefaultGroupID == "" {
-		s.appSettings.DefaultGroupID = s.groups[0].ID
+		s.appSettings.DefaultGroupID = group.ID
 	}
 	// First boot: registration opens by default; administrators can close it
 	// in the backend at any time.
 	s.appSettings.RegistrationEnabled = true
+}
 
-	passwordHash := s.config.AdminPasswordHash
-	if passwordHash == "" {
-		password := os.Getenv("ADMIN_PASSWORD")
-		if password == "" {
-			password = "admin123"
-		}
-		passwordHash = hashPassword(password)
-		log.Printf("========================================")
-		log.Printf("  密码为空，已使用默认密码（请登录后立即修改）：")
-		log.Printf("  用户名: %s", s.config.AdminUsername)
-		log.Printf("  密  码: %s", password)
-		log.Printf("========================================")
-	}
-
+// attachAdminLocked appends an administrator built from the stored settings,
+// migrating the legacy global OAuth connection and clearing the secrets the
+// settings document used to carry. The caller holds the lock and saves.
+func (s *Store) attachAdminLocked(username, passwordHash string) {
+	now := time.Now().Unix()
 	admin := models.User{
 		ID:                     newID(),
-		Username:               s.config.AdminUsername,
+		Username:               username,
 		PasswordHash:           passwordHash,
 		Role:                   models.RoleAdmin,
 		Status:                 models.UserActive,
@@ -129,10 +182,6 @@ func (s *Store) seedUsers() {
 	s.config.CFOAuthScope = ""
 	s.config.CFAccountID = ""
 	s.config.CFAccountName = ""
-
-	if err := s.saveLocked(); err != nil {
-		log.Printf("seed user tables: %v", err)
-	}
 }
 
 func (s *Store) resolveAdminIDLocked() {

@@ -10,19 +10,15 @@ cd tunnel-manager
 ./install.sh
 ```
 
-脚本会检测 Docker 环境，引导填写 Cloudflare OAuth 客户端或兼容的 API Token，生成管理员配置和 `APP_ENCRYPTION_KEY`，然后构建并启动服务。服务默认监听 `8080` 端口（`docker-compose.yml` 映射为宿主机 8080）。
+脚本会检测 Docker 环境，引导填写 Cloudflare OAuth 客户端或兼容的 API Token，生成 `APP_ENCRYPTION_KEY`，然后构建并启动服务；管理员账户在首次打开面板时由安装引导创建。服务默认监听 `8080` 端口（`docker-compose.yml` 映射为宿主机 8080）。
 
 > 不想从源码构建？也可以直接拉取预编译镜像运行，或下载二进制免 Docker 部署：见 [Docker Compose 部署详解](/guide/docker-compose) 与 [二进制部署](/guide/binary-deploy)。
 
-## 获取初始密码
+## 创建管理员账户
 
-首次启动后从容器日志中获取自动生成的管理员密码：
+首次打开面板会进入安装引导：面板还没有任何账户时只提供安装页面，先选择数据库（SQLite 单文件或 PostgreSQL，PostgreSQL 可先测试连接），再自己填写管理员用户名与密码即可完成安装，随后服务自动重启进入登录页。密码由你设置、只保存在数据库里，不会打印到日志。
 
-```bash
-docker compose logs | grep 密
-```
-
-也可以通过环境变量 `ADMIN_PASSWORD` 在首次启动前指定管理员密码；留空时自动生成。
+想跳过这一步，就在首次启动前设置 `ADMIN_PASSWORD`：启动时直接用它创建管理员账户，之后再打开面板就是登录页。
 
 ## 环境变量
 
@@ -35,9 +31,11 @@ docker compose logs | grep 密
 | `CF_API_TOKEN` | 兼容 | 旧版静态 Cloudflare API Token；未连接 OAuth 时使用 |
 | `CF_ACCOUNT_ID` | 兼容 | 静态 Token 对应的 Account ID；OAuth 会自动读取并保存账户 |
 | `API_KEY` | 否 | 自动化调用使用的 API Key |
-| `ADMIN_PASSWORD` | 否 | 首次启动的管理员密码，留空时自动生成 |
+| `ADMIN_PASSWORD` | 否 | 首次启动的管理员密码；留空时改为在网页安装引导里设置 |
 | `APP_ENCRYPTION_KEY` | 2FA 必需 | Base64 编码的 32 字节随机密钥，用于加密 TOTP Secret 与 OAuth Token |
-| `STORE_PATH` | 否 | JSON 配置路径，默认 `data/config.json` |
+| `STORE_PATH` | 否 | SQLite 数据库路径，默认 `data/tunnel-manager.db`；Docker 镜像沿用旧名 `data/config.json` 以就地升级 |
+| `DATABASE_URL` | 否 | PostgreSQL 连接串，如 `postgres://user:pass@host:5432/tunnel_manager?sslmode=disable`；设置后优先于 `STORE_PATH` |
+| `DATA_DIR` | 否 | 上传文件与心跳日志目录；默认取 SQLite 文件所在目录，使用 PostgreSQL 时建议显式指定 |
 | `PORT` | 否 | HTTP 端口，默认 `8080` |
 
 ::: warning 加密密钥必须备份

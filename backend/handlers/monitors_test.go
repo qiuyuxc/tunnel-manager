@@ -18,7 +18,7 @@ import (
 
 func TestListMonitorsHidesOtherUsersProjectsAfterReload(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.AddMonitor(models.Monitor{
 		ID:     "admin-monitor",
 		UserID: st.AdminUserID(),
@@ -50,7 +50,7 @@ func TestListMonitorsHidesOtherUsersProjectsAfterReload(t *testing.T) {
 
 func TestCreateMonitorWithAPIKeyIdentityAssignsAdministratorOwner(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	heartbeats := services.NewHeartbeatLog(filepath.Join(t.TempDir(), "heartbeats.json"))
 	handler := NewMonitorsHandler(st, heartbeats, nil, nil)
 	req := withUser(httptest.NewRequest(http.MethodPost, "/api/monitors", strings.NewReader(`{"name":"API monitor"}`)), models.SessionUser{
@@ -77,7 +77,7 @@ func TestCreateMonitorWithAPIKeyIdentityAssignsAdministratorOwner(t *testing.T) 
 
 func TestUpdateMonitorPersistsDomainWhenProvisioningFails(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.SetPanelHost("panel.example.com"); err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestUpdateMonitorPersistsDomainWhenProvisioningFails(t *testing.T) {
 
 func TestUpdateMonitorPersistsPreferredDomainInputs(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.SetPanelHost("panel.example.com"); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestUpdateMonitorPersistsPreferredDomainInputs(t *testing.T) {
 
 func TestUpdateMonitorRejectsCurrentRequestHostBeforePanelHostIsSeeded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.AddMonitor(models.Monitor{
 		ID:     "user-monitor",
 		UserID: "owner-user",
@@ -193,7 +193,7 @@ func TestUpdateMonitorRejectsCurrentRequestHostBeforePanelHostIsSeeded(t *testin
 
 func TestStatusDomainRedirectRestrictsCustomDomainToItsPublicStatusPage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.AddMonitor(models.Monitor{
 		ID:             "public-monitor",
 		UserID:         st.AdminUserID(),

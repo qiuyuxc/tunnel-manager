@@ -11,7 +11,6 @@ import (
 
 	"tunnel-manager/models"
 	"tunnel-manager/services"
-	"tunnel-manager/store"
 )
 
 // TestServiceStatusUsesUserTunnel guards against the services health widget
@@ -63,7 +62,7 @@ func TestServiceStatusUsesUserTunnel(t *testing.T) {
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	st := store.NewStore(legacy)
+	st := newTestStoreAt(t, legacy)
 	userID := st.AdminUserID()
 	if err := st.SetUserTunnelSelection(userID, "user-tunnel", "User Tunnel"); err != nil {
 		t.Fatal(err)

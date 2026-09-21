@@ -18,6 +18,8 @@ The app is currently built from source (`android/` in the repository); no APK sh
 
 ## Signing in
 
+The panel has to be installed first: run the install wizard in a browser and create the administrator account, and only then can the app sign in.
+
 1. Open the app and enter your panel address (for example `https://tunnel.example.com`, with a port if you use one).
 2. Enter your account and password; if the panel enables human verification, the widget appears right below the login form.
 3. After login you land in the console; sign out from the avatar menu in the top bar to switch accounts.

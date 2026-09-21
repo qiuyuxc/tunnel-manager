@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"tunnel-manager/models"
-	"tunnel-manager/store"
 )
 
 func TestNormalizeBindingMode(t *testing.T) {
@@ -133,7 +132,7 @@ func TestBindDomainUsesUserSelections(t *testing.T) {
 	}))
 	defer server.Close()
 
-	st := store.NewStore(legacy)
+	st := newTestStoreAt(t, legacy)
 	userID := st.AdminUserID()
 	if err := st.SetUserTunnelSelection(userID, "user-tunnel", "User tunnel"); err != nil {
 		t.Fatal(err)

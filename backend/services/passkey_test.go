@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -136,7 +135,7 @@ func TestValidatePasskeySettingsCatchesMismatchedPair(t *testing.T) {
 
 func newPasskeyTestService(t *testing.T) (*PasskeyService, *store.Store) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	return NewPasskeyService(st), st
 }
 

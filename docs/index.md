@@ -17,6 +17,10 @@ hero:
       link: https://github.com/qiuyuxc/tunnel-manager
 
 features:
+  - title: 安装引导与双数据库
+    details: 首次打开面板进入安装引导：选 SQLite 单文件或 PostgreSQL 服务、先测连接、再设置管理员账户，密码不写日志；存储也可以完全交给环境变量，容器部署一行都不用改。
+    link: /guide/getting-started
+    linkText: 开始部署
   - title: 隧道管理
     details: 新建、删除与列出 Cloudflare Tunnel，查看和编辑应用程序路由；新建隧道后直接展示 cloudflared 连接令牌与运行命令。
     link: /guide/tunnels

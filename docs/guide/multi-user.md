@@ -1,6 +1,6 @@
 # 多用户与管理后台
 
-v2.0.0 起，Tunnel Manager 支持多用户注册与管理后台。所有数据存储在 SQLite（`data/tunnel-manager.db`），旧版 `config.json` 会在首次启动时自动导入：原管理员账号、OAuth 连接与监控项全部继承，原文件保留作备份。
+v2.0.0 起，Tunnel Manager 支持多用户注册与管理后台。所有数据存储在 SQLite（`data/tunnel-manager.db`，默认）或 PostgreSQL（设置 `DATABASE_URL`），换库不影响多用户与权限模型；旧版 `config.json` 会在首次启动时自动导入：原管理员账号、OAuth 连接与监控项全部继承，原文件保留作备份。
 
 ## 注册策略（管理后台 → 系统设置）
 

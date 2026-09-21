@@ -20,7 +20,7 @@ type alertFeed struct {
 
 func newAlertsFeedFixture(t *testing.T) (*store.Store, *MonitorsHandler) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	heartbeats := services.NewHeartbeatLog(filepath.Join(t.TempDir(), "heartbeats.json"))
 	return st, NewMonitorsHandler(st, heartbeats, nil, nil)
 }

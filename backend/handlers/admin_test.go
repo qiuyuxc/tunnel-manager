@@ -303,7 +303,7 @@ func TestInputAndCapacityLimits(t *testing.T) {
 
 func TestChangeUsernamePreservesMigratedHash(t *testing.T) {
 	legacy := sha256.Sum256([]byte("password"))
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.SetAdminCredentials("admin", hexDigest(legacy[:])); err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func TestChangeProfileRequiresAuth(t *testing.T) {
 
 func TestLoginRequiresTurnstileWhenEnabled(t *testing.T) {
 	key := bytes.Repeat([]byte{5}, 32)
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.SetAdminCredentials("admin", store.HashPassword("password")); err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +494,7 @@ func TestPasswordVerificationSaturationReturnsServiceUnavailable(t *testing.T) {
 func TestChangePasswordSaveFailureDoesNotRevokeOrReportSuccess(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
-	st := store.NewStore(path)
+	st := newTestStoreAt(t, path)
 	if err := st.SetAdminCredentials("admin", store.HashPassword("password")); err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +520,7 @@ func TestChangePasswordSaveFailureDoesNotRevokeOrReportSuccess(t *testing.T) {
 
 func newTestAdminHandler(t *testing.T, keys ...[]byte) *AdminHandler {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.SetAdminCredentials("admin", store.HashPassword("password")); err != nil {
 		t.Fatal(err)
 	}

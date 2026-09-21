@@ -16,7 +16,8 @@ The build runs in the same two stages as the initial `install.sh` deployment —
 
 | File / directory | Contents |
 | --- | --- |
-| `config.json` | The SQLite database, despite the legacy filename: administrator credentials (Argon2id), tunnel selection, binding records, monitor configuration, encrypted OAuth tokens, Telegram settings — all state |
+| `config.db` | The SQLite database: administrator credentials (Argon2id), tunnel selection, binding records, monitor configuration, encrypted OAuth tokens, Telegram settings — all state (the binary defaults to `tunnel-manager.db`) |
+| `setup.json` | The storage the install wizard chose, including its connection details (mode `600`). Absent when environment variables own the storage; the database password inside is sensitive |
 | `heartbeats.json` | Probe history for service monitoring (what the seven-day latency chart reads) |
 | `uploads/` | Uploaded status-page images and site icons |
 
@@ -35,6 +36,15 @@ tar czf tunnel-manager-backup.tar.gz data/ .env
 ```
 
 `APP_ENCRYPTION_KEY` lives in `.env` (32 bytes, Base64). Keep the archive somewhere other than the machine you are running on.
+
+With PostgreSQL the state no longer sits in `data/config.db`, so back up the database plus the upload directory:
+
+```bash
+pg_dump --format=custom --file=tunnel-manager.pgdump "$DATABASE_URL"
+tar czf tunnel-manager-backup.tar.gz data/uploads data/heartbeats.json .env
+```
+
+The dump and `APP_ENCRYPTION_KEY` still have to be kept together: create the database, `pg_restore` into it, and restore the key unchanged.
 
 ## Restoring onto a new machine
 

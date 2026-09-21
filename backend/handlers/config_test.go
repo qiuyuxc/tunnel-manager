@@ -2,15 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"path/filepath"
 	"testing"
 
 	"tunnel-manager/models"
-	"tunnel-manager/store"
 )
 
 func TestGetSiteSettingsIsPublicSafeResponse(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.SetSiteSettings("My Panel", "Operations", "/icon.png", false); err != nil {
 		t.Fatal(err)
 	}

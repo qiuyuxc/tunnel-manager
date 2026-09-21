@@ -21,11 +21,12 @@ import (
 	"tunnel-manager/handlers"
 	"tunnel-manager/models"
 	"tunnel-manager/services"
+	"tunnel-manager/setup"
 	"tunnel-manager/store"
 )
 
 // Version is the current application version.
-const Version = "v2.5.0"
+const Version = "v2.6.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -44,14 +45,21 @@ func main() {
 	allowPasswordLogin := flag.Bool("allow-password-login", false, "Re-enable password sign-in for the panel and every account")
 	flag.Parse()
 
-	storePath := os.Getenv("STORE_PATH")
-	if storePath == "" {
-		storePath = "data/tunnel-manager.db"
+	// Storage comes from the environment (containers, scripted installs) or
+	// from the document the setup wizard writes; uploads and heartbeat logs
+	// stay on the filesystem next to it.
+	state, err := setup.Resolve()
+	if err != nil {
+		log.Fatalf("read storage configuration: %v", err)
+	}
+	dataDir, err := setup.EnsureDataDir(state.Storage, state.Source)
+	if err != nil {
+		log.Fatalf("create data directory: %v", err)
 	}
 
 	// Handle password reset CLI commands (don't require CF credentials)
 	if *resetPassword || *setPassword != "" {
-		st := store.NewStore(storePath)
+		st := installedStore(state.Storage)
 		username, _ := st.GetAdminCredentials()
 
 		var newPassword string
@@ -77,7 +85,7 @@ func main() {
 	// switch needs no working sign-in method, which is exactly the situation
 	// this flag exists for.
 	if *allowPasswordLogin {
-		st := store.NewStore(storePath)
+		st := installedStore(state.Storage)
 		settings := st.GetAppSettings()
 		settings.PasswordLoginDisabled = false
 		if err := st.SetAppSettings(settings); err != nil {
@@ -112,13 +120,26 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir == "" {
+		staticDir = "frontend/dist"
+	}
 
 	if apiToken == "" || accountID == "" {
 		log.Printf("Cloudflare static credentials are incomplete; connect through OAuth in global settings")
 	}
 
-	// Initialize dependencies
-	st := store.NewStore(storePath)
+	// Initialize dependencies. The panel is only built once an administrator
+	// exists; before that the process serves the install wizard.
+	var panelStore *store.Store
+	if state.Source != setup.SourceUnset {
+		panelStore = store.NewStore(state.Storage.DSN())
+	}
+	if panelStore == nil || !panelStore.Installed() {
+		serveSetup(state, port, staticDir)
+		return
+	}
+	st := panelStore
 	var encryptionKey []byte
 	encryptionKey = resolveEncryptionKey(st, os.Getenv("APP_ENCRYPTION_KEY"))
 	cf := services.NewCloudflareClient(apiToken, accountID)
@@ -135,7 +156,7 @@ func main() {
 	domainService := services.NewDomainService(cf, st)
 
 	// Service monitoring heartbeat storage and scheduler
-	heartbeatLog := services.NewHeartbeatLog(filepath.Join(filepath.Dir(storePath), "heartbeats.json"))
+	heartbeatLog := services.NewHeartbeatLog(filepath.Join(dataDir, "heartbeats.json"))
 	monitorRunner := services.NewRunner(st, heartbeatLog)
 	labRunner := services.NewLabIPSelectorRunner(st, encryptionKey)
 	monitorRunner.SetMailer(func() *services.Mailer {
@@ -157,7 +178,7 @@ func main() {
 
 	// Monitors management
 	monitorsHandler := handlers.NewMonitorsHandler(st, heartbeatLog, monitorRunner, domainService)
-	uploadsDir := filepath.Join(filepath.Dir(storePath), "uploads")
+	uploadsDir := filepath.Join(dataDir, "uploads")
 	uploadsHandler := handlers.NewUploadsHandler(uploadsDir)
 	uploadsHandler.SetStore(st)
 
@@ -396,10 +417,6 @@ func main() {
 	userTelegramManager.Reconcile()
 
 	// Serve frontend static files (SPA fallback)
-	staticDir := os.Getenv("STATIC_DIR")
-	if staticDir == "" {
-		staticDir = "frontend/dist"
-	}
 	// Android Digital Asset Links: fetched from the site root, so it has to be
 	// registered before the SPA catch-all swallows the path.
 	r.Get("/.well-known/assetlinks.json", passkeyHandler.AssetLinks)
@@ -407,39 +424,7 @@ func main() {
 	// Uploaded status-page images (before the SPA catch-all)
 	r.Get("/uploads/*", uploadsHandler.Serve)
 
-	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
-		fs := http.FileServer(http.Dir(staticDir))
-		// Font subsets are immutable in practice: a chunk's filename encodes the
-		// weight and unicode-range it was generated for, so let clients keep them
-		// instead of revalidating a dozen files on every reload. fonts.css keeps
-		// revalidating, so re-running scripts/subset-fonts.py still takes effect.
-		r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
-			if strings.HasSuffix(req.URL.Path, ".woff2") {
-				w.Header().Set("Cache-Control", "public, max-age=2592000")
-			}
-			fs.ServeHTTP(w, req)
-		})
-		r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
-			// Try to serve the file directly
-			path := filepath.Join(staticDir, req.URL.Path)
-			if _, err := os.Stat(path); os.IsNotExist(err) || strings.HasSuffix(req.URL.Path, "/") {
-				// SPA fallback: serve index.html for missing routes. It must be
-				// revalidated on every load: each build deletes the previous
-				// hashed bundles, so a client that reuses a cached document ends
-				// up requesting assets that no longer exist and renders blank.
-				w.Header().Set("Cache-Control", "no-cache")
-				http.ServeFile(w, req, filepath.Join(staticDir, "index.html"))
-				return
-			}
-			// Vite puts a content hash in every asset filename, so a given URL can
-			// never point at different bytes and clients can keep it indefinitely.
-			if strings.HasPrefix(req.URL.Path, "/assets/") {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-			}
-			fs.ServeHTTP(w, req)
-		})
-		log.Printf("Serving static files from %s", staticDir)
-	}
+	mountStatic(r, staticDir)
 
 	addr := ":" + port
 	log.Printf("Server starting on %s", addr)

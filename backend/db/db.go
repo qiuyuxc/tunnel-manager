@@ -1,5 +1,6 @@
-// Package db owns SQLite connection handling and schema migrations for the
-// application store.
+// Package db owns database connection handling and schema migrations for the
+// application store. SQLite is the default backend; a PostgreSQL server can be
+// used instead by pointing the store at a postgres:// URL.
 package db
 
 import (
@@ -288,11 +289,21 @@ var migrations = []migration{
 	{version: 15, stmts: schemaV15},
 }
 
-// Open opens (creating when missing) the SQLite database at path with the
-// pragmas used across the application. The database file is created with
-// 0600 permissions. Callers are responsible for ensuring the parent
-// directory exists.
-func Open(path string) (*sql.DB, error) {
+// Open connects to the database named by dsn. A postgres:// or postgresql://
+// URL selects the PostgreSQL backend; any other value is a SQLite file path,
+// created when missing. Callers are responsible for ensuring the parent
+// directory of a SQLite file exists.
+func Open(dsn string) (*sql.DB, error) {
+	if DetectDialect(dsn) == Postgres {
+		return openPostgres(dsn)
+	}
+	return openSQLite(dsn)
+}
+
+// openSQLite opens (creating when missing) the SQLite database at path with
+// the pragmas used across the application. The database file is created with
+// 0600 permissions.
+func openSQLite(path string) (*sql.DB, error) {
 	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=synchronous(NORMAL)"
 	handle, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -314,7 +325,9 @@ func Open(path string) (*sql.DB, error) {
 }
 
 // Migrate applies pending schema migrations inside per-version transactions.
-func Migrate(handle *sql.DB) error {
+// The migration scripts are written in SQLite form and translated for the
+// given dialect.
+func Migrate(handle *sql.DB, dialect Dialect) error {
 	if _, err := handle.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
 		version    INTEGER PRIMARY KEY,
 		applied_at INTEGER NOT NULL
@@ -335,9 +348,11 @@ func Migrate(handle *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("begin migration %d: %w", m.version, err)
 		}
-		if _, err := tx.Exec(m.stmts); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %d: %w", m.version, err)
+		for _, stmt := range splitStatements(translateSchema(m.stmts, dialect)) {
+			if _, err := tx.Exec(stmt); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("apply migration %d: %w", m.version, err)
+			}
 		}
 		if _, err := tx.Exec(`INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)`, m.version, time.Now().Unix()); err != nil {
 			_ = tx.Rollback()

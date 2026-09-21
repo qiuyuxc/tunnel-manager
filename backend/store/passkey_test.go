@@ -85,7 +85,7 @@ func TestPasswordLoginSwitchPersistsAndRequiresAccount(t *testing.T) {
 
 	// The flag lives in the users table, which every save rewrites from the
 	// cache, so a reload has to see it.
-	reopened := NewStore(s.filePath)
+	reopened := NewStore(s.dsn)
 	user, ok := reopened.GetUserByID(adminID)
 	if !ok || !user.PasswordLoginDisabled {
 		t.Fatalf("reloaded account = %#v, want the password switch disabled", user)

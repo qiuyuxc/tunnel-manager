@@ -49,7 +49,7 @@ type ovIssuesBody struct {
 // heartbeat log to append probes to.
 func ovFixture(t *testing.T, monitorID, monitorName, targetID, targetName string) (*store.Store, *services.HeartbeatLog) {
 	t.Helper()
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.AddMonitor(models.Monitor{
 		ID:     monitorID,
 		UserID: st.AdminUserID(),
@@ -202,7 +202,7 @@ func TestOverviewIncidentsCappedPerTarget(t *testing.T) {
 // Worst first, so the target that was actually down leads the list instead of
 // whichever one the map happened to yield first.
 func TestOverviewIssuesSortedWorstFirst(t *testing.T) {
-	st := store.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	st := newTestStore(t)
 	if err := st.AddMonitor(models.Monitor{
 		ID:     "monitor-1",
 		UserID: st.AdminUserID(),

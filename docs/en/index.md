@@ -17,6 +17,10 @@ hero:
       link: https://github.com/qiuyuxc/tunnel-manager
 
 features:
+  - title: Install wizard & two databases
+    details: The first visit to the panel runs an install wizard — pick a single-file SQLite store or a PostgreSQL server, test the connection, then choose the administrator account; the password never reaches the logs. Environment variables can own the storage instead, so containers need no changes.
+    link: /en/guide/getting-started
+    linkText: Start deploying
   - title: Tunnel management
     details: Create, delete and list Cloudflare Tunnels, review and edit application routes; a freshly created tunnel shows its cloudflared token and run command right away.
     link: /en/guide/tunnels

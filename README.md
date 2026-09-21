@@ -47,11 +47,7 @@ cd tunnel-manager
 ./install.sh
 ```
 
-The script walks you through a Cloudflare OAuth client (or a compatible API token), writes the administrator config and an `APP_ENCRYPTION_KEY`, then builds and starts the service on port `8080`. After the first start, read the generated password from the logs — the startup banner is printed in Chinese, so grep for the password label:
-
-```bash
-docker compose logs | grep 密
-```
+The script walks you through a Cloudflare OAuth client (or a compatible API token), writes an `APP_ENCRYPTION_KEY`, then builds and starts the service on port `8080`. The first visit to the panel opens the install wizard: pick SQLite or PostgreSQL, test the connection, then choose the administrator name and password — no password is generated or printed to the logs.
 
 **Shorter paths**:
 - Run the prebuilt image — see [Docker Compose deployment](https://docs.kukie.cn/en/guide/docker-compose)
@@ -66,7 +62,7 @@ Environment variables, the OAuth setup walkthrough, enabling two-factor auth and
 | Layer | Technology |
 | --- | --- |
 | Frontend | Vue 3, TypeScript, Naive UI, Vite, Pinia |
-| Backend | Go, chi, SQLite |
+| Backend | Go, chi, SQLite / PostgreSQL |
 | Android app | Java, Gradle, Android SDK (API 26+) |
 | Delivery | Multi-stage Docker build, GitHub Actions CI |
 

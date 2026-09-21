@@ -10,19 +10,15 @@ cd tunnel-manager
 ./install.sh
 ```
 
-The script checks your Docker setup, walks you through a Cloudflare OAuth client (or a compatible API token), writes the administrator config and an `APP_ENCRYPTION_KEY`, then builds and starts the service. It listens on port `8080` by default (`docker-compose.yml` maps it to host port 8080).
+The script checks your Docker setup, walks you through a Cloudflare OAuth client (or a compatible API token), writes an `APP_ENCRYPTION_KEY`, then builds and starts the service; the administrator account is created by the install wizard on the first visit to the panel. It listens on port `8080` by default (`docker-compose.yml` maps it to host port 8080).
 
 > Prefer not to build from source? Run the prebuilt image, or skip Docker entirely with the binary — see [Docker Compose deployment](/en/guide/docker-compose) and [Binary deployment](/en/guide/binary-deploy).
 
-## Getting the initial password
+## Creating the administrator account
 
-After the first start, read the generated administrator password from the container logs. The startup banner is printed in Chinese, so grep for the password label:
+The first visit to the panel opens the install wizard. Until an account exists the panel serves only that page: pick the database (a single SQLite file or a PostgreSQL server, whose connection you can test first), then choose the administrator name and password. Installation restarts the service and drops you on the sign-in page. The password is the one you typed, it stays in the database and is never printed to the logs.
 
-```bash
-docker compose logs | grep 密
-```
-
-You can also set `ADMIN_PASSWORD` before the first start to choose the password yourself; leave it empty and one is generated.
+To skip it, set `ADMIN_PASSWORD` before the first start: the account is created at boot with that password and the panel goes straight to the sign-in page.
 
 ## Environment variables
 
@@ -35,9 +31,11 @@ You can also set `ADMIN_PASSWORD` before the first start to choose the password 
 | `CF_API_TOKEN` | compatibility | Legacy static Cloudflare API token, used when OAuth is not connected |
 | `CF_ACCOUNT_ID` | compatibility | Account ID for the static token; OAuth reads and stores the account itself |
 | `API_KEY` | no | API key for automated calls |
-| `ADMIN_PASSWORD` | no | Administrator password for the first start; generated when empty |
+| `ADMIN_PASSWORD` | no | Administrator password for the first start; leave it empty to choose one in the web install wizard |
 | `APP_ENCRYPTION_KEY` | for 2FA | Base64-encoded 32-byte random key that encrypts TOTP secrets and OAuth tokens |
 | `STORE_PATH` | no | Path to the SQLite database. The binary defaults to `data/tunnel-manager.db`; the Docker image sets `data/config.json`, a legacy filename kept so older installs upgrade in place |
+| `DATABASE_URL` | no | PostgreSQL connection string such as `postgres://user:pass@host:5432/tunnel_manager?sslmode=disable`. Takes precedence over `STORE_PATH` |
+| `DATA_DIR` | no | Directory for uploads and heartbeat logs. Defaults to the SQLite file's directory; set it explicitly when the store lives on PostgreSQL |
 | `PORT` | no | HTTP port, `8080` by default |
 
 ::: warning Back up the encryption key

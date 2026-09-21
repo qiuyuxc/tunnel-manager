@@ -18,7 +18,26 @@ services:
       - CF_OAUTH_REDIRECT_URI=${CF_OAUTH_REDIRECT_URI}
       - CF_OAUTH_SCOPES=${CF_OAUTH_SCOPES}
       - API_KEY=${API_KEY}
+      # Optional: creates the administrator account at boot. Leave it empty
+      # and the first visit to the panel opens the install wizard instead.
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
+      # Optional PostgreSQL; leave empty to keep the SQLite file in ./data.
+      - DATABASE_URL=${DATABASE_URL:-}
+      - DATA_DIR=/app/data
     volumes:
       - ./data:/app/data
+
+  # Optional PostgreSQL server: `docker compose --profile postgres up -d` with
+  # DATABASE_URL=postgres://tunnel:tunnel@postgres:5432/tunnel_manager?sslmode=disable
+  postgres:
+    image: postgres:18-alpine
+    profiles: ["postgres"]
+    container_name: tunnel-manager-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=tunnel
+      - POSTGRES_PASSWORD=tunnel
+      - POSTGRES_DB=tunnel_manager
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data

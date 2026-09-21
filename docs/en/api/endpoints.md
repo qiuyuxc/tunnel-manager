@@ -13,6 +13,16 @@ Ordinary endpoints are checked against group permissions (tunnels / domain bindi
 | --- | --- | --- | --- |
 | GET | `/api/health` | Health check, returns the current version | none |
 
+## Install wizard
+
+Until the panel has an administrator account the process mounts only these endpoints and the frontend bundle; after installation they all answer `404`.
+
+| Method | Path | Description | Auth |
+| --- | --- | --- | --- |
+| GET | `/api/setup/status` | Setup state: whether the environment owns the storage, the current database configuration with credentials redacted, the data directory and the setup file path | none |
+| POST | `/api/setup/test` | Try a connection with the submitted database form; nothing is stored | none |
+| POST | `/api/setup/complete` | Save the storage choice, apply the schema and create the administrator account, then restart the process | none |
+
 ## Registration & identity
 
 | Method | Path | Description | Auth |

@@ -1,6 +1,6 @@
 # Multi-user & admin console
 
-Since v2.0.0 Tunnel Manager supports user registration and an admin console. Everything is stored in SQLite (`data/tunnel-manager.db`); a legacy `config.json` is imported automatically on first start — the original administrator account, OAuth connection and monitors all carry over, and the old file is kept as a backup.
+Since v2.0.0 Tunnel Manager supports user registration and an admin console. Everything is stored in SQLite (`data/tunnel-manager.db` by default) or PostgreSQL (set `DATABASE_URL`), and switching backends leaves the multi-user and permission model untouched; a legacy `config.json` is imported automatically on first start — the original administrator account, OAuth connection and monitors all carry over, and the old file is kept as a backup.
 
 ## Registration policy (Admin console → System settings)
 
