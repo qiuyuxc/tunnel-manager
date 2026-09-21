@@ -95,6 +95,7 @@ void setOnColumnTap(OnColumnTap listener) {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         Palette p = Theme.p();
+        labelPaint.setColor(p.body);
         float trackTop = UI.dp(TOP_DP);
         float trackBottom = trackTop + UI.dp(TRACK_DP);
         float left = UI.dp(SIDE_DP);

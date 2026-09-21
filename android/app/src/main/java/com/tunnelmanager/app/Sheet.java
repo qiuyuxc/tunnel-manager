@@ -32,15 +32,15 @@ final class Sheet {
     private static final float MAX_HEIGHT_RATIO = 0.88f;
 
     /** The sheet on screen, if any — the shell's back handler needs to see it. */
-    private static Dialog visible;
+    private static Builder visible;
 
     private Sheet() {
     }
 
     /** Closes the open sheet. Returns false when there was nothing to close. */
     static boolean dismissVisible() {
-        if (visible == null || !visible.isShowing()) return false;
-        visible.dismiss();
+        if (visible == null || !visible.dialog.isShowing()) return false;
+        if (visible.allowDismiss) visible.dismiss();
         return true;
     }
 
@@ -53,15 +53,20 @@ final class Sheet {
         private final Context ctx;
         private final Dialog dialog;
         private final LinearLayout body;
-        private final ScrollView scroll;
+        private final LinearLayout root;
+        private final Capped scroll;
+        private ImageView closeButton;
+        private boolean allowDismiss = true;
+        private Runnable dismissed;
         /** Rows added since the last {@link #label}; drives the hairline seams. */
         private int rowsInGroup;
+        private ValueAnimator dimAnimator;
 
         private Builder(Context ctx, String title) {
             this.ctx = ctx;
             Palette p = Theme.p();
 
-            LinearLayout root = UI.column(ctx);
+            root = UI.column(ctx);
             root.setBackground(topRounded(p.canvasRaised));
             // Without this the dim scrim's tap would fall through to the page.
             root.setClickable(true);
@@ -70,7 +75,7 @@ final class Sheet {
             root.addView(buildHead(title));
 
             body = UI.column(ctx);
-            int side = UI.dp(UI.MD);
+            int side = UI.dp(20);
             body.setPadding(side, 0, side, UI.dp(20));
 
             scroll = new Capped(ctx);
@@ -92,6 +97,7 @@ final class Sheet {
                 window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
                 window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 window.setDimAmount(0f);
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
                 applyInsets(window, root);
             }
             dialog.setCanceledOnTouchOutside(true);
@@ -112,20 +118,27 @@ final class Sheet {
             Palette p = Theme.p();
             LinearLayout head = UI.row(ctx);
             head.setPadding(UI.dp(UI.LG), UI.dp(UI.MD), UI.dp(UI.LG), UI.dp(10));
-            head.addView(UI.text(ctx, title, 15, p.ink, Typeface.BOLD));
+            TextView heading = UI.text(ctx, title, 22, p.ink, Typeface.BOLD);
+            head.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             View spacer = new View(ctx);
-            head.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+            head.addView(spacer, new LinearLayout.LayoutParams(UI.dp(UI.SM), 1));
 
             ImageView close = new ImageView(ctx);
+            closeButton = close;
             close.setImageResource(R.drawable.ic_nav_close);
-            close.setColorFilter(p.mute);
+            UI.tint(close, p.mute);
             int pad = UI.dp(7);
             close.setPadding(pad, pad, pad, pad);
             close.setBackground(UI.pressable(UI.rounded(p.canvasSoft2, UI.RADIUS_PILL), p.btnGhostHover));
             close.setClickable(true);
-            close.setOnClickListener(v -> dismiss());
-            head.addView(close, new LinearLayout.LayoutParams(UI.dp(28), UI.dp(28)));
+            close.setFocusable(true);
+            close.setContentDescription("关闭面板");
+            UI.pressFeedback(close);
+            close.setOnClickListener(v -> {
+                if (allowDismiss) dismiss();
+            });
+            head.addView(close, new LinearLayout.LayoutParams(UI.dp(44), UI.dp(44)));
             return head;
         }
 
@@ -133,9 +146,7 @@ final class Sheet {
         private void applyInsets(Window window, View root) {
             window.getDecorView().setOnApplyWindowInsetsListener((v, insets) -> {
                 int bottom = insets.getSystemWindowInsetBottom();
-                if (bottom > 0) {
-                    root.setPadding(0, 0, 0, bottom);
-                }
+                root.setPadding(0, 0, 0, bottom);
                 return insets;
             });
         }
@@ -174,7 +185,7 @@ final class Sheet {
             tile.setBackground(UI.rounded(p.canvasSoft2, UI.RADIUS_LG));
             ImageView icon = new ImageView(ctx);
             icon.setImageResource(iconRes);
-            icon.setColorFilter(p.ink);
+            UI.tint(icon, p.success);
             tile.addView(icon, new LinearLayout.LayoutParams(UI.dp(20), UI.dp(20)));
             LinearLayout.LayoutParams tileLp = new LinearLayout.LayoutParams(UI.dp(40), UI.dp(40));
             tileLp.rightMargin = UI.dp(UI.MD);
@@ -183,16 +194,18 @@ final class Sheet {
             LinearLayout text = UI.column(ctx);
             text.addView(UI.strong(ctx, title));
             TextView sub = UI.muted(ctx, desc);
-            UI.margin(sub, 0, UI.dp(1), 0, 0);
+            UI.margin(sub, 0, 2, 0, 0);
             text.addView(sub);
             row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             ImageView chevron = new ImageView(ctx);
             chevron.setImageResource(R.drawable.ic_nav_chevron);
-            chevron.setColorFilter(p.mute);
+            UI.tint(chevron, p.mute);
             row.addView(chevron, new LinearLayout.LayoutParams(UI.dp(15), UI.dp(15)));
 
             row.setClickable(true);
+            row.setFocusable(true);
+            UI.pressFeedback(row);
             row.setOnClickListener(v -> {
                 dismiss();
                 onClick.run();
@@ -213,13 +226,13 @@ final class Sheet {
             }
 
             LinearLayout row = UI.row(ctx);
-            row.setMinimumHeight(UI.dp(44));
+            row.setMinimumHeight(UI.dp(52));
             row.setPadding(UI.dp(10), UI.dp(UI.SM), UI.dp(10), UI.dp(UI.SM));
             row.setBackground(UI.pressable(UI.rounded(p.canvasRaised, UI.RADIUS_LG), p.btnGhostHover));
 
             ImageView icon = new ImageView(ctx);
             icon.setImageResource(iconRes);
-            icon.setColorFilter(p.body);
+            UI.tint(icon, p.success);
             LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(19), UI.dp(19));
             iconLp.rightMargin = UI.dp(UI.MD);
             row.addView(icon, iconLp);
@@ -229,10 +242,12 @@ final class Sheet {
 
             ImageView chevron = new ImageView(ctx);
             chevron.setImageResource(R.drawable.ic_nav_chevron);
-            chevron.setColorFilter(p.mute);
+            UI.tint(chevron, p.mute);
             row.addView(chevron, new LinearLayout.LayoutParams(UI.dp(15), UI.dp(15)));
 
             row.setClickable(true);
+            row.setFocusable(true);
+            UI.pressFeedback(row);
             row.setOnClickListener(v -> {
                 dismiss();
                 onClick.run();
@@ -249,6 +264,33 @@ final class Sheet {
             return this;
         }
 
+        Builder footer(View view) {
+            LinearLayout footer = UI.column(ctx);
+            footer.setPadding(UI.dp(20), UI.dp(12), UI.dp(20), UI.dp(16));
+            footer.addView(view);
+            root.addView(footer);
+            scroll.footer = footer;
+            body.setPadding(UI.dp(20), 0, UI.dp(20), 0);
+            return this;
+        }
+
+        Builder onDismiss(Runnable callback) {
+            dismissed = callback;
+            return this;
+        }
+
+        void setDismissible(boolean enabled) {
+            allowDismiss = enabled;
+            dialog.setCancelable(enabled);
+            dialog.setCanceledOnTouchOutside(enabled);
+            closeButton.setEnabled(enabled);
+            closeButton.setAlpha(enabled ? 1f : 0.4f);
+        }
+
+        boolean isShowing() {
+            return dialog.isShowing();
+        }
+
         // ------------------------------------------------------------ lifecycle
 
         void dismiss() {
@@ -256,11 +298,21 @@ final class Sheet {
         }
 
         void show() {
-            visible = dialog;
+            visible = this;
             dialog.setOnDismissListener(d -> {
-                if (visible == dialog) visible = null;
+                if (dimAnimator != null) dimAnimator.cancel();
+                if (visible == this) visible = null;
+                if (dismissed != null) dismissed.run();
             });
+            Window window = dialog.getWindow();
+            if (window != null) window.setWindowAnimations(Theme.motionEnabled() ? R.style.SheetDialogAnimation : 0);
             dialog.show();
+            if (window != null) {
+                int width = ctx.getResources().getConfiguration().screenWidthDp >= 600
+                        ? UI.dp(560) : ViewGroup.LayoutParams.MATCH_PARENT;
+                window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+                window.setNavigationBarColor(Theme.p().canvasRaised);
+            }
             fadeDim(0f, 0.45f);
         }
 
@@ -271,10 +323,14 @@ final class Sheet {
         private void fadeDim(float from, float to) {
             Window window = dialog.getWindow();
             if (window == null) return;
-            ValueAnimator anim = ValueAnimator.ofFloat(from, to);
-            anim.setDuration(220);
-            anim.addUpdateListener(a -> window.setDimAmount((float) a.getAnimatedValue()));
-            anim.start();
+            if (!Theme.motionEnabled()) {
+                window.setDimAmount(to);
+                return;
+            }
+            dimAnimator = ValueAnimator.ofFloat(from, to);
+            dimAnimator.setDuration(220);
+            dimAnimator.addUpdateListener(animation -> window.setDimAmount((float) animation.getAnimatedValue()));
+            dimAnimator.start();
         }
     }
 
@@ -282,7 +338,7 @@ final class Sheet {
     private static GradientDrawable topRounded(int fill) {
         GradientDrawable d = new GradientDrawable();
         d.setShape(GradientDrawable.RECTANGLE);
-        float r = UI.dp(18);
+        float r = UI.dp(28);
         d.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
         d.setColor(fill);
         return d;
@@ -296,6 +352,7 @@ final class Sheet {
     private static final class Capped extends ScrollView {
 
         private final int cap;
+        private View footer;
 
         Capped(Context ctx) {
             super(ctx);
@@ -305,7 +362,13 @@ final class Sheet {
 
         @Override
         protected void onMeasure(int widthSpec, int heightSpec) {
-            super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(cap, MeasureSpec.AT_MOST));
+            int available = MeasureSpec.getMode(heightSpec) == MeasureSpec.UNSPECIFIED
+                    ? cap : Math.min(cap, MeasureSpec.getSize(heightSpec));
+            if (footer != null) {
+                footer.measure(widthSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                available = Math.max(0, available - footer.getMeasuredHeight());
+            }
+            super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST));
         }
     }
 }

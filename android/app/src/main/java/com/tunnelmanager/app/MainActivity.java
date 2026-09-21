@@ -156,6 +156,10 @@ public class MainActivity extends Activity {
         btnBackToLogin = findViewById(R.id.btn_back_to_login);
         btnPasskeyLogin = findViewById(R.id.btn_passkey_login);
         btnPasskeyVerify = findViewById(R.id.btn_passkey_verify);
+        UI.pressFeedback(btnLogin);
+        UI.pressFeedback(btnVerify);
+        UI.pressFeedback(btnPasskeyLogin);
+        UI.pressFeedback(btnPasskeyVerify);
         progress = findViewById(R.id.progress);
         web = findViewById(R.id.webview);
         turnstileBox = findViewById(R.id.turnstile_box);
@@ -230,12 +234,12 @@ public class MainActivity extends Activity {
     /** Once per process: a returning visitor should not sit through it again. */
     private static boolean splashPlayed = false;
     /** How long the artwork stays up before it starts handing over. */
-    private static final long SPLASH_HOLD = 1300;
+    private static final long SPLASH_HOLD = 300;
     /** The artwork settles from a slightly tighter crop rather than fading in:
      *  the window behind it is already its own top colour, so any fade would
      *  show the sign-in form first. */
-    private static final long SPLASH_SETTLE = 700;
-    private static final long SPLASH_FADE = 300;
+    private static final long SPLASH_SETTLE = 240;
+    private static final long SPLASH_FADE = 180;
 
     /**
      * Plays the launch artwork above whatever the activity has already built.
@@ -251,6 +255,10 @@ public class MainActivity extends Activity {
             return;
         }
         splashPlayed = true;
+        if (!Theme.motionEnabled()) {
+            if (after != null) after.run();
+            return;
+        }
 
         final int splashBg = getResources().getColor(
         Theme.isDark() ? R.color.splash_night_bg : R.color.splash_day_bg, getTheme());

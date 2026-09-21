@@ -1,11 +1,14 @@
 package com.tunnelmanager.app;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -18,13 +21,6 @@ import org.json.JSONObject;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 关于 — what this is, which version runs, and what changed.
- *
- * The version check hits GitHub directly rather than through the console,
- * because the question it answers ("is there something newer than my server?")
- * only makes sense against the upstream release feed.
- */
 public class AboutFragment extends PageFragment {
 
     private static final String REPO_URL = "https://github.com/qiuyuxc/tunnel-manager";
@@ -34,14 +30,13 @@ public class AboutFragment extends PageFragment {
 
     /** Highlights of the current release, as the web page lists them. */
     private static final String[] HIGHLIGHTS = {
-            "新增 Android 原生 App：概览、监控、隧道绑定、DNS、IP 优选实验室与通知全部原生实现",
-            "App 通知接入系统通知渠道，不打开网页也能在手机上收到监控状态变化",
-            "App 登录页内嵌 Cloudflare Turnstile，人机验证全程在原生页面完成，不再跳转网页",
-            "登录页与控制台跟随主题偏好切换亮色 / 暗色，与网页端共用一套配色",
-            "移动端改为底部标签导航与半屏弹窗，窄屏下监控、DNS 等页面不再横向挤压",
-            "落地页双主题：Vercel 风格（企业蓝）与 Claude 风格（暖色），各含亮色 / 暗色",
-            "错误信息统一脱敏，Telegram Bot Token 不再出现在日志、状态卡与截图中",
-            "新增 /api/alerts 告警游标接口，客户端可按 since 增量拉取监控状态变化",
+            "原生 App 换用石墨与薄荷绿配色，统一登录、面板、按钮和浮动导航，支持深浅主题与轻量效果",
+            "更多菜单增加账户摘要和工具网格，常用入口继续按权限展示",
+            "隧道支持名称或 ID 搜索与状态筛选，当前选择、应用路由和危险操作分区更清楚",
+            "全局新建、隧道列表和空状态共用创建弹层，提交区固定在底部，保留运行命令和令牌反馈",
+            "监控列表增加真实七天可用率和服务历史条，未知、降级、异常与空数据分别展示",
+            "监控详情增加可切换服务的响应趋势，添加、编辑、检测间隔和公开链接改为独立弹层",
+            "关于页分别显示已安装 App 与服务端版本，避免旧服务端版本被误认为 App 版本",
     };
 
     private static final String[][] FEATURES = {
@@ -57,6 +52,7 @@ public class AboutFragment extends PageFragment {
     };
 
     private static final String[][] STACK = {
+            {"Android", "Java · Android Views · AndroidX"},
             {"前端", "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
             {"后端", "Go · chi · SQLite"},
             {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
@@ -65,11 +61,14 @@ public class AboutFragment extends PageFragment {
     private ScrollView scroll;
     private LinearLayout body;
 
-    private String currentVersion = "—";
+    private String appVersion = "未知";
+    private String serverVersion = "读取中…";
+    private long appVersionCode;
     private String latestTag = "";
     private String latestBody = "";
     private String checkError = "";
     private boolean checking = false;
+    private int generation;
 
     @Override
     String route() {
@@ -78,6 +77,7 @@ public class AboutFragment extends PageFragment {
 
     @Override
     protected View build(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
+        readAppVersion();
         scroll = new ScrollView(requireContext());
         body = UI.column(requireContext());
         UI.pagePadding(body);
@@ -88,24 +88,49 @@ public class AboutFragment extends PageFragment {
         return scroll;
     }
 
-    private void loadVersion() {
-        Api.async(() -> Api.external(Session.server() + "/api/health", "application/json"), raw -> {
-            try {
-                currentVersion = new JSONObject(raw).optString("version", "—");
-            } catch (Exception ignored) {
-                currentVersion = "—";
-            }
-            render();
-        }, failure -> ignore());
+    private void readAppVersion() {
+        try {
+            PackageInfo info = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0);
+            appVersion = info.versionName == null ? "未知" : "v" + info.versionName;
+            appVersionCode = android.os.Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+        } catch (PackageManager.NameNotFoundException failure) {
+            appVersion = "未知";
+            appVersionCode = 0;
+        }
     }
 
-    private void ignore() {
-        // The version row already shows a dash; a health failure is not news.
+    @Override public void onDestroyView() {
+        generation++;
+        checking = false;
+        scroll = null;
+        body = null;
+        super.onDestroyView();
+    }
+
+    private void loadVersion() {
+        int request = generation;
+        Api.async(() -> Api.external(Session.server() + "/api/health", "application/json"), raw -> {
+            if (request != generation || body == null) return;
+            try {
+                serverVersion = new JSONObject(raw).optString("version", "未知");
+            } catch (Exception ignored) {
+                serverVersion = "无法读取";
+            }
+            render();
+        }, failure -> {
+            if (request != generation || body == null) return;
+            serverVersion = "无法连接";
+            render();
+        });
     }
 
     private void loadRelease() {
+        if (checking) return;
+        int request = generation;
         checking = true;
         checkError = "";
+        latestTag = "";
+        latestBody = "";
         render();
         Api.async(() -> {
             String raw = Api.external(RELEASE_API, "application/vnd.github+json");
@@ -115,11 +140,13 @@ public class AboutFragment extends PageFragment {
             out.put("body", release.optString("body", ""));
             return out;
         }, payload -> {
+            if (request != generation || body == null) return;
             checking = false;
             latestTag = payload.optString("tag", "");
             latestBody = payload.optString("body", "");
             render();
         }, failure -> {
+            if (request != generation || body == null) return;
             checking = false;
             checkError = "无法连接 GitHub，请检查网络后重试。";
             render();
@@ -167,17 +194,14 @@ public class AboutFragment extends PageFragment {
 
     private View appCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "Tunnel Manager"));
-        TextView desc = UI.muted(requireContext(), "Cloudflare Tunnel 可视化管理面板");
-        UI.margin(desc, 0, UI.XS, 0, UI.MD);
-        card.addView(desc);
-
-        TextView about = UI.body(requireContext(),
-                "通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、"
-                        + "服务状态变化邮件告警、Telegram Bot 远程管理和双重身份验证；管理员还可开启实验性 IP 优选实验室，"
-                        + "按输入段探测、筛选并剔除无命中地址。");
-        card.addView(about);
-
+        ImageView mark = new ImageView(requireContext());
+        mark.setImageResource(R.drawable.logo_mark);
+        UI.tint(mark, Theme.p().success);
+        mark.setBackground(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_LG));
+        card.addView(mark, new LinearLayout.LayoutParams(UI.dp(64), UI.dp(64)));
+        UI.addRow(card, UI.text(requireContext(), "Tunnel Manager", 24, Theme.p().ink, Typeface.BOLD), UI.MD);
+        UI.addRow(card, UI.muted(requireContext(), "连接本地，让服务自由抵达。"), UI.XS);
+        UI.addRow(card, UI.muted(requireContext(), "Android 原生 · " + appVersion), UI.SM);
         card.addView(linkRow("仓库地址", REPO_URL));
         card.addView(linkRow("在线文档", DOCS_URL));
         return card;
@@ -205,50 +229,49 @@ public class AboutFragment extends PageFragment {
 
     private View versionCard() {
         LinearLayout card = UI.card(requireContext());
-        LinearLayout head = UI.row(requireContext());
-        LinearLayout text = UI.column(requireContext());
-        text.addView(UI.cardTitle(requireContext(), "版本与更新"));
-        TextView desc = UI.muted(requireContext(), "对比 GitHub 上发布的最新版本，查看是否有新内容。");
-        UI.margin(desc, 0, UI.XS, 0, 0);
-        text.addView(desc);
-        head.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView check = UI.button(requireContext(), checking ? "检查中…" : "检查更新", UI.BTN_PRIMARY);
+        card.addView(UI.cardTitle(requireContext(), "版本与更新"));
+        UI.addRow(card, UI.muted(requireContext(), "App 版本来自当前安装包，服务端版本来自已连接的面板，两者分别更新。"), UI.XS);
+        UI.addRow(card, versionRow("App 版本", appVersion, Theme.p().ink), UI.MD);
+        card.addView(versionRow("构建号", appVersionCode == 0 ? "未知" : String.valueOf(appVersionCode), Theme.p().mute));
+        card.addView(versionRow("服务端版本", serverVersion, Theme.p().ink));
+        card.addView(versionRow("项目最新发布", latestTag.isEmpty() ? "尚未取得" : latestTag, Theme.p().ink));
+        card.addView(versionRow("App 更新状态", versionStatus(appVersion), versionStatusColor(appVersion)));
+        card.addView(versionRow("服务端更新状态", versionStatus(serverVersion), versionStatusColor(serverVersion)));
+        TextView check = UI.button(requireContext(), checking ? "检查中…" : "检查更新", UI.BTN_SECONDARY);
         check.setEnabled(!checking);
         check.setOnClickListener(v -> loadRelease());
-        head.addView(check);
-        card.addView(head);
-
-        card.addView(UI.spacer(requireContext(), UI.MD));
-        card.addView(versionRow("当前版本", currentVersion, Theme.p().ink));
-        String latest = latestTag.isEmpty() ? "—" : latestTag;
-        card.addView(versionRow("线上最新", latest, Theme.p().ink));
-        card.addView(versionRow("更新状态", statusText(), statusColor()));
+        UI.addRow(card, check, UI.MD);
+        UI.addRow(card, UI.muted(requireContext(), "更新比较以项目发布标签为准，App 与服务端需分别更新：Android 安装包见发布页附件，服务端替换二进制并重启。"), UI.SM);
         return card;
     }
 
     private View versionRow(String label, String value, int color) {
         LinearLayout row = UI.row(requireContext());
         row.setPadding(0, UI.dp(UI.SM), 0, UI.dp(UI.SM));
-        row.addView(UI.muted(requireContext(), label),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(UI.muted(requireContext(), label), new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView text = UI.text(requireContext(), value, 14, color, Typeface.BOLD);
         text.setGravity(android.view.Gravity.END);
-        row.addView(text);
+        LinearLayout.LayoutParams valueLayout = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.5f);
+        valueLayout.leftMargin = UI.dp(UI.SM);
+        row.addView(text, valueLayout);
         return row;
     }
 
-    private String statusText() {
+    /** Summarises one installed version against the latest published release tag. */
+    private String versionStatus(String installed) {
         if (checking) return "检查中…";
         if (latestTag.isEmpty()) return checkError.isEmpty() ? "尚未检查" : "检查失败";
-        int diff = compare(latestTag, currentVersion);
-        if (diff > 0) return "发现新版本 " + latestTag;
+        if (parse(latestTag) == null || parse(installed) == null) return "无法比较版本";
+        int diff = compare(latestTag, installed);
+        if (diff > 0) return "可更新到 " + latestTag;
         if (diff == 0) return "已是最新版本";
-        return "当前版本领先线上发布";
+        return "领先线上发布";
     }
 
-    private int statusColor() {
-        if (latestTag.isEmpty()) return Theme.p().mute;
-        int diff = compare(latestTag, currentVersion);
+    private int versionStatusColor(String installed) {
+        if (checking || !checkError.isEmpty() || parse(latestTag) == null || parse(installed) == null) return Theme.p().mute;
+        int diff = compare(latestTag, installed);
         if (diff > 0) return Theme.p().statusDegradedText;
         if (diff == 0) return Theme.p().statusHealthyText;
         return Theme.p().link;
@@ -267,16 +290,16 @@ public class AboutFragment extends PageFragment {
 
     private static int[] parse(String tag) {
         Matcher matcher = Pattern.compile("v?(\\d+)\\.(\\d+)\\.(\\d+)").matcher(tag == null ? "" : tag);
-        if (!matcher.find()) return null;
-        return new int[]{
-                Integer.parseInt(matcher.group(1)),
-                Integer.parseInt(matcher.group(2)),
-                Integer.parseInt(matcher.group(3)),
-        };
+        if (!matcher.matches()) return null;
+        try {
+            return new int[]{Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3))};
+        } catch (NumberFormatException failure) {
+            return null;
+        }
     }
 
     private View highlightsCard() {
-        LinearLayout card = card("本版本亮点", "当前版本（" + currentVersion + "）的重点变化。");
+        LinearLayout card = card("本版本亮点", "Android App " + appVersion + " 的重点变化。");
         for (String item : HIGHLIGHTS) {
             card.addView(bullet(item, 0));
         }

@@ -28,6 +28,9 @@ import androidx.fragment.app.FragmentManager;
 import org.json.JSONObject;
 
 import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.List;
+import android.text.TextUtils;
 
 /**
  * The native console shell.
@@ -36,20 +39,19 @@ import java.util.function.Consumer;
  * the navigation (a sidebar when there is room, a tab bar when there is not),
  * and the fragment back stack. Pages themselves are {@link PageFragment}s.
  *
- * Switching palette calls {@link #recreate()}: every colour in the app is read
- * from {@link Theme} while views are built, so rebuilding the activity is both
- * the simplest and the only fully correct way to repaint.
  */
 public class ConsoleActivity extends AppCompatActivity {
 
     private static final String STATE_PATH = "path";
-    /** How far the create button rises above the tab bar, as the web draws it. */
-    private static final int FAB_OVERHANG = 18;
     /** Console route to open on launch, set by a tapped notification. */
     static final String EXTRA_PATH = "route";
 
     private FrameLayout content;
     private LinearLayout bottomBar;
+    private View shell;
+    private ImageView themeButton;
+    private ImageView navigationButton;
+    private final List<String> bottomPaths = new ArrayList<>();
     /** The scrolling sidebar, or null on narrow screens. */
     private ScrollView sidebar;
     /** Open identity popover, or null. Held so a palette change can close it. */
@@ -64,6 +66,7 @@ public class ConsoleActivity extends AppCompatActivity {
     private boolean restoring;
     /** Set once a dead session has been acted on, so it is acted on once. */
     private boolean sessionLostHandled;
+    private TunnelCreateSheet tunnelCreateSheet;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -82,7 +85,9 @@ public class ConsoleActivity extends AppCompatActivity {
             restoring = true;
         }
         applySystemBars();
-        setContentView(buildShell());
+        shell = buildShell();
+        setContentView(shell);
+        tunnelCreateSheet = new TunnelCreateSheet(this, saved);
         installBackHandler();
         loadIdentity();
         if (saved == null) open(initialRoute(getIntent()));
@@ -98,6 +103,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (tunnelCreateSheet != null) tunnelCreateSheet.dispose();
         Api.stopWatchingSession();
         super.onDestroy();
     }
@@ -126,6 +132,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
+        if (tunnelCreateSheet != null) tunnelCreateSheet.save(outState);
         outState.putString(STATE_PATH, currentPath == null ? "/dashboard" : currentPath);
         super.onSaveInstanceState(outState);
     }
@@ -137,10 +144,9 @@ public class ConsoleActivity extends AppCompatActivity {
         LinearLayout root = UI.column(this);
         root.setBackgroundColor(p.canvas);
         root.addView(buildAppBar());
-        root.addView(hairline(p.headerBorder));
-
+        FrameLayout stage = new FrameLayout(this);
+        root.addView(stage, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         LinearLayout body = UI.row(this);
-        body.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         if (wide) {
             sidebar = buildSidebar();
             body.addView(sidebar, new LinearLayout.LayoutParams(UI.dp(UI.SIDEBAR_W), ViewGroup.LayoutParams.MATCH_PARENT));
@@ -148,38 +154,23 @@ public class ConsoleActivity extends AppCompatActivity {
         content = new FrameLayout(this);
         content.setId(R.id.tm_content);
         body.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
-        root.addView(body);
+        stage.addView(body, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         if (!wide) {
-            root.addView(hairline(p.hairline));
-            root.addView(buildBottomArea());
+            stage.addView(buildBottomArea());
         }
         return root;
     }
 
-    /**
-     * The phone bottom chrome: the tab bar with the create button floating half
-     * above it.
-     *
-     * The area is deliberately 18dp taller than the bar so the button fits
-     * *inside* it: a child that paints outside its parent's bounds gets sliced
-     * off at the parent's edge, and asking for clipChildren="false" is not
-     * reliable once the child carries an elevation. The page simply ends 18dp
-     * higher, which is where the button needs the room anyway.
-     */
     private View buildBottomArea() {
         FrameLayout area = new FrameLayout(this);
-        area.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.TABBAR_H + FAB_OVERHANG)));
-
+        area.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.TABBAR_H + 24), Gravity.BOTTOM));
         bottomBar = buildBottomBar();
-        area.addView(bottomBar, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.TABBAR_H), Gravity.BOTTOM));
-
-        FrameLayout.LayoutParams fabLp = new FrameLayout.LayoutParams(
-                UI.dp(46), UI.dp(46), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        fabLp.bottomMargin = UI.dp(UI.TABBAR_H - 46 + FAB_OVERHANG);
-        area.addView(fabButton(), fabLp);
+        FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.TABBAR_H), Gravity.BOTTOM);
+        barParams.setMargins(UI.dp(20), 0, UI.dp(20), UI.dp(12));
+        area.addView(bottomBar, barParams);
         return area;
     }
 
@@ -197,17 +188,25 @@ public class ConsoleActivity extends AppCompatActivity {
         LinearLayout bar = UI.row(this);
         bar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.HEADER_H)));
         bar.setBackgroundColor(p.headerBg);
-        bar.setPadding(UI.dp(UI.LG), 0, UI.dp(UI.SM), 0);
-
-        bar.addView(UI.text(this, Session.siteName(), 15, p.ink, Typeface.BOLD));
-        View spacer = new View(this);
-        bar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+        bar.setPadding(UI.dp(12), 0, UI.dp(UI.SM), 0);
+        navigationButton = (ImageView) iconButton(R.drawable.ic_nav_tunnels, p.success, view -> {
+            if (isDetailRoute()) getOnBackPressedDispatcher().onBackPressed();
+            else open("/dashboard");
+        });
+        navigationButton.setContentDescription("控制面板");
+        bar.addView(navigationButton);
+        TextView brand = UI.text(this, Session.siteName(), 18, p.ink, Typeface.BOLD);
+        brand.setSingleLine(true);
+        brand.setEllipsize(TextUtils.TruncateAt.END);
+        bar.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         // Day/night is one tap. There is a single visual theme, so a palette
         // menu would have exactly two entries and no reason to exist; going
         // back is the system gesture, so the bar carries no back arrow either.
-        bar.addView(iconButton(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon,
-                p.body, v -> toggleDark()));
+        themeButton = (ImageView) iconButton(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon,
+                p.body, v -> toggleDark());
+        themeButton.setContentDescription("切换深浅主题");
+        bar.addView(themeButton);
         bar.addView(avatarButton());
         return bar;
     }
@@ -245,7 +244,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(item.icon);
-        icon.setColorFilter(active ? p.sidebarTextActive : p.sidebarText);
+        UI.tint(icon, active ? p.sidebarTextActive : p.sidebarText);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(18), UI.dp(18));
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
@@ -266,96 +265,103 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private LinearLayout buildBottomBar() {
         LinearLayout bar = UI.row(this);
-        // The factory button sits proud of the bar, so the bar has to let it
-        // through; the root above it still clips to the screen.
-        bar.setClipChildren(false);
-        bar.setClipToPadding(false);
+        bar.setBackground(new GlassDrawable(UI.RADIUS_PILL, false));
+        bar.setPadding(UI.dp(6), UI.dp(6), UI.dp(6), UI.dp(6));
+        bar.setElevation(UI.dp(Theme.reducedEffects() ? 0 : 6));
         fillBottomBar(bar);
         return bar;
     }
 
     private void fillBottomBar(LinearLayout bar) {
-        Palette p = Theme.p();
-        // The bar's own LayoutParams belong to whoever added it — the phone
-        // chrome puts it in a FrameLayout, so re-setting them here would hand
-        // that parent a type it cannot measure.
-        bar.setBackgroundColor(p.canvas);
-        bar.setGravity(Gravity.CENTER);
-        bar.removeAllViews();
-
-        // 概览 · 监控 · [+] · DNS 管理 · 更多 — the same order the phone web
-        // chrome uses, with anything the account cannot see dropped rather than
-        // left as a dead slot.
-        int slots = 1;
+        List<String> paths = new ArrayList<>();
+        List<Nav.Item> visible = Nav.visible();
         for (String path : Nav.TAB_PATHS) {
             Nav.Item item = Nav.byPath(path);
-            if (item == null) continue;
-            bar.addView(tabButton(item.icon, item.tabLabel, Nav.isActive(currentPath, path), v -> open(path)));
-            slots++;
-            if ("/monitors".equals(path)) {
-                // Empty slot: the create button floats above it, drawn by the
-                // FrameLayout that owns the bar.
-                View gap = new View(this);
-                bar.addView(gap, new LinearLayout.LayoutParams(0, 1, 1f));
-                slots++;
-            }
+            if ("/dns".equals(path) && canCreate()) paths.add("create");
+            if (item != null && visible.contains(item)) paths.add(path);
         }
-        bar.addView(tabButton(R.drawable.ic_nav_more, "更多", false, this::showMoreMenu));
-        bar.setWeightSum(slots);
+        paths.add("more");
+        if (!paths.equals(bottomPaths)) {
+            bottomPaths.clear();
+            bottomPaths.addAll(paths);
+            bar.removeAllViews();
+            for (String path : paths) {
+                if ("create".equals(path)) {
+                    FrameLayout slot = new FrameLayout(this);
+                    slot.addView(fabButton(), new FrameLayout.LayoutParams(UI.dp(44), UI.dp(44), Gravity.CENTER));
+                    bar.addView(slot, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+                } else if ("more".equals(path)) {
+                    bar.addView(tabButton(R.drawable.ic_nav_more, "更多", false, this::showMoreMenu));
+                } else {
+                    Nav.Item item = Nav.byPath(path);
+                    bar.addView(tabButton(item.icon, "/dns".equals(path) ? "DNS" : item.tabLabel,
+                            false, view -> open(path)));
+                }
+            }
+            bar.setWeightSum(paths.size());
+        }
+        for (int index = 0; index < paths.size(); index++) {
+            String path = paths.get(index);
+            if ("create".equals(path)) continue;
+            boolean active = "more".equals(path) ? currentPath != null && !onTab(currentPath)
+                    : Nav.isActive(currentPath, path);
+            paintTab((LinearLayout) bar.getChildAt(index), active);
+        }
+    }
+
+    private boolean canCreate() {
+        return Session.hasPerm("tunnels") || Session.hasPerm("domain_bind");
+    }
+
+    private void paintTab(LinearLayout box, boolean active) {
+        Palette palette = Theme.p();
+        int tint = active ? palette.success : palette.mute;
+        if (box.isSelected() != active) {
+            box.setSelected(active);
+            box.setBackground(active ? new GlassDrawable(UI.RADIUS_PILL, true) : null);
+        }
+        UI.tint((ImageView) box.getChildAt(0), tint);
+        if (box.getChildCount() > 1) ((TextView) box.getChildAt(1)).setTextColor(tint);
     }
 
     private View tabButton(int icon, String label, boolean active, Consumer<View> action) {
         Palette p = Theme.p();
-        int tint = active ? p.ink : p.mute;
+        int tint = active ? p.success : p.mute;
         LinearLayout box = UI.column(this);
         box.setGravity(Gravity.CENTER);
         box.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        // The active mark is the sidebar's ink left edge turned on its side.
-        // The holder is always present so the icon does not shift on selection.
-        FrameLayout holder = new FrameLayout(this);
-        if (active) {
-            View mark = new View(this);
-            mark.setBackground(UI.rounded(p.ink, UI.RADIUS_PILL));
-            FrameLayout.LayoutParams markLp = new FrameLayout.LayoutParams(UI.dp(22), UI.dp(2));
-            markLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-            holder.addView(mark, markLp);
-        }
-        box.addView(holder, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(2)));
-
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
-        image.setColorFilter(tint);
+        UI.tint(image, tint);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(22), UI.dp(22));
-        iconLp.topMargin = UI.dp(7);
         box.addView(image, iconLp);
 
         if (label != null) {
             TextView caption = UI.text(this, label, 10, tint, active ? Typeface.BOLD : Typeface.NORMAL);
-            UI.margin(caption, 0, UI.dp(3), 0, 0);
+            UI.margin(caption, 0, 3, 0, 0);
             box.addView(caption);
         }
         box.setClickable(true);
+        box.setFocusable(true);
+        box.setContentDescription(label);
+        UI.pressFeedback(box);
         box.setOnClickListener(action::accept);
         return box;
     }
 
-    /** The "+" button: a raised circle wearing a ring in the canvas colour. */
     private View fabButton() {
         Palette p = Theme.p();
         ImageView fab = new ImageView(this);
         fab.setImageResource(R.drawable.ic_nav_plus);
-        fab.setColorFilter(p.btnPrimaryText);
-        int pad = UI.dp(11);
+        UI.tint(fab, p.btnPrimaryText);
+        int pad = UI.dp(12);
         fab.setPadding(pad, pad, pad, pad);
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(p.btnPrimaryBg);
-        circle.setStroke(UI.dp(4), p.canvas);
-        fab.setBackground(circle);
-        fab.setElevation(UI.dp(6));
+        fab.setBackground(UI.pressable(UI.circle(p.btnPrimaryBg, 0, 0), p.btnGhostHover));
         fab.setClickable(true);
+        fab.setFocusable(true);
+        fab.setContentDescription("新建隧道或绑定域名");
+        UI.pressFeedback(fab);
         fab.setOnClickListener(this::showCreateMenu);
         return fab;
     }
@@ -364,12 +370,14 @@ public class ConsoleActivity extends AppCompatActivity {
         Palette p = Theme.p();
         ImageView v = new ImageView(this);
         v.setImageResource(icon);
-        v.setColorFilter(tint);
+        UI.tint(v, tint);
         int pad = UI.dp(9);
         v.setPadding(pad, pad, pad, pad);
-        v.setLayoutParams(new LinearLayout.LayoutParams(UI.dp(40), UI.dp(40)));
-        v.setBackground(UI.pressable(UI.rounded(p.headerBg, UI.RADIUS_MD), p.btnGhostHover));
+        v.setLayoutParams(new LinearLayout.LayoutParams(UI.dp(44), UI.dp(44)));
+        v.setBackground(UI.pressable(UI.rounded(p.headerBg, UI.RADIUS_PILL), p.btnGhostHover));
         v.setClickable(true);
+        v.setFocusable(true);
+        UI.pressFeedback(v);
         v.setOnClickListener(onClick);
         return v;
     }
@@ -439,11 +447,16 @@ public class ConsoleActivity extends AppCompatActivity {
 
     // ---------------------------------------------------------------- actions
 
-    /** Flips the palette and rebuilds; every colour is read while views are built. */
     private void toggleDark() {
         closeAccountMenu();
+        Palette previous = Theme.p();
         Theme.setDark(this, !Theme.isDark());
-        recreate();
+        UI.retheme(shell, previous);
+        applySystemBars();
+        themeButton.setImageResource(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon);
+        refreshChrome();
+        Fragment page = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+        if (page instanceof WebPageFragment) ((WebPageFragment) page).refreshTheme();
     }
 
     private void closeAccountMenu() {
@@ -471,6 +484,7 @@ public class ConsoleActivity extends AppCompatActivity {
             open("/account");
         }));
         card.addView(darkModeRow());
+        card.addView(reducedEffectsRow());
         card.addView(menuSeparator());
         card.addView(menuRow(R.drawable.ic_nav_logout, "退出登录", true, () -> {
             Session.logout(this);
@@ -489,33 +503,109 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showCreateMenu(View anchor) {
-        Sheet.of(this, "新建")
-                .action(R.drawable.ic_nav_tunnels, "新建隧道", "创建 Cloudflare Tunnel 并接入主机",
-                        () -> open("/tunnels"))
-                .action(R.drawable.ic_nav_domain, "绑定域名", "将域名指向已配置的隧道",
-                        () -> open("/domain"))
-                .show();
+        Sheet.Builder sheet = Sheet.of(this, "新建连接");
+        if (Session.hasPerm("tunnels")) sheet.action(R.drawable.ic_nav_tunnels,
+                "新建隧道", "创建 Cloudflare Tunnel 并获取连接命令", this::showCreateTunnel);
+        if (Session.hasPerm("domain_bind")) sheet.action(R.drawable.ic_nav_domain,
+                "绑定域名", "为当前服务配置访问地址", () -> open("/domain"));
+        sheet.show();
+    }
+
+    void showCreateTunnel() {
+        if (tunnelCreateSheet != null) tunnelCreateSheet.show();
+    }
+
+    void onTunnelCreated() {
+        Fragment page = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+        if (page instanceof TunnelsFragment) ((TunnelsFragment) page).reload();
     }
 
     private void showMoreMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, "更多");
-        Nav.Group lastGroup = null;
-        for (Nav.Item item : Nav.visible()) {
-            if (onTab(item.path)) continue;
-            if (item.group != lastGroup) {
-                lastGroup = item.group;
-                sheet.label(groupLabel(item.group));
+        Sheet.Builder sheet = Sheet.of(this, "你的工作空间");
+        sheet.content(identityHead());
+        List<Nav.Item> visible = Nav.visible();
+        List<Nav.Item> network = new ArrayList<>();
+        String[] paths = {"/tunnels", "/domain", "/dns", "/lab/ip-selector", "/monitors"};
+        for (String path : paths) {
+            for (Nav.Item item : visible) {
+                if (path.equals(item.path)) network.add(item);
             }
-            sheet.item(item.icon, item.label, () -> open(item.path));
+        }
+        if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "批量绑定", null,
+                R.drawable.ic_nav_plus, Nav.Group.NETWORK, "domain_bind", false, false, true));
+        if (!network.isEmpty()) sheet.label("网络与解析").content(moreGrid(sheet, network));
+        for (Nav.Group group : new Nav.Group[]{Nav.Group.SYSTEM, Nav.Group.PERSONAL}) {
+            boolean labelled = false;
+            for (Nav.Item item : visible) {
+                if (item.group != group) continue;
+                if (!labelled) {
+                    sheet.label(groupLabel(group));
+                    labelled = true;
+                }
+                sheet.action(item.icon, item.label, routeDescription(item.path), () -> open(item.path));
+            }
         }
         sheet.show();
     }
 
     private static boolean onTab(String path) {
         for (String candidate : Nav.TAB_PATHS) {
-            if (candidate.equals(path)) return true;
+            if (Nav.isActive(path, candidate)) return true;
         }
         return false;
+    }
+
+    private View moreGrid(Sheet.Builder sheet, List<Nav.Item> items) {
+        LinearLayout grid = UI.column(this);
+        int width = Math.min(getResources().getConfiguration().screenWidthDp, 560);
+        int columns = width >= 380 && getResources().getConfiguration().fontScale <= 1.15f ? 3 : 2;
+        for (int offset = 0; offset < items.size(); offset += columns) {
+            LinearLayout row = UI.row(this);
+            for (int column = 0; column < columns; column++) {
+                int index = offset + column;
+                LinearLayout tile = UI.column(this);
+                LinearLayout.LayoutParams cell = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                if (column > 0) cell.leftMargin = UI.dp(UI.SM);
+                row.addView(tile, cell);
+                if (index >= items.size()) continue;
+                Nav.Item item = items.get(index);
+                tile.setGravity(Gravity.CENTER);
+                tile.setPadding(UI.dp(UI.SM), UI.dp(UI.MD), UI.dp(UI.SM), UI.dp(UI.MD));
+                tile.setMinimumHeight(UI.dp(104));
+                tile.setBackground(UI.pressable(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_LG), Theme.p().btnGhostHover));
+                ImageView icon = new ImageView(this);
+                icon.setImageResource(item.icon);
+                UI.tint(icon, Theme.p().success);
+                tile.addView(icon, new LinearLayout.LayoutParams(UI.dp(24), UI.dp(24)));
+                String label = "/lab/ip-selector".equals(item.path) ? "IP 优选" : item.label;
+                TextView title = UI.text(this, label, 13, Theme.p().ink, Typeface.NORMAL);
+                title.setGravity(Gravity.CENTER);
+                UI.margin(title, 0, UI.SM, 0, 0);
+                tile.addView(title);
+                tile.setContentDescription(item.label);
+                tile.setClickable(true);
+                tile.setFocusable(true);
+                UI.pressFeedback(tile);
+                tile.setOnClickListener(view -> {
+                    sheet.dismiss();
+                    open(item.path);
+                });
+            }
+            UI.addRow(grid, row, offset == 0 ? 0 : UI.SM);
+        }
+        return grid;
+    }
+
+    private static String routeDescription(String path) {
+        switch (path) {
+            case "/settings": return "站点品牌、网络与全局配置";
+            case "/telegram": return "远程助手、授权会话与消息测试";
+            case "/admin": return "用户、权限、安全与审计";
+            case "/notifications": return "通知渠道、事件与设备告警";
+            case "/account": return "个人资料、通行密钥与账户授权";
+            case "/about": return "版本、更新与项目文档";
+            default: return "打开工具";
+        }
     }
 
     // ------------------------------------------------------------ popover bits
@@ -561,7 +651,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
-        icon.setColorFilter(danger ? p.error : p.body);
+        UI.tint(icon, danger ? p.error : p.body);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(17), UI.dp(17));
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
@@ -572,7 +662,7 @@ public class ConsoleActivity extends AppCompatActivity {
         if (!danger) {
             ImageView chevron = new ImageView(this);
             chevron.setImageResource(R.drawable.ic_nav_chevron);
-            chevron.setColorFilter(p.mute);
+            UI.tint(chevron, p.mute);
             row.addView(chevron, new LinearLayout.LayoutParams(UI.dp(15), UI.dp(15)));
         }
         row.setClickable(true);
@@ -588,7 +678,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon);
-        icon.setColorFilter(p.body);
+        UI.tint(icon, p.body);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(17), UI.dp(17));
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
@@ -667,6 +757,10 @@ public class ConsoleActivity extends AppCompatActivity {
 
     /** Rebuilds the navigation so the active row follows the current page. */
     private void refreshChrome() {
+        if (navigationButton != null) {
+            navigationButton.setImageResource(isDetailRoute() ? R.drawable.ic_nav_back : R.drawable.ic_nav_tunnels);
+            navigationButton.setContentDescription(isDetailRoute() ? "返回上一页" : "控制面板");
+        }
         // A dozen views at most: rebuilding beats tracking which row moved.
         if (sidebar != null) {
             LinearLayout column = (LinearLayout) sidebar.getChildAt(0);
@@ -678,7 +772,11 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private void installBackHandler() {
         final FragmentManager manager = getSupportFragmentManager();
-        manager.addOnBackStackChangedListener(this::refreshChrome);
+        manager.addOnBackStackChangedListener(() -> {
+            Fragment current = manager.findFragmentById(R.id.tm_content);
+            if (current instanceof PageFragment) currentPath = ((PageFragment) current).route();
+            refreshChrome();
+        });
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -747,16 +845,44 @@ public class ConsoleActivity extends AppCompatActivity {
     @SuppressLint("WrongConstant")
     private void applySystemBars() {
         Palette p = Theme.p();
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(p.canvas));
         getWindow().setStatusBarColor(p.headerBg);
         getWindow().setNavigationBarColor(p.canvas);
         View decor = getWindow().getDecorView();
         int flags = decor.getSystemUiVisibility();
         if (p.dark) {
             flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
         } else {
             flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
         }
         decor.setSystemUiVisibility(flags);
+    }
+
+    private boolean isDetailRoute() {
+        return currentPath != null && (currentPath.startsWith("/tunnels/")
+                || currentPath.startsWith("/monitors/") || "/domain/batch".equals(currentPath));
+    }
+
+    private View reducedEffectsRow() {
+        LinearLayout row = UI.row(this);
+        row.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
+        TextView caption = UI.body(this, "轻量效果");
+        row.addView(caption, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        UI.Toggle toggle = new UI.Toggle(this, Theme.reducedEffects());
+        toggle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(toggle);
+        row.setContentDescription("轻量效果，关闭模糊与动效");
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(view -> {
+            Theme.setReducedEffects(this, !Theme.reducedEffects());
+            toggle.setOn(Theme.reducedEffects());
+            UI.retheme(shell, Theme.p());
+            if (bottomBar != null) bottomBar.setElevation(UI.dp(Theme.reducedEffects() ? 0 : 6));
+        });
+        return row;
     }
 
     private void backToLogin(String notice) {

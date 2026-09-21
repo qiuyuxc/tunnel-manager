@@ -84,7 +84,8 @@ public class DNSFragment extends PageFragment {
         body = UI.column(requireContext());
         UI.pagePadding(body);
         // Room for the selection bar that slides in over the last card.
-        body.setPadding(body.getPaddingLeft(), body.getPaddingTop(), body.getPaddingRight(), UI.dp(96));
+        boolean wide = getResources().getConfiguration().screenWidthDp >= UI.WIDE_DP;
+        body.setPadding(body.getPaddingLeft(), body.getPaddingTop(), body.getPaddingRight(), UI.dp(wide ? 96 : UI.TABBAR_H + 120));
         scroll.addView(body);
         refresh.addView(scroll);
 
@@ -92,6 +93,7 @@ public class DNSFragment extends PageFragment {
         FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         barLp.gravity = Gravity.BOTTOM;
+        barLp.bottomMargin = wide ? 0 : UI.dp(UI.TABBAR_H + 24);
 
         FrameLayout root = new FrameLayout(requireContext());
         root.addView(refresh, new FrameLayout.LayoutParams(
@@ -334,7 +336,7 @@ public class DNSFragment extends PageFragment {
         card.setGravity(Gravity.CENTER_HORIZONTAL);
         ImageView icon = new ImageView(requireContext());
         icon.setImageResource(R.drawable.ic_nav_dns);
-        icon.setColorFilter(p.mute);
+        UI.tint(icon, p.mute);
         card.addView(icon, new LinearLayout.LayoutParams(UI.dp(28), UI.dp(28)));
         TextView heading = UI.strong(requireContext(), title);
         UI.margin(heading, 0, UI.SM, 0, 0);
@@ -362,7 +364,7 @@ public class DNSFragment extends PageFragment {
         if (isSelected) {
             ImageView check = new ImageView(requireContext());
             check.setImageResource(R.drawable.ic_nav_check);
-            check.setColorFilter(p.btnPrimaryText);
+            UI.tint(check, p.btnPrimaryText);
             dot.addView(check, new FrameLayout.LayoutParams(UI.dp(12), UI.dp(12), Gravity.CENTER));
         }
         dot.setClickable(true);

@@ -1,18 +1,9 @@
 package com.tunnelmanager.app;
 
-/**
- * Generated from frontend/src/styles.css by android/tools/gen-tokens.mjs.
- *
- * <p>Do not edit by hand: the web console owns the palette, and re-running the
- * generator is the only way to keep the two from drifting apart.
- */
 final class Palette {
 
-    /** Vercel 亮色 — :root */
-    static final Palette ENTERPRISE = new Palette("enterprise", "Vercel 亮色", false);
-
-    /** Vercel 暗色 — [data-theme="dark"] */
-    static final Palette ENTERPRISE_DARK = new Palette("enterpriseDark", "Vercel 暗色", true);
+    static final Palette LIQUID_LIGHT = new Palette("liquidLight", "薄荷玻璃 · 浅色", false);
+    static final Palette LIQUID_DARK = new Palette("liquidDark", "薄荷玻璃 · 深色", true);
 
     final String id;
     final String label;
@@ -72,6 +63,8 @@ final class Palette {
     int resultSuccessBg;
     int resultSuccessBorder;
     int resultSuccessText;
+    int glass;
+    int glassHighlight;
 
     private Palette(String id, String label, boolean dark) {
         this.id = id;
@@ -80,131 +73,182 @@ final class Palette {
     }
 
     static {
-        Palette p = ENTERPRISE;
-        p.canvas                  = 0xFFFFFFFF;
-        p.canvasSoft              = 0xFFFAFAFA;
-        p.canvasSoft2             = 0xFFF5F5F5;
-        p.canvasRaised            = 0xFFFFFFFF;
-        p.ink                     = 0xFF171717;
-        p.body                    = 0xFF4D4D4D;
-        p.mute                    = 0xFF6B6B6B;
-        p.hairline                = 0xFFEBEBEB;
-        p.hairlineStrong          = 0xFFA1A1A1;
-        p.link                    = 0xFF0070F3;
-        p.linkHover               = 0xFF0761D1;
-        p.focus                   = 0xFF171717;
-        p.success                 = 0xFF0E8A72;
-        p.error                   = 0xFFEE0000;
-        p.warning                 = 0xFFF5A623;
-        p.info                    = 0xFF0070F3;
-        p.sidebar                 = 0xFFFFFFFF;
-        p.sidebarHover            = 0xFFF5F5F5;
-        p.sidebarActive           = 0xFF171717;
-        p.sidebarActiveBg         = 0xFFF5F5F5;
-        p.sidebarText             = 0xFF4D4D4D;
-        p.sidebarTextActive       = 0xFF171717;
-        p.sidebarHoverText        = 0xFF171717;
-        p.sidebarDivider          = 0xFFEBEBEB;
-        p.brandIcon               = 0xFF171717;
-        p.headerBg                = 0xFFFFFFFF;
-        p.headerBorder            = 0xFFEBEBEB;
-        p.statusHealthyBg         = 0xFFAAFFEC;
-        p.statusHealthyBorder     = 0xFF50E3C2;
-        p.statusHealthyText       = 0xFF0B6B57;
-        p.statusDownBg            = 0xFFF7D4D6;
-        p.statusDownBorder        = 0xFFF0B3B6;
-        p.statusDownText          = 0xFFC50000;
-        p.statusDegradedBg        = 0xFFFFEFCF;
-        p.statusDegradedBorder    = 0xFFF4D79C;
-        p.statusDegradedText      = 0xFFAB570A;
-        p.btnPrimaryBg            = 0xFF171717;
-        p.btnPrimaryText          = 0xFFFFFFFF;
-        p.btnPrimaryHover         = 0xFF383838;
-        p.btnSecondaryBorder      = 0xFFEBEBEB;
-        p.btnSecondaryHoverBorder = 0xFFA1A1A1;
-        p.btnGhostHover           = 0xFFF5F5F5;
-        p.bannerWarningBg         = 0xFFFFEFCF;
-        p.bannerWarningBorder     = 0xFFF4D79C;
-        p.bannerWarningText       = 0xFFAB570A;
-        p.bannerInfoBg            = 0xFFD3E5FF;
-        p.bannerInfoBorder        = 0xFFA8CCFF;
-        p.bannerInfoText          = 0xFF0761D1;
-        p.resultErrorBg           = 0xFFF7D4D6;
-        p.resultErrorBorder       = 0xFFF0B3B6;
-        p.resultErrorText         = 0xFFC50000;
-        p.resultSuccessBg         = 0xFFAAFFEC;
-        p.resultSuccessBorder     = 0xFF50E3C2;
-        p.resultSuccessText       = 0xFF0B6B57;
+        Palette palette = LIQUID_LIGHT;
+        palette.canvas = 0xFFEDF4F0;
+        palette.canvasSoft = 0xFFEDF4F0;
+        palette.canvasSoft2 = 0xFFDCE8E2;
+        palette.canvasRaised = 0xFFFAFDFB;
+        palette.ink = 0xFF1B2A27;
+        palette.body = 0xFF4D5C58;
+        palette.mute = 0xFF586660;
+        palette.hairline = 0xFFD4DFD8;
+        palette.hairlineStrong = 0xFFA8BCB0;
+        palette.link = 0xFF127250;
+        palette.linkHover = 0xFF127250;
+        palette.focus = 0xFF127250;
+        palette.success = 0xFF127250;
+        palette.error = 0xFFB83F35;
+        palette.warning = 0xFF8B621E;
+        palette.info = 0xFF386B83;
+        palette.sidebar = 0xFFDFEAE3;
+        palette.sidebarHover = 0xFFDCE8E2;
+        palette.sidebarActive = 0xFF127250;
+        palette.sidebarActiveBg = 0xFFDCEEE3;
+        palette.sidebarText = 0xFF4D5C58;
+        palette.sidebarTextActive = 0xFF127250;
+        palette.sidebarHoverText = 0xFF1B2A27;
+        palette.sidebarDivider = 0xFFD4DFD8;
+        palette.brandIcon = 0xFF127250;
+        palette.headerBg = 0xFFEDF4F0;
+        palette.headerBorder = 0xFFD4DFD8;
+        palette.statusHealthyBg = 0xFFDCEEE3;
+        palette.statusHealthyBorder = 0xFFDCEEE3;
+        palette.statusHealthyText = 0xFF127250;
+        palette.statusDownBg = 0xFFF8E5DF;
+        palette.statusDownBorder = 0xFFE7BBB1;
+        palette.statusDownText = 0xFFB83F35;
+        palette.statusDegradedBg = 0xFFF4EBD6;
+        palette.statusDegradedBorder = 0xFFDECCA5;
+        palette.statusDegradedText = 0xFF8B621E;
+        palette.btnPrimaryBg = 0xFF127250;
+        palette.btnPrimaryText = 0xFFF6F9F7;
+        palette.btnPrimaryHover = 0xFF127250;
+        palette.btnSecondaryBorder = 0xFFD4DFD8;
+        palette.btnSecondaryHoverBorder = 0xFFA8BCB0;
+        palette.btnGhostHover = 0x18127250;
+        palette.bannerWarningBg = 0xFFF4EBD6;
+        palette.bannerWarningBorder = 0xFFDECCA5;
+        palette.bannerWarningText = 0xFF8B621E;
+        palette.bannerInfoBg = 0xFFDFEDF0;
+        palette.bannerInfoBorder = 0xFFB6D0D8;
+        palette.bannerInfoText = 0xFF386B83;
+        palette.resultErrorBg = 0xFFF8E5DF;
+        palette.resultErrorBorder = 0xFFE7BBB1;
+        palette.resultErrorText = 0xFFB83F35;
+        palette.resultSuccessBg = 0xFFDCEEE3;
+        palette.resultSuccessBorder = 0xFFDCEEE3;
+        palette.resultSuccessText = 0xFF127250;
+        palette.glass = 0xEDF8FCF9;
+        palette.glassHighlight = 0xDFFFFFFF;
     }
 
     static {
-        Palette p = ENTERPRISE_DARK;
-        p.canvas                  = 0xFF0A0A0A;
-        p.canvasSoft              = 0xFF000000;
-        p.canvasSoft2             = 0xFF1A1A1A;
-        p.canvasRaised            = 0xFF111111;
-        p.ink                     = 0xFFEDEDED;
-        p.body                    = 0xFFA1A1A1;
-        p.mute                    = 0xFF9A9A9A;
-        p.hairline                = 0xFF2A2A2A;
-        p.hairlineStrong          = 0xFF444444;
-        p.link                    = 0xFF3291FF;
-        p.linkHover               = 0xFF52A8FF;
-        p.focus                   = 0xFFEDEDED;
-        p.success                 = 0xFF50E3C2;
-        p.error                   = 0xFFFF6369;
-        p.warning                 = 0xFFF5A623;
-        p.info                    = 0xFF3291FF;
-        p.sidebar                 = 0xFF000000;
-        p.sidebarHover            = 0xFF1A1A1A;
-        p.sidebarActive           = 0xFFEDEDED;
-        p.sidebarActiveBg         = 0xFF1A1A1A;
-        p.sidebarText             = 0xFFA1A1A1;
-        p.sidebarTextActive       = 0xFFEDEDED;
-        p.sidebarHoverText        = 0xFFEDEDED;
-        p.sidebarDivider          = 0xFF2A2A2A;
-        p.brandIcon               = 0xFFEDEDED;
-        p.headerBg                = 0xFF0A0A0A;
-        p.headerBorder            = 0xFF2A2A2A;
-        p.statusHealthyBg         = 0xFF0C2B25;
-        p.statusHealthyBorder     = 0xFF1F5C4D;
-        p.statusHealthyText       = 0xFF7FE9D3;
-        p.statusDownBg            = 0xFF2A1213;
-        p.statusDownBorder        = 0xFF5C2528;
-        p.statusDownText          = 0xFFFF8F92;
-        p.statusDegradedBg        = 0xFF2B1F0C;
-        p.statusDegradedBorder    = 0xFF5C4520;
-        p.statusDegradedText      = 0xFFFFC978;
-        p.btnPrimaryBg            = 0xFFEDEDED;
-        p.btnPrimaryText          = 0xFF0A0A0A;
-        p.btnPrimaryHover         = 0xFFFFFFFF;
-        p.btnSecondaryBorder      = 0xFF2A2A2A;
-        p.btnSecondaryHoverBorder = 0xFF444444;
-        p.btnGhostHover           = 0xFF1A1A1A;
-        p.bannerWarningBg         = 0xFF2B1F0C;
-        p.bannerWarningBorder     = 0xFF5C4520;
-        p.bannerWarningText       = 0xFFFFC978;
-        p.bannerInfoBg            = 0xFF10233F;
-        p.bannerInfoBorder        = 0xFF1F4D80;
-        p.bannerInfoText          = 0xFF7CB8FF;
-        p.resultErrorBg           = 0xFF2A1213;
-        p.resultErrorBorder       = 0xFF5C2528;
-        p.resultErrorText         = 0xFFFF8F92;
-        p.resultSuccessBg         = 0xFF0C2B25;
-        p.resultSuccessBorder     = 0xFF1F5C4D;
-        p.resultSuccessText       = 0xFF7FE9D3;
+        Palette palette = LIQUID_DARK;
+        palette.canvas = 0xFF0B1211;
+        palette.canvasSoft = 0xFF0B1211;
+        palette.canvasSoft2 = 0xFF1E2625;
+        palette.canvasRaised = 0xFF151D1C;
+        palette.ink = 0xFFE7ECEA;
+        palette.body = 0xFF96A19F;
+        palette.mute = 0xFF83908B;
+        palette.hairline = 0xFF273633;
+        palette.hairlineStrong = 0xFF475D55;
+        palette.link = 0xFF6EDDAD;
+        palette.linkHover = 0xFF6EDDAD;
+        palette.focus = 0xFF6EDDAD;
+        palette.success = 0xFF6EDDAD;
+        palette.error = 0xFFEF9B8A;
+        palette.warning = 0xFFDFBE7E;
+        palette.info = 0xFF85B8CD;
+        palette.sidebar = 0xFF101917;
+        palette.sidebarHover = 0xFF1E2625;
+        palette.sidebarActive = 0xFF6EDDAD;
+        palette.sidebarActiveBg = 0xFF183228;
+        palette.sidebarText = 0xFF96A19F;
+        palette.sidebarTextActive = 0xFF6EDDAD;
+        palette.sidebarHoverText = 0xFFE7ECEA;
+        palette.sidebarDivider = 0xFF273633;
+        palette.brandIcon = 0xFF6EDDAD;
+        palette.headerBg = 0xFF0B1211;
+        palette.headerBorder = 0xFF273633;
+        palette.statusHealthyBg = 0xFF183228;
+        palette.statusHealthyBorder = 0xFF183228;
+        palette.statusHealthyText = 0xFF6EDDAD;
+        palette.statusDownBg = 0xFF35201D;
+        palette.statusDownBorder = 0xFF663D34;
+        palette.statusDownText = 0xFFEF9B8A;
+        palette.statusDegradedBg = 0xFF302B1D;
+        palette.statusDegradedBorder = 0xFF645236;
+        palette.statusDegradedText = 0xFFDFBE7E;
+        palette.btnPrimaryBg = 0xFF6EDDAD;
+        palette.btnPrimaryText = 0xFF042317;
+        palette.btnPrimaryHover = 0xFF6EDDAD;
+        palette.btnSecondaryBorder = 0xFF273633;
+        palette.btnSecondaryHoverBorder = 0xFF475D55;
+        palette.btnGhostHover = 0x246EDDAD;
+        palette.bannerWarningBg = 0xFF302B1D;
+        palette.bannerWarningBorder = 0xFF645236;
+        palette.bannerWarningText = 0xFFDFBE7E;
+        palette.bannerInfoBg = 0xFF1B2D33;
+        palette.bannerInfoBorder = 0xFF355765;
+        palette.bannerInfoText = 0xFF85B8CD;
+        palette.resultErrorBg = 0xFF35201D;
+        palette.resultErrorBorder = 0xFF663D34;
+        palette.resultErrorText = 0xFFEF9B8A;
+        palette.resultSuccessBg = 0xFF183228;
+        palette.resultSuccessBorder = 0xFF183228;
+        palette.resultSuccessText = 0xFF6EDDAD;
+        palette.glass = 0xED26332E;
+        palette.glassHighlight = 0x38F4FFF9;
     }
 
-    static final Palette[] ALL = {
-        ENTERPRISE,
-        ENTERPRISE_DARK,
-    };
-
-    /** Looks a palette up by id, falling back to the Vercel light default. */
-    static Palette byId(String id) {
-        for (Palette p : ALL) {
-            if (p.id.equals(id)) return p;
-        }
-        return ENTERPRISE;
+    int remap(int color, Palette next) {
+        if (color == canvas) return next.canvas;
+        if (color == canvasSoft) return next.canvasSoft;
+        if (color == canvasSoft2) return next.canvasSoft2;
+        if (color == canvasRaised) return next.canvasRaised;
+        if (color == ink) return next.ink;
+        if (color == body) return next.body;
+        if (color == mute) return next.mute;
+        if (color == hairline) return next.hairline;
+        if (color == hairlineStrong) return next.hairlineStrong;
+        if (color == link) return next.link;
+        if (color == linkHover) return next.linkHover;
+        if (color == focus) return next.focus;
+        if (color == success) return next.success;
+        if (color == error) return next.error;
+        if (color == warning) return next.warning;
+        if (color == info) return next.info;
+        if (color == sidebar) return next.sidebar;
+        if (color == sidebarHover) return next.sidebarHover;
+        if (color == sidebarActive) return next.sidebarActive;
+        if (color == sidebarActiveBg) return next.sidebarActiveBg;
+        if (color == sidebarText) return next.sidebarText;
+        if (color == sidebarTextActive) return next.sidebarTextActive;
+        if (color == sidebarHoverText) return next.sidebarHoverText;
+        if (color == sidebarDivider) return next.sidebarDivider;
+        if (color == brandIcon) return next.brandIcon;
+        if (color == headerBg) return next.headerBg;
+        if (color == headerBorder) return next.headerBorder;
+        if (color == statusHealthyBg) return next.statusHealthyBg;
+        if (color == statusHealthyBorder) return next.statusHealthyBorder;
+        if (color == statusHealthyText) return next.statusHealthyText;
+        if (color == statusDownBg) return next.statusDownBg;
+        if (color == statusDownBorder) return next.statusDownBorder;
+        if (color == statusDownText) return next.statusDownText;
+        if (color == statusDegradedBg) return next.statusDegradedBg;
+        if (color == statusDegradedBorder) return next.statusDegradedBorder;
+        if (color == statusDegradedText) return next.statusDegradedText;
+        if (color == btnPrimaryBg) return next.btnPrimaryBg;
+        if (color == btnPrimaryText) return next.btnPrimaryText;
+        if (color == btnPrimaryHover) return next.btnPrimaryHover;
+        if (color == btnSecondaryBorder) return next.btnSecondaryBorder;
+        if (color == btnSecondaryHoverBorder) return next.btnSecondaryHoverBorder;
+        if (color == btnGhostHover) return next.btnGhostHover;
+        if (color == bannerWarningBg) return next.bannerWarningBg;
+        if (color == bannerWarningBorder) return next.bannerWarningBorder;
+        if (color == bannerWarningText) return next.bannerWarningText;
+        if (color == bannerInfoBg) return next.bannerInfoBg;
+        if (color == bannerInfoBorder) return next.bannerInfoBorder;
+        if (color == bannerInfoText) return next.bannerInfoText;
+        if (color == resultErrorBg) return next.resultErrorBg;
+        if (color == resultErrorBorder) return next.resultErrorBorder;
+        if (color == resultErrorText) return next.resultErrorText;
+        if (color == resultSuccessBg) return next.resultSuccessBg;
+        if (color == resultSuccessBorder) return next.resultSuccessBorder;
+        if (color == resultSuccessText) return next.resultSuccessText;
+        if (color == glass) return next.glass;
+        if (color == glassHighlight) return next.glassHighlight;
+        return color;
     }
 }

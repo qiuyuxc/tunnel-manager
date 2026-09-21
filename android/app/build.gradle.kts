@@ -10,8 +10,8 @@ android {
         applicationId = "com.tunnelmanager.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 250
-        versionName = "2.5.0"
+        versionCode = 260
+        versionName = "2.6.0"
     }
 
     // The debug key is the one build.sh already generated, so `adb install -r`
@@ -55,4 +55,13 @@ dependencies {
     // Passkeys: Credential Manager plus its Google Play services provider.
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+}
+
+val verifyNativePalette = tasks.register<Exec>("verifyNativePalette") {
+    workingDir(rootProject.projectDir.parentFile)
+    commandLine("node", "android/tools/gen-tokens.mjs", "--check")
+}
+
+tasks.named("preBuild") {
+    dependsOn(verifyNativePalette)
 }

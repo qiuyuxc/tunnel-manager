@@ -45,3 +45,8 @@ docs/.server.py
 # Local design-language references (working files, not shipped)
 DESIGN.md
 uDESIGN.md
+design.md
+design-review.md
+design-todo.md
+app-design-preview.html
+website/

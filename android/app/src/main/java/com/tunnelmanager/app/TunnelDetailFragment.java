@@ -120,8 +120,7 @@ public class TunnelDetailFragment extends PageFragment {
         meta.setGravity(Gravity.CENTER_VERTICAL);
         UI.margin(meta, 0, UI.XS, 0, UI.MD);
         meta.addView(UI.muted(requireContext(), "隧道详情"));
-        TextView pill = UI.statusPill(requireContext(),
-                "healthy".equals(status) ? "ok" : "degraded".equals(status) ? "warn" : "down");
+        TextView pill = UI.tunnelStatusPill(requireContext(), status);
         UI.margin(pill, UI.SM, 0, 0, 0);
         meta.addView(pill);
         body.addView(meta);
@@ -141,17 +140,20 @@ public class TunnelDetailFragment extends PageFragment {
             UI.weight(lock, 1f);
             actions.addView(lock);
         }
-        TextView remove = UI.button(requireContext(), "删除隧道", UI.BTN_DANGER);
-        remove.setOnClickListener(v -> askDelete(label));
-        UI.weight(remove, 1f);
-        UI.margin(remove, UI.SM, 0, 0, 0);
-        actions.addView(remove);
         body.addView(actions);
 
         body.addView(UI.spacer(requireContext(), UI.XL));
         body.addView(routesHeader(detail.optJSONArray("ingress")));
         body.addView(UI.spacer(requireContext(), UI.SM));
         body.addView(routesList(detail.optJSONArray("ingress")));
+        body.addView(UI.spacer(requireContext(), UI.XL));
+        body.addView(UI.label(requireContext(), "危险操作"));
+        TextView warning = UI.muted(requireContext(), "删除后无法恢复。请确认这条隧道已不再被服务使用。");
+        UI.addRow(body, warning, UI.SM);
+        TextView remove = UI.button(requireContext(), "删除隧道", UI.BTN_DANGER);
+        remove.setOnClickListener(view -> askDelete(label));
+        UI.fill(remove);
+        UI.addRow(body, remove, UI.MD);
     }
 
     private View infoCard(JSONObject detail, boolean locked) {
@@ -196,7 +198,7 @@ public class TunnelDetailFragment extends PageFragment {
             card.setGravity(Gravity.CENTER_HORIZONTAL);
             ImageView icon = new ImageView(requireContext());
             icon.setImageResource(R.drawable.ic_nav_domain);
-            icon.setColorFilter(p.mute);
+            UI.tint(icon, p.mute);
             card.addView(icon, new LinearLayout.LayoutParams(UI.dp(28), UI.dp(28)));
             TextView empty = UI.muted(requireContext(), "这条隧道还没有路由规则");
             UI.margin(empty, 0, UI.SM, 0, 0);
@@ -224,8 +226,7 @@ public class TunnelDetailFragment extends PageFragment {
 
         TextView host = UI.text(requireContext(), hostname.isEmpty() ? "Catch-all 兜底规则" : hostname,
                 14, p.ink, Typeface.BOLD);
-        host.setSingleLine(true);
-        host.setEllipsize(TextUtils.TruncateAt.END);
+        host.setTextIsSelectable(true);
         if (hostname.isEmpty()) host.setTextColor(p.mute);
         head.addView(host, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -238,8 +239,7 @@ public class TunnelDetailFragment extends PageFragment {
         card.addView(head);
 
         TextView service = UI.mono(requireContext(), rule.optString("service", ""), p.body);
-        service.setSingleLine(true);
-        service.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        service.setTextIsSelectable(true);
         UI.margin(service, 0, UI.XS, 0, 0);
         card.addView(service);
         return card;

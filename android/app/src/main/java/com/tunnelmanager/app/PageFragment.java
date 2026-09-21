@@ -4,6 +4,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ScrollView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,7 +24,25 @@ public abstract class PageFragment extends Fragment {
     @Override
     public final View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                                    @Nullable Bundle savedInstanceState) {
-        return build(inflater, container);
+        View page = build(inflater, container);
+        preparePage(page);
+        return page;
+    }
+
+    private void preparePage(View view) {
+        if (view instanceof ScrollView) {
+            ((ScrollView) view).setFillViewport(true);
+            view.setVerticalScrollBarEnabled(false);
+            view.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        }
+        if (view instanceof SwipeRefreshLayout) {
+            ((SwipeRefreshLayout) view).setColorSchemeColors(Theme.p().success);
+            ((SwipeRefreshLayout) view).setProgressBackgroundColorSchemeColor(Theme.p().canvasRaised);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int index = 0; index < group.getChildCount(); index++) preparePage(group.getChildAt(index));
+        }
     }
 
     protected abstract View build(@NonNull LayoutInflater inflater, @Nullable ViewGroup container);

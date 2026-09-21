@@ -5,8 +5,9 @@
          that Material components accept. -->
     <style name="Theme.TunnelManager" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/canvas</item>
-        <item name="colorPrimary">@color/ink</item>
-        <item name="colorOnPrimary">@color/canvas</item>
+        <item name="colorPrimary">@color/liquid_light_accent</item>
+        <item name="colorSecondary">@color/liquid_light_accent</item>
+        <item name="colorOnPrimary">@color/liquid_light_accent_text</item>
         <item name="colorSurface">@color/canvas</item>
         <item name="colorOnSurface">@color/ink</item>
         <item name="android:statusBarColor">@color/canvas</item>

@@ -49,6 +49,12 @@ public class WebPageFragment extends PageFragment {
     private String route = "/dashboard";
     private WebView web;
 
+    void refreshTheme() {
+        if (web == null) return;
+        web.setBackgroundColor(Theme.p().canvas);
+        injectSession(web);
+    }
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -114,7 +120,8 @@ public class WebPageFragment extends PageFragment {
                 + "var s=document.createElement('style');s.id='tm-embed';"
                 + "s.textContent='.sidebar,.mobile-header,.tabbar{display:none!important}"
                 + ".app-shell{padding-left:0!important;padding-bottom:0!important}"
-                + ".main-content{padding-top:0!important}';"
+                + ".main-content{padding-top:0!important}"
+                + ".app-main{margin-left:0!important;padding-top:0!important;padding-bottom:104px!important}';"
                 + "(document.head||document.documentElement).appendChild(s);"
                 + "}})()";
         view.evaluateJavascript(script, null);

@@ -16,7 +16,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
-            android:padding="28dp">
+            android:padding="20dp">
 
             <!-- ==== sign-in step ==== -->
             <LinearLayout
@@ -28,8 +28,10 @@
                 android:paddingTop="32dp">
 
                 <ImageView
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:padding="18dp"
+                    android:background="@drawable/auth_card"
                     android:layout_marginBottom="16dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/logo_mark" />
@@ -40,7 +42,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/app_name"
                     android:textColor="?attr/tm_text"
-                    android:textSize="22sp"
+                    android:textSize="26sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -49,10 +51,17 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:layout_marginBottom="28dp"
-                    android:text="连接到你的控制台"
+                    android:text="你的服务，与世界保持连接。"
                     android:textColor="?attr/tm_muted"
                     android:textSize="14sp" />
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/auth_card"
+                    android:padding="20dp"
+                    android:layout_marginBottom="16dp">
                 <TextView
                     style="@style/FieldLabel"
                     android:text="服务器地址" />
@@ -87,6 +96,7 @@
                     android:autofillHints="current-password"
                     android:imeOptions="actionDone"
                     android:inputType="textPassword" />
+                </LinearLayout>
 
                 <!-- Cloudflare Turnstile runs in a webview pinned to the console
                      origin, so the native form can satisfy it without handing the
@@ -128,12 +138,14 @@
                 <Button
                     android:id="@+id/btn_login"
                     style="@style/PrimaryButton"
-                    android:text="登录" />
+                    android:text="登录工作空间" />
 
                 <Button
                     android:id="@+id/btn_passkey_login"
                     style="@style/GhostButton"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/input_bg"
+                    android:textColor="?attr/tm_accent"
                     android:text="使用通行密钥登录"
                     android:visibility="gone" />
 

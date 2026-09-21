@@ -12,6 +12,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -37,6 +39,7 @@ public class DashboardFragment extends PageFragment {
 
     private SwipeRefreshLayout refresh;
     private LinearLayout body;
+    private ScrollView scroll;
 
     @Override
     String route() {
@@ -50,7 +53,7 @@ public class DashboardFragment extends PageFragment {
         refresh.setProgressBackgroundColorSchemeColor(Theme.p().canvasRaised);
         refresh.setOnRefreshListener(this::load);
 
-        ScrollView scroll = new ScrollView(requireContext());
+        scroll = new ScrollView(requireContext());
         body = UI.column(requireContext());
         UI.pagePadding(body);
         scroll.addView(body);
@@ -87,10 +90,13 @@ public class DashboardFragment extends PageFragment {
     private void render(@Nullable JSONObject overview, @Nullable JSONArray monitors,
                         boolean loading, @Nullable String error) {
         if (body == null || !alive()) return;
+        int scrollY = scroll == null ? 0 : scroll.getScrollY();
         body.removeAllViews();
-
-        body.addView(UI.pageTitle(requireContext(), "控制面板"));
-        TextView subtitle = UI.muted(requireContext(), "监控目标状态、可用率与延迟概览");
+        TextView date = UI.label(requireContext(), new SimpleDateFormat("M月d日 EEEE", Locale.CHINA).format(new Date()));
+        body.addView(date);
+        UI.margin(date, 0, 0, 0, UI.SM);
+        body.addView(UI.pageTitle(requireContext(), "一切尽在掌握"));
+        TextView subtitle = UI.muted(requireContext(), "你的服务状态，清晰可见。");
         UI.margin(subtitle, 0, UI.XS, 0, UI.LG);
         body.addView(subtitle);
 
@@ -103,29 +109,76 @@ public class DashboardFragment extends PageFragment {
             return;
         }
         if (overview == null) return;
-
+        body.addView(healthCard(overview));
+        body.addView(UI.spacer(requireContext(), UI.LG));
         body.addView(stats(overview));
         body.addView(UI.spacer(requireContext(), UI.LG));
+        if (Session.hasPerm("tunnels") || Session.hasPerm("domain_bind")) {
+            body.addView(quickActions());
+            body.addView(UI.spacer(requireContext(), UI.LG));
+        }
         body.addView(chartCard(overview));
         body.addView(UI.spacer(requireContext(), UI.LG));
         body.addView(monitorList(monitors));
+        UI.restoreScroll(scroll, scrollY);
+    }
+
+    private View healthCard(JSONObject overview) {
+        Palette palette = Theme.p();
+        int targets = overview.optInt("targets");
+        int healthy = overview.optInt("ok");
+        int down = overview.optInt("down");
+        int warning = overview.optInt("warn");
+        int unknown = Math.max(0, targets - healthy - down - warning);
+        String heading = targets == 0 ? "等待第一份心跳" : down > 0 ? "有服务需要关注"
+                : warning > 0 ? "部分服务响应较慢" : unknown > 0 ? "等待状态更新" : "服务运行平稳";
+        int accent = down > 0 ? palette.error : warning > 0 || unknown > 0 ? palette.warning : palette.success;
+        LinearLayout card = UI.card(requireContext());
+        TextView label = UI.label(requireContext(), "运行概况");
+        label.setTextColor(accent);
+        card.addView(label);
+        LinearLayout summary = UI.row(requireContext());
+        LinearLayout words = UI.column(requireContext());
+        words.addView(UI.text(requireContext(), heading, 22, palette.ink, Typeface.BOLD));
+        TextView status = UI.muted(requireContext(), targets == 0 ? "添加监控后，这里会显示服务状态。"
+                : healthy + " 个正常 · " + down + " 个异常"
+                + (warning > 0 ? " · " + warning + " 个降级" : "")
+                + (unknown > 0 ? " · " + unknown + " 个待检测" : ""));
+        UI.margin(status, 0, UI.SM, 0, 0);
+        words.addView(status);
+        summary.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        HealthRingView ring = new HealthRingView(requireContext(), healthy, targets);
+        LinearLayout.LayoutParams ringParams = new LinearLayout.LayoutParams(UI.dp(76), UI.dp(76));
+        ringParams.leftMargin = UI.dp(UI.MD);
+        summary.addView(ring, ringParams);
+        UI.addRow(card, summary, UI.MD);
+        double uptime = overview.has("uptime") ? overview.optDouble("uptime") : overview.optDouble("uptime_24h");
+        TextView availability = UI.muted(requireContext(), "近 7 天可用率  " + (targets == 0 ? "暂无数据" : percent(uptime)));
+        UI.addRow(card, availability, UI.LG);
+        return card;
+    }
+
+    private View quickActions() {
+        LinearLayout actions = UI.row(requireContext());
+        if (Session.hasPerm("tunnels")) {
+            TextView tunnels = UI.button(requireContext(), "隧道管理", UI.BTN_SECONDARY);
+            actions.addView(tunnels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            tunnels.setOnClickListener(view -> openRoute("/tunnels"));
+        }
+        if (Session.hasPerm("domain_bind")) {
+            TextView domains = UI.button(requireContext(), "绑定域名", UI.BTN_SECONDARY);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            if (actions.getChildCount() > 0) params.leftMargin = UI.dp(UI.MD);
+            actions.addView(domains, params);
+            domains.setOnClickListener(view -> openRoute("/domain"));
+        }
+        return actions;
     }
 
     private View stats(JSONObject overview) {
-        // uptime is the current field; uptime_24h is what servers before the
-        // seven-day window sent, and still send alongside it.
-        double uptime = overview.has("uptime")
-                ? overview.optDouble("uptime")
-                : overview.optDouble("uptime_24h");
         LinearLayout grid = UI.column(requireContext());
         grid.addView(statRow(
                 stat("监控目标", String.valueOf(overview.optInt("targets")), null),
-                stat("7 天可用率", percent(uptime), null)));
-        grid.addView(UI.spacer(requireContext(), UI.SM));
-        grid.addView(statRow(
-                stat("正常 / 异常",
-                        overview.optInt("ok") + " / " + overview.optInt("down"),
-                        overview.optInt("down") > 0 ? Theme.p().error : null),
                 stat("平均延迟", overview.optInt("avg_latency_ms") + " ms", null)));
         return grid;
     }
@@ -147,7 +200,7 @@ public class DashboardFragment extends PageFragment {
         LinearLayout card = UI.card(requireContext());
         TextView caption = UI.label(requireContext(), label);
         card.addView(caption);
-        TextView number = UI.text(requireContext(), value, 24, accent == null ? p.ink : accent, Typeface.BOLD);
+        TextView number = UI.text(requireContext(), value, 28, accent == null ? p.ink : accent, Typeface.NORMAL);
         UI.margin(number, 0, UI.SM, 0, 0);
         card.addView(number);
         return card;
@@ -156,8 +209,8 @@ public class DashboardFragment extends PageFragment {
     private View chartCard(JSONObject overview) {
         JSONArray buckets = overview.optJSONArray("buckets");
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "近 7 天"));
-        TextView hint = UI.muted(requireContext(), "每根柱子的高度是当天的峰值延迟，颜色代表当天最差状态；点柱子看是谁的问题");
+        card.addView(UI.cardTitle(requireContext(), "近 7 天 · 响应趋势"));
+        TextView hint = UI.muted(requireContext(), "峰值与平均延迟，点击查看当天异常。");
         UI.margin(hint, 0, UI.XS, 0, 0);
         card.addView(hint);
         if (buckets == null || buckets.length() == 0) {
@@ -238,9 +291,8 @@ public class DashboardFragment extends PageFragment {
         LinearLayout card = UI.card(requireContext());
 
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.text(requireContext(), monitor.optString("name", "监控项目"), 15, p.ink, Typeface.BOLD));
-        View spacer = new View(requireContext());
-        header.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+        header.addView(UI.text(requireContext(), monitor.optString("name", "监控项目"), 15, p.ink, Typeface.BOLD),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(UI.mono(requireContext(), monitor.optInt("interval_sec") + "s", p.mute));
         card.addView(header);
 
@@ -355,7 +407,7 @@ public class DashboardFragment extends PageFragment {
 		new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 	ImageView chevron = new ImageView(requireContext());
 	chevron.setImageResource(R.drawable.ic_nav_chevron);
-	chevron.setColorFilter(p.mute);
+	UI.tint(chevron, p.mute);
 	head.addView(chevron, new LinearLayout.LayoutParams(UI.dp(15), UI.dp(15)));
 	card.addView(head);
 

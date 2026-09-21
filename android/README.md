@@ -13,6 +13,24 @@
 
 最低支持 Android 8.0（API 26）；通行密钥需要 Android 9（API 28）及以上，低版本仍保留密码登录。
 
+## 原生设计
+
+原生配色与 Web 控制台独立，源文件是 `android/palette-tokens.json`。
+修改后从仓库根目录运行 `node android/tools/gen-tokens.mjs`；不要手改生成的 `Palette.java`
+或 `native_palette.xml`。构建会调用 Node.js 检查生成文件是否同步。
+运行 `node --test android/tools/palette-tokens.test.mjs` 可检查深浅主题的完整性、文字对比度和生成结果。
+
+运行 `node --test android/tools/*.test.mjs`
+可检查配色、隧道筛选、监控历史和项目版本一致性；Java 测试需要本机 JDK，可用 `JAVA_HOME` 指定。
+监控摘要使用真实七天统计，历史图按单个服务的抽样时间绘制，不等同于连续检查记录。
+
+关于页从已安装包读取 App 版本及构建号，服务端版本单独展示，不要求两端同时升级。
+项目发布时同步 Android、后端、前端和文档的版本字段，并更新中英文版本历史。
+打包前运行版本一致性测试；发布附件使用校验过签名和版本的 APK，不使用旧的本地镜像副本。
+
+底栏采用静态透光材质，不执行实时截图、模糊或折射。账户菜单中的「轻量效果」可关闭非必要动画，
+系统关闭动画时也会同步降级。深浅主题在现有视图上重新着色，不重建 Activity。
+
 ## 通行密钥
 
 App 使用 Android Credential Manager（`androidx.credentials`）读写通行密钥，后端下发的是未包裹的 WebAuthn 字典，因此 App 只做透传，不参与挑战的编解码。
@@ -36,13 +54,13 @@ app/src/main/java/com/tunnelmanager/app/
 ├── ConsoleActivity.java   # 控制台外壳：侧边栏 / 底部标签与主题切换
 ├── Nav.java               # 导航表，对应 frontend/src/navigation.ts
 ├── Passkey.java           # 通行密钥：Credential Manager 封装
-├── Palette.java           # 由 styles.css 生成，勿手改
+├── Palette.java           # 由 palette-tokens.json 生成，勿手改
 └── *Fragment.java         # 各原生页面
 
 app/src/main/res/          # 布局、drawable 与主题（values / values-night）
 ```
 
-主题色以 `frontend/src/styles.css` 为唯一来源，改色后重新生成 Java 侧调色板：
+原生主题色以 `android/palette-tokens.json` 为唯一来源，改色后重新生成 Java 与 XML 资源：
 
 ```bash
 node android/tools/gen-tokens.mjs

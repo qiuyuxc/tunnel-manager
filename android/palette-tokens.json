@@ -1,0 +1,36 @@
+{
+  "palettes": [
+    {
+      "id": "liquidLight",
+      "label": "薄荷玻璃 · 浅色",
+      "dark": false,
+      "colors": {
+        "canvas": "#EDF4F0", "panel": "#FAFDFB", "raised": "#DCE8E2",
+        "ink": "#1B2A27", "body": "#4D5C58", "mute": "#586660",
+        "line": "#D4DFD8", "lineStrong": "#A8BCB0",
+        "accent": "#127250", "accentText": "#F6F9F7", "accentSoft": "#DCEEE3",
+        "sidebar": "#DFEAE3", "glass": "#EDF8FCF9", "highlight": "#DFFFFFFF",
+        "error": "#B83F35", "errorSoft": "#F8E5DF", "errorLine": "#E7BBB1",
+        "warning": "#8B621E", "warningSoft": "#F4EBD6", "warningLine": "#DECCA5",
+        "info": "#386B83", "infoSoft": "#DFEDF0", "infoLine": "#B6D0D8",
+        "ripple": "#18127250"
+      }
+    },
+    {
+      "id": "liquidDark",
+      "label": "薄荷玻璃 · 深色",
+      "dark": true,
+      "colors": {
+        "canvas": "#0B1211", "panel": "#151D1C", "raised": "#1E2625",
+        "ink": "#E7ECEA", "body": "#96A19F", "mute": "#83908B",
+        "line": "#273633", "lineStrong": "#475D55",
+        "accent": "#6EDDAD", "accentText": "#042317", "accentSoft": "#183228",
+        "sidebar": "#101917", "glass": "#ED26332E", "highlight": "#38F4FFF9",
+        "error": "#EF9B8A", "errorSoft": "#35201D", "errorLine": "#663D34",
+        "warning": "#DFBE7E", "warningSoft": "#302B1D", "warningLine": "#645236",
+        "info": "#85B8CD", "infoSoft": "#1B2D33", "infoLine": "#355765",
+        "ripple": "#246EDDAD"
+      }
+    }
+  ]
+}

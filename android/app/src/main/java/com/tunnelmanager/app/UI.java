@@ -1,11 +1,16 @@
 package com.tunnelmanager.app;
 
 import android.content.Context;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.StateListAnimator;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -18,19 +23,14 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.CompoundButton;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.animation.DecelerateInterpolator;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.view.ViewTreeObserver;
 
 import java.util.function.IntConsumer;
 
-/**
- * The console's visual primitives.
- *
- * Built on framework widgets rather than Material: the design is the console's
- * own (Vercel / Claude tokens, see {@link Palette}), so Material's defaults
- * would be overridden on nearly every attribute anyway. Everything here reads
- * its colour from {@link Theme} at construction time, which is what makes a
- * palette switch a rebuild rather than a re-inflation.
- */
 final class UI {
 
     static final int XS = 4;
@@ -41,13 +41,13 @@ final class UI {
     static final int XXL = 32;
     static final int XXXL = 48;
 
-    static final int RADIUS_SM = 4;
-    static final int RADIUS_MD = 6;
-    static final int RADIUS_LG = 8;
+    static final int RADIUS_SM = 10;
+    static final int RADIUS_MD = 14;
+    static final int RADIUS_LG = 22;
     static final int RADIUS_PILL = 999;
 
     static final int HEADER_H = 56;
-    static final int TABBAR_H = 58;
+    static final int TABBAR_H = 64;
     static final int SIDEBAR_W = 240;
     static final int CONTENT_MAX_W = 760;
     /** Below this width the shell uses the phone chrome (tabs, not a sidebar). */
@@ -87,7 +87,7 @@ final class UI {
         Palette p = Theme.p();
         LinearLayout l = column(ctx);
         l.setBackground(roundedStroke(p.canvasRaised, RADIUS_LG, p.hairline, 1));
-        l.setPadding(dp(LG), dp(LG), dp(LG), dp(LG));
+        l.setPadding(dp(20), dp(20), dp(20), dp(20));
         return l;
     }
 
@@ -99,8 +99,9 @@ final class UI {
      * of it reads as a page that starts too far down.
      */
     static void pagePadding(LinearLayout body) {
-        int side = dp(LG);
-        body.setPadding(side, dp(SM), side, dp(XXXL));
+        int side = dp(20);
+        boolean wide = body.getResources().getConfiguration().screenWidthDp >= WIDE_DP;
+        body.setPadding(side, dp(MD), side, dp(wide ? XXXL : TABBAR_H + 40));
     }
 
     static View spacer(Context ctx, int heightDp) {
@@ -176,17 +177,20 @@ final class UI {
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
         v.setTextColor(color);
         v.setTypeface(Typeface.DEFAULT, style);
+        v.setFontFeatureSettings("tnum");
         return v;
     }
 
     /** Page heading, matches the console's h2. */
     static TextView pageTitle(Context ctx, String value) {
-        return text(ctx, value, 22, Theme.p().ink, Typeface.BOLD);
+        TextView title = text(ctx, value, 26, Theme.p().ink, Typeface.BOLD);
+        title.setLetterSpacing(-0.025f);
+        return title;
     }
 
     /** Card heading. */
     static TextView cardTitle(Context ctx, String value) {
-        return text(ctx, value, 16, Theme.p().ink, Typeface.BOLD);
+        return text(ctx, value, 15, Theme.p().ink, Typeface.BOLD);
     }
 
     static TextView strong(Context ctx, String value) {
@@ -207,9 +211,7 @@ final class UI {
 
     /** Uppercase mono label — the console uses these above form fields. */
     static TextView label(Context ctx, String value) {
-        TextView v = text(ctx, value.toUpperCase(), 10, Theme.p().mute, Typeface.BOLD);
-        v.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        v.setLetterSpacing(0.09f);
+        TextView v = text(ctx, value, 12, Theme.p().body, Typeface.NORMAL);
         return v;
     }
 
@@ -222,7 +224,7 @@ final class UI {
     // ------------------------------------------------------------- decoration
 
     static GradientDrawable rounded(int fill, float radiusDp) {
-        GradientDrawable d = new GradientDrawable();
+        GradientDrawable d = new ThemedShape();
         d.setShape(GradientDrawable.RECTANGLE);
         d.setCornerRadius(radiusDp >= RADIUS_PILL ? dp(999) : dp(radiusDp));
         d.setColor(fill);
@@ -242,7 +244,7 @@ final class UI {
      */
     /** A filled or hollow circle — the phone's checkbox, used for row selection. */
     static GradientDrawable circle(int fill, int stroke, float strokeDp) {
-        GradientDrawable d = new GradientDrawable();
+        GradientDrawable d = new ThemedShape();
         d.setShape(GradientDrawable.OVAL);
         d.setColor(fill);
         if (stroke != 0) d.setStroke(Math.max(1, dp(strokeDp)), stroke);
@@ -265,6 +267,8 @@ final class UI {
         v.setPadding(dp(16), dp(11), dp(16), dp(11));
         v.setClickable(true);
         v.setFocusable(true);
+        v.setMinHeight(dp(48));
+        pressFeedback(v);
 
         int fill;
         Drawable shape;
@@ -272,23 +276,23 @@ final class UI {
             case BTN_PRIMARY:
                 fill = p.btnPrimaryBg;
                 v.setTextColor(p.btnPrimaryText);
-                shape = rounded(fill, RADIUS_MD);
+                shape = rounded(fill, RADIUS_PILL);
                 break;
             case BTN_DANGER:
                 fill = p.resultErrorBg;
                 v.setTextColor(p.error);
-                shape = roundedStroke(fill, RADIUS_MD, p.resultErrorBorder, 1);
+                shape = roundedStroke(fill, RADIUS_PILL, p.resultErrorBorder, 1);
                 break;
             case BTN_GHOST:
                 v.setTextColor(p.mute);
                 v.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
-                shape = rounded(p.canvas, RADIUS_MD);
+                shape = rounded(p.canvas, RADIUS_PILL);
                 break;
             case BTN_SECONDARY:
             default:
-                fill = p.canvasRaised;
+                fill = p.canvasSoft2;
                 v.setTextColor(p.ink);
-                shape = roundedStroke(fill, RADIUS_MD, p.btnSecondaryBorder, 1);
+                shape = rounded(fill, RADIUS_PILL);
                 break;
         }
         v.setBackground(pressable(shape, p.btnGhostHover));
@@ -305,12 +309,14 @@ final class UI {
         Palette p = Theme.p();
         ImageView button = new ImageView(ctx);
         button.setImageResource(iconRes);
-        button.setColorFilter(tint);
+        tint(button, tint);
         button.setClickable(true);
-        button.setBackground(pressable(rounded(p.canvas, RADIUS_MD), p.btnGhostHover));
+        button.setFocusable(true);
+        button.setBackground(pressable(rounded(p.canvasSoft2, RADIUS_PILL), p.btnGhostHover));
+        pressFeedback(button);
         int inset = dp(SM);
         button.setPadding(inset, inset, inset, inset);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(32), dp(32));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(44), dp(44));
         lp.leftMargin = dp(XS);
         button.setLayoutParams(lp);
         button.setOnClickListener(onClick);
@@ -326,7 +332,8 @@ final class UI {
         e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         e.setTextColor(p.ink);
         e.setHintTextColor(p.mute);
-        e.setBackground(roundedStroke(p.canvas, RADIUS_MD, p.hairline, 1));
+        e.setBackground(roundedStroke(p.canvasSoft2, RADIUS_MD, p.hairline, 1));
+        e.setMinHeight(dp(48));
         e.setPadding(dp(MD), dp(MD), dp(MD), dp(MD));
         e.setSingleLine(true);
         // Stated rather than left to the default: a WRAP_CONTENT EditText sizes
@@ -407,6 +414,13 @@ final class UI {
         return v;
     }
 
+    static TextView tunnelStatusPill(Context ctx, String status) {
+        TunnelFilter.State state = TunnelFilter.state(status);
+        TextView pill = statusPill(ctx, state.style);
+        pill.setText(state.label);
+        return pill;
+    }
+
     static TextView tag(Context ctx, String label, boolean ok) {
         Palette p = Theme.p();
         TextView v = text(ctx, label, 11, ok ? p.statusHealthyText : p.mute, Typeface.BOLD);
@@ -468,8 +482,8 @@ final class UI {
         LinearLayout row = row(ctx);
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        row.setBackground(rounded(p.canvasSoft, RADIUS_MD));
-        row.setPadding(dp(2), dp(2), dp(2), dp(2));
+        row.setBackground(rounded(p.canvasSoft2, RADIUS_PILL));
+        row.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         for (int i = 0; i < options.length; i++) {
             final int index = i;
@@ -479,6 +493,9 @@ final class UI {
             chip.setPadding(dp(6), dp(7), dp(6), dp(7));
             chip.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             chip.setClickable(true);
+            chip.setFocusable(true);
+            chip.setMinHeight(dp(40));
+            pressFeedback(chip);
             chip.setOnClickListener(v -> {
                 paintSegmented(row, index);
                 onChange.accept(index);
@@ -495,9 +512,10 @@ final class UI {
             TextView chip = (TextView) row.getChildAt(i);
             boolean active = i == selected;
             chip.setTextColor(active ? p.ink : p.mute);
-            chip.setTypeface(Typeface.DEFAULT, active ? Typeface.BOLD : Typeface.NORMAL);
+            chip.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
+            chip.setSelected(active);
             chip.setBackground(active
-                    ? roundedStroke(p.canvasRaised, RADIUS_MD, p.hairline, 1)
+                    ? rounded(p.canvasRaised, RADIUS_PILL)
                     : null);
         }
     }
@@ -509,18 +527,11 @@ final class UI {
      */
     static final class Toggle extends View {
 
-        private final int trackOn;
-        private final int trackOff;
-        private final int knob;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private boolean on;
 
         Toggle(Context ctx, boolean on) {
             super(ctx);
-            Palette p = Theme.p();
-            this.trackOn = p.btnPrimaryBg;
-            this.trackOff = p.hairlineStrong;
-            this.knob = p.btnPrimaryText;
             this.on = on;
         }
 
@@ -534,6 +545,14 @@ final class UI {
             invalidate();
         }
 
+        @Override
+        public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+            super.onInitializeAccessibilityNodeInfo(info);
+            info.setClassName("android.widget.Switch");
+            info.setCheckable(true);
+            info.setChecked(on);
+        }
+
         /**
          * A bare View offered {@code AT_MOST} takes the whole space, so a
          * switch added without explicit LayoutParams would eat the width a
@@ -545,8 +564,8 @@ final class UI {
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
             setMeasuredDimension(
-                    resolveSize(dp(34), widthMeasureSpec),
-                    resolveSize(dp(20), heightMeasureSpec));
+                    resolveSize(dp(38), widthMeasureSpec),
+                    resolveSize(dp(24), heightMeasureSpec));
         }
 
         @Override
@@ -554,13 +573,115 @@ final class UI {
             float w = getWidth();
             float h = getHeight();
             float radius = h / 2f;
-            paint.setColor(on ? trackOn : trackOff);
+            paint.setColor(on ? Theme.p().btnPrimaryBg : Theme.p().hairlineStrong);
             canvas.drawRoundRect(0, 0, w, h, radius, radius, paint);
 
             float knobRadius = radius - dp(2);
             float cx = on ? w - knobRadius - dp(2) : knobRadius + dp(2);
-            paint.setColor(knob);
+            paint.setColor(on ? Theme.p().btnPrimaryText : Theme.p().body);
             canvas.drawCircle(cx, h / 2f, knobRadius, paint);
+        }
+    }
+
+    static void pressFeedback(View view) {
+        if (!Theme.motionEnabled()) {
+            view.setStateListAnimator(null);
+            view.setScaleX(1f);
+            view.setScaleY(1f);
+            return;
+        }
+        StateListAnimator states = new StateListAnimator();
+        AnimatorSet pressed = new AnimatorSet();
+        pressed.playTogether(ObjectAnimator.ofFloat(view, View.SCALE_X, 0.97f),
+                ObjectAnimator.ofFloat(view, View.SCALE_Y, 0.97f));
+        pressed.setDuration(100);
+        AnimatorSet released = new AnimatorSet();
+        released.playTogether(ObjectAnimator.ofFloat(view, View.SCALE_X, 1f),
+                ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f));
+        released.setDuration(180);
+        released.setInterpolator(new DecelerateInterpolator());
+        states.addState(new int[]{android.R.attr.state_pressed, android.R.attr.state_enabled}, pressed);
+        states.addState(new int[]{}, released);
+        view.setStateListAnimator(states);
+    }
+
+    static void retheme(View view, Palette previous) {
+        Palette next = Theme.p();
+        repaint(view.getBackground(), previous, next);
+        if (view instanceof TextView) {
+            TextView text = (TextView) view;
+            text.setTextColor(previous.remap(text.getCurrentTextColor(), next));
+            text.setHintTextColor(previous.remap(text.getCurrentHintTextColor(), next));
+            for (Drawable drawable : text.getCompoundDrawablesRelative()) repaint(drawable, previous, next);
+        }
+        if (view instanceof ImageView) {
+            ImageView image = (ImageView) view;
+            if (image.getImageTintList() != null) {
+                int color = image.getImageTintList().getDefaultColor();
+                tint(image, previous.remap(color, next));
+            }
+        }
+        if (view instanceof CompoundButton) {
+            ((CompoundButton) view).setButtonTintList(new ColorStateList(
+                    new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+                    new int[]{next.btnPrimaryBg, next.hairlineStrong}));
+        }
+        if (view instanceof SwipeRefreshLayout) {
+            ((SwipeRefreshLayout) view).setColorSchemeColors(next.success);
+            ((SwipeRefreshLayout) view).setProgressBackgroundColorSchemeColor(next.canvasRaised);
+        }
+        if (view.isClickable()) pressFeedback(view);
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int index = 0; index < group.getChildCount(); index++) retheme(group.getChildAt(index), previous);
+        }
+        view.invalidate();
+    }
+
+    static void tint(ImageView image, int color) {
+        image.setImageTintList(ColorStateList.valueOf(color));
+    }
+
+    private static void repaint(Drawable drawable, Palette previous, Palette next) {
+        if (drawable == null) return;
+        if (drawable instanceof ThemedShape) {
+            ((ThemedShape) drawable).repaint(previous, next);
+        } else if (drawable instanceof ColorDrawable) {
+            ColorDrawable color = (ColorDrawable) drawable;
+            color.setColor(previous.remap(color.getColor(), next));
+        } else if (drawable instanceof GradientDrawable) {
+            GradientDrawable shape = (GradientDrawable) drawable;
+            if (shape.getColor() != null) shape.setColor(previous.remap(shape.getColor().getDefaultColor(), next));
+        }
+        if (drawable instanceof LayerDrawable) {
+            LayerDrawable layers = (LayerDrawable) drawable;
+            for (int index = 0; index < layers.getNumberOfLayers(); index++) repaint(layers.getDrawable(index), previous, next);
+        }
+        if (drawable instanceof RippleDrawable) ((RippleDrawable) drawable).setColor(ColorStateList.valueOf(next.btnGhostHover));
+        drawable.invalidateSelf();
+    }
+
+    private static final class ThemedShape extends GradientDrawable {
+        private int fill;
+        private int stroke;
+        private int strokeWidth;
+
+        @Override
+        public void setColor(int color) {
+            fill = color;
+            super.setColor(color);
+        }
+
+        @Override
+        public void setStroke(int width, int color) {
+            strokeWidth = width;
+            stroke = color;
+            super.setStroke(width, color);
+        }
+
+        void repaint(Palette previous, Palette next) {
+            setColor(previous.remap(fill, next));
+            if (strokeWidth > 0) setStroke(strokeWidth, previous.remap(stroke, next));
         }
     }
 }

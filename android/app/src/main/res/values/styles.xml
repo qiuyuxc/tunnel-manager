@@ -5,16 +5,17 @@
          night mode; MainActivity picks one with setTheme(). The literals match
          Palette.ENTERPRISE / ENTERPRISE_DARK. -->
     <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="tm_canvas">#FAFAFA</item>
-        <item name="tm_surface">#FFFFFF</item>
-        <item name="tm_text">#171717</item>
-        <item name="tm_muted">#6B6B6B</item>
-        <item name="tm_border">#EBEBEB</item>
-        <item name="tm_accent">#171717</item>
-        <item name="tm_accent_text">#FFFFFF</item>
-        <item name="tm_error">#EE0000</item>
-        <item name="tm_logo">#171717</item>
-        <item name="tm_logo_dim">#8F8F8F</item>
+        <item name="tm_canvas">@color/liquid_light_canvas</item>
+        <item name="tm_surface">@color/liquid_light_panel</item>
+        <item name="tm_text">@color/liquid_light_ink</item>
+        <item name="tm_muted">@color/liquid_light_body</item>
+        <item name="tm_border">@color/liquid_light_line</item>
+        <item name="tm_accent">@color/liquid_light_accent</item>
+        <item name="tm_accent_text">@color/liquid_light_accent_text</item>
+        <item name="tm_error">@color/liquid_light_error</item>
+        <item name="tm_logo">@color/liquid_light_accent</item>
+        <item name="tm_logo_dim">@color/liquid_light_mute</item>
+        <item name="android:colorAccent">@color/liquid_light_accent</item>
         <item name="android:windowBackground">?attr/tm_canvas</item>
         <item name="android:colorBackground">?attr/tm_canvas</item>
         <item name="android:textColorPrimary">?attr/tm_text</item>
@@ -22,19 +23,21 @@
         <item name="android:statusBarColor">?attr/tm_canvas</item>
         <item name="android:navigationBarColor">?attr/tm_canvas</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
     <style name="AppTheme.Dark" parent="android:Theme.Material.NoActionBar">
-        <item name="tm_canvas">#000000</item>
-        <item name="tm_surface">#111111</item>
-        <item name="tm_text">#EDEDED</item>
-        <item name="tm_muted">#9A9A9A</item>
-        <item name="tm_border">#2A2A2A</item>
-        <item name="tm_accent">#EDEDED</item>
-        <item name="tm_accent_text">#0A0A0A</item>
-        <item name="tm_error">#FF6369</item>
-        <item name="tm_logo">#EDEDED</item>
-        <item name="tm_logo_dim">#6B6B6B</item>
+        <item name="tm_canvas">@color/liquid_dark_canvas</item>
+        <item name="tm_surface">@color/liquid_dark_panel</item>
+        <item name="tm_text">@color/liquid_dark_ink</item>
+        <item name="tm_muted">@color/liquid_dark_body</item>
+        <item name="tm_border">@color/liquid_dark_line</item>
+        <item name="tm_accent">@color/liquid_dark_accent</item>
+        <item name="tm_accent_text">@color/liquid_dark_accent_text</item>
+        <item name="tm_error">@color/liquid_dark_error</item>
+        <item name="tm_logo">@color/liquid_dark_accent</item>
+        <item name="tm_logo_dim">@color/liquid_dark_mute</item>
+        <item name="android:colorAccent">@color/liquid_dark_accent</item>
         <item name="android:windowBackground">?attr/tm_canvas</item>
         <item name="android:colorBackground">?attr/tm_canvas</item>
         <item name="android:textColorPrimary">?attr/tm_text</item>
@@ -42,6 +45,7 @@
         <item name="android:statusBarColor">?attr/tm_canvas</item>
         <item name="android:navigationBarColor">?attr/tm_canvas</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <!-- Only used for the window the system paints before MainActivity exists.
@@ -88,7 +92,7 @@
 
     <style name="GhostButton">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_height">48dp</item>
         <item name="android:background">@android:color/transparent</item>
         <item name="android:textColor">?attr/tm_muted</item>
         <item name="android:textSize">14sp</item>
