@@ -56,14 +56,6 @@ func TestPasswordLoginBlockedWhenAccountSwitchOff(t *testing.T) {
 	if !strings.Contains(resp.Body.String(), "禁用密码登录") {
 		t.Fatalf("Login() body = %s, want the passkey hint", resp.Body.String())
 	}
-
-	page, err := st.QueryAuditLogs(models.AuditQuery{Action: models.AuditActionLoginFailed})
-	if err != nil {
-		t.Fatalf("QueryAuditLogs() error = %v", err)
-	}
-	if page.Total != 1 || page.Logs[0].ActorName != "admin" {
-		t.Fatalf("audit entries = %#v, want one rejected password sign-in", page.Logs)
-	}
 }
 
 func TestPasswordLoginBlockedWhenPanelSwitchOff(t *testing.T) {
@@ -221,7 +213,7 @@ func TestAdminCanRestorePasswordLogin(t *testing.T) {
 }
 
 func TestPasskeySignInBeginAndRejectedFinish(t *testing.T) {
-	h, _, st := newTestPasskeyHandler(t)
+	h, _, _ := newTestPasskeyHandler(t)
 
 	resp := performJSON(t, h.LoginBegin, http.MethodPost, "/api/auth/passkey/login/begin", `{}`, "")
 	if resp.Code != http.StatusOK {
@@ -236,8 +228,7 @@ func TestPasskeySignInBeginAndRejectedFinish(t *testing.T) {
 		t.Fatalf("LoginBegin() = %#v, want options and a ceremony token", begin)
 	}
 
-	// A credential the panel cannot parse is rejected, and the attempt lands in
-	// the audit trail.
+	// A credential the panel cannot parse is rejected.
 	body, _ := json.Marshal(models.PasskeyLoginFinishRequest{
 		CeremonyToken: begin.CeremonyToken,
 		Credential:    json.RawMessage(`{"id":"AQ"}`),
@@ -245,13 +236,6 @@ func TestPasskeySignInBeginAndRejectedFinish(t *testing.T) {
 	resp = performJSON(t, h.LoginFinish, http.MethodPost, "/api/auth/passkey/login/finish", string(body), "")
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("LoginFinish() code = %d: %s", resp.Code, resp.Body.String())
-	}
-	page, err := st.QueryAuditLogs(models.AuditQuery{Action: models.AuditActionPasskeyLoginFailed})
-	if err != nil {
-		t.Fatalf("QueryAuditLogs() error = %v", err)
-	}
-	if page.Total != 1 {
-		t.Fatalf("audit entries = %#v, want one rejected passkey sign-in", page.Logs)
 	}
 
 	// The same ceremony token cannot be replayed.
@@ -364,7 +348,7 @@ func TestGlobalPasswordSwitchRequiresAdministratorPasskey(t *testing.T) {
 	h := NewManagementHandler(st, []byte("0123456789abcdef0123456789abcdef"))
 
 	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "/api/admin/settings",
-		`{"registration_enabled":true,"invite_mode":"off","password_login_disabled":true}`, "")
+		`{"password_login_disabled":true}`, "")
 	if resp.Code != http.StatusBadRequest || !strings.Contains(resp.Body.String(), "管理员") {
 		t.Fatalf("UpdateAppSettings() code = %d: %s", resp.Code, resp.Body.String())
 	}
@@ -376,7 +360,7 @@ func TestGlobalPasswordSwitchRequiresAdministratorPasskey(t *testing.T) {
 		t.Fatalf("AddPasskey() error = %v", err)
 	}
 	resp = performJSON(t, h.UpdateAppSettings, http.MethodPut, "/api/admin/settings",
-		`{"registration_enabled":true,"invite_mode":"off","password_login_disabled":true}`, "")
+		`{"password_login_disabled":true}`, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("UpdateAppSettings() code = %d: %s", resp.Code, resp.Body.String())
 	}
@@ -385,17 +369,10 @@ func TestGlobalPasswordSwitchRequiresAdministratorPasskey(t *testing.T) {
 	if !view.PasswordLoginDisabled || !view.PasskeyAdminReady {
 		t.Fatalf("settings = %#v, want the switch on with a ready administrator", view)
 	}
-	page, err := st.QueryAuditLogs(models.AuditQuery{Action: models.AuditActionPasswordLoginGlobalOff})
-	if err != nil {
-		t.Fatalf("QueryAuditLogs() error = %v", err)
-	}
-	if page.Total != 1 {
-		t.Fatalf("audit entries = %#v, want one panel-wide switch entry", page.Logs)
-	}
 
 	// A partial save that omits the field keeps the switch on.
 	resp = performJSON(t, h.UpdateAppSettings, http.MethodPut, "/api/admin/settings",
-		`{"registration_enabled":true,"invite_mode":"off","turnstile_enabled":false,"turnstile_site_key":""}`, "")
+		`{"turnstile_enabled":false,"turnstile_site_key":""}`, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("UpdateAppSettings() code = %d: %s", resp.Code, resp.Body.String())
 	}

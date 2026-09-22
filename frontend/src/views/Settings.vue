@@ -141,10 +141,131 @@
         </div>
       </section>
     </div>
+
+    <div class="page-header settings-heading section" style="margin-top: var(--spacing-xl);">
+      <h2>系统与安全</h2>
+      <p>邮件服务、登录保护、通行密钥、人机验证、Cloudflare 授权与加密密钥。</p>
+    </div>
+    <div class="security-grid section">
+      <div class="admin-card">
+        <h3>SMTP 邮件服务</h3>
+        <p class="admin-hint">用于监控告警邮件与找回密码验证码。密码留空表示保持原值不变。</p>
+        <div class="admin-form smtp-form">
+          <input v-model="smtp.host" type="text" placeholder="SMTP 主机，如 smtp.example.com" class="vercel-input" />
+          <input v-model.number="smtp.port" type="number" placeholder="端口（465 或 587）" class="vercel-input narrow" />
+          <input v-model="smtp.username" type="text" placeholder="用户名（通常为邮箱）" class="vercel-input" />
+          <input v-model="smtp.password" type="password" placeholder="密码 / 授权码（留空保持不变）" class="vercel-input" />
+          <input v-model="smtp.from" type="text" placeholder="发件人，如 panel@example.com" class="vercel-input" />
+          <select v-model="smtp.tlsMode" class="vercel-input narrow">
+            <option value="ssl">加密</option>
+            <option value="plain">不加密</option>
+          </select>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">保存设置</button>
+        </div>
+        <div class="admin-form">
+          <input v-model="testMailTo" type="email" placeholder="发送测试邮件到：你的邮箱" class="vercel-input" />
+          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? '发送中…' : '发送测试邮件' }}</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>登录保护</h3>
+        <p class="admin-hint">登录、二次验证、验证码、找回与重置密码都受此限制。账号额度是真正的防线——换 IP 绕不过去；IP 额度用来挡住一台机器横扫。任一触发即返回 429 并附带解锁时间。</p>
+        <div class="setting-row">
+          <span class="setting-label">启用登录限流</span>
+          <n-switch v-model:value="settings.rate_limit_enabled" size="small" @update:value="saveSettings" />
+        </div>
+        <div class="admin-form">
+          <label class="field-label2">每账号失败次数<small>0 = 默认 5 次，填负数表示不限</small></label>
+          <input v-model.number="settings.rate_limit_per_account" type="number" class="vercel-input" />
+          <label class="field-label2">每 IP 失败次数<small>0 = 默认 20 次，填负数表示不限</small></label>
+          <input v-model.number="settings.rate_limit_per_ip" type="number" class="vercel-input" />
+          <label class="field-label2">统计窗口（分钟）<small>0 = 默认 15 分钟</small></label>
+          <input v-model.number="settings.rate_limit_window_minutes" type="number" class="vercel-input" />
+          <label class="field-label2">熟悉来源的额度倍数<small>90 天内登录过的网段给更宽的额度。0 = 默认 3 倍，1 = 不放宽</small></label>
+          <input v-model.number="settings.rate_limit_familiar_multiplier" type="number" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">锁定时通知</span>
+          <n-switch v-model:value="settings.rate_limit_notify" size="small" @update:value="saveSettings" />
+          <small class="text-muted">走已配置的通知渠道（TG / 邮件），并沿用「登录通知」开关</small>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>通行密钥</h3>
+        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同一个域下的所有子域都能用。只有在需要限定来源时才填「允许的来源」，它必须与依赖方 ID 同域或为其子域——换域名后已绑定的通行密钥会失效，需要重新绑定。</p>
+        <div class="admin-form">
+          <input v-model="settings.passkey_rp_id" type="text" placeholder="依赖方 ID，如 panel.example.com" class="vercel-input" />
+          <input v-model="settings.passkey_origins" type="text" placeholder="允许的来源，逗号分隔，如 https://panel.example.com" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">禁用密码登录</span>
+          <n-switch v-model:value="passwordLoginOff" size="small" :disabled="!settings.passkey_admin_ready" @update:value="saveSettings">
+            <template #checked>仅通行密钥</template>
+            <template #unchecked>允许密码</template>
+          </n-switch>
+          <small v-if="!settings.passkey_admin_ready" class="text-muted">需先绑定至少一个通行密钥，避免面板被锁死</small>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>人机验证（Cloudflare Turnstile）</h3>
+        <p class="admin-hint">可选防护：开启后登录与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
+        <div class="setting-row">
+          <span class="setting-label">启用人机验证</span>
+          <n-switch v-model:value="turnstile.enabled" size="small" />
+        </div>
+        <div class="admin-form">
+          <input v-model="turnstile.site_key" type="text" placeholder="Site Key（0x4A…）" class="vercel-input" />
+          <input v-model="turnstileSecret" type="password" placeholder="Secret Key（留空保持不变）" class="vercel-input" autocomplete="off" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">保存</button>
+          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>Cloudflare OAuth 客户端</h3>
+        <p class="admin-hint">留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET。此处填写后优先于环境变量；密钥留空表示保持不变。</p>
+        <p class="admin-hint">OAuth 客户端需在 Cloudflare 控制台勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit</p>
+        <div class="admin-form">
+          <input v-model="oauthCfg.client_id" type="text" placeholder="Client ID" class="vercel-input" />
+          <input v-model="oauthCfg.client_secret" type="password" placeholder="Client Secret（留空保持不变）" class="vercel-input" />
+          <input v-model="oauthCfg.redirect_uri" type="text" placeholder="回调地址（留空自动按访问域名推导）" class="vercel-input" />
+          <input v-model="oauthCfg.scopes" type="text" placeholder="Scopes（留空用客户端已配置的）" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveOAuth">保存</button>
+          <span class="tag" :class="oauthHasSecret ? 'tag-ok' : 'tag-down'">{{ oauthHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>实验性功能</h3>
+        <p class="admin-hint">开启后，侧边栏会显示“IP 优选实验室”。该功能允许直连指定 IP 段探测 Host/SNI 可用性与延迟，并可选择自动更新华为云 DNS。关闭后入口与 API 均不暴露。</p>
+        <div class="setting-row">
+          <span class="setting-label">开启实验性功能</span>
+          <n-switch v-model:value="experimentalFeatures" size="small" @update:value="saveSettings">
+            <template #checked>开启</template>
+            <template #unchecked>关闭</template>
+          </n-switch>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>应用加密密钥</h3>
+        <p class="admin-hint">用于加密 SMTP 密码、Cloudflare 授权令牌与 2FA 密文。未设置时自动生成并保存在数据库；环境变量 APP_ENCRYPTION_KEY 优先。更换后需重启服务，且会使已保存的密文失效。</p>
+        <div class="admin-form">
+          <input v-model="encKeyInput" type="text" placeholder="64 位十六进制密钥（留空保持不变）" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy || !encKeyInput" @click="saveEncKey">保存密钥</button>
+          <span class="tag">当前来源：{{ encKeySource === 'env' ? '环境变量' : encKeySource === 'stored' ? '数据库' : '未设置' }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { NSwitch, useMessage } from 'naive-ui'
 import {
   setCNAMEPresets,
@@ -153,12 +274,165 @@ import {
   setSiteSettings,
   type CNAMEPreset,
 } from '../api'
+import {
+  getAppSettings, updateAppSettings,
+  getSMTP, updateSMTP, testSMTP,
+  getOAuthConfig, updateOAuthConfig,
+  getEncryptionKeyStatus, saveEncryptionKey,
+  type AppSettings,
+} from '../api/admin'
 import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
 const message = useMessage()
 const store = useConfigStore()
 const config = store.config
 const visible = ref(false)
+
+// ---- 系统与安全（原管理后台的系统设置 / 邮件服务，单用户面板下并入全局设置）----
+const busy = ref(false)
+const settings = ref<AppSettings>({})
+const turnstile = ref({ enabled: false, site_key: '' })
+const turnstileSecret = ref('')
+const turnstileHasSecret = ref(false)
+const smtp = ref({ host: '', port: 587, username: '', password: '', from: '', tlsMode: 'ssl' })
+const testMailTo = ref('')
+const testingMail = ref(false)
+const oauthCfg = ref({ client_id: '', client_secret: '', redirect_uri: '', scopes: '' })
+const oauthHasSecret = ref(false)
+const encKeyInput = ref('')
+const encKeySource = ref('none')
+const passwordLoginOff = computed({
+  get: () => !!settings.value.password_login_disabled,
+  set: (v: boolean) => { settings.value.password_login_disabled = v },
+})
+const experimentalFeatures = computed({
+  get: () => !!settings.value.experimental_features_enabled,
+  set: (v: boolean) => { settings.value.experimental_features_enabled = v },
+})
+
+async function loadSecurity() {
+  busy.value = true
+  try {
+    const { data } = await getAppSettings()
+    settings.value = data
+    turnstile.value.enabled = !!data.turnstile_enabled
+    turnstile.value.site_key = data.turnstile_site_key || ''
+    turnstileHasSecret.value = !!data.turnstile_has_secret
+    turnstileSecret.value = ''
+  } catch (e: any) {
+    message.error('加载安全设置失败: ' + (e.response?.data?.error || e.message))
+  } finally {
+    busy.value = false
+  }
+}
+
+async function saveSettings() {
+  busy.value = true
+  try {
+    await updateAppSettings(settings.value)
+    store.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
+    message.success('设置已保存')
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function saveTurnstile() {
+  // 带上完整设置：只保存人机验证时不能把通行密钥、限流等字段清空。
+  const payload: Partial<AppSettings> & { turnstile_secret?: string } = {
+    ...settings.value,
+    turnstile_enabled: turnstile.value.enabled,
+    turnstile_site_key: turnstile.value.site_key.trim(),
+  }
+  if (turnstileSecret.value) payload.turnstile_secret = turnstileSecret.value
+  busy.value = true
+  try {
+    await updateAppSettings(payload)
+    turnstileHasSecret.value = turnstileHasSecret.value || !!turnstileSecret.value
+    turnstileSecret.value = ''
+    message.success('人机验证设置已保存')
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function saveOAuth() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    await updateOAuthConfig({
+      client_id: oauthCfg.value.client_id.trim(),
+      client_secret: oauthCfg.value.client_secret || undefined,
+      redirect_uri: oauthCfg.value.redirect_uri.trim(),
+      scopes: oauthCfg.value.scopes.trim(),
+    })
+    oauthCfg.value.client_secret = ''
+    const cfg = await getOAuthConfig()
+    oauthHasSecret.value = cfg.data.has_client_secret
+    message.success('OAuth 客户端配置已保存')
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function saveEncKey() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const { data } = await saveEncryptionKey(encKeyInput.value.trim())
+    message.success(data.message || '已保存')
+    encKeyInput.value = ''
+    const status = await getEncryptionKeyStatus()
+    encKeySource.value = status.data.source
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function saveSmtp() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const { data } = await updateSMTP({
+      host: smtp.value.host.trim(),
+      port: smtp.value.port,
+      username: smtp.value.username.trim(),
+      password: smtp.value.password || undefined,
+      from: smtp.value.from.trim(),
+      tls_mode: smtp.value.tlsMode,
+    })
+    message.success(data.configured ? 'SMTP 设置已保存' : 'SMTP 设置已保存（尚未完整配置）')
+    smtp.value.password = ''
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '保存失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function sendTestMail() {
+  if (!testMailTo.value.trim()) {
+    message.error('请先填写收件邮箱')
+    return
+  }
+  testingMail.value = true
+  try {
+    const { data } = await testSMTP(testMailTo.value.trim())
+    message.success(data.message || '测试邮件已发送')
+  } catch (e: any) {
+    message.error(e.response?.data?.error || '发送失败')
+  } finally {
+    testingMail.value = false
+  }
+}
 const iconInput = ref<HTMLInputElement | null>(null)
 const site = reactive({ name: '', description: '', icon: '', panelHost: '', landingEnabled: false })
 const cnamePresets = ref<CNAMEPreset[]>([])
@@ -281,6 +555,23 @@ onMounted(async () => {
   await store.fetchConfig()
   syncFormFromConfig()
   requestAnimationFrame(() => { visible.value = true })
+  void loadSecurity()
+  getSMTP().then(({ data }) => {
+    smtp.value.host = data.host
+    smtp.value.port = data.port || 587
+    smtp.value.username = data.username
+    smtp.value.from = data.from
+    smtp.value.tlsMode = data.tls_mode === 'plain' ? 'plain' : 'ssl'
+  }).catch(() => {})
+  getOAuthConfig().then(({ data }) => {
+    oauthCfg.value.client_id = data.client_id
+    oauthCfg.value.redirect_uri = data.redirect_uri
+    oauthCfg.value.scopes = data.scopes
+    oauthHasSecret.value = data.has_client_secret
+  }).catch(() => {})
+  getEncryptionKeyStatus().then(({ data }) => {
+    encKeySource.value = data.source
+  }).catch(() => {})
 })
 </script>
 <style scoped>
@@ -572,4 +863,42 @@ onMounted(async () => {
   .tunnel-summary, .tunnel-empty { align-items: stretch; flex-direction: column; }
   .tunnel-summary .btn, .tunnel-empty .btn { width: 100%; justify-content: center; }
 }
+
+/* 系统与安全区块（原管理后台卡片样式） */
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+.admin-card {
+  min-width: 0;
+  background: var(--color-canvas-raised);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+.admin-card h3 { margin: 0 0 var(--spacing-sm); font-size: 15px; color: var(--color-ink); }
+.admin-hint { font-size: 12px; color: var(--color-mute); margin: 0 0 var(--spacing-sm); line-height: 1.6; }
+.admin-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: var(--spacing-sm) 0; }
+.admin-form .vercel-input { max-width: 260px; }
+.admin-form .btn { padding: 5px 14px; font-size: 12px; }
+.smtp-form { border-bottom: 1px dashed var(--color-hairline); margin-bottom: var(--spacing-sm); }
+.setting-row { display: flex; align-items: center; gap: 14px; padding: var(--spacing-sm) 0; flex-wrap: wrap; }
+.setting-label { font-size: 13px; color: var(--color-ink); min-width: 96px; }
+.vercel-input.narrow { max-width: 240px; }
+.field-label2 { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--color-body); width: 100%; }
+.field-label2 small { font-size: 11px; color: var(--color-mute); }
+.text-muted { font-size: 12px; color: var(--color-mute); }
+.tag {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--color-hairline);
+  color: var(--color-mute);
+}
+.tag-ok { color: var(--color-status-ok, #10b981); border-color: currentColor; }
+.tag-down { color: var(--color-error); border-color: currentColor; }
+@media (max-width: 1024px) { .security-grid { grid-template-columns: 1fr; } }
 </style>

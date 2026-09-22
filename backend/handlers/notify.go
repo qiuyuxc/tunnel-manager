@@ -112,21 +112,6 @@ func (h *NotifyHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	h.GetSettings(w, r)
 }
 
-// ReuseFromTelegram copies the remote-control bot token into the
-// notification slot, so one bot can power both features.
-func (h *NotifyHandler) ReuseFromTelegram(w http.ResponseWriter, r *http.Request) {
-	user := SessionUser(r)
-	if user == nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-		return
-	}
-	if err := h.store.ReuseTokenForNotify(h.requestUserID(r)); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-	h.GetSettings(w, r)
-}
-
 // TestNotify handles POST /api/notify/test: sends a probe message through
 // the account's configured channels.
 func (h *NotifyHandler) TestNotify(w http.ResponseWriter, r *http.Request) {

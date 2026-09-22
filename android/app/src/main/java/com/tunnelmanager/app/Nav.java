@@ -54,8 +54,6 @@ final class Nav {
         ALL.add(new Item("/dns", "DNS 管理", null, R.drawable.ic_nav_dns, Group.NETWORK, "dns", false, false, true));
         ALL.add(new Item("/lab/ip-selector", "IP 优选实验室", null, R.drawable.ic_nav_lab, Group.NETWORK, null, true, true, true));
         ALL.add(new Item("/settings", "全局设置", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, false, true));
-        ALL.add(new Item("/telegram", "TG 机器人", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, false, true));
-        ALL.add(new Item("/admin", "管理后台", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, false, true));
         ALL.add(new Item("/notifications", "通知", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, false, true));
         ALL.add(new Item("/account", "账户", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, false, true));
         ALL.add(new Item("/about", "关于", null, R.drawable.ic_nav_about, Group.PERSONAL, null, false, false, true));

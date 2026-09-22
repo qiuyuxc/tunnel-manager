@@ -71,7 +71,6 @@ type Store struct {
 	config           models.Config
 	users            []models.User
 	groups           []models.UserGroup
-	invites          []models.Invite
 	sessions         []sessionRecord
 	verifyCodes      []verifyCodeRecord
 	prefs            map[string]models.UserPrefs
@@ -273,9 +272,6 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	if s.sessions, err = loadSessions(handle); err != nil {
 		return false, err
 	}
-	if s.invites, err = loadInvites(handle); err != nil {
-		return false, err
-	}
 	if s.verifyCodes, err = loadVerifyCodes(handle); err != nil {
 		return false, err
 	}
@@ -357,9 +353,6 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	if err := replaceSessions(tx, s.sessions); err != nil {
-		return err
-	}
-	if err := replaceInvites(tx, s.invites); err != nil {
 		return err
 	}
 	if err := replaceVerifyCodes(tx, s.verifyCodes); err != nil {

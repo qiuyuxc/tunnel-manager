@@ -39,13 +39,14 @@ export const useConfigStore = defineStore('config', () => {
 
   const displayName = computed(() => nickname.value || username.value)
 
-  function hasPerm(perm: string) {
-    if (role.value === 'admin') return true
-    return permissions.value.includes(perm)
+  // Single-user panel: the only account is the administrator, so every
+  // capability check passes. Kept as functions so existing callers are untouched.
+  function hasPerm(_perm: string) {
+    return true
   }
 
   function isAdmin() {
-    return role.value === 'admin'
+    return true
   }
 
   async function fetchMe() {

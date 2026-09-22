@@ -115,49 +115,33 @@ func (h *AdminHandler) userIDFromToken(token string) (string, models.SessionUser
 
 // completeLogin issues the session for a verified account and writes the login
 // response. Every successful sign-in path (password, TOTP code, passkey) goes
-// through here so the audit entry, login notification and panel-host seeding
-// stay identical.
-func (h *AdminHandler) completeLogin(w http.ResponseWriter, r *http.Request, user models.User, auditAction string) {
+// through here so the login notification and panel-host seeding stay identical.
+func (h *AdminHandler) completeLogin(w http.ResponseWriter, r *http.Request, user models.User) {
 	token, err := h.createSession(user.ID, h.currentAuthEpoch())
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	h.finishLogin(w, r, user, token, auditAction)
+	h.finishLogin(w, r, user, token)
 }
 
 // finishLogin writes the login response for a session that already exists. The
 // second-factor paths create theirs while validating the challenge.
-func (h *AdminHandler) finishLogin(w http.ResponseWriter, r *http.Request, user models.User, sessionToken, auditAction string) {
+func (h *AdminHandler) finishLogin(w http.ResponseWriter, r *http.Request, user models.User, sessionToken string) {
 	h.clearSignIn(r, user.Username, user.ID)
 	h.store.UpdateUserLogin(user.ID)
 	h.notifyLogin(user.ID, user.Username, r)
 	h.seedPanelHost(user.Role, r)
-	h.auditAuth(r, models.AuditLog{Action: auditAction, ActorID: user.ID, ActorName: user.Username, Target: user.Username, Success: true})
 	writeJSON(w, http.StatusOK, models.LoginResponse{Token: sessionToken, Username: user.Username, Role: user.Role})
 }
 
-// auditAuth records a sign-in outcome. Authentication runs before a session
-// exists, so the caller supplies the identity and the source IP is added here.
-func (h *AdminHandler) auditAuth(r *http.Request, entry models.AuditLog) {
-	entry.Category = models.AuditCategoryAuth
-	entry.IP = clientIP(r)
-	recordAuditEntry(h.store, entry)
-}
-
-// auditTwoFactorFailure records a rejected second-factor attempt for a user id
-// that never received a session.
-func (h *AdminHandler) auditTwoFactorFailure(r *http.Request, userID string) {
+// failTwoFactor charges a rejected second-factor attempt against the sign-in
+// budget for a user id that never received a session.
+func (h *AdminHandler) failTwoFactor(r *http.Request, userID string) {
 	username := ""
 	if user, ok := h.store.GetUserByID(userID); ok {
 		username = user.Username
 	}
-	h.auditAuth(r, models.AuditLog{
-		Action:    models.AuditActionLoginFailed,
-		ActorID:   userID,
-		ActorName: username,
-		Target:    username,
-	})
 	h.chargeSignIn(r, username, userID, username)
 }
 
@@ -176,12 +160,6 @@ func (h *AdminHandler) guardSignIn(w http.ResponseWriter, r *http.Request, accou
 		return key, userID, username, true
 	}
 	if ok, wait := h.throttle.Guard(r, key, userID); !ok {
-		h.auditAuth(r, models.AuditLog{
-			Action:    models.AuditActionLoginThrottled,
-			ActorID:   userID,
-			ActorName: key,
-			Target:    key,
-		})
 		writeTooManyAttempts(w, wait)
 		return key, userID, username, false
 	}
@@ -238,7 +216,6 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "login"); !ok {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorName: account, Target: account})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 		return
@@ -247,7 +224,6 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// The panel can be switched to passkeys only; check that before touching
 	// the password so a locked-down install never verifies one.
 	if h.store.GetAppSettings().PasswordLoginDisabled {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorName: account, Target: account})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "面板已禁用密码登录，请使用通行密钥登录"})
 		return
@@ -255,19 +231,16 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, found := h.lookupUser(account)
 	if !found {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorName: account, Target: account})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
 	}
 	if user.Status != models.UserActive {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorID: user.ID, ActorName: user.Username, Target: user.Username})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "account is disabled"})
 		return
 	}
 	if user.PasswordLoginDisabled {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorID: user.ID, ActorName: user.Username, Target: user.Username})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "该账户已禁用密码登录，请使用通行密钥登录"})
 		return
@@ -281,7 +254,6 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	passwordValid := h.store.ValidateUserPassword(user.ID, req.Password, user.PasswordHash)
 	h.releasePasswordVerify()
 	if !passwordValid {
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginFailed, ActorID: user.ID, ActorName: user.Username, Target: user.Username})
 		h.chargeSignIn(r, key, userID, username)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
@@ -313,7 +285,7 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.completeLogin(w, r, user, models.AuditActionLogin)
+	h.completeLogin(w, r, user)
 }
 
 // seedPanelHost records the panel's own hostname the first time an
@@ -386,7 +358,6 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 	if ok, wait := h.throttle.Guard(r, user.Username, user.ID); !ok {
 		h.releaseChallenge(req.ChallengeToken, challenge)
-		h.auditAuth(r, models.AuditLog{Action: models.AuditActionLoginThrottled, ActorID: user.ID, ActorName: user.Username, Target: user.Username})
 		writeTooManyAttempts(w, wait)
 		return
 	}
@@ -405,7 +376,7 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 	if prepared == nil {
 		h.failChallenge(req.ChallengeToken, challenge)
-		h.auditTwoFactorFailure(r, challenge.userID)
+		h.failTwoFactor(r, challenge.userID)
 		writeInvalidFactor(w)
 		return
 	}
@@ -417,11 +388,11 @@ func (h *AdminHandler) LoginTwoFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !valid {
-		h.auditTwoFactorFailure(r, challenge.userID)
+		h.failTwoFactor(r, challenge.userID)
 		writeInvalidFactor(w)
 		return
 	}
-	h.finishLogin(w, r, user, token, models.AuditActionLogin)
+	h.finishLogin(w, r, user, token)
 }
 
 // SetupTOTP handles POST /api/admin/2fa/setup.
@@ -779,9 +750,6 @@ func (h *AdminHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		tokenHash := hashToken(token)
 		su, _ := h.store.GetSessionUser(tokenHash, h.now().Unix())
 		_ = h.store.DeleteSession(tokenHash)
-		if su.ID != "" {
-			h.auditAuth(r, models.AuditLog{Action: models.AuditActionLogout, ActorID: su.ID, ActorName: su.Username, Target: su.Username, Success: true})
-		}
 		h.mu.Lock()
 		for setupToken, setup := range h.setups {
 			if su.ID != "" && setup.ownerUserID == su.ID {

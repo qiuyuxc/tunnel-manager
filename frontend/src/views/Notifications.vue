@@ -92,14 +92,6 @@
             <input v-model="tgChatID" type="text" class="vercel-input" placeholder="123456789" />
           </label>
           <p class="field-hint">获取方式：先向自己的 Bot 发送任意消息，再打开 https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates，取返回结果中的 chat.id。</p>
-          <button
-            v-if="!tgBotTokenSet && tgRemoteBotSet"
-            class="btn btn-secondary btn-sm"
-            :disabled="reusing"
-            @click="reuseFromTelegram"
-          >
-            {{ reusing ? '复用中...' : '一键复用远程控制的 Bot' }}
-          </button>
         </div>
       </section>
 
@@ -114,7 +106,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
-import { getNotifySettings, updateNotifySettings, testNotify, reuseNotifyFromTelegram, type SaveNotifyPayload } from '../api/notify'
+import { getNotifySettings, updateNotifySettings, testNotify, type SaveNotifyPayload } from '../api/notify'
 import {
   isAppShell,
   readHostNotifyState,
@@ -132,10 +124,8 @@ const emails = ref('')
 const tgBotToken = ref('')
 const tgBotTokenSet = ref(false)
 const tgChatID = ref('')
-const tgRemoteBotSet = ref(false)
 const saving = ref(false)
 const testing = ref(false)
-const reusing = ref(false)
 
 // Native-only card. In a browser isAppShell is false and none of this renders.
 const appShell = isAppShell()
@@ -196,28 +186,12 @@ onMounted(async () => {
     emails.value = data.emails || ''
     tgBotTokenSet.value = data.tg_bot_token_set
     tgChatID.value = data.tg_notify_chat_id || ''
-    tgRemoteBotSet.value = !!data.tg_remote_bot_set
   } catch (e: any) {
     message.error('加载失败: ' + (e.response?.data?.error || e.message))
   }
 })
 
 onUnmounted(() => window.removeEventListener('tmhostchange', onHostChange))
-
-async function reuseFromTelegram() {
-  reusing.value = true
-  try {
-    const { data } = await reuseNotifyFromTelegram()
-    tgBotToken.value = ''
-    tgBotTokenSet.value = data.tg_bot_token_set
-    tgRemoteBotSet.value = !!data.tg_remote_bot_set
-    message.success('已复用远程控制的 Bot Token')
-  } catch (e: any) {
-    message.error('复用失败: ' + (e.response?.data?.error || e.message))
-  } finally {
-    reusing.value = false
-  }
-}
 
 async function save() {
   saving.value = true

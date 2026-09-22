@@ -599,8 +599,6 @@ public class ConsoleActivity extends AppCompatActivity {
     private static String routeDescription(String path) {
         switch (path) {
             case "/settings": return "站点品牌、网络与全局配置";
-            case "/telegram": return "远程助手、授权会话与消息测试";
-            case "/admin": return "用户、权限、安全与审计";
             case "/notifications": return "通知渠道、事件与设备告警";
             case "/account": return "个人资料、通行密钥与账户授权";
             case "/about": return "版本、更新与项目文档";
@@ -627,7 +625,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         LinearLayout ident = UI.column(this);
         ident.addView(UI.text(this, name, 14, p.ink, Typeface.BOLD));
-        ident.addView(UI.text(this, Session.isAdmin() ? "管理员" : "用户", 12, p.mute, Typeface.NORMAL));
+        ident.addView(UI.text(this, "管理员", 12, p.mute, Typeface.NORMAL));
         head.addView(ident);
         return head;
     }
@@ -743,10 +741,8 @@ public class ConsoleActivity extends AppCompatActivity {
         if ("/notifications".equals(path)) return new NotificationsFragment();
         if ("/account".equals(path)) return new AccountFragment();
         if ("/about".equals(path)) return new AboutFragment();
-        if ("/telegram".equals(path)) return new TelegramFragment();
         if ("/settings".equals(path)) return new SettingsFragment();
         if ("/lab/ip-selector".equals(path)) return new LabFragment();
-        if ("/admin".equals(path)) return new AdminFragment();
         if ("/monitors".equals(path)) return new MonitorsFragment();
         if (path.startsWith("/monitors/")) {
             String id = path.substring("/monitors/".length());

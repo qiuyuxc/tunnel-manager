@@ -218,7 +218,6 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	SetAuditTarget(r, m.Name)
 	writeJSON(w, http.StatusOK, h.enrich(m, false))
 }
 

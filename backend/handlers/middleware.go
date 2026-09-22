@@ -16,8 +16,7 @@ type Middleware struct {
 	APIKey       string
 	AdminHandler *AdminHandler
 	CF           *services.CloudflareClient
-	// Store backs the audit trail written by Audit.
-	Store *store.Store
+	Store        *store.Store
 }
 
 // contextKey carries the authenticated identity through a request.

@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,7 +16,6 @@ import (
 )
 
 const (
-	userSessionTTL       = 7 * 24 * time.Hour
 	verifyCodeTTL        = 10 * time.Minute
 	verifyCodeResendWait = 60 * time.Second
 	smtpPasswordPurpose  = "smtp-password"
@@ -90,208 +88,14 @@ func (h *AuthHandler) mailer() *services.Mailer {
 	return services.NewMailer(settings, password)
 }
 
-// AuthConfig handles GET /api/auth/config: how the register form renders.
+// AuthConfig handles GET /api/auth/config: Turnstile settings for the login
+// and password-recovery forms.
 func (h *AuthHandler) AuthConfig(w http.ResponseWriter, r *http.Request) {
 	settings := h.store.GetAppSettings()
 	writeJSON(w, http.StatusOK, models.AuthConfigResponse{
-		RegistrationEnabled: settings.RegistrationEnabled,
-		InviteMode:          settings.InviteMode,
-		EmailVerifyEnabled:  h.mailer() != nil && !settings.EmailVerifyDisabled,
-		TurnstileEnabled:    settings.TurnstileEnabled,
-		TurnstileSiteKey:    settings.TurnstileSiteKey,
+		TurnstileEnabled: settings.TurnstileEnabled,
+		TurnstileSiteKey: settings.TurnstileSiteKey,
 	})
-}
-
-// SendCode handles POST /api/auth/send-code.
-func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
-	var req models.SendCodeRequest
-	if err := readAdminJSON(w, r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
-	}
-	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "send-code"); !ok {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
-		return
-	}
-	email := strings.TrimSpace(strings.ToLower(req.Email))
-	if !validEmail(email) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
-		return
-	}
-	if !h.guardAuth(w, r, email) {
-		return
-	}
-	h.chargeAuth(r, email)
-	mailer := h.mailer()
-	if mailer == nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮件服务未配置，请联系管理员"})
-		return
-	}
-	if h.store.LastCodeSentWithin(email, "register", verifyCodeResendWait) {
-		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "发送过于频繁，请稍后再试"})
-		return
-	}
-
-	code, err := generateNumericCode()
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "生成验证码失败"})
-		return
-	}
-	sum := sha256.Sum256([]byte(code))
-	h.store.PutVerifyCode(email, "register", hex.EncodeToString(sum[:]), verifyCodeTTL)
-
-	subject := "Tunnel Manager 注册验证码"
-	plain, htmlBody := services.VerificationCodeEmail("注册", code, int(verifyCodeTTL/time.Minute))
-	if err := mailer.Send(email, subject, plain, htmlBody); err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "邮件发送失败: " + err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "验证码已发送"})
-}
-
-// Register handles POST /api/auth/register.
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req models.RegisterRequest
-	if err := readAdminJSON(w, r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
-	}
-	if ok, msg := verifyTurnstile(h.store, h.encryptionKey, r, req.TurnstileResponse, "register"); !ok {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
-		return
-	}
-	settings := h.store.GetAppSettings()
-	if !settings.RegistrationEnabled {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "注册未开放"})
-		return
-	}
-
-	req.Username = strings.TrimSpace(req.Username)
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	if !validUsername(req.Username) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "用户名需 2-32 位字母、数字、下划线或短横线"})
-		return
-	}
-	if !validEmail(req.Email) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
-		return
-	}
-	if !h.guardAuth(w, r, req.Email) {
-		return
-	}
-	h.chargeAuth(r, req.Email)
-	if len(req.Password) < 6 || len(req.Password) > maxPasswordLength {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "密码长度需在 6-1024 位之间"})
-		return
-	}
-
-	// Uniqueness first: never burn invite codes or verification codes on a
-	// registration that cannot succeed.
-	if _, exists := h.store.GetUserByUsername(req.Username); exists {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "用户名已被占用"})
-		return
-	}
-	if _, exists := h.store.GetUserByEmail(req.Email); exists {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "邮箱已被注册"})
-		return
-	}
-
-	// Invite policy: validate non-destructively now; the code is consumed
-	// only after the account has been created.
-	groupID := settings.DefaultGroupID
-	inviteCode := strings.TrimSpace(req.Invite)
-	switch settings.InviteMode {
-	case models.InviteModeRequired:
-		if inviteCode == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邀请码不能为空"})
-			return
-		}
-		granted, err := h.store.ValidateInvite(inviteCode)
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邀请码无效、已过期或已用尽"})
-			return
-		}
-		if granted != "" {
-			groupID = granted
-		}
-	case models.InviteModeOptional:
-		if inviteCode != "" {
-			granted, err := h.store.ValidateInvite(inviteCode)
-			if err != nil {
-				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邀请码无效、已过期或已用尽"})
-				return
-			}
-			if granted != "" {
-				groupID = granted
-			}
-		}
-	default: // off
-	}
-
-	// Email verification policy: enforced only when SMTP is configured AND
-	// the administrator has not disabled it.
-	emailVerified := true
-	if h.mailer() != nil && !settings.EmailVerifyDisabled {
-		emailVerified = false
-		if strings.TrimSpace(req.VerifyCode) == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱验证码不能为空"})
-			return
-		}
-		sum := sha256.Sum256([]byte(strings.TrimSpace(req.VerifyCode)))
-		if !h.store.ConsumeVerifyCode(req.Email, "register", hex.EncodeToString(sum[:])) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "验证码错误或已过期"})
-			return
-		}
-		emailVerified = true
-	}
-
-	user := models.User{
-		Username:      req.Username,
-		Email:         req.Email,
-		PasswordHash:  store.HashPassword(req.Password),
-		Role:          models.RoleUser,
-		GroupID:       groupID,
-		Status:        models.UserActive,
-		EmailVerified: emailVerified,
-		CreatedAt:     time.Now().Unix(),
-	}
-	if err := h.store.CreateUser(user); err != nil {
-		switch {
-		case errors.Is(err, store.ErrUsernameTaken):
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "用户名已被占用"})
-		case errors.Is(err, store.ErrEmailTaken):
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "邮箱已被注册"})
-		default:
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "创建账户失败"})
-		}
-		return
-	}
-
-	// Consume the invite only now: a consumed code always corresponds to a
-	// created account. On a rare race (code exhausted concurrently) roll the
-	// account back instead of keeping it.
-	if inviteCode != "" && settings.InviteMode != models.InviteModeOff {
-		if _, err := h.store.ConsumeInvite(inviteCode); err != nil {
-			if created, ok := h.store.GetUserByUsername(req.Username); ok {
-				_ = h.store.DeleteUser(created.ID)
-			}
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邀请码无效、已过期或已用尽"})
-			return
-		}
-	}
-
-	created, _ := h.store.GetUserByUsername(req.Username)
-	token, err := generateToken()
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
-		return
-	}
-	if err := h.store.CreateSession(hashToken(token), created.ID, time.Now().Add(userSessionTTL).Unix()); err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
-		return
-	}
-	h.store.UpdateUserLogin(created.ID)
-	writeJSON(w, http.StatusCreated, models.LoginResponse{Token: token, Username: created.Username, Role: created.Role})
 }
 
 // Me handles GET /api/auth/me.
@@ -310,23 +114,6 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		Role:        user.Role,
 		Permissions: user.Permissions,
 	})
-}
-
-func validUsername(name string) bool {
-	if len(name) < 2 || len(name) > 32 {
-		return false
-	}
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z':
-		case r >= 'A' && r <= 'Z':
-		case r >= '0' && r <= '9':
-		case r == '_' || r == '-':
-		default:
-			return false
-		}
-	}
-	return true
 }
 
 func validEmail(email string) bool {

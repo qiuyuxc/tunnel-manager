@@ -21,13 +21,6 @@ const (
 // AllPermissions lists every permission key in display order.
 var AllPermissions = []string{PermTunnels, PermDomainBind, PermDNS, PermMonitors, PermOAuthConnect}
 
-// Invite modes for the registration policy.
-const (
-	InviteModeOff      = "off"
-	InviteModeOptional = "optional"
-	InviteModeRequired = "required"
-)
-
 // User is the internal account record, including secrets. API responses use
 // UserView instead.
 type User struct {
@@ -84,25 +77,8 @@ type UserGroup struct {
 	CreatedAt   int64    `json:"created_at"`
 }
 
-// Invite grants registration under a specific user group.
-type Invite struct {
-	Code      string `json:"code"`
-	GroupID   string `json:"group_id"`
-	MaxUses   int    `json:"max_uses"`
-	UsedCount int    `json:"used_count"`
-	ExpiresAt int64  `json:"expires_at"`
-	Enabled   bool   `json:"enabled"`
-	CreatedAt int64  `json:"created_at"`
-}
-
-// AppSettings holds the registration policy knobs managed in the admin panel.
+// AppSettings holds the panel settings managed by the administrator.
 type AppSettings struct {
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	InviteMode          string `json:"invite_mode"`
-	DefaultGroupID      string `json:"default_group_id,omitempty"`
-	// When true, registration never asks for an email verification code even
-	// though SMTP is configured (SMTP stays active for alerts).
-	EmailVerifyDisabled bool `json:"email_verify_disabled"`
 	// Optional Cloudflare Turnstile human verification. Secret is stored
 	// encrypted at rest.
 	TurnstileEnabled bool   `json:"turnstile_enabled"`
@@ -110,10 +86,6 @@ type AppSettings struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// ExperimentalFeatures controls whether lab navigation is exposed.
 	ExperimentalFeatures bool `json:"experimental_features_enabled"`
-	// AuditRetentionDays is how long audit entries are kept. Zero means the
-	// default window (models.DefaultAuditRetentionDays); a negative value
-	// keeps entries forever.
-	AuditRetentionDays int `json:"audit_retention_days"`
 	// PasswordLoginDisabled turns off password sign-in for the whole panel:
 	// every account must use a passkey. Only settable while an active
 	// administrator has one bound, so the panel cannot lock itself out.
@@ -228,15 +200,10 @@ func resolveMultiplier(stored int) int {
 // AppSettingsView is the admin-facing projection of AppSettings; it never
 // exposes the stored (encrypted) Turnstile secret.
 type AppSettingsView struct {
-	RegistrationEnabled   bool   `json:"registration_enabled"`
-	InviteMode            string `json:"invite_mode"`
-	DefaultGroupID        string `json:"default_group_id,omitempty"`
-	EmailVerifyDisabled   bool   `json:"email_verify_disabled"`
 	TurnstileEnabled      bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey      string `json:"turnstile_site_key"`
 	TurnstileHasSecret    bool   `json:"turnstile_has_secret"`
 	ExperimentalFeatures  bool   `json:"experimental_features_enabled"`
-	AuditRetentionDays    int    `json:"audit_retention_days"`
 	PasswordLoginDisabled bool   `json:"password_login_disabled"`
 	PasskeyRPID           string `json:"passkey_rp_id"`
 	PasskeyOrigins        string `json:"passkey_origins"`
@@ -382,21 +349,8 @@ func (u *SessionUser) IsAPIKey() bool {
 	return u != nil && u.Username == "api-key" && u.Role == RoleAdmin
 }
 
-// RegisterRequest is the body of POST /api/auth/register.
-type RegisterRequest struct {
-	Username          string `json:"username"`
-	Email             string `json:"email"`
-	Password          string `json:"password"`
-	Invite            string `json:"invite"`
-	VerifyCode        string `json:"verify_code"`
-	TurnstileResponse string `json:"cf_turnstile_response,omitempty"`
-}
-
-// AuthConfigResponse tells the frontend how to render the register form.
+// AuthConfigResponse tells the frontend how to render the login form.
 type AuthConfigResponse struct {
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	InviteMode          string `json:"invite_mode"`
-	EmailVerifyEnabled  bool   `json:"email_verify_enabled"`
 	// Turnstile human verification (optional). Site key is public.
 	TurnstileEnabled bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey string `json:"turnstile_site_key"`
@@ -427,54 +381,8 @@ type MeResponse struct {
 	Permissions []string `json:"permissions"`
 }
 
-// CreateUserRequest is the body of POST /api/admin/users.
-type CreateUserRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role,omitempty"`
-	GroupID  string `json:"group_id,omitempty"`
-}
-
-// UpdateUserStatusRequest toggles an account between active and disabled.
-type UpdateUserStatusRequest struct {
-	Status string `json:"status"`
-}
-
-// UpdateUserGroupRequest reassigns an account group.
-type UpdateUserGroupRequest struct {
-	GroupID string `json:"group_id"`
-}
-
-// AdminResetPasswordRequest sets a new password without the old one.
-type AdminResetPasswordRequest struct {
-	NewPassword string `json:"new_password"`
-}
-
-// SaveGroupRequest is the body for creating and updating user groups.
-type SaveGroupRequest struct {
-	Name        string   `json:"name"`
-	Permissions []string `json:"permissions"`
-}
-
-// SaveInviteRequest is the body for creating invite codes.
-type SaveInviteRequest struct {
-	GroupID   string `json:"group_id"`
-	MaxUses   int    `json:"max_uses"`
-	ExpiresAt int64  `json:"expires_at"`
-}
-
-// UpdateInviteRequest toggles an invite code.
-type UpdateInviteRequest struct {
-	Enabled bool `json:"enabled"`
-}
-
 // SaveAppSettingsRequest is the body of PUT /api/admin/settings.
 type SaveAppSettingsRequest struct {
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	InviteMode          string `json:"invite_mode"`
-	DefaultGroupID      string `json:"default_group_id"`
-	EmailVerifyDisabled bool   `json:"email_verify_disabled"`
 	// Optional Cloudflare Turnstile verification. A blank secret keeps the
 	// stored one.
 	TurnstileEnabled bool   `json:"turnstile_enabled"`
@@ -484,10 +392,6 @@ type SaveAppSettingsRequest struct {
 	// it carries no save semantics.
 	TurnstileHasSecret   bool `json:"turnstile_has_secret,omitempty"`
 	ExperimentalFeatures bool `json:"experimental_features_enabled"`
-	// AuditRetentionDays is how long the audit trail is kept. Zero means the
-	// default window, a negative value keeps entries forever. Omitted keeps
-	// the stored value, so partial saves do not reset the window.
-	AuditRetentionDays *int `json:"audit_retention_days"`
 	// PasswordLoginDisabled is a pointer so a partial save (for example the
 	// Turnstile form) leaves the stored switch alone.
 	PasswordLoginDisabled      *bool  `json:"password_login_disabled"`

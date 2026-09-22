@@ -44,23 +44,17 @@ export interface NavItem {
   tabLabel?: string
   icon: string
   group: NavGroup
-  perm?: string
-  admin?: boolean
   experimental?: boolean
-  /** Listed verbatim in the group's action sheet rather than in the sidebar only. */
-  badge?: string
 }
 
 export const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: '控制面板', tabLabel: '概览', icon: icons.dashboard, group: 'network' },
-  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'network', perm: 'tunnels' },
-  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'network', perm: 'monitors' },
-  { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network', perm: 'domain_bind' },
-  { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network', perm: 'dns' },
-  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', admin: true, experimental: true, badge: 'ADMIN' },
-  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'system', admin: true },
-  { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, group: 'system' },
-  { path: '/admin', label: '管理后台', icon: icons.admin, group: 'system', admin: true },
+  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'network' },
+  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'network' },
+  { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network' },
+  { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network' },
+  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', experimental: true },
+  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'system' },
   { path: '/notifications', label: '通知', icon: icons.bell, group: 'system' },
   { path: '/account', label: '账户', icon: icons.account, group: 'personal' },
   { path: '/about', label: '关于', icon: icons.about, group: 'personal' },
@@ -91,14 +85,12 @@ export const CREATE_ACTIONS = [
   },
 ] as const
 
-/** Applies the same three-stage permission filter the sidebar has always used. */
+/** Single-user panel: the only remaining gate hides the experimental lab. */
 export function useNavItems() {
   const configStore = useConfigStore()
   return computed(() =>
     NAV_ITEMS.filter((item) => {
       if (item.experimental && !configStore.experimentalFeatures) return false
-      if (item.admin) return configStore.isAdmin()
-      if (item.perm) return configStore.hasPerm(item.perm)
       return true
     }),
   )

@@ -23,12 +23,10 @@ const router = createRouter({
     { path: '/domain', name: 'domain', component: () => import('../views/DomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/domain/batch', name: 'domain-batch', component: () => import('../views/BatchDomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/dns', name: 'dns', component: () => import('../views/DNSManagement.vue'), meta: { requiresAuth: true } },
-    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: LabIPSelector, meta: { requiresAuth: true, requiresAdmin: true, requiresExperimental: true } },
+    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: LabIPSelector, meta: { requiresAuth: true, requiresExperimental: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
-    { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
     { path: '/notifications', name: 'notifications', component: () => import('../views/Notifications.vue'), meta: { requiresAuth: true } },
-    { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/about', name: 'about', component: () => import('../views/About.vue'), meta: { requiresAuth: true } },
   ],
 })
@@ -57,9 +55,6 @@ router.beforeEach(async (to, from) => {
   }
   if (to.meta.requiresAuth && !store.isAuthenticated) {
     return store.landingEnabled ? '/' : '/login'
-  }
-  if (to.meta.requiresAdmin && !store.isAdmin()) {
-    return '/dashboard'
   }
   if (to.meta.requiresExperimental && !store.experimentalFeatures) {
     return '/dashboard'

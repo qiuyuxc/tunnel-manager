@@ -116,7 +116,6 @@
         >
           <span class="row-icon" v-html="item.icon" />
           <span class="row-label">{{ item.label }}</span>
-          <span v-if="item.badge" class="badge">{{ item.badge }}</span>
           <span class="row-chevron" v-html="icons.chevron" />
         </router-link>
       </div>
@@ -157,7 +156,7 @@ const moreOpen = ref(false)
 
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
 const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? 'Claude' : 'Vercel'))
-const roleLabel = computed(() => (configStore.isAdmin() ? '管理员' : '用户'))
+const roleLabel = computed(() => '管理员')
 
 // 概览 · 监控 · [+] · DNS 管理 · 更多, with any entry the account cannot see
 // dropped rather than left as a dead slot.

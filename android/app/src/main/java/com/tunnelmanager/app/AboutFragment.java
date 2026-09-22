@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.content.res.AppCompatResources;
 
 import org.json.JSONObject;
 
@@ -31,7 +32,7 @@ public class AboutFragment extends PageFragment {
     /** Highlights of the current release, as the web page lists them. */
     private static final String[] HIGHLIGHTS = {
             "原生 App 换用石墨与薄荷绿配色，统一登录、面板、按钮和浮动导航，支持深浅主题与轻量效果",
-            "更多菜单增加账户摘要和工具网格，常用入口继续按权限展示",
+            "更多菜单增加账户摘要和工具网格，常用入口一目了然",
             "隧道支持名称或 ID 搜索与状态筛选，当前选择、应用路由和危险操作分区更清楚",
             "全局新建、隧道列表和空状态共用创建弹层，提交区固定在底部，保留运行命令和令牌反馈",
             "监控列表增加真实七天可用率和服务历史条，未知、降级、异常与空数据分别展示",
@@ -44,11 +45,9 @@ public class AboutFragment extends PageFragment {
             {"域名绑定", "简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS"},
             {"DNS 管理", "按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除"},
             {"IP 优选实验室", "实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，展示实时进度与分段命中，可一键剔除未命中段"},
-            {"Telegram Bot", "在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook"},
             {"Cloudflare OAuth", "授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token"},
-            {"多用户与管理后台", "邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略"},
-            {"邮件告警", "服务状态变化时自动发送告警邮件（仅状态变化触发），SMTP 可视化配置并支持测试发送"},
-            {"安全认证", "Argon2id 密码哈希、TOTP 双重验证与恢复码，密钥与令牌加密存储"},
+            {"状态告警", "服务状态变化时自动推送告警（仅状态变化触发），支持邮件与 Telegram 通知，可视化配置并支持测试发送"},
+            {"安全认证", "单管理员自托管，Argon2id 密码哈希、TOTP 双重验证、通行密钥与恢复码，密钥与令牌加密存储"},
     };
 
     private static final String[][] STACK = {
@@ -195,9 +194,16 @@ public class AboutFragment extends PageFragment {
     private View appCard() {
         LinearLayout card = UI.card(requireContext());
         ImageView mark = new ImageView(requireContext());
-        mark.setImageResource(R.drawable.logo_mark);
-        UI.tint(mark, Theme.p().success);
+        // logo_mark fills use ?attr theme colours; a plain ImageView loading it
+        // via setImageResource does not resolve those attributes, so the paths
+        // came out transparent and the previous SRC_IN tint then erased the mark
+        // entirely (it rendered blank). AppCompatResources inflates the vector
+        // against the context theme so the two-tone brand mark shows, matching
+        // how the login screen renders the same drawable.
+        mark.setImageDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.logo_mark));
         mark.setBackground(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_LG));
+        int pad = UI.dp(UI.SM);
+        mark.setPadding(pad, pad, pad, pad);
         card.addView(mark, new LinearLayout.LayoutParams(UI.dp(64), UI.dp(64)));
         UI.addRow(card, UI.text(requireContext(), "Tunnel Manager", 24, Theme.p().ink, Typeface.BOLD), UI.MD);
         UI.addRow(card, UI.muted(requireContext(), "连接本地，让服务自由抵达。"), UI.XS);

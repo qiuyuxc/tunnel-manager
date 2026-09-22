@@ -260,7 +260,7 @@
           <div v-else-if="!passkeys.available" class="security-state unavailable-state">
             <div class="status-copy">
               <strong>当前域名无法使用通行密钥</strong>
-              <p>通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在管理后台「系统设置 → 通行密钥」填写依赖方 ID 与允许的来源。</p>
+              <p>通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在「全局设置 → 通行密钥」填写依赖方 ID 与允许的来源。</p>
             </div>
           </div>
 

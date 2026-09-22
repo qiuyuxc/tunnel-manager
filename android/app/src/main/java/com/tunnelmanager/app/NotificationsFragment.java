@@ -50,7 +50,6 @@ public class NotificationsFragment extends PageFragment {
     private final Set<String> channels = new LinkedHashSet<>();
     private boolean loginEvent = true;
     private boolean tokenSet = false;
-    private boolean remoteBotSet = false;
 
     /** Drafts survive a re-render, which is what a toggle press triggers. */
     private String emailsDraft = "";
@@ -113,7 +112,6 @@ public class NotificationsFragment extends PageFragment {
         emailsDraft = settings.optString("emails", "");
         tokenDraft = "";
         tokenSet = settings.optBoolean("tg_bot_token_set", false);
-        remoteBotSet = settings.optBoolean("tg_remote_bot_set", false);
         chatDraft = settings.optString("tg_notify_chat_id", "");
     }
 
@@ -367,15 +365,6 @@ public class NotificationsFragment extends PageFragment {
                 "获取方式：先向自己的 Bot 发送任意消息，再打开 https://api.telegram.org/bot<TOKEN>/getUpdates ，取返回结果中的 chat.id。");
         UI.margin(hint, 0, UI.MD, 0, 0);
         card.addView(hint);
-
-        if (!tokenSet && remoteBotSet) {
-            TextView reuse = UI.button(requireContext(),
-                    busy ? "复用中…" : "一键复用远程控制的 Bot", UI.BTN_SECONDARY);
-            reuse.setEnabled(!busy);
-            reuse.setOnClickListener(v -> reuseFromTelegram());
-            UI.margin(reuse, 0, UI.MD, 0, 0);
-            card.addView(reuse);
-        }
         return card;
     }
 
@@ -519,24 +508,6 @@ public class NotificationsFragment extends PageFragment {
             render();
         }, failure -> {
             statusMessage = "发送失败：" + failure.getMessage();
-            statusOk = false;
-            render();
-        });
-    }
-
-    private void reuseFromTelegram() {
-        captureDrafts();
-        busy = true;
-        render();
-        Api.async(() -> Api.post("/api/notify/reuse", null), settings -> {
-            busy = false;
-            applySettings(settings);
-            statusMessage = "已复用远程控制的 Bot Token";
-            statusOk = true;
-            render();
-        }, failure -> {
-            busy = false;
-            statusMessage = "复用失败：" + failure.getMessage();
             statusOk = false;
             render();
         });

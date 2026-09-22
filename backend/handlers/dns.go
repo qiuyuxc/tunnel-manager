@@ -42,7 +42,6 @@ func (h *DNSHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	SetAuditTarget(r, record.Name)
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -62,7 +61,6 @@ func (h *DNSHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	SetAuditTarget(r, record.Name)
 	writeJSON(w, http.StatusOK, record)
 }
 

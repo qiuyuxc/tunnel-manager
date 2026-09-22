@@ -12,10 +12,6 @@
       </div>
       <h1 class="login-title">{{ store.config.site_name }}</h1>
       <p class="login-subtitle">{{ store.config.site_description || '登录以继续' }}</p>
-      <div v-if="modeSwitchable" class="mode-tabs">
-        <button type="button" class="mode-tab" :class="{ active: mode === 'login' }" @click="switchMode('login')">登录</button>
-        <button type="button" class="mode-tab" :class="{ active: mode === 'register' }" @click="switchMode('register')">注册</button>
-      </div>
       <Transition name="step-fade" mode="out-in">
         <div :key="mode + '-' + step">
           <template v-if="mode === 'forgot'">
@@ -48,50 +44,6 @@
                 {{ loading ? '重置中...' : '重置密码' }}
               </button>
               <button type="button" class="btn btn-ghost login-btn" @click="switchMode('login')">返回登录</button>
-            </form>
-          </template>
-          <template v-else-if="mode === 'register'">
-            <form class="login-form" @submit.prevent="handleRegister">
-              <div class="field">
-                <label class="field-label" for="reg-username">用户名</label>
-                <input id="reg-username" v-model="regForm.username" type="text" placeholder="2-32 位字母、数字、_ 或 -" class="vercel-input" autocomplete="username" />
-              </div>
-              <div class="field">
-                <label class="field-label" for="reg-email">邮箱</label>
-                <div class="email-row">
-                  <input id="reg-email" v-model="regForm.email" type="email" placeholder="you@example.com" class="vercel-input" autocomplete="email" />
-                  <button
-                    v-if="authConfig.email_verify_enabled"
-                    type="button"
-                    class="btn btn-secondary code-btn"
-                    :disabled="codeCooldown > 0 || codeSending"
-                    @click="handleSendCode"
-                  >
-                    {{ codeCooldown > 0 ? codeCooldown + 's' : (codeSending ? '发送中' : '发送验证码') }}
-                  </button>
-                </div>
-              </div>
-              <div v-if="authConfig.email_verify_enabled" class="field">
-                <label class="field-label" for="reg-code">邮箱验证码</label>
-                <input id="reg-code" v-model="regForm.verifyCode" type="text" placeholder="6 位数字" class="vercel-input" maxlength="6" inputmode="numeric" />
-              </div>
-              <div class="field">
-                <label class="field-label" for="reg-password">密码</label>
-                <input id="reg-password" v-model="regForm.password" type="password" placeholder="至少 6 位" class="vercel-input" autocomplete="new-password" />
-              </div>
-              <div v-if="authConfig.invite_mode !== 'off'" class="field">
-                <label class="field-label" for="reg-invite">
-                  邀请码{{ authConfig.invite_mode === 'required' ? '' : '（选填）' }}
-                </label>
-                <input id="reg-invite" v-model="regForm.invite" type="text" placeholder="邀请码" class="vercel-input" />
-              </div>
-              <div v-if="error" class="login-error" role="alert">{{ error }}</div>
-              <div v-if="turnstileEnabled" ref="regTurnstile" class="turnstile-wrap"></div>
-              <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
-                <span v-if="loading" class="spinner"></span>
-                {{ loading ? '注册中...' : '注册并登录' }}
-              </button>
-              <button type="button" class="link-btn" @click="switchMode('login')">已有账号？去登录</button>
             </form>
           </template>
           <template v-else-if="step === 'credentials'">
@@ -185,25 +137,21 @@ import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { completeTwoFactorLogin, login as loginApi } from '../api'
-import { getAuthConfig, sendRegisterCode, register, forgotPassword, resetPassword, type AuthConfig } from '../api/admin'
+import { getAuthConfig, forgotPassword, resetPassword } from '../api/admin'
 import { beginPasskeyLogin, beginPasskeyTwoFactor, finishPasskeyLogin, finishPasskeyTwoFactor } from '../api/passkey'
 import { useConfigStore } from '../stores/config'
 const router = useRouter()
 const store = useConfigStore()
 const step = ref<'credentials' | 'factor'>('credentials')
-const mode = ref<'login' | 'register' | 'forgot'>('login')
-const authConfig = ref<AuthConfig>({ registration_enabled: false, invite_mode: 'off', email_verify_enabled: false, turnstile_enabled: false, turnstile_site_key: '' })
+const mode = ref<'login' | 'forgot'>('login')
 const turnstileEnabled = ref(false)
 const turnstileSiteKey = ref('')
 const turnstileLoaded = ref(false)
 const turnstileWidgetID = ref('')
 const turnstileToken = ref('')
 const loginTurnstile = ref<HTMLElement | null>(null)
-const regTurnstile = ref<HTMLElement | null>(null)
 const forgotTurnstile = ref<HTMLElement | null>(null)
 let turnstileScriptPromise: Promise<void> | null = null
-const modeSwitchable = ref(false)
-const regForm = reactive({ username: '', email: '', password: '', invite: '', verifyCode: '' })
 const forgotForm = reactive({ email: '', code: '', newPassword: '' })
 const codeCooldown = ref(0)
 const codeSending = ref(false)
@@ -241,15 +189,9 @@ onMounted(() => {
     if (!disposed) usernameInput.value?.focus()
   })
   getAuthConfig().then(({ data }) => {
-    authConfig.value = data
-    modeSwitchable.value = data.registration_enabled
     turnstileEnabled.value = data.turnstile_enabled
     turnstileSiteKey.value = data.turnstile_site_key || ''
-    if (router.currentRoute.value.query.mode === 'register' && data.registration_enabled) {
-      mode.value = 'register'
-    }
     if (data.turnstile_enabled) nextTick(() => void renderTurnstile())
-    if (mode.value === 'register') nextTick(() => document.getElementById('reg-username')?.focus())
   }).catch(() => {})
 })
 onBeforeUnmount(() => {
@@ -286,7 +228,6 @@ function loadTurnstileScript(): Promise<void> {
 }
 
 function turnstileContainer(): HTMLElement | null {
-  if (mode.value === 'register') return regTurnstile.value
   if (mode.value === 'forgot') return forgotTurnstile.value
   return loginTurnstile.value
 }
@@ -497,53 +438,19 @@ function clearChallengeTimer() {
     countdownTimer = undefined
   }
 }
-function switchMode(target: 'login' | 'register' | 'forgot') {
+function switchMode(target: 'login' | 'forgot') {
   if (mode.value === target) return
   mode.value = target
   error.value = ''
   step.value = 'credentials'
   nextTick(() => {
     void renderTurnstile()
-    if (target === 'register') {
-      document.getElementById('reg-username')?.focus()
-    } else if (target === 'forgot') {
+    if (target === 'forgot') {
       document.getElementById('fp-email')?.focus()
     } else {
       usernameInput.value?.focus()
     }
   })
-}
-
-async function handleSendCode() {
-  const email = regForm.email.trim()
-  if (!email) {
-    error.value = '请先填写邮箱'
-    return
-  }
-  const turnstileTokenValue = takeTurnstileToken()
-  if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
-    void renderTurnstile()
-    return
-  }
-  codeSending.value = true
-  error.value = ''
-  try {
-    await sendRegisterCode(email, turnstileTokenValue)
-    codeCooldown.value = 60
-    cooldownTimer = window.setInterval(() => {
-      codeCooldown.value -= 1
-      if (codeCooldown.value <= 0) {
-        window.clearInterval(cooldownTimer)
-        cooldownTimer = undefined
-      }
-    }, 1000)
-  } catch (e: any) {
-    error.value = e.response?.data?.error || '验证码发送失败'
-  } finally {
-    codeSending.value = false
-    void renderTurnstile()
-  }
 }
 
 async function handleForgotSend() {
@@ -606,54 +513,6 @@ async function handleResetPassword() {
     error.value = '密码已重置，请使用新密码登录'
   } catch (e: any) {
     error.value = e.response?.data?.error || '重置失败'
-  } finally {
-    loading.value = false
-    void renderTurnstile()
-  }
-}
-
-async function handleRegister() {
-  const username = regForm.username.trim()
-  const email = regForm.email.trim()
-  if (!username || !email || !regForm.password) {
-    error.value = '请填写用户名、邮箱和密码'
-    triggerShake()
-    return
-  }
-  if (authConfig.value.email_verify_enabled && !regForm.verifyCode.trim()) {
-    error.value = '请输入邮箱验证码'
-    triggerShake()
-    return
-  }
-  if (authConfig.value.invite_mode === 'required' && !regForm.invite.trim()) {
-    error.value = '邀请码不能为空'
-    triggerShake()
-    return
-  }
-  const turnstileTokenValue = takeTurnstileToken()
-  if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
-    triggerShake()
-    void renderTurnstile()
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    const { data } = await register({
-      username,
-      email,
-      password: regForm.password,
-      invite: regForm.invite.trim() || undefined,
-      verify_code: regForm.verifyCode.trim() || undefined,
-      cf_turnstile_response: turnstileTokenValue,
-    })
-    store.setAuth(data.token, data.username, data.role || 'user')
-    regForm.password = ''
-    await router.replace('/dashboard')
-  } catch (e: any) {
-    error.value = e.response?.data?.error || '注册失败: ' + (e.message || '')
-    triggerShake()
   } finally {
     loading.value = false
     void renderTurnstile()

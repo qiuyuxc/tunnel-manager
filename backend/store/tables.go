@@ -221,44 +221,6 @@ func loadSessions(handle *sql.DB) ([]sessionRecord, error) {
 	return sessions, rows.Err()
 }
 
-// replaceInvites syncs the invites table.
-func replaceInvites(tx *sql.Tx, invites []models.Invite) error {
-	if _, err := tx.Exec(`DELETE FROM invites`); err != nil {
-		return fmt.Errorf("clear invites: %w", err)
-	}
-	for _, invite := range invites {
-		enabled := 0
-		if invite.Enabled {
-			enabled = 1
-		}
-		if _, err := tx.Exec(`INSERT INTO invites(code, group_id, max_uses, used_count, expires_at, enabled, created_at)
-			VALUES(?,?,?,?,?,?,?)`, invite.Code, invite.GroupID, invite.MaxUses, invite.UsedCount, invite.ExpiresAt, enabled, invite.CreatedAt); err != nil {
-			return fmt.Errorf("save invite %s: %w", invite.Code, err)
-		}
-	}
-	return nil
-}
-
-// loadInvites reads the invites table.
-func loadInvites(handle *sql.DB) ([]models.Invite, error) {
-	rows, err := handle.Query(`SELECT code, group_id, max_uses, used_count, expires_at, enabled, created_at FROM invites`)
-	if err != nil {
-		return nil, fmt.Errorf("load invites: %w", err)
-	}
-	defer rows.Close()
-	invites := []models.Invite{}
-	for rows.Next() {
-		var invite models.Invite
-		var enabled int
-		if err := rows.Scan(&invite.Code, &invite.GroupID, &invite.MaxUses, &invite.UsedCount, &invite.ExpiresAt, &enabled, &invite.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan invite: %w", err)
-		}
-		invite.Enabled = enabled != 0
-		invites = append(invites, invite)
-	}
-	return invites, rows.Err()
-}
-
 // replaceVerifyCodes syncs the verify_codes table.
 func replaceVerifyCodes(tx *sql.Tx, codes []verifyCodeRecord) error {
 	if _, err := tx.Exec(`DELETE FROM verify_codes`); err != nil {

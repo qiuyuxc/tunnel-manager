@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -19,10 +18,6 @@ var (
 	ErrEmailTaken    = errors.New("email already taken")
 	ErrUserNotFound  = errors.New("user not found")
 	ErrLastAdmin     = errors.New("cannot remove or disable the last administrator")
-	ErrBuiltinGroup  = errors.New("built-in group cannot be deleted")
-	ErrGroupInUse    = errors.New("group still has members")
-	ErrGroupNotFound = errors.New("group not found")
-	ErrInviteInvalid = errors.New("invite code is invalid, expired or exhausted")
 )
 
 // newID returns a random 16-character hex identifier.
@@ -117,12 +112,6 @@ func (s *Store) ensureDefaultGroupLocked() {
 		CreatedAt:   time.Now().Unix(),
 	}
 	s.groups = append(s.groups, group)
-	if s.appSettings.DefaultGroupID == "" {
-		s.appSettings.DefaultGroupID = group.ID
-	}
-	// First boot: registration opens by default; administrators can close it
-	// in the backend at any time.
-	s.appSettings.RegistrationEnabled = true
 }
 
 // attachAdminLocked appends an administrator built from the stored settings,
@@ -511,26 +500,6 @@ func (s *Store) SetUserStatus(id, status string) error {
 	user.Status = status
 	if err := s.saveLocked(); err != nil {
 		user.Status = previous
-		return err
-	}
-	return nil
-}
-
-// SetUserGroup reassigns an account's group.
-func (s *Store) SetUserGroup(id, groupID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	user := s.findUserLocked(id)
-	if user == nil {
-		return ErrUserNotFound
-	}
-	if groupID != "" && s.findGroupLocked(groupID) == nil {
-		return ErrGroupNotFound
-	}
-	previous := user.GroupID
-	user.GroupID = groupID
-	if err := s.saveLocked(); err != nil {
-		user.GroupID = previous
 		return err
 	}
 	return nil
@@ -929,21 +898,6 @@ func (s *Store) pruneSessionsLocked() {
 // User groups
 
 // ListGroups returns every user group.
-func (s *Store) ListGroups() []models.UserGroup {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]models.UserGroup, len(s.groups))
-	for i := range s.groups {
-		out[i] = copyGroup(s.groups[i])
-	}
-	return out
-}
-
-func copyGroup(group models.UserGroup) models.UserGroup {
-	group.Permissions = append([]string(nil), group.Permissions...)
-	return group
-}
-
 func (s *Store) findGroupLocked(id string) *models.UserGroup {
 	for i := range s.groups {
 		if s.groups[i].ID == id {
@@ -951,230 +905,6 @@ func (s *Store) findGroupLocked(id string) *models.UserGroup {
 		}
 	}
 	return nil
-}
-
-// CreateGroup stores a new group with a validated permission set.
-func (s *Store) CreateGroup(name string, permissions []string) (models.UserGroup, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return models.UserGroup{}, ErrGroupNotFound
-	}
-	for i := range s.groups {
-		if s.groups[i].Name == name {
-			return models.UserGroup{}, ErrUsernameTaken
-		}
-	}
-	group := models.UserGroup{
-		ID:          newID(),
-		Name:        name,
-		Permissions: sanitizePermissions(permissions),
-		CreatedAt:   time.Now().Unix(),
-	}
-	s.groups = append(s.groups, group)
-	if err := s.saveLocked(); err != nil {
-		s.groups = s.groups[:len(s.groups)-1]
-		return models.UserGroup{}, err
-	}
-	return copyGroup(group), nil
-}
-
-// UpdateGroup renames a group or replaces its permission set. Built-in groups
-// keep their name.
-func (s *Store) UpdateGroup(id, name string, permissions []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	group := s.findGroupLocked(id)
-	if group == nil {
-		return ErrGroupNotFound
-	}
-	previousName, previousPerms := group.Name, group.Permissions
-	if !group.Builtin {
-		name = strings.TrimSpace(name)
-		if name != "" && name != group.Name {
-			for i := range s.groups {
-				if s.groups[i].ID != id && s.groups[i].Name == name {
-					return ErrUsernameTaken
-				}
-			}
-		}
-		if name != "" {
-			group.Name = name
-		}
-	}
-	group.Permissions = sanitizePermissions(permissions)
-	if err := s.saveLocked(); err != nil {
-		group.Name, group.Permissions = previousName, previousPerms
-		return err
-	}
-	return nil
-}
-
-// DeleteGroup removes a group that no account references.
-func (s *Store) DeleteGroup(id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	group := s.findGroupLocked(id)
-	if group == nil {
-		return ErrGroupNotFound
-	}
-	if group.Builtin {
-		return ErrBuiltinGroup
-	}
-	for i := range s.users {
-		if s.users[i].GroupID == id {
-			return ErrGroupInUse
-		}
-	}
-	idx := -1
-	for i := range s.groups {
-		if s.groups[i].ID == id {
-			idx = i
-			break
-		}
-	}
-	previous := append([]models.UserGroup(nil), s.groups...)
-	s.groups = append(s.groups[:idx], s.groups[idx+1:]...)
-	changed := false
-	if s.appSettings.DefaultGroupID == id {
-		s.appSettings.DefaultGroupID = ""
-		changed = true
-	}
-	if err := s.saveLocked(); err != nil {
-		s.groups = previous
-		return err
-	}
-	_ = changed
-	return nil
-}
-
-// sanitizePermissions filters unknown keys and de-duplicates.
-func sanitizePermissions(permissions []string) []string {
-	allowed := map[string]bool{}
-	for _, p := range models.AllPermissions {
-		allowed[p] = true
-	}
-	out := make([]string, 0, len(permissions))
-	seen := map[string]bool{}
-	for _, p := range permissions {
-		if allowed[p] && !seen[p] {
-			seen[p] = true
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// ---------------------------------------------------------------------------
-// Invite codes
-
-// ListInvites returns every invite code.
-func (s *Store) ListInvites() []models.Invite {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]models.Invite, len(s.invites))
-	copy(out, s.invites)
-	return out
-}
-
-// CreateInvite stores a new invite code, generating one when absent.
-func (s *Store) CreateInvite(invite models.Invite) (models.Invite, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if invite.Code == "" {
-		invite.Code = newID() + newID()[:8]
-	}
-	invite.Code = strings.TrimSpace(invite.Code)
-	for i := range s.invites {
-		if s.invites[i].Code == invite.Code {
-			return models.Invite{}, ErrInviteInvalid
-		}
-	}
-	if invite.GroupID != "" && s.findGroupLocked(invite.GroupID) == nil {
-		return models.Invite{}, ErrGroupNotFound
-	}
-	invite.CreatedAt = time.Now().Unix()
-	invite.Enabled = true
-	s.invites = append(s.invites, invite)
-	if err := s.saveLocked(); err != nil {
-		s.invites = s.invites[:len(s.invites)-1]
-		return models.Invite{}, err
-	}
-	return invite, nil
-}
-
-// UpdateInvite enables or disables one code.
-func (s *Store) UpdateInvite(code string, enabled bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i := range s.invites {
-		if s.invites[i].Code == code {
-			previous := s.invites[i].Enabled
-			s.invites[i].Enabled = enabled
-			if err := s.saveLocked(); err != nil {
-				s.invites[i].Enabled = previous
-				return err
-			}
-			return nil
-		}
-	}
-	return ErrInviteInvalid
-}
-
-// DeleteInvite removes one code.
-func (s *Store) DeleteInvite(code string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i := range s.invites {
-		if s.invites[i].Code == code {
-			previous := append([]models.Invite(nil), s.invites...)
-			s.invites = append(s.invites[:i], s.invites[i+1:]...)
-			if err := s.saveLocked(); err != nil {
-				s.invites = previous
-				return err
-			}
-			return nil
-		}
-	}
-	return ErrInviteInvalid
-}
-
-// usableInviteLocked validates state without consuming a use.
-func (s *Store) usableInviteLocked(code string) *models.Invite {
-	now := time.Now().Unix()
-	for i := range s.invites {
-		invite := &s.invites[i]
-		if invite.Code != code || !invite.Enabled {
-			continue
-		}
-		if invite.ExpiresAt > 0 && now >= invite.ExpiresAt {
-			continue
-		}
-		if invite.MaxUses > 0 && invite.UsedCount >= invite.MaxUses {
-			continue
-		}
-		return invite
-	}
-	return nil
-}
-
-// ConsumeInvite validates an invite code and records one use, returning the
-// group it grants.
-func (s *Store) ConsumeInvite(code string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	invite := s.usableInviteLocked(strings.TrimSpace(code))
-	if invite == nil {
-		return "", ErrInviteInvalid
-	}
-	previousUsed := invite.UsedCount
-	invite.UsedCount++
-	if err := s.saveLocked(); err != nil {
-		invite.UsedCount = previousUsed
-		return "", err
-	}
-	return invite.GroupID, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1249,26 +979,17 @@ func (s *Store) ConsumeVerifyCode(email, purpose, codeHash string) bool {
 // ---------------------------------------------------------------------------
 // Application settings and SMTP relay
 
-// GetAppSettings returns the registration policy settings with defaults.
+// GetAppSettings returns the panel settings.
 func (s *Store) GetAppSettings() models.AppSettings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	settings := s.appSettings
-	if settings.InviteMode == "" {
-		settings.InviteMode = models.InviteModeOff
-	}
-	return settings
+	return s.appSettings
 }
 
-// SetAppSettings persists the registration policy settings.
+// SetAppSettings persists the panel settings.
 func (s *Store) SetAppSettings(settings models.AppSettings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	switch settings.InviteMode {
-	case models.InviteModeOff, models.InviteModeOptional, models.InviteModeRequired:
-	default:
-		settings.InviteMode = models.InviteModeOff
-	}
 	previous := s.appSettings
 	s.appSettings = settings
 	if err := s.saveLocked(); err != nil {
@@ -1385,146 +1106,6 @@ func (s *Store) SetUserNotifySettings(userID string, channels []string, events m
 	prefs.NotifyEmails = emails
 	prefs.TGBotTokenEncrypted = tgBotTokenEncrypted
 	prefs.TGNotifyChatID = tgNotifyChatID
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// SetUserRemoteSettings stores one account's Telegram remote-control bot
-// preferences. tgBotTokenEncrypted must already be encrypted by the caller;
-// pass the previously stored value to keep an existing token unchanged. mode
-// is "polling" (default) or "webhook"; webhookURL is the panel's public HTTPS
-// base address and webhookSecret the generated verification secret.
-func (s *Store) SetUserRemoteSettings(userID string, enabled bool, operatorIDs, tgBotTokenEncrypted, mode, webhookURL, webhookSecret string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	previous := prefs
-	prefs.TGRemoteEnabled = enabled
-	prefs.TGOperatorIDs = operatorIDs
-	if tgBotTokenEncrypted != "" {
-		prefs.TGRemoteTokenEncrypted = tgBotTokenEncrypted
-	}
-	prefs.TGRemoteMode = mode
-	if prefs.TGRemoteMode == "" {
-		prefs.TGRemoteMode = "polling"
-	}
-	prefs.TGRemoteWebhookURL = webhookURL
-	prefs.TGRemoteWebhookSecret = webhookSecret
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// SetUserWebhookSecret persists a generated webhook verification secret for
-// one account without touching the rest of its Telegram settings. The secret
-// stays in the backend only and is never exposed through the API.
-func (s *Store) SetUserWebhookSecret(userID, secret string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	previous := prefs
-	prefs.TGRemoteWebhookSecret = secret
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// ReuseTokenForRemote copies the notification bot token into the
-// remote-control slot, so one bot can power both features.
-func (s *Store) ReuseTokenForRemote(userID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	if prefs.TGBotTokenEncrypted == "" {
-		return fmt.Errorf("通知尚未配置 Bot Token")
-	}
-	if prefs.TGRemoteTokenEncrypted != "" {
-		return fmt.Errorf("远程控制已配置 Bot Token")
-	}
-	previous := prefs
-	prefs.TGRemoteTokenEncrypted = prefs.TGBotTokenEncrypted
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// ReuseTokenForNotify copies the remote-control bot token into the
-// notification slot, so one bot can power both features.
-func (s *Store) ReuseTokenForNotify(userID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	if prefs.TGRemoteTokenEncrypted == "" {
-		return fmt.Errorf("远程控制尚未配置 Bot Token")
-	}
-	if prefs.TGBotTokenEncrypted != "" {
-		return fmt.Errorf("通知已配置 Bot Token")
-	}
-	previous := prefs
-	prefs.TGBotTokenEncrypted = prefs.TGRemoteTokenEncrypted
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// SetUserZoneSelection stores one account's active zone used by Telegram DNS
-// commands.
-func (s *Store) SetUserZoneSelection(userID, id, name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	previous := prefs
-	prefs.SelectedZoneID, prefs.SelectedZoneName = id, name
-	s.prefs[userID] = prefs
-	if err := s.saveLocked(); err != nil {
-		s.prefs[userID] = previous
-		return err
-	}
-	return nil
-}
-
-// SetUserPreferredCNAME stores one account's preferred CNAME used by Telegram
-// domain binding commands.
-func (s *Store) SetUserPreferredCNAME(userID, cname string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
-		return ErrUserNotFound
-	}
-	prefs := s.prefs[userID]
-	previous := prefs
-	prefs.PreferredCNAME = cname
 	s.prefs[userID] = prefs
 	if err := s.saveLocked(); err != nil {
 		s.prefs[userID] = previous

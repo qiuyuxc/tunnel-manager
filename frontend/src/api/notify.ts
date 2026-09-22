@@ -7,7 +7,6 @@ export interface NotifySettings {
   emails: string
   tg_bot_token_set: boolean
   tg_notify_chat_id: string
-  tg_remote_bot_set: boolean
 }
 
 export interface SaveNotifyPayload {
@@ -28,9 +27,4 @@ export function updateNotifySettings(payload: SaveNotifyPayload) {
 
 export function testNotify() {
   return api.post<{ message: string }>('/notify/test')
-}
-
-// Copies the remote-control bot token into the notification slot.
-export function reuseNotifyFromTelegram() {
-  return api.post<NotifySettings>('/notify/reuse')
 }

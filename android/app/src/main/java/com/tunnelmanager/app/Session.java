@@ -65,8 +65,12 @@ final class Session {
         return siteName.isEmpty() ? "Tunnel Manager" : siteName;
     }
 
+    // Single-user build: the only account is the self-hosted administrator, so
+    // the role/permission gates that the multi-user panel used are always
+    // satisfied. The experimental flag stays a real toggle because it still
+    // controls whether the IP-selector lab is exposed.
     static boolean isAdmin() {
-        return "admin".equals(role());
+        return true;
     }
 
     static boolean experimental() {
@@ -74,7 +78,7 @@ final class Session {
     }
 
     static boolean hasPerm(String perm) {
-        return isAdmin() || permissions.contains(perm);
+        return true;
     }
 
     static void save(Context ctx, String server, String token, String user, String userRole) {

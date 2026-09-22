@@ -136,15 +136,6 @@ func (h *PasskeyHandler) FinishRegistration(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "保存通行密钥失败"})
 		return
 	}
-	recordAuditEntry(h.store, models.AuditLog{
-		Category:  models.AuditCategoryPasskey,
-		Action:    models.AuditActionPasskeyAdd,
-		ActorID:   user.ID,
-		ActorName: user.Username,
-		Target:    name,
-		IP:        clientIP(r),
-		Success:   true,
-	})
 	writeJSON(w, http.StatusCreated, passkeyView(entry))
 }
 
@@ -169,15 +160,6 @@ func (h *PasskeyHandler) Rename(w http.ResponseWriter, r *http.Request) {
 		writePasskeyError(w, err)
 		return
 	}
-	recordAuditEntry(h.store, models.AuditLog{
-		Category:  models.AuditCategoryPasskey,
-		Action:    models.AuditActionPasskeyRename,
-		ActorID:   user.ID,
-		ActorName: user.Username,
-		Target:    name,
-		IP:        clientIP(r),
-		Success:   true,
-	})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -209,15 +191,6 @@ func (h *PasskeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writePasskeyError(w, err)
 		return
 	}
-	recordAuditEntry(h.store, models.AuditLog{
-		Category:  models.AuditCategoryPasskey,
-		Action:    models.AuditActionPasskeyRemove,
-		ActorID:   user.ID,
-		ActorName: user.Username,
-		Target:    id,
-		IP:        clientIP(r),
-		Success:   true,
-	})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -251,19 +224,6 @@ func (h *PasskeyHandler) UpdatePasswordLogin(w http.ResponseWriter, r *http.Requ
 		writePasskeyError(w, err)
 		return
 	}
-	action := models.AuditActionPasswordLoginEnable
-	if req.Disabled {
-		action = models.AuditActionPasswordLoginDisable
-	}
-	recordAuditEntry(h.store, models.AuditLog{
-		Category:  models.AuditCategoryPasskey,
-		Action:    action,
-		ActorID:   user.ID,
-		ActorName: user.Username,
-		Target:    user.Username,
-		IP:        clientIP(r),
-		Success:   true,
-	})
 	writeJSON(w, http.StatusOK, h.settingsView(r, user.ID))
 }
 
@@ -276,8 +236,7 @@ func (h *PasskeyHandler) AdminUpdatePasswordLogin(w http.ResponseWriter, r *http
 		return
 	}
 	id := chi.URLParam(r, "id")
-	account, ok := h.store.GetUserByID(id)
-	if !ok {
+	if _, ok := h.store.GetUserByID(id); !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "账户不存在"})
 		return
 	}
@@ -296,22 +255,6 @@ func (h *PasskeyHandler) AdminUpdatePasswordLogin(w http.ResponseWriter, r *http
 		writePasskeyError(w, err)
 		return
 	}
-	action := models.AuditActionPasswordLoginEnable
-	if req.Disabled {
-		action = models.AuditActionPasswordLoginDisable
-	}
-	entry := models.AuditLog{
-		Category: models.AuditCategoryPasskey,
-		Action:   action,
-		Target:   account.Username,
-		IP:       clientIP(r),
-		Success:  true,
-	}
-	if actor := SessionUser(r); actor != nil {
-		entry.ActorID = actor.ID
-		entry.ActorName = actor.Username
-	}
-	recordAuditEntry(h.store, entry)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -404,18 +347,18 @@ func (h *PasskeyHandler) LoginFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, credential, _, err := h.passkeys.FinishLogin(r, strings.TrimSpace(req.CeremonyToken), "", req.Credential)
 	if err != nil {
-		h.auditPasskeyLoginFailure(r, "", err)
+		h.failPasskeyLogin(r, "", err)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
 	user, ok := h.store.GetUserByID(userID)
 	if !ok || user.Status != models.UserActive {
-		h.auditPasskeyLoginFailure(r, userID, errors.New("account unavailable"))
+		h.failPasskeyLogin(r, userID, errors.New("account unavailable"))
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "account is disabled"})
 		return
 	}
 	h.refreshCredential(credential)
-	h.admin.completeLogin(w, r, user, models.AuditActionPasskeyLogin)
+	h.admin.completeLogin(w, r, user)
 }
 
 // TwoFactorBegin handles POST /api/admin/login/2fa/passkey/begin: the password
@@ -461,7 +404,7 @@ func (h *PasskeyHandler) TwoFactorFinish(w http.ResponseWriter, r *http.Request)
 	userID, credential, _, err := h.passkeys.FinishLogin(r, strings.TrimSpace(req.CeremonyToken), challenge.userID, req.Credential)
 	if err != nil {
 		h.admin.failChallenge(req.ChallengeToken, challenge)
-		h.auditPasskeyLoginFailure(r, challenge.userID, err)
+		h.failPasskeyLogin(r, challenge.userID, err)
 		writeInvalidFactor(w)
 		return
 	}
@@ -487,7 +430,7 @@ func (h *PasskeyHandler) TwoFactorFinish(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	h.refreshCredential(credential)
-	h.admin.finishLogin(w, r, user, sessionToken, models.AuditActionPasskeyLogin)
+	h.admin.finishLogin(w, r, user, sessionToken)
 }
 
 // ---------------------------------------------------------------------------
@@ -550,22 +493,10 @@ func (h *PasskeyHandler) refreshCredential(credential *webauthn.Credential) {
 	}
 }
 
-// auditPasskeyLoginFailure records a rejected assertion. The account may be
-// unknown (for example a credential bound to a deleted account), in which case
-// the entry keeps the source address only.
-func (h *PasskeyHandler) auditPasskeyLoginFailure(r *http.Request, userID string, cause error) {
-	entry := models.AuditLog{
-		Category: models.AuditCategoryPasskey,
-		Action:   models.AuditActionPasskeyLoginFailed,
-		IP:       clientIP(r),
-	}
-	if user, ok := h.store.GetUserByID(userID); ok {
-		entry.ActorID = user.ID
-		entry.ActorName = user.Username
-		entry.Target = user.Username
-	}
+// failPasskeyLogin charges a rejected assertion against the rate limit. The
+// account may be unknown (for example a credential bound to a deleted account).
+func (h *PasskeyHandler) failPasskeyLogin(r *http.Request, userID string, cause error) {
 	log.Printf("passkey sign-in rejected: %v", cause)
-	recordAuditEntry(h.store, entry)
 	h.chargePasskey(r, userID)
 }
 

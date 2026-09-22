@@ -19,7 +19,6 @@ import (
 
 	"tunnel-manager/auth"
 	"tunnel-manager/handlers"
-	"tunnel-manager/models"
 	"tunnel-manager/services"
 	"tunnel-manager/setup"
 	"tunnel-manager/store"
@@ -173,7 +172,6 @@ func main() {
 	})
 	go monitorRunner.Start(context.Background())
 	go labRunner.Start(context.Background())
-	go pruneAuditLogsLoop(st)
 	heartbeatLog.StartFlusher(10 * time.Second)
 
 	// Monitors management
@@ -192,13 +190,9 @@ func main() {
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
 	labHandler := handlers.NewLabHandler(st, labRunner, encryptionKey)
-	telegramBot := services.NewTelegramBot(st, cf, domainService)
-	userTelegramManager := services.NewUserTelegramManager(st, cf, domainService, encryptionKey)
-	telegramHandler := handlers.NewTelegramHandler(st, telegramBot, userTelegramManager, encryptionKey)
 
 	authHandler := handlers.NewAuthHandler(st, encryptionKey)
 	managementHandler := handlers.NewManagementHandler(st, encryptionKey)
-	auditHandler := handlers.NewAuditHandler(st)
 	passkeyService := services.NewPasskeyService(st)
 	passkeyHandler := handlers.NewPasskeyHandler(st, passkeyService, adminHandler)
 
@@ -237,10 +231,8 @@ func main() {
 		// Public site branding
 		r.Get("/site", configHandler.GetSiteSettings)
 
-		// Registration flows (public; policy enforced server-side)
+		// Public auth config (Turnstile/site key) and password recovery by email.
 		r.Get("/auth/config", authHandler.AuthConfig)
-		r.Post("/auth/register", authHandler.Register)
-		r.Post("/auth/send-code", authHandler.SendCode)
 		r.Post("/auth/forgot-password", authHandler.ForgotPassword)
 		r.Post("/auth/reset-password", authHandler.ResetPassword)
 		r.Get("/auth/me", mw.Auth(authHandler.Me))
@@ -256,7 +248,6 @@ func main() {
 		r.Post("/account/avatar", mw.Auth(uploadsHandler.UploadAvatar))
 		r.Put("/admin/password", mw.Auth(adminHandler.ChangePassword))
 		r.Put("/admin/username", mw.Auth(adminHandler.ChangeUsername))
-		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
 		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
 		r.Post("/admin/2fa/setup", mw.SessionOnly(adminHandler.SetupTOTP))
 		r.Post("/admin/2fa/confirm", mw.SessionOnly(adminHandler.ConfirmTOTP))
@@ -277,144 +268,100 @@ func main() {
 		r.Post("/admin/login/2fa/passkey/begin", passkeyHandler.TwoFactorBegin)
 		r.Post("/admin/login/2fa/passkey/finish", passkeyHandler.TwoFactorFinish)
 
-		// Admin backend (administrator only)
-		adminOnly := func(next http.HandlerFunc) http.HandlerFunc {
-			return mw.Auth(mw.RequireAdmin(next))
-		}
-		// audit records one entry per mutating request once the handler
-		// returns; read-only routes are left unwrapped.
-		audit := mw.Audit
-		pathParam := handlers.PathParam
+		// Panel settings (single administrator). Kept from the old admin console:
+		// registration/invite/audit management is gone, but these system-config
+		// endpoints back features that remain (SMTP alerts, Cloudflare OAuth
+		// client, encryption key, passkey/Turnstile/rate-limit hardening).
 		r.Route("/admin", func(r chi.Router) {
-			r.Get("/users", adminOnly(managementHandler.ListUsers))
-			r.Post("/users", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserCreate, nil, managementHandler.CreateUser)))
-			r.Put("/users/{id}/status", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserStatus, mw.UserTarget("id"), managementHandler.UpdateUserStatus)))
-			r.Put("/users/{id}/group", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserGroup, mw.UserTarget("id"), managementHandler.UpdateUserGroup)))
-			r.Put("/users/{id}/password", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserPassword, mw.UserTarget("id"), managementHandler.ResetUserPassword)))
-			r.Delete("/users/{id}", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserDelete, mw.UserTarget("id"), managementHandler.DeleteUser)))
-			// Restores password sign-in for an account that disabled it and lost
-			// its passkey; the handler writes its own audit entry.
-			r.Put("/users/{id}/password-login", adminOnly(passkeyHandler.AdminUpdatePasswordLogin))
-			r.Get("/groups", adminOnly(managementHandler.ListGroups))
-			r.Post("/groups", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupCreate, nil, managementHandler.CreateGroup)))
-			r.Put("/groups/{id}", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupUpdate, mw.GroupTarget("id"), managementHandler.UpdateGroup)))
-			r.Delete("/groups/{id}", adminOnly(audit(models.AuditCategoryGroup, models.AuditActionGroupDelete, mw.GroupTarget("id"), managementHandler.DeleteGroup)))
-			r.Get("/invites", adminOnly(managementHandler.ListInvites))
-			r.Post("/invites", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteCreate, nil, managementHandler.CreateInvite)))
-			r.Put("/invites/{code}", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteUpdate, nil, managementHandler.UpdateInvite)))
-			r.Delete("/invites/{code}", adminOnly(audit(models.AuditCategoryInvite, models.AuditActionInviteDelete, nil, managementHandler.DeleteInvite)))
-			r.Get("/settings", adminOnly(managementHandler.GetAppSettings))
-			r.Put("/settings", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSettingsUpdate, nil, managementHandler.UpdateAppSettings)))
-			r.Get("/smtp", adminOnly(managementHandler.GetSMTP))
-			r.Put("/smtp", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSMTPUpdate, nil, managementHandler.UpdateSMTP)))
-			r.Post("/smtp/test", adminOnly(audit(models.AuditCategorySettings, models.AuditActionSMTPTest, nil, managementHandler.TestSMTP)))
-			r.Get("/oauth", adminOnly(managementHandler.GetOAuthConfig))
-			r.Put("/oauth", adminOnly(audit(models.AuditCategorySettings, models.AuditActionOAuthUpdate, nil, managementHandler.SaveOAuthConfig)))
-			r.Get("/encryption-key", adminOnly(managementHandler.GetEncryptionKeyStatus))
-			r.Put("/encryption-key", adminOnly(audit(models.AuditCategorySettings, models.AuditActionEncryptionKeyUpdate, nil, managementHandler.SaveEncryptionKey)))
-
-			// Audit trail of every recorded operation (administrator only).
-			r.Get("/audit-logs", adminOnly(auditHandler.List))
-			r.Get("/audit-logs/stats", adminOnly(auditHandler.Stats))
+			r.Put("/users/{id}/password-login", mw.Auth(passkeyHandler.AdminUpdatePasswordLogin))
+			r.Get("/settings", mw.Auth(managementHandler.GetAppSettings))
+			r.Put("/settings", mw.Auth(managementHandler.UpdateAppSettings))
+			r.Get("/smtp", mw.Auth(managementHandler.GetSMTP))
+			r.Put("/smtp", mw.Auth(managementHandler.UpdateSMTP))
+			r.Post("/smtp/test", mw.Auth(managementHandler.TestSMTP))
+			r.Get("/oauth", mw.Auth(managementHandler.GetOAuthConfig))
+			r.Put("/oauth", mw.Auth(managementHandler.SaveOAuthConfig))
+			r.Get("/encryption-key", mw.Auth(managementHandler.GetEncryptionKeyStatus))
+			r.Put("/encryption-key", mw.Auth(managementHandler.SaveEncryptionKey))
 		})
 
 		// Cloudflare OAuth endpoints. The callback authenticates through single-use state.
 		r.Get("/cloudflare/oauth/status", mw.SessionOnly(cloudflareOAuthHandler.Status))
-		r.Post("/cloudflare/oauth/start", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.Start)))
-		r.Put("/cloudflare/oauth/account", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.SelectAccount)))
-		r.Delete("/cloudflare/oauth", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.Disconnect)))
-		r.Put("/cloudflare/oauth/connection", mw.Auth(mw.RequirePerm(models.PermOAuthConnect, cloudflareOAuthHandler.ActivateConnection)))
+		r.Post("/cloudflare/oauth/start", mw.Auth(cloudflareOAuthHandler.Start))
+		r.Put("/cloudflare/oauth/account", mw.Auth(cloudflareOAuthHandler.SelectAccount))
+		r.Delete("/cloudflare/oauth", mw.Auth(cloudflareOAuthHandler.Disconnect))
+		r.Put("/cloudflare/oauth/connection", mw.Auth(cloudflareOAuthHandler.ActivateConnection))
 		r.Get("/cloudflare/oauth/callback", cloudflareOAuthHandler.Callback)
 
-		// Config endpoints: user selections for everyone, branding for admins
+		// Config endpoints: selections and branding for the administrator.
 		r.Get("/config", mw.Auth(configHandler.GetConfig))
 		r.Post("/config/tunnel", mw.Auth(configHandler.SetTunnelSelection))
 		r.Post("/config/service", mw.Auth(configHandler.SetServiceURL))
-		r.Post("/config/preferred-cname", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionPreferredCNAME, nil, configHandler.SetPreferredCNAME))))
-		r.Put("/config/site", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionSiteUpdate, nil, configHandler.SetSiteSettings))))
-		r.Put("/config/cname-presets", mw.Auth(mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionCNAMEPresetsUpdate, nil, configHandler.SetCNAMEPresets))))
+		r.Post("/config/preferred-cname", mw.Auth(configHandler.SetPreferredCNAME))
+		r.Put("/config/site", mw.Auth(configHandler.SetSiteSettings))
+		r.Put("/config/cname-presets", mw.Auth(configHandler.SetCNAMEPresets))
 
 		// Tunnel endpoints
-		r.Get("/tunnels", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.ListTunnels)))
-		r.Post("/tunnels", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelCreate, nil, tunnelHandler.CreateTunnel))))
-		r.Get("/tunnels/{tunnelID}", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.GetTunnelDetail)))
-		r.Delete("/tunnels/{tunnelID}", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelDelete, pathParam("tunnelID"), tunnelHandler.DeleteTunnel))))
-		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressAdd, pathParam("tunnelID"), tunnelHandler.AddIngressRule))))
-		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressUpdate, pathParam("tunnelID"), tunnelHandler.UpdateIngressRule))))
-		r.Delete("/tunnels/{tunnelID}/ingress", mw.Auth(mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionIngressDelete, pathParam("tunnelID"), tunnelHandler.DeleteIngressRule))))
-		r.Get("/zones", mw.Auth(mw.RequirePerm(models.PermTunnels, tunnelHandler.ListZones)))
+		r.Get("/tunnels", mw.Auth(tunnelHandler.ListTunnels))
+		r.Post("/tunnels", mw.Auth(tunnelHandler.CreateTunnel))
+		r.Get("/tunnels/{tunnelID}", mw.Auth(tunnelHandler.GetTunnelDetail))
+		r.Delete("/tunnels/{tunnelID}", mw.Auth(tunnelHandler.DeleteTunnel))
+		r.Post("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.AddIngressRule))
+		r.Put("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.UpdateIngressRule))
+		r.Delete("/tunnels/{tunnelID}/ingress", mw.Auth(tunnelHandler.DeleteIngressRule))
+		r.Get("/zones", mw.Auth(tunnelHandler.ListZones))
 
 		// DNS record endpoints
-		r.Get("/zones/{zoneID}/dns-records", mw.Auth(mw.RequirePerm(models.PermDNS, dnsHandler.List)))
-		r.Post("/zones/{zoneID}/dns-records", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSCreate, nil, dnsHandler.Create))))
-		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSUpdate, nil, dnsHandler.Update))))
-		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSDelete, pathParam("recordID"), dnsHandler.Delete))))
+		r.Get("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.List))
+		r.Post("/zones/{zoneID}/dns-records", mw.Auth(dnsHandler.Create))
+		r.Put("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Update))
+		r.Delete("/zones/{zoneID}/dns-records/{recordID}", mw.Auth(dnsHandler.Delete))
 
 		// Domain binding endpoints
-		r.Post("/domain/bind", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBind, nil, domainHandler.BindDomain))))
-		r.Post("/domain/bind-batch", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBindBatch, nil, domainHandler.BindDomainsBatch))))
-		r.Post("/domain/fallback", mw.Auth(mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainFallback, nil, domainHandler.SetFallbackOrigin))))
+		r.Post("/domain/bind", mw.Auth(domainHandler.BindDomain))
+		r.Post("/domain/bind-batch", mw.Auth(domainHandler.BindDomainsBatch))
+		r.Post("/domain/fallback", mw.Auth(domainHandler.SetFallbackOrigin))
 
 		// Service health monitoring
-		r.Get("/monitor/services", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorHandler.ServiceStatus)))
+		r.Get("/monitor/services", mw.Auth(monitorHandler.ServiceStatus))
 
-		// Experimental lab (administrator only)
-		r.Get("/lab/ip-selector", adminOnly(labHandler.GetSettings))
-		r.Put("/lab/ip-selector", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabSettingsUpdate, nil, labHandler.SaveSettings)))
-		r.Get("/lab/ip-selector/status", adminOnly(labHandler.GetStatus))
-		r.Post("/lab/ip-selector/run", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabRun, nil, labHandler.Run)))
+		// Experimental lab (gated by the experimental-features toggle in the UI)
+		r.Get("/lab/ip-selector", mw.Auth(labHandler.GetSettings))
+		r.Put("/lab/ip-selector", mw.Auth(labHandler.SaveSettings))
+		r.Get("/lab/ip-selector/status", mw.Auth(labHandler.GetStatus))
+		r.Post("/lab/ip-selector/run", mw.Auth(labHandler.Run))
 
 		// Monitor projects (uptime-style)
-		r.Get("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.List)))
-		r.Post("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCreate, nil, monitorsHandler.Create))))
-		r.Get("/monitors/overview", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Overview)))
-		r.Get("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.Get)))
-		r.Put("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorUpdate, mw.MonitorTarget("monitorID"), monitorsHandler.Update))))
-		r.Delete("/monitors/{monitorID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorDelete, mw.MonitorTarget("monitorID"), monitorsHandler.Delete))))
-		r.Get("/monitors/{monitorID}/alerts", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.AlertLogs)))
-		r.Post("/monitors/{monitorID}/check", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCheck, mw.MonitorTarget("monitorID"), monitorsHandler.CheckNow))))
-		r.Post("/monitors/{monitorID}/targets", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetAdd, mw.MonitorTarget("monitorID"), monitorsHandler.AddTarget))))
-		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetUpdate, mw.MonitorTarget("monitorID"), monitorsHandler.EditTarget))))
-		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetDelete, mw.MonitorTarget("monitorID"), monitorsHandler.RemoveTarget))))
+		r.Get("/monitors", mw.Auth(monitorsHandler.List))
+		r.Post("/monitors", mw.Auth(monitorsHandler.Create))
+		r.Get("/monitors/overview", mw.Auth(monitorsHandler.Overview))
+		r.Get("/monitors/{monitorID}", mw.Auth(monitorsHandler.Get))
+		r.Put("/monitors/{monitorID}", mw.Auth(monitorsHandler.Update))
+		r.Delete("/monitors/{monitorID}", mw.Auth(monitorsHandler.Delete))
+		r.Get("/monitors/{monitorID}/alerts", mw.Auth(monitorsHandler.AlertLogs))
+		r.Post("/monitors/{monitorID}/check", mw.Auth(monitorsHandler.CheckNow))
+		r.Post("/monitors/{monitorID}/targets", mw.Auth(monitorsHandler.AddTarget))
+		r.Put("/monitors/{monitorID}/targets/{targetID}", mw.Auth(monitorsHandler.EditTarget))
+		r.Delete("/monitors/{monitorID}/targets/{targetID}", mw.Auth(monitorsHandler.RemoveTarget))
 
 		// Cursor feed of monitor alerts. Polled by the Android shell so alerts
 		// reach the phone without a browser being open.
 		r.Get("/alerts", mw.Auth(monitorsHandler.AlertsFeed))
 
 		// Status-page icon uploads
-		r.Post("/uploads", mw.Auth(mw.RequirePerm(models.PermMonitors, uploadsHandler.UploadImage)))
+		r.Post("/uploads", mw.Auth(uploadsHandler.UploadImage))
 
 		// Public status page payload (token-scoped, unauthenticated)
 		r.Get("/public/status/{token}", monitorsHandler.PublicStatus)
 
-		// Per-user Telegram remote-control bot (any authenticated user; each
-		// account owns an isolated bot)
-		r.Get("/telegram/settings", mw.Auth(telegramHandler.GetSettings))
-		r.Put("/telegram/settings", mw.Auth(telegramHandler.SaveSettings))
-		r.Get("/telegram/status", mw.Auth(telegramHandler.GetStatus))
-		r.Post("/telegram/test", mw.Auth(telegramHandler.SendTest))
-		r.Post("/telegram/reuse", mw.Auth(telegramHandler.ReuseFromNotify))
-		r.Put("/telegram/endpoint", mw.Auth(mw.RequireAdmin(audit(models.AuditCategoryTelegram, models.AuditActionTelegramEndpointUpdate, nil, telegramHandler.SaveAPIEndpoint))))
-		r.Post("/telegram/webhook", telegramHandler.Webhook)              // legacy global bot: no auth, verified via secret token
-		r.Post("/telegram/webhook/{userID}", telegramHandler.UserWebhook) // per-user bot: no auth, verified via secret token
-
-		// Per-user notification preferences (any authenticated user)
+		// Per-user notification preferences: outbound email/Telegram alerts.
 		r.Get("/notify/settings", mw.Auth(notifyHandler.GetSettings))
-		r.Put("/notify/settings", mw.Auth(func(w http.ResponseWriter, req *http.Request) {
-			notifyHandler.SaveSettings(w, req)
-			userTelegramManager.Reconcile() // token may change via notifications
-		}))
-		r.Post("/notify/reuse", mw.Auth(notifyHandler.ReuseFromTelegram))
+		r.Put("/notify/settings", mw.Auth(notifyHandler.SaveSettings))
 		r.Post("/notify/test", mw.Auth(notifyHandler.TestNotify))
 
 		// Health check (no auth)
 		r.Get("/health", healthHandler)
 	})
-
-	// Migrate the legacy global bot into the administrator's per-user
-	// preferences, then start one isolated bot per enabled account.
-	userTelegramManager.MigrateLegacyAdminBot()
-	userTelegramManager.Reconcile()
 
 	// Serve frontend static files (SPA fallback)
 	// Android Digital Asset Links: fetched from the site root, so it has to be
@@ -476,23 +423,6 @@ func loadDotEnv(paths ...string) {
 		}
 		log.Printf("loaded environment overrides from %s", path)
 		return
-	}
-}
-
-// pruneAuditLogsLoop drops audit entries outside the configured retention
-// window: once at startup, then hourly.
-func pruneAuditLogsLoop(st *store.Store) {
-	for {
-		if days := st.GetAppSettings().EffectiveAuditRetentionDays(); days > 0 {
-			cutoff := time.Now().AddDate(0, 0, -days).Unix()
-			removed, err := st.PruneAuditLogs(cutoff)
-			if err != nil {
-				log.Printf("prune audit logs: %v", err)
-			} else if removed > 0 {
-				log.Printf("已清理 %d 条过期审计日志（保留 %d 天）", removed, days)
-			}
-		}
-		time.Sleep(time.Hour)
 	}
 }
 

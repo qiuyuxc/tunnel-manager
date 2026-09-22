@@ -2,7 +2,6 @@ package store
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"tunnel-manager/models"
@@ -190,18 +189,6 @@ func (s *Store) DeleteCFConnection(userID, connID string) error {
 		return err
 	}
 	return nil
-}
-
-// ValidateInvite checks an invite code without consuming a use and returns
-// the group it grants.
-func (s *Store) ValidateInvite(code string) (string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	invite := s.usableInviteLocked(strings.TrimSpace(code))
-	if invite == nil {
-		return "", ErrInviteInvalid
-	}
-	return invite.GroupID, nil
 }
 
 // ---------------------------------------------------------------------------

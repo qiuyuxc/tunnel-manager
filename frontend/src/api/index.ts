@@ -395,61 +395,6 @@ export function setFallbackOrigin(domain: string) {
   return api.post<ApiResponse>('/domain/fallback', { domain })
 }
 
-// Telegram Bot
-export interface TelegramSettings {
-  enabled: boolean
-  bot_token_set: boolean
-  bot_token_hint: string
-  admin_tg_ids: string
-  mode: string
-  webhook_url: string
-  api_endpoint: string
-  notify_bot_set: boolean
-}
-
-export interface TelegramStatus {
-  enabled: boolean
-  running: boolean
-  mode: string
-  bot_username: string
-  last_error: string
-  last_update_at: string
-}
-
-export interface TelegramSettingsRequest {
-  enabled: boolean
-  bot_token: string
-  admin_tg_ids: string
-  mode: string
-  webhook_url: string
-}
-
-export function getTelegramSettings() {
-  return api.get<TelegramSettings>('/telegram/settings')
-}
-
-export function saveTelegramSettings(data: TelegramSettingsRequest) {
-  return api.put<{ status: string; running: boolean; error?: string }>('/telegram/settings', data)
-}
-
-export function getTelegramStatus() {
-  return api.get<TelegramStatus>('/telegram/status')
-}
-
-export function testTelegram() {
-  return api.post<ApiResponse>('/telegram/test')
-}
-
-// Copies the notification bot token into the remote-control slot.
-export function reuseTelegramFromNotify() {
-  return api.post<ApiResponse>('/telegram/reuse')
-}
-
-// Updates the panel-wide Telegram Bot API endpoint (admin only).
-export function saveTelegramAPIEndpoint(endpoint: string) {
-  return api.put<{ status: string; api_endpoint: string }>('/telegram/endpoint', { api_endpoint: endpoint })
-}
-
 // Service monitor
 export interface ServiceProbe {
   hostname: string

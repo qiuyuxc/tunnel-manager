@@ -3,26 +3,7 @@ package handlers
 import (
 	"net/http"
 	"testing"
-
-	"tunnel-manager/models"
 )
-
-func TestUpdateAppSettingsAcceptsRoundTrippedFields(t *testing.T) {
-	st := newTestStore(t)
-	h := NewManagementHandler(st, nil)
-	// The GET response now carries turnstile_has_secret; PUT must accept it
-	// back verbatim instead of failing with "invalid request body".
-	body := `{"registration_enabled":true,"invite_mode":"optional","default_group_id":"","email_verify_disabled":false,"turnstile_enabled":false,"turnstile_site_key":"","turnstile_has_secret":false}`
-	resp := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", body, "")
-	if resp.Code != http.StatusOK {
-		t.Fatalf("UpdateAppSettings() = %d: %s", resp.Code, resp.Body.String())
-	}
-	var view models.AppSettingsView
-	decodeResponse(t, resp, &view)
-	if !view.RegistrationEnabled || view.InviteMode != "optional" {
-		t.Fatalf("view = %#v", view)
-	}
-}
 
 func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
 	st := newTestStore(t)

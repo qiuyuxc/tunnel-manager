@@ -41,7 +41,6 @@
         </div>
         <template v-if="!store.isAuthenticated">
           <router-link to="/login" class="lp-btn lp-btn-secondary nav-secondary">登录</router-link>
-          <router-link v-if="registrationEnabled" to="/login?mode=register" class="lp-btn lp-btn-primary">注册</router-link>
         </template>
       </nav>
     </header>
@@ -62,7 +61,6 @@
           </template>
           <template v-else>
             <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">立即登录</router-link>
-            <router-link v-if="registrationEnabled" to="/login?mode=register" class="lp-btn lp-btn-secondary lp-btn-lg">注册账号</router-link>
           </template>
         </div>
 
@@ -153,7 +151,6 @@
             </template>
             <template v-else>
               <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">立即登录</router-link>
-              <router-link v-if="registrationEnabled" to="/login?mode=register" class="lp-btn lp-btn-secondary lp-btn-lg">注册账号</router-link>
             </template>
           </div>
         </div>
@@ -176,18 +173,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { getAuthConfig } from '../api/admin'
+import { onMounted } from 'vue'
 import { useConfigStore } from '../stores/config'
 
 const store = useConfigStore()
-const registrationEnabled = ref(false)
 
 onMounted(() => {
   store.fetchSiteSettings()
-  getAuthConfig().then(({ data }) => {
-    registrationEnabled.value = !!data.registration_enabled
-  }).catch(() => {})
 })
 </script>
 
