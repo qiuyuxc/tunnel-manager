@@ -5,6 +5,12 @@
          that Material components accept. -->
     <style name="Theme.TunnelManager" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/canvas</item>
+        <!-- logo_mark.xml fills use these theme attrs; without them the About /
+             more-menu brand mark resolves to transparent and renders blank.
+             Matches AppTheme (the login screen) so the two-tone mark is the same
+             mint accent everywhere. -->
+        <item name="tm_logo">@color/liquid_light_accent</item>
+        <item name="tm_logo_dim">@color/liquid_light_mute</item>
         <item name="colorPrimary">@color/liquid_light_accent</item>
         <item name="colorSecondary">@color/liquid_light_accent</item>
         <item name="colorOnPrimary">@color/liquid_light_accent_text</item>
