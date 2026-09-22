@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.content.res.AppCompatResources;
 
 import org.json.JSONObject;
 
@@ -195,8 +196,11 @@ public class AboutFragment extends PageFragment {
     private View appCard() {
         LinearLayout card = UI.card(requireContext());
         ImageView mark = new ImageView(requireContext());
-        mark.setImageResource(R.drawable.logo_mark);
-        UI.tint(mark, Theme.p().success);
+        // logo_mark is a two-tone vector whose fills use ?attr theme colours.
+        // AppCompatResources inflates it against the context theme so the paths
+        // resolve; a plain setImageResource + SRC_IN tint erased the mark
+        // (rendering blank), so no tint is applied here.
+        mark.setImageDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.logo_mark));
         mark.setBackground(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_LG));
         card.addView(mark, new LinearLayout.LayoutParams(UI.dp(64), UI.dp(64)));
         UI.addRow(card, UI.text(requireContext(), "Tunnel Manager", 24, Theme.p().ink, Typeface.BOLD), UI.MD);
