@@ -1,9 +1,11 @@
-name: Build & Push
+name: Build & Push (slim)
 
+# Slim single-user edition. Publishes only slim-suffixed image tags so it never
+# collides with the full edition's `latest` / bare version tags built from main.
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [slim/single-user]
+    tags: ['v*-slim']
 
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/tunnel-manager
@@ -57,13 +59,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.images.outputs.images }}
+          # Slim tags only — no `latest`, no bare version numbers (those belong
+          # to the full edition built from main and would collide here).
           tags: |
-            # main 分支推送 -> latest
-            type=raw,value=latest,enable={{is_default_branch}}
-            # 打 v* 标签 -> v1.16.x / 1.16.x / 1.16 全套版本号
+            # 推送到 slim 分支 -> :slim（相当于完整版的 latest）
+            type=raw,value=slim,enable=${{ github.ref == 'refs/heads/slim/single-user' }}
+            # 打 v*-slim 标签 -> 保留完整标签，例如 v2.6.0-slim
             type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{majorminor}}
             # 任意提交 -> 短哈希，便于回溯精确代码位置
             type=sha
 

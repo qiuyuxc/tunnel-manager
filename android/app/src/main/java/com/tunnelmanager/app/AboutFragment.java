@@ -28,6 +28,12 @@ public class AboutFragment extends PageFragment {
     private static final String DOCS_URL = "https://docs.kukie.cn";
     private static final String RELEASE_API =
             "https://api.github.com/repos/qiuyuxc/tunnel-manager/releases/latest";
+    // The single-user edition tags releases vX.Y.Z-slim (GitHub pre-releases);
+    // its update check scans the list and keeps only slim tags so a full-edition
+    // release never looks like an update.
+    private static final String RELEASES_API =
+            "https://api.github.com/repos/qiuyuxc/tunnel-manager/releases?per_page=100";
+    private static final String SLIM_SUFFIX = "-slim";
 
     /** Highlights of the current release, as the web page lists them. */
     private static final String[] HIGHLIGHTS = {
@@ -131,18 +137,40 @@ public class AboutFragment extends PageFragment {
         latestTag = "";
         latestBody = "";
         render();
+        boolean slim = appVersion != null && appVersion.toLowerCase().contains(SLIM_SUFFIX);
         Api.async(() -> {
-            String raw = Api.external(RELEASE_API, "application/vnd.github+json");
-            JSONObject release = new JSONObject(raw);
             JSONObject out = new JSONObject();
-            out.put("tag", release.optString("tag_name", ""));
-            out.put("body", release.optString("body", ""));
+            if (slim) {
+                // Scan the release list, keep only slim tags, pick the highest.
+                String raw = Api.external(RELEASES_API, "application/vnd.github+json");
+                org.json.JSONArray list = new org.json.JSONArray(raw);
+                String bestTag = "";
+                String bestBody = "";
+                for (int i = 0; i < list.length(); i++) {
+                    JSONObject rel = list.optJSONObject(i);
+                    if (rel == null) continue;
+                    String tag = rel.optString("tag_name", "");
+                    if (!tag.toLowerCase().contains(SLIM_SUFFIX)) continue;
+                    if (bestTag.isEmpty() || compare(tag, bestTag) > 0) {
+                        bestTag = tag;
+                        bestBody = rel.optString("body", "");
+                    }
+                }
+                out.put("tag", bestTag);
+                out.put("body", bestBody);
+            } else {
+                String raw = Api.external(RELEASE_API, "application/vnd.github+json");
+                JSONObject release = new JSONObject(raw);
+                out.put("tag", release.optString("tag_name", ""));
+                out.put("body", release.optString("body", ""));
+            }
             return out;
         }, payload -> {
             if (request != generation || body == null) return;
             checking = false;
             latestTag = payload.optString("tag", "");
             latestBody = payload.optString("body", "");
+            if (slim && latestTag.isEmpty()) checkError = "尚未发布精简版（slim）版本。";
             render();
         }, failure -> {
             if (request != generation || body == null) return;
@@ -296,7 +324,8 @@ public class AboutFragment extends PageFragment {
 
     private static int[] parse(String tag) {
         Matcher matcher = Pattern.compile("v?(\\d+)\\.(\\d+)\\.(\\d+)").matcher(tag == null ? "" : tag);
-        if (!matcher.matches()) return null;
+        // find() not matches(): tolerate a suffix such as the -slim edition tag.
+        if (!matcher.find()) return null;
         try {
             return new int[]{Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3))};
         } catch (NumberFormatException failure) {

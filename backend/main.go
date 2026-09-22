@@ -24,8 +24,9 @@ import (
 	"tunnel-manager/store"
 )
 
-// Version is the current application version.
-const Version = "v2.6.0"
+// Version is the current application version. The -slim suffix marks the
+// single-user edition so the update check only compares against slim releases.
+const Version = "v2.6.0-slim"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time

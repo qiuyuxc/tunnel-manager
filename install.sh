@@ -5,8 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "=============================="
-echo "  Tunnel Manager 安装/更新"
+echo "  Tunnel Manager · 单用户精简版 安装/更新"
 echo "=============================="
+
+# This installer tracks the slim single-user branch, not main.
+BRANCH="slim/single-user"
 
 # Check dependencies
 command -v docker >/dev/null 2>&1 || { echo "❌ 未安装 Docker，请先安装"; exit 1; }
@@ -35,7 +38,7 @@ if [ ! -f docker-compose.yml ]; then
   else
     CLONE_URL="https://github.com/qiuyuxc/tunnel-manager.git"
   fi
-  git clone "$CLONE_URL"
+  git clone -b "$BRANCH" "$CLONE_URL"
   cd tunnel-manager
   export MIRROR_CHOICE="$CLONE_MIRROR"
   exec bash install.sh "$@"
@@ -69,8 +72,8 @@ if [ -f .env ]; then
   echo "📦 检测到已有配置，执行更新..."
   if [ -d .git ]; then
     git remote set-url origin "$REPO_URL" 2>/dev/null || git remote add origin "$REPO_URL"
-    echo "🔄 拉取最新代码..."
-    git pull origin main
+    echo "🔄 拉取最新代码（$BRANCH）..."
+    git pull origin "$BRANCH"
   fi
   if ! grep -q '^APP_ENCRYPTION_KEY=.' .env; then
     APP_ENCRYPTION_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d '\n')

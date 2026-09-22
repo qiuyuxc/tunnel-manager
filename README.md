@@ -1,14 +1,25 @@
 <div align="center"><img src="frontend/public/icon.webp" width="72" alt="Tunnel Manager" /></div>
 
-# Tunnel Manager
+# Tunnel Manager · Single-User Edition (slim)
 
 English | [简体中文](README.zh-CN.md)
 
-A web control panel for Cloudflare Tunnel, plus a native Android client. Create and route tunnels, bind domains, manage DNS records and fallback origins, probe your services and publish a shareable status page — with multi-user registration, an admin console, email alerts on status changes, Telegram bot remote control and two-factor authentication for administrators.
+> **This is the slim, single-user edition** (branch `slim/single-user`). It is a trimmed build of Tunnel Manager for one self-hosted administrator — no registration, user groups, admin console, audit log, or Telegram remote control. For the full multi-user edition, see the [`main`](https://github.com/qiuyuxc/tunnel-manager/tree/main) branch.
 
-> 📖 **Documentation**: **[https://docs.kukie.cn/en/](https://docs.kukie.cn/en/)**
+A web control panel for Cloudflare Tunnel, plus a native Android client. Create and route tunnels, bind domains, manage DNS records and fallback origins, probe your services and publish a shareable status page — secured for a single administrator with password + optional passkey / two-factor sign-in.
 
-> Deployment guides, Cloudflare OAuth setup, both domain-binding modes, DNS management, service monitoring and public status pages, the full Telegram bot command set and the API reference all live in the docs. This page keeps only what you need to get started.
+> 📖 **Documentation**: **[https://docs.kukie.cn/en/](https://docs.kukie.cn/en/)** · slim edition: [Single-user edition](https://docs.kukie.cn/en/guide/slim-edition)
+
+## What this edition changes vs. the full build
+
+| Removed | Kept |
+| --- | --- |
+| Multi-user registration, invite codes, user groups & permissions | Single administrator (set in the install wizard) |
+| Admin console (user / group / invite management) | System settings moved into the in-panel **Settings** page |
+| Administrator audit log | Sign-in rate limiting, Turnstile, passkey / TOTP hardening |
+| Telegram bot **remote control** | Telegram **notifications** (outbound alerts) |
+
+Everything else is unchanged.
 
 ## Features
 
@@ -19,13 +30,11 @@ A web control panel for Cloudflare Tunnel, plus a native Android client. Create 
 | DNS | Full CRUD for A / AAAA / CNAME / TXT / MX with TTL, proxy status, MX priority and bulk edits | [DNS records](https://docs.kukie.cn/en/guide/dns-management) |
 | IP optimizer lab | Experimental direct probes by Host / SNI and status code, with live progress, per-segment hit statistics, one-click removal of missed ranges and optional Huawei Cloud DNS updates | [IP optimizer lab](https://docs.kukie.cn/en/guide/lab-ip-selector) |
 | Monitoring | HTTP / TCP / ICMP probes, several targets per monitor, seven-day latency bars | [Service monitoring](https://docs.kukie.cn/en/guide/monitors-status) |
-| Email alerts | Notifies on status transitions only, with SMTP configured from the UI | [Email & alerts](https://docs.kukie.cn/en/guide/email-alerts) |
-| Multi-user | Email registration, group permissions, users and invite codes managed from the admin console | [Multi-user & admin](https://docs.kukie.cn/en/guide/multi-user) |
+| Alerts | Notifies on status transitions only, over email (SMTP) or a Telegram notification bot | [Email & alerts](https://docs.kukie.cn/en/guide/email-alerts) |
 | Public status page | Share without login; short paths, custom domains, direct-tunnel or optimized CNAME access, and a custom domain only exposes its own page | [Public status page](https://docs.kukie.cn/en/guide/monitors-status#public-status-page) |
 | Cloudflare connection | OAuth 2.0 with PKCE and automatic token refresh, multiple accounts; static API tokens still work | [OAuth connection](https://docs.kukie.cn/en/guide/cloudflare-oauth) |
-| Telegram bot | Manage tunnels, bindings and DNS records remotely, with confirmation before deletes | [Telegram bot](https://docs.kukie.cn/en/guide/telegram-bot) |
 | Android app | Native client for the same API: overview, monitoring, tunnels, DNS, the IP lab and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
-| Security | Argon2id password hashing, TOTP two-factor auth and one-time recovery codes | [Security & admin auth](https://docs.kukie.cn/en/guide/security) |
+| Security | Argon2id password hashing, passkeys (WebAuthn), TOTP two-factor auth and one-time recovery codes | [Security](https://docs.kukie.cn/en/guide/security) |
 
 ## Architecture
 
@@ -47,13 +56,13 @@ cd tunnel-manager
 ./install.sh
 ```
 
-The script walks you through a Cloudflare OAuth client (or a compatible API token), writes an `APP_ENCRYPTION_KEY`, then builds and starts the service on port `8080`. The first visit to the panel opens the install wizard: pick SQLite or PostgreSQL, test the connection, then choose the administrator name and password — no password is generated or printed to the logs.
+The script walks you through a Cloudflare OAuth client (or a compatible API token), writes an `APP_ENCRYPTION_KEY`, then builds and starts the service on port `8080`. The first visit to the panel opens the install wizard: pick SQLite or PostgreSQL, test the connection, then choose the administrator name and password — that single account is the whole panel; there is no registration and no password printed to the logs.
 
 **Shorter paths**:
-- Run the prebuilt image — see [Docker Compose deployment](https://docs.kukie.cn/en/guide/docker-compose)
+- Run the prebuilt image — see [Docker Compose deployment](https://docs.kukie.cn/en/guide/docker-compose). The slim image is published as `:slim` (and `:<version>-slim`).
 - No Docker, just the binary — see [Binary deployment](https://docs.kukie.cn/en/guide/binary-deploy)
 - The phone client — build it from `android/`, see [Android app](https://docs.kukie.cn/en/guide/android-app)
-- Published builds: [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases)
+- Published builds: [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases) — slim builds are tagged `vX.Y.Z-slim` and marked as pre-releases.
 
 Environment variables, the OAuth setup walkthrough, enabling two-factor auth and resetting passwords are all covered in the [documentation](https://docs.kukie.cn/en/).
 
@@ -84,6 +93,10 @@ cd frontend && npm run build
 ```
 
 Font assets: `frontend/public/fonts/` holds pre-split MiSans subsets generated by `frontend/scripts/subset-fonts.py` (needs `fonttools` and `brotli`). The full-coverage weights are not tracked in the repository — download them from Xiaomi if you need to regenerate.
+
+### Keeping the slim branch in sync with `main`
+
+`slim/single-user` is a long-lived, strict subset of `main`. Port fixes to shared code (tunnels, DNS, monitors, Cloudflare OAuth, passkeys) by **cherry-picking** the specific commits from `main` — never a full `git merge`, which would try to resurrect the removed code and conflict across every deleted file.
 
 ## License
 

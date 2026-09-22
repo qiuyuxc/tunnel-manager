@@ -1,8 +1,11 @@
-name: Release binaries
+name: Release binaries (slim)
 
+# Slim single-user edition: only vX.Y.Z-slim tags. The release is marked as a
+# pre-release so it never becomes the repository's `releases/latest`, which the
+# full edition's in-panel update check reads.
 on:
   push:
-    tags: ['v*']
+    tags: ['v*-slim']
 
 permissions:
   contents: write

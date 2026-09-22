@@ -49,6 +49,7 @@ export default defineConfig({
             {
               text: '部署与升级',
               items: [
+                { text: '单用户精简版（slim）', link: '/guide/slim-edition' },
                 { text: '快速开始', link: '/guide/getting-started' },
                 { text: 'Docker Compose 部署详解', link: '/guide/docker-compose' },
                 { text: '二进制部署', link: '/guide/binary-deploy' },
@@ -128,6 +129,7 @@ export default defineConfig({
             {
               text: 'Deploy & upgrade',
               items: [
+                { text: 'Single-user edition (slim)', link: '/en/guide/slim-edition' },
                 { text: 'Quick start', link: '/en/guide/getting-started' },
                 { text: 'Docker Compose deployment', link: '/en/guide/docker-compose' },
                 { text: 'Binary deployment', link: '/en/guide/binary-deploy' },

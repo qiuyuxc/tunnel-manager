@@ -11,7 +11,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 260
-        versionName = "2.6.0"
+        versionName = "2.6.0-slim"
     }
 
     // The debug key is the one build.sh already generated, so `adb install -r`

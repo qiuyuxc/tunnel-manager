@@ -151,6 +151,12 @@ import MarkdownIt from 'markdown-it'
 
 const REPO_URL = 'https://github.com/qiuyuxc/tunnel-manager'
 const RELEASE_API = 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases/latest'
+// The single-user edition tags releases as vX.Y.Z-slim (published as GitHub
+// pre-releases). Its update check must only ever compare against slim releases,
+// otherwise a full-edition release would look like a newer version to it.
+const RELEASES_API = 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases?per_page=100'
+const SLIM_SUFFIX = '-slim'
+const isSlimEdition = (v: string) => v.toLowerCase().includes(SLIM_SUFFIX)
 const markdown = new MarkdownIt({
   html: false,
   linkify: true,
@@ -212,12 +218,31 @@ async function checkUpdate() {
   checkError.value = ''
   latestBody.value = ''
   try {
-    const res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' } })
-    if (!res.ok) throw new Error('GitHub API ' + res.status)
-    const data = await res.json()
-    latestTag.value = data.tag_name || ''
-    latestVersion.value = data.tag_name || ''
-    latestBody.value = (data.body || '').slice(0, 20_000)
+    if (isSlimEdition(currentVersion.value)) {
+      // Slim edition: scan the release list and keep only slim tags, then pick
+      // the highest so a full-edition release never shows up as an update.
+      const res = await fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } })
+      if (!res.ok) throw new Error('GitHub API ' + res.status)
+      const list = (await res.json()) as Array<{ tag_name?: string; body?: string }>
+      const slim = list.filter((r) => isSlimEdition(r.tag_name || ''))
+      let best: { tag_name?: string; body?: string } | null = null
+      for (const r of slim) {
+        if (!best || compareVersion(parseVersion(r.tag_name || ''), parseVersion(best.tag_name || '')) > 0) {
+          best = r
+        }
+      }
+      latestTag.value = best?.tag_name || ''
+      latestVersion.value = best?.tag_name || ''
+      latestBody.value = (best?.body || '').slice(0, 20_000)
+      if (!best) checkError.value = '尚未发布精简版（slim）版本。'
+    } else {
+      const res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' } })
+      if (!res.ok) throw new Error('GitHub API ' + res.status)
+      const data = await res.json()
+      latestTag.value = data.tag_name || ''
+      latestVersion.value = data.tag_name || ''
+      latestBody.value = (data.body || '').slice(0, 20_000)
+    }
   } catch (_e) {
     checkError.value = '无法连接 GitHub，请检查网络后重试。'
   } finally {
