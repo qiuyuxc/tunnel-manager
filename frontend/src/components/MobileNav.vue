@@ -51,6 +51,11 @@
         <span class="menu-label">暗色模式</span>
         <span class="switch" :class="{ on: configStore.darkMode }" />
       </button>
+      <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleLightEffects()">
+        <span class="menu-icon" v-html="icons.palette" />
+        <span class="menu-label">轻量效果</span>
+        <span class="switch" :class="{ on: configStore.lightEffects }" />
+      </button>
       <div class="menu-sep" />
       <button type="button" class="menu-row danger" role="menuitem" @click="handleLogout">
         <span class="menu-icon" v-html="icons.logout" />
@@ -59,7 +64,7 @@
     </div>
   </Transition>
 
-  <nav class="tabbar" :style="{ gridTemplateColumns: `repeat(${tabEntries.length}, 1fr)` }">
+  <nav class="tabbar" aria-label="移动端导航">
     <template v-for="(entry, index) in tabEntries" :key="index">
       <router-link
         v-if="entry.kind === 'link'"
@@ -73,7 +78,7 @@
       <button
         v-else-if="entry.kind === 'fab'"
         type="button"
-        class="tab tab-fab"
+        class="tab-fab"
         aria-label="新建"
         @click="createOpen = true"
       >
@@ -116,6 +121,7 @@
         >
           <span class="row-icon" v-html="item.icon" />
           <span class="row-label">{{ item.label }}</span>
+          <span v-if="item.badge" class="badge">{{ item.badge }}</span>
           <span class="row-chevron" v-html="icons.chevron" />
         </router-link>
       </div>
@@ -155,8 +161,8 @@ const createOpen = ref(false)
 const moreOpen = ref(false)
 
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
-const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? 'Claude' : 'Vercel'))
-const roleLabel = computed(() => '管理员')
+const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? '暖色' : '默认'))
+const roleLabel = computed(() => (configStore.isAdmin() ? '管理员' : '用户'))
 
 // 概览 · 监控 · [+] · DNS 管理 · 更多, with any entry the account cannot see
 // dropped rather than left as a dead slot.
@@ -173,7 +179,7 @@ const tabEntries = computed<TabEntry[]>(() => {
 })
 
 const moreGroups = computed(() =>
-  (['network', 'system', 'personal'] as NavGroup[])
+  (['workspace', 'network', 'management', 'personal'] as NavGroup[])
     .map((group) => ({
       label: GROUP_LABELS[group],
       items: navItems.value.filter((item) => item.group === group && !TAB_PATHS.includes(item.path)),
@@ -238,29 +244,40 @@ async function handleLogout() {
 }
 
 /* ---- tab bar ---- */
+/* A floating glass pill above the content, not a full-width docked bar. The
+   translucency + blur is the only "glass" surface on the web console; when the
+   operator turns light-effects on (data-effects=light) styles.css strips the
+   blur globally. */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 20px;
+  right: 20px;
+  bottom: max(14px, env(safe-area-inset-bottom));
   z-index: 100;
-  background: var(--color-canvas);
-  border-top: 1px solid var(--color-hairline);
-  padding-bottom: env(safe-area-inset-bottom);
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 7px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-canvas-raised) 88%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 8px 30px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--color-hairline);
 }
 
 .tab {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 9px 2px 10px;
+  gap: 4px;
+  min-width: 46px;
+  padding: 7px 12px;
   border: none;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-mute);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
@@ -269,39 +286,30 @@ async function handleLogout() {
 }
 
 .tab-icon { display: inline-flex; }
-.tab-icon :deep(svg) { width: 22px; height: 22px; }
+.tab-icon :deep(svg) { width: 21px; height: 21px; }
 
-.tab.active { color: var(--color-ink); font-weight: 600; }
+.tab.active { color: var(--color-sidebar-text-active); background: var(--color-sidebar-active-bg); }
 
-/* Transposed from the sidebar's ink left-edge indicator: the same mark, turned
-   into a top edge because the bar is horizontal. */
-.tab.active::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 22px;
-  height: 2px;
-  margin-left: -11px;
-  border-radius: 2px;
-  background: var(--color-ink);
+.tab-fab {
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
 }
-
-.tab-fab { padding-top: 0; justify-content: flex-start; }
 
 .fab {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-top: -18px;
+  width: 45px;
+  height: 45px;
   border-radius: 50%;
   background: var(--color-btn-primary-bg);
   color: var(--color-btn-primary-text);
-  box-shadow: 0 0 0 4px var(--color-canvas), 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
-.fab :deep(svg) { width: 24px; height: 24px; }
+.fab :deep(svg) { width: 22px; height: 22px; }
 
 /* ---- avatar menu ---- */
 .menu-scrim { position: fixed; inset: 0; z-index: 109; }
@@ -495,6 +503,6 @@ async function handleLogout() {
     white-space: nowrap;
   }
 
-  .tabbar { display: grid; }
+  .tabbar { display: flex; }
 }
 </style>

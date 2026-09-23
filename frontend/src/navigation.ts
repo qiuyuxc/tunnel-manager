@@ -33,9 +33,10 @@ export const icons = {
   trash: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
   refresh: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
 } as const
 
-export type NavGroup = 'network' | 'system' | 'personal'
+export type NavGroup = 'workspace' | 'network' | 'management' | 'personal'
 
 export interface NavItem {
   path: string
@@ -45,25 +46,60 @@ export interface NavItem {
   icon: string
   group: NavGroup
   experimental?: boolean
+  /** Small pill shown next to the label (e.g. the experimental lab). */
+  badge?: string
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', label: '控制面板', tabLabel: '概览', icon: icons.dashboard, group: 'network' },
-  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'network' },
-  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'network' },
+  { path: '/dashboard', label: '控制面板', tabLabel: '概览', icon: icons.dashboard, group: 'workspace' },
+  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'workspace' },
+  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'workspace' },
   { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network' },
   { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network' },
-  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', experimental: true },
-  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'system' },
-  { path: '/notifications', label: '通知', icon: icons.bell, group: 'system' },
-  { path: '/account', label: '账户', icon: icons.account, group: 'personal' },
-  { path: '/about', label: '关于', icon: icons.about, group: 'personal' },
+  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', experimental: true, badge: '实验' },
+  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'management' },
+  { path: '/notifications', label: '通知设置', tabLabel: '通知', icon: icons.bell, group: 'management' },
+  { path: '/account', label: '账户设置', tabLabel: '账户', icon: icons.account, group: 'personal' },
+  { path: '/about', label: '关于与更新', tabLabel: '关于', icon: icons.about, group: 'personal' },
 ]
 
 export const GROUP_LABELS: Record<NavGroup, string> = {
-  network: '网络与解析',
-  system: '系统',
+  workspace: '工作空间',
+  network: '网络',
+  management: '管理',
   personal: '个人',
+}
+
+/** Sidebar section order. `personal` is pinned to the sidebar footer, so it is
+ *  intentionally absent here and rendered separately. */
+export const SIDEBAR_GROUPS: readonly NavGroup[] = ['workspace', 'network', 'management']
+
+/** Detail / nested pages that never appear in the nav but still need a
+ *  breadcrumb trail. Maps a route path prefix to its parent nav path + title. */
+export const DETAIL_PAGES: { match: (path: string) => boolean; parent: string; title: string }[] = [
+  { match: (p) => /^\/tunnels\/[^/]+$/.test(p), parent: '/tunnels', title: '隧道详情' },
+  { match: (p) => /^\/monitors\/[^/]+$/.test(p), parent: '/monitors', title: '监控详情' },
+  { match: (p) => p === '/domain/batch', parent: '/domain', title: '批量绑定' },
+]
+
+export interface Crumb {
+  label: string
+  path?: string
+}
+
+/** Breadcrumb trail for the console top bar: parent (when the page is a detail
+ *  view) followed by the current page. Falls back to just the site name. */
+export function breadcrumbFor(currentPath: string): Crumb[] {
+  const detail = DETAIL_PAGES.find((page) => page.match(currentPath))
+  if (detail) {
+    const parent = NAV_ITEMS.find((item) => item.path === detail.parent)
+    return [
+      ...(parent ? [{ label: parent.label, path: parent.path }] : []),
+      { label: detail.title },
+    ]
+  }
+  const current = NAV_ITEMS.find((item) => isActivePath(currentPath, item.path))
+  return current ? [{ label: current.label }] : []
 }
 
 /** Phone tab bar order; the factory button sits between the second and third. */

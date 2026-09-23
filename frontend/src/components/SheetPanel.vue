@@ -119,6 +119,32 @@ onBeforeUnmount(() => {
 .sheet-rise-enter-from,
 .sheet-rise-leave-to { transform: translateY(100%); }
 
+/* Desktop: the bottom sheet reads as mobile chrome on a wide screen, so present
+   it as a centred dialog instead — same content, same close/esc behaviour. */
+@media (min-width: 769px) {
+  .sheet {
+    left: 50%;
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    width: min(480px, calc(100vw - 32px));
+    max-height: 80vh;
+    border: 1px solid var(--color-hairline);
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 30%);
+  }
+
+  .sheet-handle { display: none; }
+  .sheet-head { padding: 18px 20px 12px; }
+  .sheet-body { padding: 0 20px 20px; }
+
+  .sheet-rise-enter-active,
+  .sheet-rise-leave-active { transition: transform 180ms ease, opacity 180ms ease; }
+  .sheet-rise-enter-from,
+  .sheet-rise-leave-to { transform: translate(-50%, -50%) scale(0.96); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sheet-rise-enter-active,
   .sheet-rise-leave-active,
