@@ -18,7 +18,8 @@ export const useConfigStore = defineStore('config', () => {
     landing_enabled: false,
     experimental_features_enabled: false,
   })
-  const darkMode = ref(localStorage.getItem('dark_mode') === 'true')
+  const darkMode = ref(localStorage.getItem('dark_mode') !== 'false')
+  const lightEffects = ref(localStorage.getItem('light_effects') === 'true')
   const savedVisualTheme = localStorage.getItem('visual_theme')
   const visualTheme = ref<VisualTheme>(savedVisualTheme === 'warm' ? 'warm' : 'enterprise')
   const loading = ref(false)
@@ -79,6 +80,11 @@ export const useConfigStore = defineStore('config', () => {
     document.documentElement.setAttribute('data-visual-theme', val)
   }, { immediate: true })
 
+  watch(lightEffects, (value) => {
+    localStorage.setItem('light_effects', String(value))
+    document.documentElement.dataset.effects = value ? 'light' : 'normal'
+  }, { immediate: true })
+
   watch(() => [config.value.site_name, config.value.site_icon], applySiteBranding, { immediate: true })
 
   function fetchSiteSettings() {
@@ -127,6 +133,10 @@ export const useConfigStore = defineStore('config', () => {
 
   function toggleVisualTheme() {
     visualTheme.value = visualTheme.value === 'warm' ? 'enterprise' : 'warm'
+  }
+
+  function toggleLightEffects() {
+    lightEffects.value = !lightEffects.value
   }
 
   function setAuth(tokenVal: string, usernameVal: string, roleVal = '') {
@@ -184,9 +194,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   return {
-    config, darkMode, visualTheme, loading, landingEnabled, experimentalFeatures, siteSettingsLoaded,
+    config, darkMode, lightEffects, visualTheme, loading, landingEnabled, experimentalFeatures, siteSettingsLoaded,
     token, username, nickname, avatar, email, displayName,
     role, permissions, isAuthenticated,
-    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, setExperimentalFeatures, toggleDarkMode, toggleVisualTheme, setAuth, clearAuth,
+    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, setExperimentalFeatures, toggleDarkMode, toggleVisualTheme, toggleLightEffects, setAuth, clearAuth,
   }
 })

@@ -239,7 +239,6 @@ onMounted(async () => {
 .settings-grid {
   display: grid;
   gap: var(--spacing-lg);
-  max-width: 800px;
 }
 
 .settings-card {

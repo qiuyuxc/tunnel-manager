@@ -3,10 +3,14 @@
     <n-message-provider>
       <n-dialog-provider>
         <div class="app-shell" v-if="!route.meta.public">
-          <nav-bar v-if="$route.path !== '/login'" />
-          <main class="app-main" :class="{ 'app-main-login': route.path === '/login' }">
-            <router-view />
-          </main>
+          <nav-bar v-if="!isLogin" />
+          <div class="app-area" :class="{ 'app-area-login': isLogin }">
+            <console-header v-if="!isLogin" />
+            <main class="app-main" :class="{ 'app-main-login': isLogin }">
+              <router-view />
+            </main>
+          </div>
+          <mobile-nav v-if="!isLogin" />
         </div>
         <router-view v-else />
       </n-dialog-provider>
@@ -20,6 +24,8 @@ import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
+import ConsoleHeader from './components/ConsoleHeader.vue'
+import MobileNav from './components/MobileNav.vue'
 import { useConfigStore } from './stores/config'
 import {
   darkThemeOverrides,
@@ -30,6 +36,7 @@ import {
 
 const route = useRoute()
 const configStore = useConfigStore()
+const isLogin = computed(() => route.path === '/login')
 const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)
 const currentThemeOverrides = computed(() => {
   if (configStore.visualTheme === 'warm') {
@@ -43,35 +50,6 @@ configStore.fetchMe()
 </script>
 
 <style>
-.app-shell {
-  display: flex;
-  min-height: 100vh;
-}
-
-.app-main {
-  flex: 1;
-  min-width: 0;
-  margin-left: var(--sidebar-width);
-  background: var(--color-canvas-soft);
-  min-height: 100vh;
-}
-
-.app-main-login {
-  margin-left: 0;
-}
-
-@media (max-width: 768px) {
-  .app-main {
-    margin-left: 0;
-    padding-top: 56px;
-    /* Room for the fixed tab bar, plus whatever the device reserves for its
-       gesture bar. --tabbar-height is 0 on desktop; see styles.css. */
-    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
-  }
-
-  .app-main-login {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-}
+/* Shell layout (.app-shell / .app-area / .app-main) lives in styles.css so the
+   sidebar, top bar and content column share one source of truth. */
 </style>

@@ -26,7 +26,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.6.1"
+const Version = "v2.7.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time

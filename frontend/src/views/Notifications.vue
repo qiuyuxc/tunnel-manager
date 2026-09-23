@@ -258,7 +258,6 @@ async function sendTest() {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  max-width: 760px;
 }
 
 .settings-card {

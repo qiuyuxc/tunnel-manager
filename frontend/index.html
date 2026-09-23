@@ -13,9 +13,10 @@
     (function () {
       var root = document.documentElement
       var visualTheme = localStorage.getItem('visual_theme')
-      var darkMode = localStorage.getItem('dark_mode') === 'true'
+      var darkMode = localStorage.getItem('dark_mode') !== 'false'
       root.setAttribute('data-visual-theme', visualTheme === 'warm' ? 'warm' : 'enterprise')
       root.setAttribute('data-theme', darkMode ? 'dark' : '')
+      root.setAttribute('data-effects', localStorage.getItem('light_effects') === 'true' ? 'light' : 'normal')
     })()
   </script>
 </head>
