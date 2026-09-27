@@ -16,7 +16,6 @@ export const useConfigStore = defineStore('config', () => {
     site_description: 'Cloudflare 隧道管理中心',
     site_icon: '',
     landing_enabled: false,
-    experimental_features_enabled: false,
   })
   const darkMode = ref(localStorage.getItem('dark_mode') !== 'false')
   const lightEffects = ref(localStorage.getItem('light_effects') === 'true')
@@ -24,7 +23,6 @@ export const useConfigStore = defineStore('config', () => {
   const visualTheme = ref<VisualTheme>(savedVisualTheme === 'warm' ? 'warm' : 'enterprise')
   const loading = ref(false)
   const landingEnabled = ref(false)
-  const experimentalFeatures = ref(false)
   const siteSettingsLoaded = ref(false)
   let siteSettingsPromise: Promise<void> | null = null
 
@@ -96,7 +94,6 @@ export const useConfigStore = defineStore('config', () => {
         config.value.site_description = data.description
         config.value.site_icon = data.icon
         landingEnabled.value = data.landing_enabled
-        experimentalFeatures.value = !!data.experimental_features_enabled
       } catch (_) {
         // Keep local defaults when the public endpoint is unavailable.
       } finally {
@@ -112,7 +109,6 @@ export const useConfigStore = defineStore('config', () => {
       const { data } = await getConfig()
       Object.assign(config.value, data)
       landingEnabled.value = !!data.landing_enabled
-      experimentalFeatures.value = !!data.experimental_features_enabled
       if (data.tunnel_id && !data.tunnel_name) {
         await resolveLegacyTunnelName(data.tunnel_id)
       }
@@ -121,10 +117,6 @@ export const useConfigStore = defineStore('config', () => {
     } finally {
       loading.value = false
     }
-  }
-
-  function setExperimentalFeatures(enabled: boolean) {
-    experimentalFeatures.value = enabled
   }
 
   function toggleDarkMode() {
@@ -194,9 +186,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   return {
-    config, darkMode, lightEffects, visualTheme, loading, landingEnabled, experimentalFeatures, siteSettingsLoaded,
+    config, darkMode, lightEffects, visualTheme, loading, landingEnabled, siteSettingsLoaded,
     token, username, nickname, avatar, email, displayName,
     role, permissions, isAuthenticated,
-    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, setExperimentalFeatures, toggleDarkMode, toggleVisualTheme, toggleLightEffects, setAuth, clearAuth,
+    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, toggleDarkMode, toggleVisualTheme, toggleLightEffects, setAuth, clearAuth,
   }
 })

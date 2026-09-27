@@ -254,7 +254,7 @@ final class Api {
             conn = (HttpURLConnection) new URL(base + path).openConnection();
             conn.setRequestMethod(method);
             conn.setConnectTimeout(10000);
-            conn.setReadTimeout(25000);
+            conn.setReadTimeout(path.startsWith("/api/assistant/") ? 180000 : 25000);
             conn.setRequestProperty("Accept", "application/json");
             String token = Session.token();
             if (!token.isEmpty()) conn.setRequestProperty("X-Auth-Token", token);

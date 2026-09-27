@@ -33,19 +33,17 @@ func (h *ConfigHandler) resolveUserID(r *http.Request) string {
 func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := h.store.GetConfig()
 	prefs := h.store.GetUserPrefs(h.resolveUserID(r))
-	app := h.store.GetAppSettings()
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"tunnel_id":                     prefs.TunnelID,
-		"tunnel_name":                   prefs.TunnelName,
-		"service_url":                   prefs.ServiceURL,
-		"preferred_cname":               cfg.PreferredCNAME,
-		"cname_presets":                 cfg.CNAMEPresets,
-		"site_name":                     cfg.SiteName,
-		"site_description":              cfg.SiteDescription,
-		"site_icon":                     cfg.SiteIcon,
-		"panel_host":                    cfg.PanelHost,
-		"landing_enabled":               cfg.LandingEnabled,
-		"experimental_features_enabled": app.ExperimentalFeatures,
+		"tunnel_id":        prefs.TunnelID,
+		"tunnel_name":      prefs.TunnelName,
+		"service_url":      prefs.ServiceURL,
+		"preferred_cname":  cfg.PreferredCNAME,
+		"cname_presets":    cfg.CNAMEPresets,
+		"site_name":        cfg.SiteName,
+		"site_description": cfg.SiteDescription,
+		"site_icon":        cfg.SiteIcon,
+		"panel_host":       cfg.PanelHost,
+		"landing_enabled":  cfg.LandingEnabled,
 	})
 }
 
@@ -53,11 +51,10 @@ func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 func (h *ConfigHandler) GetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := h.store.GetConfig()
 	writeJSON(w, http.StatusOK, models.SiteSettings{
-		Name:                 cfg.SiteName,
-		Description:          cfg.SiteDescription,
-		Icon:                 cfg.SiteIcon,
-		LandingEnabled:       cfg.LandingEnabled,
-		ExperimentalFeatures: h.store.GetAppSettings().ExperimentalFeatures,
+		Name:           cfg.SiteName,
+		Description:    cfg.SiteDescription,
+		Icon:           cfg.SiteIcon,
+		LandingEnabled: cfg.LandingEnabled,
 	})
 }
 

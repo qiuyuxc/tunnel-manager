@@ -6,7 +6,6 @@ const iconPaths = {
   link: '<path d="m10 13 4-4m-6 6-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 3 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0)"/>',
   dns: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M12 6.5h5M12 17.5h5"/>',
   server: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/>',
-  flask: '<path d="M9 3h6M10 3v7L5 19a1.4 1.4 0 0 0 1 2h12a1.4 1.4 0 0 0 1-2l-5-9V3M8 15h8"/>',
   settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--bg)"/><circle cx="15" cy="17" r="3" fill="var(--bg)"/>',
   send: '<path d="m21 3-7 18-4-7-7-4L21 3Zm0 0L10 14"/>',
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
@@ -52,7 +51,6 @@ const pages = [
   { id: 'monitors', name: '服务监控', icon: 'activity', group: '工作空间', route: '/monitors' },
   { id: 'domain', name: '域名绑定', icon: 'link', group: '网络', route: '/domain' },
   { id: 'dns', name: 'DNS 管理', icon: 'dns', group: '网络', route: '/dns' },
-  { id: 'lab', name: 'IP 优选实验室', icon: 'flask', group: '网络', route: '/lab/ip-selector' },
   { id: 'settings', name: '全局设置', icon: 'settings', group: '管理', route: '/settings' },
   { id: 'telegram', name: 'TG 机器人', icon: 'send', group: '管理', route: '/telegram' },
   { id: 'notifications', name: '通知设置', icon: 'bell', group: '管理', route: '/notifications' },
@@ -135,7 +133,7 @@ function sidebar() {
   const current = pages.find(page => page.id === state.page)
   const selected = current.parent || state.page
   const groups = ['工作空间', '网络', '管理']
-  const navItem = page => `<a class="nav-link ${page.id === selected ? 'active' : ''}" href="#${page.id}" ${page.id === selected ? 'aria-current="page"' : ''}>${icons(page.icon)}<span>${page.name}</span>${page.id === 'tunnels' ? `<span class="nav-count">${state.tunnels.length}</span>` : page.id === 'lab' ? '<span class="nav-count">实验</span>' : ''}</a>`
+  const navItem = page => `<a class="nav-link ${page.id === selected ? 'active' : ''}" href="#${page.id}" ${page.id === selected ? 'aria-current="page"' : ''}>${icons(page.icon)}<span>${page.name}</span>${page.id === 'tunnels' ? `<span class="nav-count">${state.tunnels.length}</span>` : ''}</a>`
   return `<button class="sidebar-backdrop" data-action="menu-close" aria-label="关闭导航"></button><aside class="sidebar" aria-label="主导航">${brand()}<button class="icon-btn drawer-close" data-action="menu-close" aria-label="关闭导航">${icons('close')}</button><button class="workspace-select" data-action="workspace"><span class="workspace-icon">${icons('server')}</span><span class="grow"><strong>Homelab 工作空间</strong><small>个人实例 · 管理员视角</small></span>${icons('chevron')}</button><nav class="nav-scroll">${groups.map(group => `<div class="nav-group"><span class="nav-caption">${group}</span>${pages.filter(page => page.group === group).map(navItem).join('')}</div>`).join('')}</nav><div class="sidebar-bottom">${pages.filter(page => page.group === '个人').map(navItem).join('')}<div class="sidebar-foot"><span class="row" style="gap:5px"><span class="dot accent"></span>示例实例</span><a href="#design">设计说明 ↗</a></div></div></aside>`
 }
 
@@ -257,10 +255,6 @@ function account() {
   return heading('账户设置', '管理身份，也守护每一次连接。', 'Personal / Account') + tabs(['个人资料', '登录与安全', 'Cloudflare 授权']) + `<div class="two-column"><div id="tab-content" role="tabpanel">${content}</div><aside class="stack"><section class="panel">${panelHead('账户概览')}${kv('账户', 'homelab')}${kv('角色', badge('管理员', '', false))}${kv('邮箱', '<span class="break">homelab@tunnel.example</span>')}${kv('当前环境', '隔离设计预览')}</section></aside></div>`
 }
 
-function lab() {
-  return heading('IP 优选实验室', '寻找更合适的连接线路。', 'Network / IP laboratory', badge('实验性 · 管理员', 'warn', false)) + `<div class="two-column"><div class="stack"><form class="panel form-panel" data-form="probe">${panelHead('探测配置')}<div class="stack">${selectField('IP 来源', 'source', ['Cloudflare IPv4', 'Cloudflare IPv6'])}<div class="equal-column">${field('并发数', 'concurrency', '16', '', 'number', 'min="1" max="64" required')}${field('超时（秒）', 'timeout', '2', '', 'number', 'min="1" max="30" required')}</div>${notice('这里只演示完成态，不发出探测流量。结果使用保留的示例 IP 地址。', 'neutral')}</div>${saveFooter('开始探测演示')}</form><section class="panel">${panelHead('优选结果', '上次探测的示例结果', badge('已完成', '', false))}${table(['IP 地址', '节点', '延迟', '丢包'], [['192.0.2.18', '香港', '21'], ['192.0.2.28', '香港', '24'], ['198.51.100.8', '东京', '38']].map(([ip, region, latency]) => `<tr><td class="mono">${ip}</td><td>${region}</td><td class="numeric accent">${latency} ms</td><td class="numeric">0%</td></tr>`).join(''), '3 条示例结果')}</section></div><aside class="stack"><section class="panel">${panelHead('自动化与 DNS')}${toggle('lab-auto', '定时优选', '按既有任务配置自动更新线路。', false)}<div class="setting-row"><div><strong>华为云 DNS</strong><p>沿用现有授权与记录更新流程。</p></div>${button('配置', 'settings', 'lab-config', 'small-btn')}</div></section><section class="panel">${panelHead('执行历史')}${kv('最近任务', '2026-09-22 10:00')}${kv('状态', badge('已完成'))}${kv('可用 IP', '23 / 256')}${kv('耗时', '18 秒')}</section></aside></div>`
-}
-
 function about() {
   return heading('关于与更新', '让连接更简单，让管理更从容。', 'Personal / About') + `<div class="two-column"><section class="panel form-panel"><div class="row" style="margin-bottom:28px"><span class="brand-mark" style="width:56px;height:56px;border-radius:18px">${icons('tunnel')}</span><div><h2 style="font-size:23px">Tunnel Manager</h2><p class="muted small">Cloudflare Tunnel 管理工具</p></div></div><p class="secondary">隧道、域名、监控与通知，在同一个工作空间里协作。</p><div class="mt">${kv('前端项目版本', '<code>2.6.0</code>')}${kv('版本来源', '<code>frontend/package.json</code>')}${kv('设计稿日期', '2026-09-22')}${kv('当前状态', badge('设计审核中', 'warn', false))}</div><div class="form-footer">${button('检查更新演示', 'refresh', 'update-check')}</div></section><aside class="stack"><section class="panel">${panelHead('本次设计')}${quickItem('book', '设计说明与审核', '查看规范、页面范围与验收项', 'design')}${quickItem('globe', '访客首页', '预览未登录时的产品入口', 'landing')}${quickItem('lock', '登录与安装', '预览身份验证和首次初始化', 'login')}</section></aside></div>`
 }
@@ -286,7 +280,7 @@ function setup() {
 }
 
 function design() {
-  return heading('同一种语言，更宽的工作空间。', 'Web 第一版设计提案 · 等待审核，不修改正式页面。', 'Design / Review 01', button('回到控制面板', 'arrow', 'goto-dashboard', 'primary')) + `<div class="two-column"><div class="stack"><section class="panel">${panelHead('01 / 视觉基因', '来自 design.md，经网页端适配')}<p class="secondary small">石墨底承载长期管理任务，薄荷绿留给主要动作与正常状态。实体面板承载正文、表格和图表；透光效果只用于移动导航与轻浮层。</p><div class="color-swatches mt">${[['页面', '#0B1211'], ['面板', '#151D1C'], ['嵌套表面', '#1E2625'], ['强调', '#6EDDAD']].map(([label, color]) => `<div><div class="swatch" style="background:${color}"></div><strong class="small">${label}</strong><div class="mono muted small">${color}</div></div>`).join('')}</div></section><section class="panel">${panelHead('02 / 从 App 到 Web')}${kv('宽屏导航', '固定侧栏，按工作空间 / 网络 / 管理分组')}${kv('移动导航', '概览 / 监控 / 新建 / DNS / 更多')}${kv('列表与详情', '桌面表格，详情页明确返回；长值完整展示')}${kv('组件轮廓', '22px 面板 / 14px 输入 / 胶囊按钮')}${kv('信息密度', '28px 页面标题 / 14px 正文 / 等宽技术字段')}${kv('主题与动效', '深浅主题 / 150ms 反馈 / 减少动态效果')}</section><section class="panel">${panelHead('03 / 审核重点')}<div class="stack-sm">${['控制面板信息层级：先连接配置，再监控健康与常用操作。', '隧道和 DNS 列表：桌面密度、长字段、筛选与操作入口。', '域名绑定流程：输入、预览确认、完成反馈和返回路径。', '全局设置与账户：管理权限和个人安全是否清楚区分。', '375px 手机宽度：底栏、更多导航、表单与横向表格。', '顶栏切换状态：空列表、加载、请求失败是否清楚。'].map(text => `<label class="checkbox-line"><input type="checkbox">${text}</label>`).join('')}</div></section></div><aside class="stack"><section class="panel">${panelHead('交付边界')}<p class="small secondary">20 个可切换视图，覆盖现有正式路由和设计说明。创建、修改、删除仅修改内存示例数据；刷新重置。</p><div class="mt">${notice('审核后才会将共同设计令牌和组件接入 Vue / Naive UI，再逐页更新。', 'neutral')}</div></section><section class="panel">${panelHead('页面索引')}${pages.filter(page => page.id !== 'design').map(page => `<a class="quick-item" href="#${page.id}" style="padding:9px 0"><span class="grow small">${page.name}</span>${icons('right')}</a>`).join('')}</section></aside></div>`
+  return heading('同一种语言，更宽的工作空间。', 'Web 第一版设计提案 · 等待审核，不修改正式页面。', 'Design / Review 01', button('回到控制面板', 'arrow', 'goto-dashboard', 'primary')) + `<div class="two-column"><div class="stack"><section class="panel">${panelHead('01 / 视觉基因', '来自 design.md，经网页端适配')}<p class="secondary small">石墨底承载长期管理任务，薄荷绿留给主要动作与正常状态。实体面板承载正文、表格和图表；透光效果只用于移动导航与轻浮层。</p><div class="color-swatches mt">${[['页面', '#0B1211'], ['面板', '#151D1C'], ['嵌套表面', '#1E2625'], ['强调', '#6EDDAD']].map(([label, color]) => `<div><div class="swatch" style="background:${color}"></div><strong class="small">${label}</strong><div class="mono muted small">${color}</div></div>`).join('')}</div></section><section class="panel">${panelHead('02 / 从 App 到 Web')}${kv('宽屏导航', '固定侧栏，按工作空间 / 网络 / 管理分组')}${kv('移动导航', '概览 / 监控 / 新建 / DNS / 更多')}${kv('列表与详情', '桌面表格，详情页明确返回；长值完整展示')}${kv('组件轮廓', '22px 面板 / 14px 输入 / 胶囊按钮')}${kv('信息密度', '28px 页面标题 / 14px 正文 / 等宽技术字段')}${kv('主题与动效', '深浅主题 / 150ms 反馈 / 减少动态效果')}</section><section class="panel">${panelHead('03 / 审核重点')}<div class="stack-sm">${['控制面板信息层级：先连接配置，再监控健康与常用操作。', '隧道和 DNS 列表：桌面密度、长字段、筛选与操作入口。', '域名绑定流程：输入、预览确认、完成反馈和返回路径。', '全局设置与账户：管理权限和个人安全是否清楚区分。', '375px 手机宽度：底栏、更多导航、表单与横向表格。', '顶栏切换状态：空列表、加载、请求失败是否清楚。'].map(text => `<label class="checkbox-line"><input type="checkbox">${text}</label>`).join('')}</div></section></div><aside class="stack"><section class="panel">${panelHead('交付边界')}<p class="small secondary">${pages.length} 个可切换视图，覆盖现有正式路由和设计说明。创建、修改、删除仅修改内存示例数据；刷新重置。</p><div class="mt">${notice('审核后才会将共同设计令牌和组件接入 Vue / Naive UI，再逐页更新。', 'neutral')}</div></section><section class="panel">${panelHead('页面索引')}${pages.filter(page => page.id !== 'design').map(page => `<a class="quick-item" href="#${page.id}" style="padding:9px 0"><span class="grow small">${page.name}</span>${icons('right')}</a>`).join('')}</section></aside></div>`
 }
 
 function emptyState(page, failed = false) {
@@ -294,7 +288,7 @@ function emptyState(page, failed = false) {
   return `<section class="panel empty-state">${icons(failed ? 'alert' : pages.find(item => item.id === page)?.icon || 'grid')}<h2>${failed ? '暂时无法加载数据' : config[0]}</h2><p>${failed ? '设计稿中的请求失败状态。正式页面保留已有数据与重试入口，不将错误展示为空列表。' : config[1]}</p>${button(failed ? '重试' : config[2], failed ? 'refresh' : 'plus', failed ? 'retry' : config[3], 'primary')}<span class="small muted">${failed ? 'REQUEST_FAILED · 演示错误' : '此为独立空状态演示，不会删除示例数据'}</span></section>`
 }
 
-const renderers = { dashboard, tunnels, 'tunnel-detail': tunnelDetail, monitors, 'monitor-detail': monitorDetail, domain: () => domain(false), 'domain-batch': () => domain(true), dns, settings, telegram, notifications, admin, account, lab, about, design }
+const renderers = { dashboard, tunnels, 'tunnel-detail': tunnelDetail, monitors, 'monitor-detail': monitorDetail, domain: () => domain(false), 'domain-batch': () => domain(true), dns, settings, telegram, notifications, admin, account, about, design }
 
 function render() {
   const pageId = location.hash.slice(1).split('?')[0] || 'dashboard'
@@ -468,7 +462,6 @@ function handleAction(action, element) {
   if (action === 'email-config') return showDialog('邮件通知', `<form data-form="email-config"><div class="stack">${field('收件邮箱', 'email', 'homelab@tunnel.example', '只演示配置，不发送邮件。', 'email', 'required')}</div>${saveFooter()}</form>`)
   if (action === 'webhook-config') return showDialog('Webhook 配置', `<form data-form="webhook-config"><div class="stack">${field('Webhook 地址', 'url', 'https://hooks.tunnel.example/notify', '不会发起网络请求。', 'url', 'required')}</div>${saveFooter()}</form>`)
   if (action === 'new-user' || action === 'manage-user') return showDialog(action === 'new-user' ? '添加示例用户' : '管理用户', `<form data-form="user"><div class="stack">${field('用户名', 'username', element.dataset.id || '', '', 'text', 'required')}${selectField('角色', 'role', ['成员', '只读', '管理员'])}${notice('此处仅演示权限编辑，不改变真实用户或授权。', 'neutral')}</div>${saveFooter('确认演示')}</form>`)
-  if (action === 'lab-config') return showDialog('自动化与华为云 DNS', `<form data-form="lab-config"><div class="stack">${field('记录名称', 'record', 'edge.tunnel.example')}${selectField('执行周期', 'schedule', ['每 6 小时', '每天'])}${notice('正式接入使用已有授权配置；设计稿不收集云账户密钥。', 'neutral')}</div>${saveFooter()}</form>`)
   if (action === 'telegram-test' || action === 'notification-test') return showDialog('测试通知已模拟', `<div class="status-summary">${icons('circlecheck')}<div><strong>发送结果反馈示例</strong><p>没有向任何真实渠道发送消息。</p></div></div><p class="secondary small">正式页面会区分渠道未配置、发送成功与服务端错误，不以统一成功提示掩盖失败。</p>`)
   if (action === 'update-check') return showDialog('更新检查演示', `${kv('当前前端版本', '2.6.0')}${kv('检查状态', '未请求远程版本源')}<p class="small secondary mt">设计稿不能判断是否存在更新。正式页面继续显示真实版本与检查结果。</p>`)
   if (action === 'confirm-bind') {
@@ -610,7 +603,6 @@ document.addEventListener('submit', event => {
   if (type === 'login') return handleAction('two-factor', form)
   if (type === 'two-factor') { location.hash = 'dashboard'; render(); return toast('验证流程演示完成，未创建真实会话。') }
   if (type === 'setup') { location.hash = 'login'; return toast('初始化演示完成，未创建真实账户。') }
-  if (type === 'probe') return showDialog('示例探测完成', `<div class="status-summary">${icons('circlecheck')}<div><strong>找到 23 个可用 IP</strong><p>256 个示例地址 · 模拟耗时 18 秒</p></div></div><p class="small muted">页面结果为固定示例，没有产生真实探测流量。</p>`)
   rememberDrafts()
   if (type === 'monitor-settings') {
     const monitor = state.monitors.find(item => item.id === state.monitorId)

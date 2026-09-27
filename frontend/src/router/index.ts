@@ -4,7 +4,6 @@ import Login from '../views/Login.vue'
 import Landing from '../views/Landing.vue'
 import { useConfigStore } from '../stores/config'
 import { setupStatus } from '../api/setup'
-import LabIPSelector from '../views/LabIPSelector.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,8 +22,8 @@ const router = createRouter({
     { path: '/domain', name: 'domain', component: () => import('../views/DomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/domain/batch', name: 'domain-batch', component: () => import('../views/BatchDomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/dns', name: 'dns', component: () => import('../views/DNSManagement.vue'), meta: { requiresAuth: true } },
-    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: LabIPSelector, meta: { requiresAuth: true, requiresAdmin: true, requiresExperimental: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
+    { path: '/assistant', name: 'assistant', component: () => import('../views/Assistant.vue'), meta: { requiresAuth: true } },
     { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
     { path: '/notifications', name: 'notifications', component: () => import('../views/Notifications.vue'), meta: { requiresAuth: true } },
@@ -59,9 +58,6 @@ router.beforeEach(async (to, from) => {
     return store.landingEnabled ? '/' : '/login'
   }
   if (to.meta.requiresAdmin && !store.isAdmin()) {
-    return '/dashboard'
-  }
-  if (to.meta.requiresExperimental && !store.experimentalFeatures) {
     return '/dashboard'
   }
   if (to.path === '/login' && store.isAuthenticated) {

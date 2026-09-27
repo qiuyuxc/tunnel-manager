@@ -163,18 +163,6 @@
       </div>
 
       <div class="admin-card">
-        <h3>实验性功能</h3>
-        <p class="admin-hint">开启后，管理员侧边栏会显示“IP 优选实验室”。该功能允许直连指定 IP 段探测 Host/SNI 可用性与延迟，并可选择自动更新华为云 DNS。关闭后入口与 API 均不暴露。</p>
-        <div class="setting-row">
-          <span class="setting-label">开启实验性功能</span>
-          <n-switch v-model:value="experimentalFeatures" size="small" @update:value="saveSettings">
-            <template #checked>开启</template>
-            <template #unchecked>关闭</template>
-          </n-switch>
-        </div>
-      </div>
-
-      <div class="admin-card">
         <h3>审计日志</h3>
         <p class="admin-hint">记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道、域名绑定、DNS 记录与服务监控。只读浏览不计入，可在「审计日志」标签页按用户、操作类型与时间范围筛选。</p>
         <div class="setting-row">
@@ -401,7 +389,7 @@ const configStore = useConfigStore()
 const users = ref<UserView[]>([])
 const groups = ref<UserGroup[]>([])
 const invites = ref<Invite[]>([])
-const settings = ref<AppSettings>({ registration_enabled: true, invite_mode: 'off', default_group_id: '', experimental_features_enabled: false })
+const settings = ref<AppSettings>({ registration_enabled: true, invite_mode: 'off', default_group_id: '' })
 const turnstile = ref({ enabled: false, site_key: '' })
 const turnstileSecret = ref('')
 const turnstileHasSecret = ref(false)
@@ -429,10 +417,6 @@ const regOpen = computed({
 const passwordLoginOff = computed({
   get: () => !!settings.value.password_login_disabled,
   set: (v: boolean) => { settings.value.password_login_disabled = v },
-})
-const experimentalFeatures = computed({
-  get: () => !!settings.value.experimental_features_enabled,
-  set: (v: boolean) => { settings.value.experimental_features_enabled = v },
 })
 const emailVerify = computed({
   get: () => !settings.value.email_verify_disabled,
@@ -649,7 +633,6 @@ function removeInvite(invite: Invite) {
 function saveSettings() {
   void run(async () => {
     await updateAppSettings(settings.value)
-    configStore.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
   }, '设置已保存')
 }
 
@@ -661,7 +644,6 @@ function saveTurnstile() {
     invite_mode: settings.value.invite_mode,
     default_group_id: settings.value.default_group_id || '',
     email_verify_disabled: !!settings.value.email_verify_disabled,
-    experimental_features_enabled: !!settings.value.experimental_features_enabled,
     turnstile_enabled: turnstile.value.enabled,
     turnstile_site_key: turnstile.value.site_key.trim(),
   }
@@ -847,4 +829,3 @@ async function sendTestMail() {
 .audit-pager { display: flex; align-items: center; gap: 10px; margin-top: var(--spacing-sm); flex-wrap: wrap; }
 @media (max-width: 640px) { .audit-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
-

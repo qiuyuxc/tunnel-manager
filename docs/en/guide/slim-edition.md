@@ -20,9 +20,9 @@ Teams that need multiple users, group permissions, an admin console, or Telegram
 | Administrator audit log | Cloudflare OAuth (PKCE, multi-account) and static token |
 | Telegram bot **remote control** (operating tunnels / DNS via commands) | Telegram **notifications** (outbound alerts only — a separate token from remote control) |
 
-The system-configuration cards that used to live in the admin console — SMTP, the Cloudflare OAuth client, the app encryption key, passkey relying party / origins, login rate limiting, Turnstile, and the experimental-features switch — all move into the in-panel **Global settings** page. The endpoints are unchanged; they simply no longer need an admin-only entry.
+The system-configuration cards that used to live in the admin console — SMTP, the Cloudflare OAuth client, the app encryption key, passkey relying party / origins, login rate limiting, and Turnstile — all move into the in-panel **Global settings** page. The endpoints are unchanged; they simply no longer need an admin-only entry.
 
-Tunnel management, domain binding (including batch), DNS management, the IP optimizer lab, service monitoring and public status pages, and email alerts are all identical to the full edition.
+Tunnel management, domain binding (including batch), DNS management, service monitoring and public status pages, and email alerts are all identical to the full edition.
 
 ## Deployment
 

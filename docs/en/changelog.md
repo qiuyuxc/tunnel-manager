@@ -2,6 +2,14 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## Unreleased
+
+- Added the Web/native Android AI assistant with a plus-menu entry, isolated conversations, personal or administrator-shared connections, encrypted keys and Chat Completions-compatible calls
+- Added approval-gated tunnel creation, direct domain binding, DNS creation, private monitors and HTTP targets, with existing permissions/audit and pending-task pause, cancellation and verified retry
+
+- Removed the IP optimizer lab, its Web / Android entry points, probe and scheduling APIs, automatic Huawei Cloud DNS updates, and dedicated experimental-features switch; regular DNS management and preferred domain binding are unchanged
+- Upgrades stop reading and writing legacy lab settings and run history without automatically deleting existing database records
+
 ## v2.6.0
 
 - The native Android interface adopts graphite and mint colors, with updated sign-in, panels, buttons and floating navigation, while keeping light/dark themes and reduced effects

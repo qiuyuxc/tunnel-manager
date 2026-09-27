@@ -41,10 +41,10 @@ public class AdminFragment extends PageFragment {
     /** Audit categories, mirroring the web panel's filter list. */
     private static final String[] AUDIT_CATEGORIES = {
             "", "auth", "passkey", "user", "group", "invite", "settings",
-            "tunnel", "domain", "dns", "monitor", "lab", "telegram"};
+            "tunnel", "domain", "dns", "monitor", "telegram"};
     private static final String[] AUDIT_CATEGORY_LABELS = {
             "全部", "登录认证", "通行密钥", "用户管理", "用户组", "邀请码", "系统设置",
-            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "IP 优选实验室", "TG 机器人"};
+            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "TG 机器人"};
     private static final String[] AUDIT_RANGE_LABELS = {"全部", "今天", "近 7 天", "近 30 天"};
     private static final String[] AUDIT_ACTIONS = {
             "login", "login_failed", "logout",
@@ -61,7 +61,7 @@ public class AdminFragment extends PageFragment {
             "dns_create", "dns_update", "dns_delete",
             "monitor_create", "monitor_update", "monitor_delete", "monitor_check",
             "target_add", "target_update", "target_delete",
-            "lab_settings_update", "lab_run", "telegram_endpoint_update"};
+            "telegram_endpoint_update"};
     private static final String[] AUDIT_ACTION_LABELS = {
             "登录成功", "登录失败", "退出登录",
             "绑定通行密钥", "删除通行密钥", "重命名通行密钥", "通行密钥登录", "通行密钥登录失败",
@@ -77,7 +77,7 @@ public class AdminFragment extends PageFragment {
             "新增 DNS 记录", "修改 DNS 记录", "删除 DNS 记录",
             "创建监控项目", "修改监控项目", "删除监控项目", "手动检测监控",
             "新增监控目标", "修改监控目标", "删除监控目标",
-            "修改实验室设置", "执行 IP 优选", "修改 TG API 端点"};
+            "修改 TG API 端点"};
     private static final String[] INVITE_MODES = {"off", "optional", "required"};
     private static final String[] INVITE_LABELS = {"关闭", "选填", "必填"};
     private static final String[] PERMISSIONS = {"tunnels", "domain_bind", "dns", "monitors", "oauth_connect"};
@@ -1050,7 +1050,6 @@ public class AdminFragment extends PageFragment {
     private void settingsTab() {
         body.addView(registrationCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
-        body.addView(experimentalCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(turnstileCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
@@ -1175,21 +1174,6 @@ public class AdminFragment extends PageFragment {
         card.addView(picker("默认用户组", defaulted(groupName(settings.optString("default_group_id", ""))),
                 this::pickDefaultGroup));
         UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.MD, 0, 0);
-        return card;
-    }
-
-    private View experimentalCard() {
-        LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "实验性功能"));
-        TextView hint = UI.muted(requireContext(),
-                "开启后，管理员侧边栏会显示「IP 优选实验室」。关闭后入口与 API 均不暴露。");
-        UI.margin(hint, 0, UI.XS, 0, UI.MD);
-        card.addView(hint);
-        UI.addRow(card, toggleRow("开启实验性功能",
-                settings.optBoolean("experimental_features_enabled", false), true, next -> {
-                    settingsPut("experimental_features_enabled", next);
-                    saveSettings();
-                }), 0);
         return card;
     }
 

@@ -1,12 +1,16 @@
 # Android app
 
+The center plus menu includes a native assistant alongside tunnel creation and domain binding. It supports isolated conversations, personal/admin-shared connections, task selection and approval, pause/resume and verified retry. Shared endpoints and keys are not exposed to regular users. See [AI assistant](./ai-assistant.md) for supported tasks and limits.
+
+Confirmation cards appear directly in the conversation, and the pending-task button jumps to them. Input starts with one line and grows to four, with Send alongside it. The assistant's bottom navigation yields to the keyboard and returns when it closes. Privacy details open on demand; sharing resource information still requires explicit consent. Connections support HTTP/HTTPS and self-hosted endpoints, where localhost refers to the backend host, not necessarily the phone.
+
 A native Android client for the same panel. The backend is still the same REST API — the app just puts the console on your phone, and the web UI is unaffected.
 
 The app is currently built from source (`android/` in the repository); no APK ships with GitHub Releases yet.
 
 ## What it does
 
-- Overview, monitoring, tunnels, domain binding, DNS, the IP optimizer lab, the Telegram bot, notifications, the admin console, global settings, account and About are all native screens
+- Overview, monitoring, tunnels, domain binding, DNS, the Telegram bot, notifications, the admin console, global settings, account and About are all native screens
 - On narrow screens the app uses a bottom tab bar (Overview / Monitoring / DNS / More) plus half-sheet panels, so long forms no longer squeeze sideways
 - The login screen is native, with Cloudflare Turnstile embedded in the same page — no bounce to a browser at any point
 - Monitor state changes reach the phone through the system notification channel, with no web page kept open

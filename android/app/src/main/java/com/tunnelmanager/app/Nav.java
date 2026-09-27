@@ -23,12 +23,11 @@ final class Nav {
         final Group group;
         final String perm;
         final boolean admin;
-        final boolean experimental;
         /** Set for pages the native shell can already render itself. */
         final boolean nativePage;
 
         Item(String path, String label, String tabLabel, int icon, Group group,
-             String perm, boolean admin, boolean experimental, boolean nativePage) {
+             String perm, boolean admin, boolean nativePage) {
             this.path = path;
             this.label = label;
             this.tabLabel = tabLabel == null ? label : tabLabel;
@@ -36,7 +35,6 @@ final class Nav {
             this.group = group;
             this.perm = perm;
             this.admin = admin;
-            this.experimental = experimental;
             this.nativePage = nativePage;
         }
     }
@@ -47,18 +45,18 @@ final class Nav {
         // `nativePage` is the porting switchboard: flip one to true as its
         // native page lands, and everything still false keeps opening the web
         // console, so the app is never half-broken.
-        ALL.add(new Item("/dashboard", "控制面板", "概览", R.drawable.ic_nav_dashboard, Group.NETWORK, null, false, false, true));
-        ALL.add(new Item("/tunnels", "隧道管理", null, R.drawable.ic_nav_tunnels, Group.NETWORK, "tunnels", false, false, true));
-        ALL.add(new Item("/monitors", "服务监控", "监控", R.drawable.ic_nav_monitor, Group.NETWORK, "monitors", false, false, true));
-        ALL.add(new Item("/domain", "域名绑定", null, R.drawable.ic_nav_domain, Group.NETWORK, "domain_bind", false, false, true));
-        ALL.add(new Item("/dns", "DNS 管理", null, R.drawable.ic_nav_dns, Group.NETWORK, "dns", false, false, true));
-        ALL.add(new Item("/lab/ip-selector", "IP 优选实验室", null, R.drawable.ic_nav_lab, Group.NETWORK, null, true, true, true));
-        ALL.add(new Item("/settings", "全局设置", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, false, true));
-        ALL.add(new Item("/telegram", "TG 机器人", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, false, true));
-        ALL.add(new Item("/admin", "管理后台", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, false, true));
-        ALL.add(new Item("/notifications", "通知", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, false, true));
-        ALL.add(new Item("/account", "账户", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, false, true));
-        ALL.add(new Item("/about", "关于", null, R.drawable.ic_nav_about, Group.PERSONAL, null, false, false, true));
+        ALL.add(new Item("/dashboard", "控制面板", "概览", R.drawable.ic_nav_dashboard, Group.NETWORK, null, false, true));
+        ALL.add(new Item("/tunnels", "隧道管理", null, R.drawable.ic_nav_tunnels, Group.NETWORK, "tunnels", false, true));
+        ALL.add(new Item("/monitors", "服务监控", "监控", R.drawable.ic_nav_monitor, Group.NETWORK, "monitors", false, true));
+        ALL.add(new Item("/domain", "域名绑定", null, R.drawable.ic_nav_domain, Group.NETWORK, "domain_bind", false, true));
+        ALL.add(new Item("/dns", "DNS 管理", null, R.drawable.ic_nav_dns, Group.NETWORK, "dns", false, true));
+        ALL.add(new Item("/settings", "全局设置", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, true));
+        ALL.add(new Item("/telegram", "TG 机器人", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/assistant", "AI 助手", null, R.drawable.ic_nav_assistant, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/admin", "管理后台", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, true));
+        ALL.add(new Item("/notifications", "通知", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/account", "账户", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, true));
+        ALL.add(new Item("/about", "关于", null, R.drawable.ic_nav_about, Group.PERSONAL, null, false, true));
     }
 
     /** Phone tab bar order; the create button sits between the second and third. */
@@ -70,7 +68,6 @@ final class Nav {
     static List<Item> visible() {
         List<Item> out = new ArrayList<>();
         for (Item item : ALL) {
-            if (item.experimental && !Session.experimental()) continue;
             if (item.admin && !Session.isAdmin()) continue;
             if (item.perm != null && !Session.hasPerm(item.perm)) continue;
             out.add(item);

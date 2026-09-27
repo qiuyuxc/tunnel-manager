@@ -1,5 +1,25 @@
 # API 参考
 
+## AI 助手
+
+助手接口需要真实用户会话 `X-Auth-Token`，不接受静态 API Key 作为会话所有者。会话与任务仅向所属用户开放，管理员共享连接不会共享历史。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/assistant/settings` | 有效模式与配置状态，密钥不返回；普通用户在共享模式下看不到共享端点 |
+| PUT | `/api/assistant/settings` | 保存 `scope: personal/shared`、`endpoint`、`model`、`api_key`；共享范围仅管理员可写，可附 `shared_enabled` |
+| GET | `/api/assistant/conversations` | 本人会话、消息与任务 |
+| POST | `/api/assistant/conversations` | 新建会话 |
+| DELETE | `/api/assistant/conversations/{conversationID}` | 删除会话记录，不删除业务资源；执行中禁止删除 |
+| POST | `/api/assistant/conversations/{conversationID}/messages` | `message` 与 `include_resources`，调用模型并保存回复及待确认任务，不执行写操作 |
+| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action` 为 `execute`、`pause`、`resume`、`cancel`、`retry` |
+
+`execute` 必须提供 `confirmed: true`。`retry` 仅适用于 `unknown` 状态，必须同时提供 `confirmed: true` 与 `checked_resources: true`，表示已核对真实资源。参数从服务端保存的任务读取，不接受客户端替换参数。已完成或正在执行的任务不可重复执行。任务接口的 HTTP 200 表示状态已保存，执行成功须看 `status: succeeded`，不能只看 HTTP 状态码。
+
+详情及限制见 [AI 助手](../guide/ai-assistant.md)。
+
+## 通用鉴权
+
 所有接口均以 `/api` 为前缀。鉴权方式：
 
 - **用户会话**：登录后获得 `X-Auth-Token`，所有受保护接口接受
@@ -92,7 +112,7 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret）、实验性功能开关、审计日志保留天数（`audit_retention_days`）、通行密钥依赖方（`passkey_rp_id` / `passkey_origins`）、全局禁用密码登录（`password_login_disabled`）与登录限流（`rate_limit_enabled`、`rate_limit_per_account`、`rate_limit_per_ip`、`rate_limit_window_minutes`、`rate_limit_familiar_multiplier`、`rate_limit_notify`）；省略字段保持原值 |
+| GET / PUT | `/api/admin/settings` | 注册开关、邀请码模式、默认用户组、邮箱验证开关、人机验证（Turnstile Site Key / Secret）、审计日志保留天数（`audit_retention_days`）、通行密钥依赖方（`passkey_rp_id` / `passkey_origins`）、全局禁用密码登录（`password_login_disabled`）与登录限流（`rate_limit_enabled`、`rate_limit_per_account`、`rate_limit_per_ip`、`rate_limit_window_minutes`、`rate_limit_familiar_multiplier`、`rate_limit_notify`）；省略字段保持原值 |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth 客户端（Client ID / Secret / 回调 / Scopes），优先于环境变量 |
 | GET / PUT | `/api/admin/encryption-key` | 应用加密密钥（环境变量优先；更换后需重启） |
 | GET / PUT | `/api/admin/smtp` | SMTP 邮件服务（加密 / 不加密两种模式） |
@@ -100,7 +120,7 @@
 
 ### 审计日志
 
-记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道与隧道规则、域名绑定、DNS 记录、监控项目与目标、IP 优选实验室。只读浏览不计入。保留时长在系统设置中配置，超期日志每小时自动清理。
+记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道与隧道规则、域名绑定、DNS 记录、监控项目与目标。只读浏览不计入。保留时长在系统设置中配置，超期日志每小时自动清理。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -134,17 +154,6 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/.well-known/assetlinks.json` | Android 数字资产链接：包名与 SHA-256 签名指纹取自系统设置（`passkey_android_package` / `passkey_android_fingerprints`，留空时用仓库共用调试密钥的指纹）；没有有效指纹时返回 404 而不是错误内容 |
-
-## IP 优选实验室（实验性）
-
-默认关闭；关闭时以下接口返回 `404`。Secret Key 仅写入加密存储，响应中只返回是否已配置。
-
-| 方法 | 路径 | 说明 | 鉴权 |
-| --- | --- | --- | --- |
-| GET | `/api/lab/ip-selector` | 获取探测、定时任务与华为云 DNS 配置 | 管理员 |
-| PUT | `/api/lab/ip-selector` | 保存配置；`secret_key` 留空表示保持不变 | 管理员 |
-| GET | `/api/lab/ip-selector/status` | 获取运行状态、实时进度与执行历史 | 管理员 |
-| POST | `/api/lab/ip-selector/run` | 触发一次异步执行；已有任务运行时返回 `409` | 管理员 |
 
 ## Cloudflare OAuth
 

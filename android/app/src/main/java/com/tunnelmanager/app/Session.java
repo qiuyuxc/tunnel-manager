@@ -24,7 +24,6 @@ final class Session {
     private static String nickname = "";
     private static String avatar = "";
     private static String siteName = "";
-    private static boolean experimental = false;
 
     private Session() {
     }
@@ -69,10 +68,6 @@ final class Session {
         return "admin".equals(role());
     }
 
-    static boolean experimental() {
-        return experimental;
-    }
-
     static boolean hasPerm(String perm) {
         return isAdmin() || permissions.contains(perm);
     }
@@ -101,11 +96,6 @@ final class Session {
         if (me.has("avatar")) avatar = me.optString("avatar", "");
         String site = me.has("site_name") ? me.optString("site_name", "") : me.optString("name", "");
         if (!site.isEmpty()) siteName = site;
-        if (me.has("experimental_features_enabled")) {
-            experimental = me.optBoolean("experimental_features_enabled", false);
-        } else if (me.has("experimental_features")) {
-            experimental = me.optBoolean("experimental_features", false);
-        }
         if (me.has("username")) {
             prefs.edit().putString("username", me.optString("username", "")).apply();
         }

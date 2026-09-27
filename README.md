@@ -17,14 +17,14 @@ A web control panel for Cloudflare Tunnel, plus a native Android client. Create 
 | Tunnels | Create and delete tunnels, add/edit/remove ingress rules, optionally clean up DNS on delete | [Tunnels & routing](https://docs.kukie.cn/en/guide/tunnels) |
 | Domain binding | Two modes — direct CNAME and SaaS custom hostname — with per-group settings for batch binding | [Binding modes](https://docs.kukie.cn/en/guide/domain-binding) · [Batch binding](https://docs.kukie.cn/en/guide/batch-binding) |
 | DNS | Full CRUD for A / AAAA / CNAME / TXT / MX with TTL, proxy status, MX priority and bulk edits | [DNS records](https://docs.kukie.cn/en/guide/dns-management) |
-| IP optimizer lab | Experimental direct probes by Host / SNI and status code, with live progress, per-segment hit statistics, one-click removal of missed ranges and optional Huawei Cloud DNS updates | [IP optimizer lab](https://docs.kukie.cn/en/guide/lab-ip-selector) |
 | Monitoring | HTTP / TCP / ICMP probes, several targets per monitor, seven-day latency bars | [Service monitoring](https://docs.kukie.cn/en/guide/monitors-status) |
 | Email alerts | Notifies on status transitions only, with SMTP configured from the UI | [Email & alerts](https://docs.kukie.cn/en/guide/email-alerts) |
 | Multi-user | Email registration, group permissions, users and invite codes managed from the admin console | [Multi-user & admin](https://docs.kukie.cn/en/guide/multi-user) |
 | Public status page | Share without login; short paths, custom domains, direct-tunnel or optimized CNAME access, and a custom domain only exposes its own page | [Public status page](https://docs.kukie.cn/en/guide/monitors-status#public-status-page) |
 | Cloudflare connection | OAuth 2.0 with PKCE and automatic token refresh, multiple accounts; static API tokens still work | [OAuth connection](https://docs.kukie.cn/en/guide/cloudflare-oauth) |
 | Telegram bot | Manage tunnels, bindings and DNS records remotely, with confirmation before deletes | [Telegram bot](https://docs.kukie.cn/en/guide/telegram-bot) |
-| Android app | Native client for the same API: overview, monitoring, tunnels, DNS, the IP lab and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
+| AI assistant | Personal/shared model connections with approval-gated tunnel, direct binding, DNS and monitor tasks | [AI assistant](docs/en/guide/ai-assistant.md) |
+| Android app | Native client for the same API: overview, monitoring, tunnels, DNS and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
 | Security | Argon2id password hashing, TOTP two-factor auth and one-time recovery codes | [Security & admin auth](https://docs.kukie.cn/en/guide/security) |
 
 ## Architecture

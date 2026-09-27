@@ -652,6 +652,7 @@ func (s *Store) DeleteUser(id string) error {
 		}
 		return err
 	}
+	delete(s.assistant.Users, id)
 	// Bound passkeys and learned networks are stored outside the cached
 	// configuration, so they are removed explicitly once the account is really
 	// gone.

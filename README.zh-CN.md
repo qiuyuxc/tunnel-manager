@@ -17,14 +17,14 @@ Cloudflare Tunnel 可视化管理面板，附带原生 Android 客户端。通�
 | 隧道管理 | 新建 / 删除隧道，Ingress 路由增删改，删除可联动清理 DNS | [隧道管理与路由](https://docs.kukie.cn/guide/tunnels) |
 | 域名绑定 | 简化直连与 SaaS 优选双模式，批量绑定逐组独立配置 | [域名绑定模式](https://docs.kukie.cn/guide/domain-binding) · [批量绑定](https://docs.kukie.cn/guide/batch-binding) |
 | DNS 管理 | A / AAAA / CNAME / TXT / MX 增删改查，TTL、代理状态与优先级，支持批量操作 | [DNS 记录管理](https://docs.kukie.cn/guide/dns-management) |
-| IP 优选实验室 | 实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，实时进度、分段统计、一键剔除未命中段，可选自动更新华为云 DNS | [IP 优选实验室](https://docs.kukie.cn/guide/lab-ip-selector) |
 | 服务监控 | HTTP / TCP / ICMP 探测，多目标挂载，近 7 天延迟柱图 | [服务监控](https://docs.kukie.cn/guide/monitors-status) |
 | 邮件告警 | 服务状态变化时自动发送邮件通知，SMTP 可视化配置 | [邮件服务与告警](https://docs.kukie.cn/guide/email-alerts) |
 | 多用户 | 邮箱注册、用户组权限、管理后台统一管理用户与邀请码 | [多用户与管理后台](https://docs.kukie.cn/guide/multi-user) |
 | 公开状态页 | 免登录分享，支持短路径、自定义域名、直连 Tunnel 与优选 CNAME，自定义域名仅开放对应状态页 | [公开状态页](https://docs.kukie.cn/guide/monitors-status#公开状态页) |
 | Cloudflare 连接 | OAuth 2.0（PKCE）自动刷新令牌，多账户切换；兼容静态 Token | [OAuth 连接](https://docs.kukie.cn/guide/cloudflare-oauth) |
 | Telegram Bot | 远程管理隧道、绑定与 DNS 记录，删除二次确认 | [Telegram Bot](https://docs.kukie.cn/guide/telegram-bot) |
-| Android App | 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS、IP 优选实验室与通知，底部标签导航 + 系统通知 | [Android App](https://docs.kukie.cn/guide/android-app) |
+| AI 助手 | 个人 / 全站共享模型连接，先确认再创建隧道、直连绑定、DNS 与监控任务 | [AI 助手](docs/guide/ai-assistant.md) |
+| Android App | 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS 与通知，底部标签导航 + 系统通知 | [Android App](https://docs.kukie.cn/guide/android-app) |
 | 安全 | Argon2id 密码哈希、TOTP 双因素验证与一次性恢复码 | [安全与管理员认证](https://docs.kukie.cn/guide/security) |
 
 ## 架构

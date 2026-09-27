@@ -158,7 +158,6 @@ func main() {
 	// Service monitoring heartbeat storage and scheduler
 	heartbeatLog := services.NewHeartbeatLog(filepath.Join(dataDir, "heartbeats.json"))
 	monitorRunner := services.NewRunner(st, heartbeatLog)
-	labRunner := services.NewLabIPSelectorRunner(st, encryptionKey)
 	monitorRunner.SetMailer(func() *services.Mailer {
 		settings := st.GetSMTPSettings()
 		if !settings.Configured() || settings.Password == "" {
@@ -172,7 +171,6 @@ func main() {
 		return services.NewMailer(settings, string(plain))
 	})
 	go monitorRunner.Start(context.Background())
-	go labRunner.Start(context.Background())
 	go pruneAuditLogsLoop(st)
 	heartbeatLog.StartFlusher(10 * time.Second)
 
@@ -191,7 +189,6 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
-	labHandler := handlers.NewLabHandler(st, labRunner, encryptionKey)
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
 	userTelegramManager := services.NewUserTelegramManager(st, cf, domainService, encryptionKey)
 	telegramHandler := handlers.NewTelegramHandler(st, telegramBot, userTelegramManager, encryptionKey)
@@ -284,6 +281,21 @@ func main() {
 		// audit records one entry per mutating request once the handler
 		// returns; read-only routes are left unwrapped.
 		audit := mw.Audit
+		assistantActions := map[string]http.HandlerFunc{
+			"create_tunnel":      mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelCreate, nil, tunnelHandler.CreateTunnel)),
+			"create_dns_record":  mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSCreate, nil, dnsHandler.Create)),
+			"create_monitor":     mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCreate, nil, monitorsHandler.Create)),
+			"add_monitor_target": mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetAdd, mw.MonitorTarget("monitorID"), monitorsHandler.AddTarget)),
+		}
+		assistantHandler := handlers.NewAssistantHandler(st, encryptionKey, assistantActions)
+		assistantActions["bind_domain"] = mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBind, nil, assistantHandler.BindDomain))
+		r.Get("/assistant/settings", mw.Auth(assistantHandler.Settings))
+		r.Put("/assistant/settings", mw.Auth(audit(models.AuditCategorySettings, "assistant_settings_update", nil, assistantHandler.SaveSettings)))
+		r.Get("/assistant/conversations", mw.Auth(assistantHandler.Conversations))
+		r.Post("/assistant/conversations", mw.Auth(assistantHandler.NewConversation))
+		r.Delete("/assistant/conversations/{conversationID}", mw.Auth(assistantHandler.DeleteConversation))
+		r.Post("/assistant/conversations/{conversationID}/messages", mw.Auth(assistantHandler.Chat))
+		r.Post("/assistant/conversations/{conversationID}/tasks/{taskID}", mw.Auth(assistantHandler.TaskAction))
 		pathParam := handlers.PathParam
 		r.Route("/admin", func(r chi.Router) {
 			r.Get("/users", adminOnly(managementHandler.ListUsers))
@@ -357,12 +369,6 @@ func main() {
 
 		// Service health monitoring
 		r.Get("/monitor/services", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorHandler.ServiceStatus)))
-
-		// Experimental lab (administrator only)
-		r.Get("/lab/ip-selector", adminOnly(labHandler.GetSettings))
-		r.Put("/lab/ip-selector", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabSettingsUpdate, nil, labHandler.SaveSettings)))
-		r.Get("/lab/ip-selector/status", adminOnly(labHandler.GetStatus))
-		r.Post("/lab/ip-selector/run", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabRun, nil, labHandler.Run)))
 
 		// Monitor projects (uptime-style)
 		r.Get("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.List)))

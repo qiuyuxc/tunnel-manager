@@ -1,5 +1,24 @@
 # API reference
 
+## AI assistant
+
+Assistant endpoints require a real user session through `X-Auth-Token`, not a static API key. Conversation ownership is enforced independently of shared provider settings.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/assistant/settings` | Effective mode and configuration status; keys are never returned |
+| PUT | `/api/assistant/settings` | Save `scope`, `endpoint`, `model`, `api_key`; `shared` scope and its `shared_enabled` flag are administrator-only |
+| GET / POST | `/api/assistant/conversations` | List owned conversations / create a conversation |
+| DELETE | `/api/assistant/conversations/{conversationID}` | Delete history, not business resources; unavailable while a task runs |
+| POST | `/api/assistant/conversations/{conversationID}/messages` | Submit `message` and `include_resources`; generate replies and pending tasks without executing writes |
+| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action`: `execute`, `pause`, `resume`, `cancel` or `retry` |
+
+Execution requires `confirmed: true`. Retry additionally requires `checked_resources: true` and an `unknown` task status. Arguments come from the stored task and cannot be replaced by the client. Completed or in-flight tasks cannot execute again. HTTP 200 means the task state was saved; check for `status: succeeded` to determine execution success.
+
+See [AI assistant](../guide/ai-assistant.md) for privacy and operational limits.
+
+## General authentication
+
 Every endpoint is prefixed with `/api`. Two ways to authenticate:
 
 - **User session**: sign in to receive an `X-Auth-Token`, accepted by every protected endpoint
@@ -92,7 +111,7 @@ Every authentication entry point (sign-in, the second step, passkey sign-in, reg
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret, the experimental-features switch, audit retention (`audit_retention_days`), the passkey relying party (`passkey_rp_id` / `passkey_origins`), the panel-wide password switch (`password_login_disabled`) and sign-in rate limiting (`rate_limit_enabled`, `rate_limit_per_account`, `rate_limit_per_ip`, `rate_limit_window_minutes`, `rate_limit_familiar_multiplier`, `rate_limit_notify`); omitted fields keep their stored value |
+| GET / PUT | `/api/admin/settings` | Registration switch, invite-code mode, default group, email verification, Turnstile site key / secret, audit retention (`audit_retention_days`), the passkey relying party (`passkey_rp_id` / `passkey_origins`), the panel-wide password switch (`password_login_disabled`) and sign-in rate limiting (`rate_limit_enabled`, `rate_limit_per_account`, `rate_limit_per_ip`, `rate_limit_window_minutes`, `rate_limit_familiar_multiplier`, `rate_limit_notify`); omitted fields keep their stored value |
 | GET / PUT | `/api/admin/oauth` | Cloudflare OAuth client (client ID / secret / callback / scopes), taking precedence over the environment |
 | GET / PUT | `/api/admin/encryption-key` | Application encryption key (the environment wins; a change needs a restart) |
 | GET / PUT | `/api/admin/smtp` | SMTP settings (encrypted or plain) |
@@ -134,17 +153,6 @@ The native app additionally needs Digital Asset Links, which the backend serves 
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/.well-known/assetlinks.json` | Android Digital Asset Links: the package name and SHA-256 certificate fingerprints come from system settings (`passkey_android_package` / `passkey_android_fingerprints`, falling back to the shared debug keystore's hash); with no valid fingerprint it answers `404` rather than a broken document |
-
-## IP optimizer lab (experimental)
-
-The lab is disabled by default; while disabled, these endpoints return `404`. The Secret Key is encrypted at rest and responses only report whether it is configured.
-
-| Method | Path | Description | Auth |
-| --- | --- | --- | --- |
-| GET | `/api/lab/ip-selector` | Read probe, schedule and Huawei Cloud DNS settings | administrator |
-| PUT | `/api/lab/ip-selector` | Save settings; an empty `secret_key` keeps the stored value | administrator |
-| GET | `/api/lab/ip-selector/status` | Read run state, live progress and history | administrator |
-| POST | `/api/lab/ip-selector/run` | Start one asynchronous run; returns `409` if another is active | administrator |
 
 ## Cloudflare OAuth
 

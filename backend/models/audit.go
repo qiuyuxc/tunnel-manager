@@ -12,7 +12,6 @@ const (
 	AuditCategoryDomain   = "domain"
 	AuditCategoryDNS      = "dns"
 	AuditCategoryMonitor  = "monitor"
-	AuditCategoryLab      = "lab"
 	AuditCategoryTelegram = "telegram"
 	AuditCategoryPasskey  = "passkey"
 )
@@ -69,9 +68,6 @@ const (
 	AuditActionTargetAdd     = "target_add"
 	AuditActionTargetUpdate  = "target_update"
 	AuditActionTargetDelete  = "target_delete"
-
-	AuditActionLabSettingsUpdate = "lab_settings_update"
-	AuditActionLabRun            = "lab_run"
 
 	AuditActionTelegramEndpointUpdate = "telegram_endpoint_update"
 

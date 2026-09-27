@@ -44,7 +44,6 @@ public class AboutFragment extends PageFragment {
             {"隧道管理", "新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS"},
             {"域名绑定", "简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS"},
             {"DNS 管理", "按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除"},
-            {"IP 优选实验室", "实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，展示实时进度与分段命中，可一键剔除未命中段"},
             {"Telegram Bot", "在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook"},
             {"Cloudflare OAuth", "授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token"},
             {"多用户与管理后台", "邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略"},
@@ -56,7 +55,7 @@ public class AboutFragment extends PageFragment {
             {"Android", "Java · Android Views · AndroidX"},
             {"前端", "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
             {"后端", "Go · chi · SQLite"},
-            {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
+            {"集成", "Cloudflare API · Telegram Bot API · GitHub Actions"},
     };
 
     private ScrollView scroll;

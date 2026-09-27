@@ -108,8 +108,6 @@ type AppSettings struct {
 	TurnstileEnabled bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey string `json:"turnstile_site_key"`
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
-	// ExperimentalFeatures controls whether lab navigation is exposed.
-	ExperimentalFeatures bool `json:"experimental_features_enabled"`
 	// AuditRetentionDays is how long audit entries are kept. Zero means the
 	// default window (models.DefaultAuditRetentionDays); a negative value
 	// keeps entries forever.
@@ -235,7 +233,6 @@ type AppSettingsView struct {
 	TurnstileEnabled      bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey      string `json:"turnstile_site_key"`
 	TurnstileHasSecret    bool   `json:"turnstile_has_secret"`
-	ExperimentalFeatures  bool   `json:"experimental_features_enabled"`
 	AuditRetentionDays    int    `json:"audit_retention_days"`
 	PasswordLoginDisabled bool   `json:"password_login_disabled"`
 	PasskeyRPID           string `json:"passkey_rp_id"`
@@ -482,8 +479,7 @@ type SaveAppSettingsRequest struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// TurnstileHasSecret is accepted for round-tripping the GET response;
 	// it carries no save semantics.
-	TurnstileHasSecret   bool `json:"turnstile_has_secret,omitempty"`
-	ExperimentalFeatures bool `json:"experimental_features_enabled"`
+	TurnstileHasSecret bool `json:"turnstile_has_secret,omitempty"`
 	// AuditRetentionDays is how long the audit trail is kept. Zero means the
 	// default window, a negative value keeps entries forever. Omitted keeps
 	// the stored value, so partial saves do not reset the window.

@@ -6,7 +6,7 @@ import { useConfigStore } from './stores/config'
 // touched, which is exactly what happened before the phone layout got its own
 // navigation.
 export const icons = {
-  lab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6.5L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>',
+  assistant: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6L12 3Z"/><path d="M20 2v4M18 4h4"/></svg>',
   monitor: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   dashboard: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
   tunnels: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
@@ -47,7 +47,6 @@ export interface NavItem {
   group: NavGroup
   perm?: string
   admin?: boolean
-  experimental?: boolean
   /** Listed verbatim in the group's action sheet rather than in the sidebar only. */
   badge?: string
 }
@@ -58,8 +57,8 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'workspace', perm: 'monitors' },
   { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network', perm: 'domain_bind' },
   { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network', perm: 'dns' },
-  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', admin: true, experimental: true, badge: '实验' },
   { path: '/settings', label: '全局设置', icon: icons.settings, group: 'management', admin: true },
+  { path: '/assistant', label: 'AI 助手', icon: icons.assistant, group: 'workspace' },
   { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, group: 'management' },
   { path: '/notifications', label: '通知设置', tabLabel: '通知', icon: icons.bell, group: 'management' },
   { path: '/admin', label: '管理后台', icon: icons.admin, group: 'management', admin: true },
@@ -123,14 +122,13 @@ export const CREATE_ACTIONS = [
     desc: '将域名指向已配置的隧道',
     icon: icons.domain,
   },
+  { path: '/assistant', title: 'AI 助手', desc: '描述目标，核对并执行配置任务', icon: icons.assistant },
 ] as const
 
-/** Applies the same three-stage permission filter the sidebar has always used. */
 export function useNavItems() {
   const configStore = useConfigStore()
   return computed(() =>
     NAV_ITEMS.filter((item) => {
-      if (item.experimental && !configStore.experimentalFeatures) return false
       if (item.admin) return configStore.isAdmin()
       if (item.perm) return configStore.hasPerm(item.perm)
       return true

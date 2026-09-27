@@ -75,7 +75,6 @@ export interface Config {
   site_icon: string
   panel_host?: string
   landing_enabled: boolean
-  experimental_features_enabled: boolean
 }
 
 export interface CNAMEPreset {
@@ -89,7 +88,6 @@ export interface SiteSettings {
   icon: string
   panel_host?: string
   landing_enabled: boolean
-  experimental_features_enabled?: boolean
 }
 
 export interface CloudflareAccount {

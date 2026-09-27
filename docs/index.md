@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Tunnel Manager
   text: Cloudflare Tunnel 可视化管理面板
-  tagline: 通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理、管理员双重身份验证与实验性 IP 优选。
+  tagline: 通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，提供服务可用性监控与可分享的公开状态页，并支持 Telegram Bot 远程管理与管理员双重身份验证。
   actions:
     - theme: brand
       text: 快速开始
@@ -33,10 +33,6 @@ features:
     details: 按 Zone 查询和管理 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态、MX 优先级与多选批量操作。
     link: /guide/dns-management
     linkText: 进入 DNS 管理
-  - title: IP 优选实验室
-    details: 实验性直连探测指定 IP 段，按 Host / SNI 与状态码筛选可用地址，展示实时进度、分段命中统计，并可一键剔除未命中段或更新华为云 DNS。
-    link: /guide/lab-ip-selector
-    linkText: 进入实验室
   - title: 服务监控
     details: HTTP（GET/POST）、TCP、ICMP 三种探测方式，每个监控挂多个目标，仪表盘展示近 7 天延迟柱图。
     link: /guide/monitors-status
@@ -50,7 +46,7 @@ features:
     link: /guide/security
     linkText: 安全配置
   - title: Android App
-    details: 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS 与 IP 优选实验室均为原生页面，登录页内嵌人机验证，监控状态变化直接走系统通知。
+    details: 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS 均为原生页面，登录页内嵌人机验证，监控状态变化直接走系统通知。
     link: /guide/android-app
     linkText: 安装与使用
 ---

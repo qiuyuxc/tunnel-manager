@@ -9,7 +9,7 @@
 - [x] 按用户最新要求暂停实现，整理后续任务；不继续更新业务页面。
 - 深色石墨底、薄荷绿强调、实体内容面板、胶囊按钮与导航。
 - 宽屏使用分组侧栏和工作区；手机使用「概览 / 监控 / 新建 / DNS / 更多」。
-- 保留真实数据、后端 API、权限过滤、实验功能开关、表单校验和敏感操作确认。
+- 保留真实数据、后端 API、权限过滤、表单校验和敏感操作确认。
 - `design.md` 仍是原生 App 规范，不把 Web 改造进度写入原生 `design-todo.md`。
 - 设计稿不是功能删减清单。正式页面中未在稿件展开的能力必须保留。
 
@@ -84,7 +84,6 @@ node frontend/design-preview/serve.mjs
 | [ ] 域名绑定 | `frontend/src/views/DomainBinding.vue` | 简单/优选模式、源站编辑、CNAME、辅助回源、校验和提交反馈 |
 | [ ] 批量绑定 | `frontend/src/views/BatchDomainBinding.vue` | 原有批量输入、校验、处理过程和逐项结果 |
 | [ ] DNS 管理 | `frontend/src/views/DNSManagement.vue` | 区域选择、搜索、记录类型校验、代理、TTL、批量修改与删除 |
-| [ ] IP 实验室 | `frontend/src/views/LabIPSelector.vue` | 管理员与实验开关限制、真实探测、自动化、华为云 DNS 和历史 |
 | [ ] 全局设置 | `frontend/src/views/Settings.vue` | 站点品牌、默认 CNAME、回退源与真实配置项；补齐外观入口 |
 | [ ] TG 机器人 | `frontend/src/views/TelegramSettings.vue` | 凭据、运行状态、授权会话与真实测试反馈 |
 | [ ] 通知设置 | `frontend/src/views/Notifications.vue` | 现有渠道、触发事件、配置校验与发送测试 |
