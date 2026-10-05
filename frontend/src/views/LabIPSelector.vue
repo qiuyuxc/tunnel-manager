@@ -3,14 +3,57 @@
     <div class="page-header">
       <div>
         <h2>IP 优选实验室</h2>
-        <p>直连探测指定 IP 段，按延迟选择可用 IP，并可自动更新华为云 DNS A 记录</p>
+        <p>HTTP 探测、延迟排序与 DNS 更新</p>
       </div>
       <div class="header-actions">
         <span class="tag" :class="running ? 'tag-warn' : 'tag-down'">{{ running ? '任务运行中' : '空闲' }}</span>
-        <button class="btn btn-secondary" :disabled="loading || running" @click="refresh()">刷新状态</button>
-        <button class="btn btn-primary" :disabled="saving || running" @click="run">{{ running ? '运行中…' : '立即执行' }}</button>
+        <button class="btn btn-secondary" :disabled="loading" @click="refresh()">刷新状态</button>
+        <button v-if="running || form.schedule" class="btn btn-secondary" :disabled="acting" @click="stop">停止并关闭定时</button>
+        <button class="btn btn-primary" :disabled="!canRun" @click="run">{{ running ? '运行中…' : '保存并执行' }}</button>
       </div>
     </div>
+
+    <p v-if="loadError" role="alert">{{ loadError }}</p>
+    <section class="settings-card" aria-label="域名授权和请求预算">
+      <div class="settings-card-header">
+        <div>
+          <div class="settings-card-title">DNS TXT 域名验证</div>
+          <div class="settings-card-desc">与探测 Host/SNI 独立。验证后请保留 DNS 中的 TXT。</div>
+        </div>
+        <span class="tag" :class="authorized ? 'tag-ok' : 'tag-warn'">{{ authorized ? '已授权' : '待验证' }}</span>
+      </div>
+      <label class="field">
+        <span class="field-label">验证域名</span>
+        <input v-model="authorizationDomain" class="vercel-input" placeholder="example.com" :disabled="acting || running" />
+      </label>
+      <p class="dns-automation-info">{{ dnsAvailability.available ? `DNS 账户：${dnsAvailability.account_name || '已绑定'}` : dnsAvailability.message }}</p>
+      <div class="header-actions">
+        <button v-if="dnsAvailability.available" class="btn btn-primary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="provisionDNS">一键填写并验证</button>
+        <button class="btn btn-secondary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="challenge">生成 TXT</button>
+        <button class="btn btn-primary" :disabled="!verification?.token || acting || running" @click="verify">检查 TXT 记录</button>
+      </div>
+      <p v-if="dnsMessage" role="status">{{ dnsMessage }}</p>
+      <p v-if="authorized" role="status">已验证：{{ verification?.domain }}</p>
+      <div v-if="verification?.token && !authorized" class="verification-record">
+        <label class="field"><span class="field-label">TXT 完整记录名</span><input class="vercel-input" readonly :value="verification.record_name" /></label>
+        <label class="field"><span class="field-label">TXT 记录值</span><textarea class="vercel-input" readonly rows="3" :value="verification.token"></textarea></label>
+        <div class="header-actions">
+          <button class="btn btn-secondary" @click="copyText(verification.record_name)">复制记录名</button>
+          <button class="btn btn-secondary" @click="copyText(verification.token)">复制记录值</button>
+        </div>
+        <p v-if="verification.checked_at">上次检查：{{ formatTime(verification.checked_at) }}</p>
+        <p v-if="verification.last_error" role="alert">{{ verification.last_error }}</p>
+      </div>
+      <p class="budget-summary">今日预算 {{ security?.budget_used || 0 }} / {{ security?.budget_limit || 100000 }} · {{ security?.requests_per_second || 10 }} 请求/秒 · 最多 {{ security?.max_workers || 32 }} 并发</p>
+      <details class="lab-help"><summary>使用说明</summary>
+        <p>预算由管理员设置，按候选 IP 数量预留，取消不退；UTC 次日重置。限额修改从下一轮生效，已有配置超出新并发上限时按上限运行。这不是云平台用量统计。</p>
+        <p>一键验证只添加本次 TXT，不覆盖其他记录，也不启动扫描。验证通过后收起记录值，运行前仍会复查；请勿删除 DNS 中的 TXT。</p>
+        <p>只探测自建或已获授权的 Host/SNI。TXT 验证不代表探针免计费，请向托管平台确认。</p>
+      </details>
+      <p v-if="cooldownSeconds > 0">启动冷却剩余 {{ cooldownSeconds }} 秒。</p>
+      <p v-if="security?.last_error" role="alert">{{ security.last_error }}</p>
+      <p v-if="security?.next_run">下次定时执行：{{ new Date(security.next_run).toLocaleString() }}</p>
+    </section>
 
     <section v-if="progress.total > 0" class="settings-card progress-card">
       <div class="progress-head">
@@ -56,7 +99,7 @@
         </label>
         <label class="field">
           <span class="field-label">并发数</span>
-          <input v-model.number="form.workers" type="number" min="1" max="256" class="vercel-input" />
+          <input v-model.number="form.workers" type="number" min="1" :max="security?.max_workers || 32" class="vercel-input" />
         </label>
         <label class="field">
           <span class="field-label">保留 Top N</span>
@@ -78,7 +121,7 @@
       </div>
       <div class="lab-switch-row">
         <label class="lab-switch">
-          <n-switch v-model:value="form.schedule" size="small" />
+          <n-switch v-model:value="form.schedule" size="small" :disabled="!authorized || running" />
           <span>定时执行</span>
         </label>
         <label class="field interval-field">
@@ -168,12 +211,24 @@
               <td class="mono">{{ item.target }}</td>
               <td>{{ item.scanned }}</td>
               <td>{{ item.matched }}</td>
-              <td><span class="tag tag-down">可剔除</span></td>
+              <td><span class="tag tag-down">先核对原因</span></td>
             </tr>
           </tbody>
         </table>
       </div>
       <div v-else class="empty-state">暂无未命中的 IP 段。</div>
+    </section>
+
+    <section v-if="latest?.diagnostics?.length" class="settings-card" aria-label="未命中原因">
+      <div class="settings-card-header"><div>
+        <div class="settings-card-title">未命中原因</div>
+        <div class="settings-card-desc">显示 {{ latest.diagnostics.length }} / {{ latest.rejected }} 条，最多 100 条。未命中仅代表本次探测失败。</div>
+      </div></div>
+      <p v-if="latest.probe" class="settings-card-desc diagnostic-context">本次探针：{{ latest.probe.host }}{{ latest.probe.path }} · SNI {{ latest.probe.sni || latest.probe.host }} · 接受 {{ latest.probe.statuses }}</p>
+      <ul class="diagnostic-list"><li v-for="(item, index) in latest.diagnostics" :key="`${item.ip}-${index}`">
+        <div><code>{{ item.ip }}</code><span>{{ item.latency_ms }} ms</span></div>
+        <p>{{ describeLabFailure(item, latest.probe?.statuses) }}</p>
+      </li></ul>
     </section>
 
     <section class="settings-card">
@@ -205,11 +260,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
+import { useRouter } from 'vue-router'
+import { getMe } from '../api/admin'
+import { useConfigStore } from '../stores/config'
+import { describeLabFailure, isLabAuthorized } from '../utils/lab'
 import {
   getLabIPSelectorSettings,
   getLabIPSelectorStatus,
   runLabIPSelector,
   saveLabIPSelectorSettings,
+  createLabChallenge,
+  verifyLabOwnership,
+  stopLabIPSelector,
+  getLabDNSAvailability,
+  provisionLabDNS,
+  type LabDNSAvailability,
+  type LabIPSelectorStatusResponse,
   type LabIPSelectorRun,
   type LabIPSelectorSettings,
   type LabIPSelectorProgress,
@@ -217,6 +283,21 @@ import {
 } from '../api/lab'
 
 const message = useMessage()
+const router = useRouter()
+const configStore = useConfigStore()
+const ownerId = ref('')
+const acting = ref(false)
+const loadError = ref('')
+const authorizationDomain = ref('')
+const dnsAvailability = ref<LabDNSAvailability>({ available: false, message: '正在检查已绑定的 DNS 账户…' })
+const dnsMessage = ref('')
+const security = ref<LabIPSelectorStatusResponse['status']>()
+const verification = computed(() => security.value?.verification)
+const now = ref(Date.now())
+const authorized = computed(() => isLabAuthorized(verification.value, ownerId.value))
+const cooldownSeconds = computed(() => Math.max(0, Math.ceil((security.value?.next_allowed_at || 0) - now.value / 1000)))
+const canRun = computed(() => authorized.value && !loading.value && !saving.value && !acting.value && !running.value
+  && cooldownSeconds.value === 0 && !!security.value && security.value.budget_used < security.value.budget_limit)
 const loading = ref(true)
 const saving = ref(false)
 const running = ref(false)
@@ -246,6 +327,8 @@ const form = ref<LabIPSelectorSettings>({
   has_secret_key: false,
 })
 let pollTimer: number | undefined
+let disposed = false
+let statusLoading = false
 
 const latest = computed(() => runs.value[0])
 const missedSegments = computed(() => latest.value?.segments?.filter((item) => item.matched === 0) || [])
@@ -253,13 +336,14 @@ const missedIPCount = computed(() => missedSegments.value.reduce((total, item) =
 const segmentSummary = computed(() => {
   const total = latest.value?.segments?.length || 0
   if (!total) return '本轮暂无分段统计。'
-  return `共 ${total} 个输入段，其中 ${missedSegments.value.length} 段 0 命中，可减少 ${missedIPCount.value} 个 IP 的后续探测压力。`
+  return `${total} 个输入段 · ${missedSegments.value.length} 段未命中 · ${missedIPCount.value} 个 IP。剔除前请核对原因。`
 })
 const phaseText = computed(() => {
   if (phase.value === 'preparing') return '准备扫描…'
   if (phase.value === 'scanning') return '正在探测 IP…'
   if (phase.value === 'updating_dns') return '扫描完成，正在更新华为云 DNS…'
   if (phase.value === 'completed') return '任务已完成'
+  if (phase.value === 'failed') return '任务未完成，请检查错误信息'
   return '等待执行'
 })
 const latestSummary = computed(() => {
@@ -275,34 +359,71 @@ async function loadSettings() {
 }
 
 async function loadStatus() {
-  const { data } = await getLabIPSelectorStatus()
-  running.value = data.status.running
-  progress.value = data.status.progress || { scanned: 0, matched: 0, total: 0, percent: 0 }
-  phase.value = data.status.phase || ''
-  runs.value = data.runs
-  if (running.value && !pollTimer) {
-    pollTimer = window.setInterval(async () => {
-      await refresh(false)
-      if (!running.value && pollTimer) {
-        window.clearInterval(pollTimer)
-        pollTimer = undefined
-      }
-    }, 1000)
-  } else if (!running.value && pollTimer) {
-    window.clearInterval(pollTimer)
-    pollTimer = undefined
+  if (statusLoading || disposed) return
+  statusLoading = true
+  try {
+    const { data } = await getLabIPSelectorStatus()
+    if (disposed) return
+    security.value = data.status
+    now.value = Date.now()
+    if (!authorizationDomain.value) authorizationDomain.value = data.status.verification.domain || data.status.suggested_domain
+    running.value = data.status.running
+    progress.value = data.status.progress || { scanned: 0, matched: 0, total: 0, percent: 0 }
+    phase.value = data.status.phase || ''
+    runs.value = data.runs
+    loadError.value = ''
+  } finally {
+    statusLoading = false
   }
 }
 
 async function refresh(showError = true) {
   try {
-    await Promise.all([loadSettings(), loadStatus()])
+    await loadStatus()
+    if (showError) await loadDNSAvailability()
   } catch (e: any) {
+    loadError.value = '状态加载失败：' + (e.response?.data?.error || e.message)
+    if (e.response?.status === 404) {
+      configStore.setExperimentalFeatures(false)
+      await router.replace('/dashboard')
+    }
     if (showError) message.error('加载失败: ' + (e.response?.data?.error || e.message))
   }
 }
 
+async function loadDNSAvailability() {
+  try {
+    const { data } = await getLabDNSAvailability()
+    if (!disposed) dnsAvailability.value = data
+  } catch {
+    if (!disposed) dnsAvailability.value = { available: false, message: '暂时无法检查已绑定账户，可手动添加 TXT，或点击刷新状态重试。' }
+  }
+}
+
+async function provisionDNS() {
+  if (acting.value || saving.value || running.value || !dnsAvailability.value.available) return
+  acting.value = true
+  dnsMessage.value = ''
+  form.value.schedule = false
+  try {
+    const { data } = await provisionLabDNS(authorizationDomain.value.trim())
+    dnsMessage.value = data.message
+    if (data.verified) message.success('TXT 已自动填写并验证通过')
+    else message.warning('TXT 已提交，请等待 DNS 生效后再次检查')
+  } catch (error: any) {
+    dnsMessage.value = '自动填写未完成：' + (error.response?.data?.error || error.message) + '。可继续使用手动添加。'
+    message.error(dnsMessage.value)
+  } finally {
+    await refresh(false)
+    acting.value = false
+  }
+}
+
 async function save() {
+  if (!Number.isInteger(form.value.workers) || form.value.workers < 1 || form.value.workers > (security.value?.max_workers || 32)) {
+    message.error(`并发数须为 1 至 ${security.value?.max_workers || 32} 的整数`)
+    return false
+  }
   saving.value = true
   let saved = false
   try {
@@ -314,6 +435,7 @@ async function save() {
     hasSecretKey.value = data.has_secret_key
     secretKey.value = ''
     saved = true
+    await loadStatus()
     message.success('实验功能配置已保存')
   } catch (e: any) {
     message.error('保存失败: ' + (e.response?.data?.error || e.message))
@@ -324,6 +446,8 @@ async function save() {
 }
 
 async function run() {
+  if (!canRun.value || !(await save())) return
+  acting.value = true
   try {
     await runLabIPSelector()
     running.value = true
@@ -331,7 +455,60 @@ async function run() {
     await loadStatus()
   } catch (e: any) {
     message.error('执行失败: ' + (e.response?.data?.error || e.message))
+    await refresh(false)
+  } finally {
+    acting.value = false
   }
+}
+
+async function challenge() {
+  if (acting.value || saving.value || running.value) return
+  dnsMessage.value = ''
+  if (verification.value?.token && !window.confirm('生成新记录会撤销旧授权并关闭定时任务，是否继续？')) return
+  acting.value = true
+  try {
+    await createLabChallenge(authorizationDomain.value.trim())
+    form.value.schedule = false
+    await loadStatus()
+    message.success('请添加 TXT 记录，然后点击检查')
+  } catch (error: any) {
+    message.error(error.response?.data?.error || error.message)
+  } finally { acting.value = false }
+}
+
+async function verify() {
+  acting.value = true
+  try {
+    await verifyLabOwnership()
+    message.success('域名验证通过；定时任务需手动开启')
+  } catch (error: any) {
+    form.value.schedule = false
+    message.error(error.response?.data?.error || error.message)
+  } finally {
+    await refresh(false)
+    acting.value = false
+  }
+}
+
+async function stop() {
+  acting.value = true
+  try {
+    await stopLabIPSelector()
+    form.value.schedule = false
+    message.success('已请求停止，并关闭定时任务')
+    await loadStatus()
+  } catch (error: any) { message.error(error.response?.data?.error || error.message) }
+  finally { acting.value = false }
+}
+
+async function copyText(text: string) {
+  try { await navigator.clipboard.writeText(text); message.success('已复制') }
+  catch { message.error('复制失败，请手动选择文本') }
+}
+
+async function poll() {
+  await refresh(false)
+  if (!disposed) pollTimer = window.setTimeout(poll, running.value ? 1000 : 5000)
 }
 
 async function copyMissedSegments() {
@@ -367,12 +544,20 @@ function formatTime(seconds: number) {
 }
 
 onMounted(async () => {
-  await refresh()
-  loading.value = false
+  try {
+    const [user] = await Promise.all([getMe(), loadSettings(), loadStatus(), loadDNSAvailability()])
+    ownerId.value = user.data.id
+  } catch (error: any) {
+    loadError.value = error.response?.data?.error || error.message
+  } finally {
+    loading.value = false
+    if (!disposed) pollTimer = window.setTimeout(poll, 1000)
+  }
 })
 
 onBeforeUnmount(() => {
-  if (pollTimer) window.clearInterval(pollTimer)
+  disposed = true
+  if (pollTimer) window.clearTimeout(pollTimer)
 })
 </script>
 
@@ -389,6 +574,11 @@ onBeforeUnmount(() => {
 .progress-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--color-body); font-size: 13px; }
 @keyframes progress-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.verification-record { margin-top: 18px; overflow-wrap: anywhere; }
+.budget-summary { margin-top: 18px; color: var(--color-mute); font-variant-numeric: tabular-nums; }
+.lab-help { color: var(--color-mute); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.lab-help summary { cursor: pointer; }
+.dns-automation-info { margin: 12px 0; color: var(--color-mute); overflow-wrap: anywhere; }
 .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px 20px; margin-bottom: 22px; }
 .lab-switch-row { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 22px; }
 /* Match the input height so the switch and the field beside it share a baseline. */
@@ -397,6 +587,12 @@ onBeforeUnmount(() => {
 .field > .tag { align-self: flex-start; }
 .interval-field { min-width: 160px; }
 .table-wrap { overflow-x: auto; }
+.diagnostic-list { list-style: none; padding: 0; margin: 12px 0 0; }
+.diagnostic-list li { padding: 14px 0; border-top: 1px solid var(--color-hairline); }
+.diagnostic-list li>div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+.diagnostic-list code { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.diagnostic-list span { flex: none; color: var(--color-mute); font-size: 12px; }
+.diagnostic-list p { margin: 8px 0 0; color: var(--color-body); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .lab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .lab-table th, .lab-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-hairline); text-align: left; white-space: nowrap; }
 .lab-table tbody tr:last-child td { border-bottom: 0; }

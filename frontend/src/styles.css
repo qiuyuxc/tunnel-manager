@@ -276,6 +276,11 @@ select {
 /* Animations - minimal */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
+.page-enter-active { transition: opacity 180ms ease-out, transform 180ms cubic-bezier(.2,.7,.2,1); }
+.page-leave-active { transition: opacity 90ms ease-out; pointer-events: none; }
+.page-enter-from { opacity: 0; transform: translateY(6px); }
+.page-leave-to { opacity: 0; }
+.diagnostic-context { overflow-wrap: anywhere; margin-bottom: 12px; }
 
 /* Responsive
    Four breakpoints, and only these four. CSS custom properties cannot appear in
@@ -299,6 +304,27 @@ select {
     padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   }
   .app-main-login { padding-top: 0; padding-bottom: 0; }
+  .app-shell:has(.assistant-page) { --tabbar-height: 56px; min-height: 0; }
+  .app-shell:has(.assistant-page) .app-area { min-height: 0; }
+  .app-shell:has(.assistant-page) .tabbar {
+    left: 12px;
+    right: 12px;
+    bottom: max(4px, env(safe-area-inset-bottom));
+    height: 48px;
+    box-sizing: border-box;
+    padding: 1px 4px;
+    gap: 0;
+    border-radius: 16px;
+    background: var(--color-canvas-raised);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .app-shell:has(.assistant-page) .tab { flex-direction: row; justify-content: center; min-height: 44px; box-sizing: border-box; min-width: 44px; padding: 0 4px; gap: 4px; font-size: 10px; }
+  .app-shell:has(.assistant-page) .tab-icon svg { width: 18px; height: 18px; }
+  .app-shell:has(.assistant-page) .tab-fab { min-width: 44px; min-height: 44px; }
+  .app-shell:has(.assistant-page) .fab { width: 32px; height: 32px; }
+  .app-shell:has(.assistant-page.is-composing) { --tabbar-height: 0px; }
+  .app-shell:has(.assistant-page.is-composing) .tabbar { display: none; }
   .page-container { padding: 24px 20px; }
   .card-grid-2,
   .card-grid-3,

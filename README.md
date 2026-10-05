@@ -27,14 +27,23 @@ Everything else is unchanged.
 | --- | --- | --- |
 | Tunnels | Create and delete tunnels, add/edit/remove ingress rules, optionally clean up DNS on delete | [Tunnels & routing](https://docs.kukie.cn/en/guide/tunnels) |
 | Domain binding | Two modes — direct CNAME and SaaS custom hostname — with per-group settings for batch binding | [Binding modes](https://docs.kukie.cn/en/guide/domain-binding) · [Batch binding](https://docs.kukie.cn/en/guide/batch-binding) |
-| DNS | Full CRUD for A / AAAA / CNAME / TXT / MX with TTL, proxy status, MX priority and bulk edits | [DNS records](https://docs.kukie.cn/en/guide/dns-management) |
-| IP optimizer lab | Experimental direct probes by Host / SNI and status code, with live progress, per-segment hit statistics, one-click removal of missed ranges and optional Huawei Cloud DNS updates | [IP optimizer lab](https://docs.kukie.cn/en/guide/lab-ip-selector) |
+| DNS | CRUD for A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR, structured record editing, batch-create previews and per-row outcomes | [DNS records](https://docs.kukie.cn/en/guide/dns-management) |
+| AI assistant | Generate configuration tasks through a Chat Completions-compatible connection, then review and explicitly confirm execution; server-persisted conversations, tasks and encrypted credentials | [AI assistant](https://docs.kukie.cn/en/guide/ai-assistant) |
+| IP optimizer lab | Independent TXT ownership verification, HTTP probes and diagnostics, configurable budgets and rate limits, optional scheduling and Huawei Cloud DNS updates | [IP optimizer lab](https://docs.kukie.cn/en/guide/lab-ip-selector) |
 | Monitoring | HTTP / TCP / ICMP probes, several targets per monitor, seven-day latency bars | [Service monitoring](https://docs.kukie.cn/en/guide/monitors-status) |
 | Alerts | Notifies on status transitions only, over email (SMTP) or a Telegram notification bot | [Email & alerts](https://docs.kukie.cn/en/guide/email-alerts) |
 | Public status page | Share without login; short paths, custom domains, direct-tunnel or optimized CNAME access, and a custom domain only exposes its own page | [Public status page](https://docs.kukie.cn/en/guide/monitors-status#public-status-page) |
 | Cloudflare connection | OAuth 2.0 with PKCE and automatic token refresh, multiple accounts; static API tokens still work | [OAuth connection](https://docs.kukie.cn/en/guide/cloudflare-oauth) |
 | Android app | Native client for the same API: overview, monitoring, tunnels, DNS, the IP lab and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
 | Security | Argon2id password hashing, passkeys (WebAuthn), TOTP two-factor auth and one-time recovery codes | [Security](https://docs.kukie.cn/en/guide/security) |
+
+## Using the synchronized features
+
+- **Global settings → IP selector** exposes the experimental switch, daily request budget (1–10000000), requests per second (1–1000) and worker ceiling (1–256). Defaults remain 100000 / 10 / 32. Changes apply to subsequent runs; this is an instance budget, not cloud usage. Cancellation does not refund reservations, and the budget resets at UTC midnight.
+- **Domain verification** is independent of probe Host/SNI and requires no saved probe settings. Successful verification hides TXT details; keep the DNS record for checks before scans and DNS updates. Previously scheduled jobs remain disabled without verification.
+- **AI assistant** shows one administrator connection, with no multi-user sharing controls. Existing shared connection data remains readable and editable. Proposed tasks never execute automatically; check actual resources before retrying an uncertain result.
+- **Batch DNS creation** supports A / AAAA / TXT / MX / NS / PTR and does not resubmit successful rows. Account changes or leaving the page stop unsent operations; manually check writes whose responses were lost.
+- Back up the database and `APP_ENCRYPTION_KEY` before upgrading. This source sync does not change version numbers or publish a release. The documentation site remains on the main branch.
 
 ## Architecture
 

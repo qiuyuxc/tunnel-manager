@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 	"testing"
+
+	"tunnel-manager/models"
 )
 
 func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
@@ -18,6 +20,34 @@ func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
 	put := performJSON(t, h.UpdateAppSettings, http.MethodPut, "", get.Body.String(), "")
 	if put.Code != http.StatusOK {
 		t.Fatalf("UpdateAppSettings(round-tripped GET) = %d: %s", put.Code, put.Body.String())
+	}
+}
+
+func TestUpdateAppSettingsPreservesOmittedExperimentalFlag(t *testing.T) {
+	state := newTestStore(t)
+	settings := state.GetAppSettings()
+	settings.ExperimentalFeatures = true
+	if err := state.SetAppSettings(settings); err != nil {
+		t.Fatal(err)
+	}
+	handler := NewManagementHandler(state, nil)
+	for _, scenario := range []struct {
+		body string
+		want bool
+	}{
+		{`{"rate_limit_per_account":9}`, true},
+		{`{"experimental_features_enabled":false}`, false},
+		{`{"experimental_features_enabled":true}`, true},
+	} {
+		response := performJSON(t, handler.UpdateAppSettings, http.MethodPut, "/api/admin/settings", scenario.body, "")
+		if response.Code != http.StatusOK {
+			t.Fatal(response.Body.String())
+		}
+		var view models.AppSettingsView
+		decodeResponse(t, response, &view)
+		if view.ExperimentalFeatures != scenario.want || state.GetAppSettings().ExperimentalFeatures != scenario.want {
+			t.Fatalf("experimental flag = %v, want %v after %s", view.ExperimentalFeatures, scenario.want, scenario.body)
+		}
 	}
 }
 

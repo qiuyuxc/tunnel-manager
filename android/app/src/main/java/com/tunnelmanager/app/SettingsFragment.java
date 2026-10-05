@@ -23,6 +23,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -96,6 +97,9 @@ public class SettingsFragment extends PageFragment {
     private EditText secretKeyInput;
 
     private boolean experimentalEnabled = false;
+    private int labDailyRequestLimit = 100000;
+    private int labRequestsPerSecond = 10;
+    private int labMaxWorkers = 32;
 
     private String passkeyRPID = "";
     private String passkeyOrigins = "";
@@ -251,6 +255,9 @@ public class SettingsFragment extends PageFragment {
         turnstileHasSecret = sysSettings.optBoolean("turnstile_has_secret", false);
         turnstileSecret = "";
         experimentalEnabled = sysSettings.optBoolean("experimental_features_enabled", false);
+        labDailyRequestLimit = sysSettings.optInt("lab_daily_request_limit", 100000);
+        labRequestsPerSecond = sysSettings.optInt("lab_requests_per_second", 10);
+        labMaxWorkers = sysSettings.optInt("lab_max_workers", 32);
         passkeyRPID = sysSettings.optString("passkey_rp_id", "");
         passkeyOrigins = sysSettings.optString("passkey_origins", "");
         androidPackage = sysSettings.optString("passkey_android_package", "");
@@ -1022,6 +1029,9 @@ public class SettingsFragment extends PageFragment {
             payload.put("turnstile_site_key", turnstileSiteKey);
             if (!turnstileSecret.isEmpty()) payload.put("turnstile_secret", turnstileSecret);
             payload.put("experimental_features_enabled", experimentalEnabled);
+            payload.put("lab_daily_request_limit", labDailyRequestLimit);
+            payload.put("lab_requests_per_second", labRequestsPerSecond);
+            payload.put("lab_max_workers", labMaxWorkers);
             payload.put("password_login_disabled", passwordLoginDisabled);
             payload.put("passkey_rp_id", passkeyRPID);
             payload.put("passkey_origins", passkeyOrigins);
@@ -1040,8 +1050,9 @@ public class SettingsFragment extends PageFragment {
         final JSONObject body = payload;
         run(() -> {
             // Keeps the nav experimental flag in step without a full reload.
-            Session.applyConfig(body);
-            return Api.put("/api/admin/settings", body);
+            JSONObject saved = Api.put("/api/admin/settings", body);
+            Session.applyConfig(saved);
+            return saved;
         }, success);
     }
 
@@ -1246,15 +1257,41 @@ public class SettingsFragment extends PageFragment {
 
     private View experimentalCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "实验性功能"));
+        card.addView(UI.cardTitle(requireContext(), "IP 优选"));
         TextView hint = UI.muted(requireContext(),
-                "开启后，侧边栏会显示「IP 优选实验室」。关闭后入口与 API 均不暴露。");
+                "实例共享预算，非云平台额度。UTC 重置，取消不退；修改从下一轮生效。");
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
-        UI.addRow(card, toggleRow("开启实验性功能", experimentalEnabled, true, next -> {
+        UI.addRow(card, toggleRow("开启实验性功能", experimentalEnabled, !busy, next -> {
             experimentalEnabled = next;
             saveAppSettings("实验性功能设置已保存");
         }), 0);
+        EditText daily = numberInput("1 至 10000000", String.valueOf(labDailyRequestLimit));
+        EditText rate = numberInput("1 至 1000", String.valueOf(labRequestsPerSecond));
+        EditText maximum = numberInput("1 至 256", String.valueOf(labMaxWorkers));
+        daily.setEnabled(!busy);
+        rate.setEnabled(!busy);
+        maximum.setEnabled(!busy);
+        card.addView(UI.field(requireContext(), "每日请求预算（UTC）", daily, UI.MD));
+        card.addView(UI.field(requireContext(), "每秒请求数", rate, UI.MD));
+        card.addView(UI.field(requireContext(), "并发上限", maximum, UI.MD));
+        TextView save = UI.button(requireContext(), "保存优选限制", UI.BTN_PRIMARY);
+        save.setEnabled(!busy);
+        save.setOnClickListener(view -> {
+            int dailyValue = parseInt(daily.getText().toString());
+            int rateValue = parseInt(rate.getText().toString());
+            int maximumValue = parseInt(maximum.getText().toString());
+            if (dailyValue < 1 || dailyValue > 10000000 || rateValue < 1 || rateValue > 1000 || maximumValue < 1 || maximumValue > 256) {
+                new AlertDialog.Builder(requireContext()).setMessage("预算须为 1 至 10000000、每秒请求数为 1 至 1000、并发上限为 1 至 256 的整数。")
+                        .setPositiveButton("知道了", null).show();
+                return;
+            }
+            labDailyRequestLimit = dailyValue;
+            labRequestsPerSecond = rateValue;
+            labMaxWorkers = maximumValue;
+            saveAppSettings("优选限制已保存");
+        });
+        UI.addRow(card, save, UI.MD);
         return card;
     }
 

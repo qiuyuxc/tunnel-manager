@@ -49,8 +49,9 @@ public class AboutFragment extends PageFragment {
     private static final String[][] FEATURES = {
             {"隧道管理", "新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS"},
             {"域名绑定", "简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS"},
-            {"DNS 管理", "按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除"},
-            {"IP 优选实验室", "实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，展示实时进度与分段命中，可一键剔除未命中段"},
+            {"DNS 管理", "支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，结构化字段编辑、批量新增与逐条结果"},
+            {"AI 助手", "描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对"},
+            {"IP 优选实验室", "独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新"},
             {"Cloudflare OAuth", "授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token"},
             {"状态告警", "服务状态变化时自动推送告警（仅状态变化触发），支持邮件与 Telegram 通知，可视化配置并支持测试发送"},
             {"安全认证", "单管理员自托管，Argon2id 密码哈希、TOTP 双重验证、通行密钥与恢复码，密钥与令牌加密存储"},
@@ -60,7 +61,7 @@ public class AboutFragment extends PageFragment {
             {"Android", "Java · Android Views · AndroidX"},
             {"前端", "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
             {"后端", "Go · chi · SQLite"},
-            {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
+            {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram 通知 · GitHub Actions"},
     };
 
     private ScrollView scroll;

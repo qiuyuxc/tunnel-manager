@@ -74,6 +74,7 @@
         <span v-if="group.result.success && group.result.mode === 'preferred'">优选 CNAME：{{ group.result.preferred_cname }}</span>
       </div>
     </div>
+    <OperationStatus v-if="submitting" :title="`正在绑定 ${groups.length} 组域名`" />
     <div class="form-action">
       <button class="btn btn-primary" :disabled="submitting || !config.tunnel_id" @click="handleBatchBind">
         <svg v-if="submitting" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -89,6 +90,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomainsBatch, type BatchBindItem, type BatchBindResult } from '../api'
 import CnamePicker from '../components/CNAMEPicker.vue'
+import OperationStatus from '../components/OperationStatus.vue'
 import { useConfigStore } from '../stores/config'
 type Field = keyof BatchBindItem
 type BindingGroup = BatchBindItem & {
@@ -142,6 +144,7 @@ function validateGroups() {
   return valid
 }
 async function handleBatchBind() {
+  if (submitting.value) return
   if (!validateGroups()) {
     message.error('请补全每组的转发地址和域名')
     return

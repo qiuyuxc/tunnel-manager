@@ -165,24 +165,26 @@ type CloudflareAccountRequest struct {
 
 // DNSRecord represents a DNS record
 type DNSRecord struct {
-	ID        string `json:"id,omitempty"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Content   string `json:"content"`
-	Proxied   bool   `json:"proxied"`
-	Proxiable bool   `json:"proxiable,omitempty"`
-	TTL       int    `json:"ttl,omitempty"`
-	Priority  int    `json:"priority,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name"`
+	Type      string          `json:"type"`
+	Content   string          `json:"content"`
+	Proxied   bool            `json:"proxied"`
+	Proxiable bool            `json:"proxiable,omitempty"`
+	TTL       int             `json:"ttl,omitempty"`
+	Priority  int             `json:"priority,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
 }
 
 // DNSRecordRequest contains the editable fields for a DNS record.
 type DNSRecordRequest struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Content  string `json:"content"`
-	Proxied  bool   `json:"proxied"`
-	TTL      int    `json:"ttl"`
-	Priority *int   `json:"priority,omitempty"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"`
+	Content  string         `json:"content,omitempty"`
+	Proxied  bool           `json:"proxied"`
+	TTL      int            `json:"ttl"`
+	Priority *int           `json:"priority,omitempty"`
+	Data     *DNSRecordData `json:"data,omitempty"`
 }
 
 // TunnelConfigResponse represents the CF API response for tunnel config

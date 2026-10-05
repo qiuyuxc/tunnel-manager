@@ -241,15 +241,28 @@
       </div>
 
       <div class="admin-card">
-        <h3>实验性功能</h3>
-        <p class="admin-hint">开启后，侧边栏会显示“IP 优选实验室”。该功能允许直连指定 IP 段探测 Host/SNI 可用性与延迟，并可选择自动更新华为云 DNS。关闭后入口与 API 均不暴露。</p>
+        <h3>IP 优选</h3>
+        <p class="admin-hint">实例共享预算，不是云平台额度。按候选 IP 预留，取消不退；修改从下一轮生效。</p>
         <div class="setting-row">
           <span class="setting-label">开启实验性功能</span>
-          <n-switch v-model:value="experimentalFeatures" size="small" @update:value="saveSettings">
+          <n-switch v-model:value="experimentalFeatures" size="small" :disabled="busy" @update:value="saveSettings">
             <template #checked>开启</template>
             <template #unchecked>关闭</template>
           </n-switch>
         </div>
+        <label class="setting-row">
+          <span class="setting-label">每日请求预算（UTC）</span>
+          <input v-model.number="settings.lab_daily_request_limit" class="vercel-input narrow" type="number" min="1" max="10000000" step="1" :disabled="busy" />
+        </label>
+        <label class="setting-row">
+          <span class="setting-label">每秒请求数</span>
+          <input v-model.number="settings.lab_requests_per_second" class="vercel-input narrow" type="number" min="1" max="1000" step="1" :disabled="busy" />
+        </label>
+        <label class="setting-row">
+          <span class="setting-label">并发上限</span>
+          <input v-model.number="settings.lab_max_workers" class="vercel-input narrow" type="number" min="1" max="256" step="1" :disabled="busy" />
+        </label>
+        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">保存优选限制</button>
       </div>
 
       <div class="admin-card">
@@ -283,6 +296,7 @@ import {
 } from '../api/admin'
 import CnamePicker from '../components/CNAMEPicker.vue'
 import { useConfigStore } from '../stores/config'
+import { validateLabLimits } from '../utils/lab'
 const message = useMessage()
 const store = useConfigStore()
 const config = store.config
@@ -314,7 +328,10 @@ async function loadSecurity() {
   busy.value = true
   try {
     const { data } = await getAppSettings()
-    settings.value = data
+    settings.value = { ...data,
+      lab_daily_request_limit: data.lab_daily_request_limit ?? 100000,
+      lab_requests_per_second: data.lab_requests_per_second ?? 10,
+      lab_max_workers: data.lab_max_workers ?? 32 }
     turnstile.value.enabled = !!data.turnstile_enabled
     turnstile.value.site_key = data.turnstile_site_key || ''
     turnstileHasSecret.value = !!data.turnstile_has_secret
@@ -329,7 +346,8 @@ async function loadSecurity() {
 async function saveSettings() {
   busy.value = true
   try {
-    await updateAppSettings(settings.value)
+    const { data } = await updateAppSettings(settings.value)
+    settings.value = data
     store.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
     message.success('设置已保存')
   } catch (e: any) {
@@ -337,6 +355,12 @@ async function saveSettings() {
   } finally {
     busy.value = false
   }
+}
+
+function saveLabLimits() {
+  const error = validateLabLimits(settings.value)
+  if (error) return message.error(error)
+  void saveSettings()
 }
 
 async function saveTurnstile() {

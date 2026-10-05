@@ -3,10 +3,12 @@ import axios, { type InternalAxiosRequestConfig } from 'axios'
 declare module 'axios' {
   interface AxiosRequestConfig {
     skipAuthInvalidation?: boolean
+    validateSession?: (token: string | null) => void
   }
 
   interface InternalAxiosRequestConfig {
     skipAuthInvalidation?: boolean
+    validateSession?: (token: string | null) => void
   }
 }
 
@@ -18,6 +20,7 @@ export const api = axios.create({
 // Attach auth token to all requests
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('auth_token')
+  config.validateSession?.(token)
   if (token) {
     config.headers['X-Auth-Token'] = token
   }
@@ -28,7 +31,9 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !err.config?.skipAuthInvalidation && window.location.pathname !== '/login') {
+    if (err.response?.status === 401 && !err.config?.skipAuthInvalidation
+      && (!err.config?.validateSession || err.config.headers?.['X-Auth-Token'] === localStorage.getItem('auth_token'))
+      && window.location.pathname !== '/login') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_username')
       localStorage.removeItem('auth_role')
@@ -343,7 +348,20 @@ export function listZones() {
   return api.get<Zone[]>('/zones')
 }
 
-export type DNSRecordType = 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX'
+export type DNSRecordType = 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX' | 'NS' | 'SRV' | 'CAA' | 'PTR'
+
+export interface DNSRecordData {
+  priority?: number
+  weight?: number
+  port?: number
+  target?: string
+  flags?: number
+  tag?: string
+  value?: string
+  service?: string
+  proto?: string
+  name?: string
+}
 
 export interface DNSRecord {
   id: string
@@ -353,6 +371,7 @@ export interface DNSRecord {
   ttl: number
   proxied?: boolean
   priority?: number
+  data?: DNSRecordData
   created_on?: string
   modified_on?: string
 }
@@ -364,14 +383,15 @@ export interface DNSRecordInput {
   ttl: number
   proxied?: boolean
   priority?: number
+  data?: DNSRecordData
 }
 
 export function listDNSRecords(zoneID: string) {
   return api.get<DNSRecord[]>(`/zones/${zoneID}/dns-records`)
 }
 
-export function createDNSRecord(zoneID: string, data: DNSRecordInput) {
-  return api.post<DNSRecord>(`/zones/${zoneID}/dns-records`, data)
+export function createDNSRecord(zoneID: string, data: DNSRecordInput, validateSession?: (token: string | null) => void) {
+  return api.post<DNSRecord>(`/zones/${zoneID}/dns-records`, data, { validateSession })
 }
 
 export function updateDNSRecord(zoneID: string, recordID: string, data: DNSRecordInput) {

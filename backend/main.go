@@ -188,9 +188,8 @@ func main() {
 	dnsHandler := handlers.NewDNSHandler(cf)
 	monitorHandler := handlers.NewMonitorHandler(cf, st)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
-	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
-
 	labHandler := handlers.NewLabHandler(st, labRunner, encryptionKey)
+	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
 	authHandler := handlers.NewAuthHandler(st, encryptionKey)
 	managementHandler := handlers.NewManagementHandler(st, encryptionKey)
@@ -269,6 +268,21 @@ func main() {
 		r.Post("/admin/login/2fa/passkey/begin", passkeyHandler.TwoFactorBegin)
 		r.Post("/admin/login/2fa/passkey/finish", passkeyHandler.TwoFactorFinish)
 
+		assistantActions := map[string]http.HandlerFunc{
+			"create_tunnel":      tunnelHandler.CreateTunnel,
+			"create_dns_record":  dnsHandler.Create,
+			"create_monitor":     monitorsHandler.Create,
+			"add_monitor_target": monitorsHandler.AddTarget,
+		}
+		assistantHandler := handlers.NewAssistantHandler(st, encryptionKey, assistantActions)
+		assistantActions["bind_domain"] = assistantHandler.BindDomain
+		r.Get("/assistant/settings", mw.Auth(assistantHandler.Settings))
+		r.Put("/assistant/settings", mw.Auth(assistantHandler.SaveSettings))
+		r.Get("/assistant/conversations", mw.Auth(assistantHandler.Conversations))
+		r.Post("/assistant/conversations", mw.Auth(assistantHandler.NewConversation))
+		r.Delete("/assistant/conversations/{conversationID}", mw.Auth(assistantHandler.DeleteConversation))
+		r.Post("/assistant/conversations/{conversationID}/messages", mw.Auth(assistantHandler.Chat))
+		r.Post("/assistant/conversations/{conversationID}/tasks/{taskID}", mw.Auth(assistantHandler.TaskAction))
 		// Panel settings (single administrator). Kept from the old admin console:
 		// registration/invite/audit management is gone, but these system-config
 		// endpoints back features that remain (SMTP alerts, Cloudflare OAuth
@@ -331,6 +345,11 @@ func main() {
 		r.Put("/lab/ip-selector", mw.Auth(labHandler.SaveSettings))
 		r.Get("/lab/ip-selector/status", mw.Auth(labHandler.GetStatus))
 		r.Post("/lab/ip-selector/run", mw.Auth(labHandler.Run))
+		r.Post("/lab/ip-selector/stop", mw.Auth(labHandler.Stop))
+		r.Post("/lab/ip-selector/ownership/challenge", mw.Auth(labHandler.Challenge))
+		r.Post("/lab/ip-selector/ownership/verify", mw.Auth(labHandler.Verify))
+		r.Get("/lab/ip-selector/ownership/dns", mw.Auth(labHandler.DNSAvailability))
+		r.Post("/lab/ip-selector/ownership/dns", mw.Auth(labHandler.ProvisionDNS))
 
 		// Monitor projects (uptime-style)
 		r.Get("/monitors", mw.Auth(monitorsHandler.List))

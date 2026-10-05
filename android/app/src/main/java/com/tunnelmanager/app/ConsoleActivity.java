@@ -22,6 +22,8 @@ import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
@@ -48,6 +50,9 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private FrameLayout content;
     private LinearLayout bottomBar;
+    private FrameLayout bottomArea;
+    private boolean compactBottomBar;
+    private boolean keyboardVisible;
     private View shell;
     private ImageView themeButton;
     private ImageView navigationButton;
@@ -67,11 +72,13 @@ public class ConsoleActivity extends AppCompatActivity {
     /** Set once a dead session has been acted on, so it is acted on once. */
     private boolean sessionLostHandled;
     private TunnelCreateSheet tunnelCreateSheet;
+    AssistantFragment.State assistantState;
 
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         Session.init(this);
+        assistantState = new AssistantFragment.State();
         if (Session.token().isEmpty()) {
             backToLogin(null);
             return;
@@ -87,10 +94,20 @@ public class ConsoleActivity extends AppCompatActivity {
         applySystemBars();
         shell = buildShell();
         setContentView(shell);
+        ViewCompat.setOnApplyWindowInsetsListener(shell, (view, insets) -> {
+            boolean visible = insets.isVisible(WindowInsetsCompat.Type.ime());
+            if (keyboardVisible != visible) {
+                keyboardVisible = visible;
+                updateAssistantChrome();
+            }
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(shell);
         tunnelCreateSheet = new TunnelCreateSheet(this, saved);
         installBackHandler();
         loadIdentity();
         if (saved == null) open(initialRoute(getIntent()));
+        else refreshChrome();
     }
 
     @Override
@@ -164,6 +181,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private View buildBottomArea() {
         FrameLayout area = new FrameLayout(this);
+        bottomArea = area;
         area.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, UI.dp(UI.TABBAR_H + 24), Gravity.BOTTOM));
         bottomBar = buildBottomBar();
@@ -273,6 +291,7 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void fillBottomBar(LinearLayout bar) {
+        boolean compact = "/assistant".equals(currentPath);
         List<String> paths = new ArrayList<>();
         List<Nav.Item> visible = Nav.visible();
         for (String path : Nav.TAB_PATHS) {
@@ -281,7 +300,8 @@ public class ConsoleActivity extends AppCompatActivity {
             if (item != null && visible.contains(item)) paths.add(path);
         }
         paths.add("more");
-        if (!paths.equals(bottomPaths)) {
+        if (!paths.equals(bottomPaths) || compactBottomBar != compact) {
+            compactBottomBar = compact;
             bottomPaths.clear();
             bottomPaths.addAll(paths);
             bar.removeAllViews();
@@ -309,6 +329,34 @@ public class ConsoleActivity extends AppCompatActivity {
         }
     }
 
+    private void updateAssistantChrome() {
+        if (wide || bottomBar == null || bottomArea == null || content == null) return;
+        boolean assistant = "/assistant".equals(currentPath);
+        boolean hidden = assistant && keyboardVisible;
+        bottomArea.setVisibility(hidden ? View.GONE : View.VISIBLE);
+        int clearance = assistant && !hidden ? UI.dp(64) : 0;
+        if (content.getPaddingBottom() != clearance) content.setPadding(0, 0, 0, clearance);
+        FrameLayout.LayoutParams areaParams = (FrameLayout.LayoutParams) bottomArea.getLayoutParams();
+        int areaHeight = UI.dp(assistant ? 64 : UI.TABBAR_H + 24);
+        if (areaParams.height != areaHeight) {
+            areaParams.height = areaHeight;
+            bottomArea.setLayoutParams(areaParams);
+        }
+        FrameLayout.LayoutParams barParams = (FrameLayout.LayoutParams) bottomBar.getLayoutParams();
+        int barHeight = UI.dp(assistant ? 56 : UI.TABBAR_H);
+        int side = UI.dp(assistant ? 12 : 20);
+        int bottom = UI.dp(assistant ? 4 : 12);
+        if (barParams.height != barHeight || barParams.leftMargin != side || barParams.bottomMargin != bottom) {
+            barParams.height = barHeight;
+            barParams.setMargins(side, 0, side, bottom);
+            bottomBar.setLayoutParams(barParams);
+        }
+        int padding = UI.dp(assistant ? 4 : 6);
+        bottomBar.setPadding(padding, padding, padding, padding);
+        bottomBar.setBackground(assistant ? UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_MD, Theme.p().hairline, 1) : new GlassDrawable(UI.RADIUS_PILL, false));
+        bottomBar.setElevation(UI.dp(assistant || Theme.reducedEffects() ? 0 : 6));
+    }
+
     private boolean canCreate() {
         return Session.hasPerm("tunnels") || Session.hasPerm("domain_bind");
     }
@@ -328,18 +376,19 @@ public class ConsoleActivity extends AppCompatActivity {
         Palette p = Theme.p();
         int tint = active ? p.success : p.mute;
         LinearLayout box = UI.column(this);
+        if (compactBottomBar) box.setOrientation(LinearLayout.HORIZONTAL);
         box.setGravity(Gravity.CENTER);
         box.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
         UI.tint(image, tint);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(22), UI.dp(22));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(UI.dp(compactBottomBar ? 18 : 22), UI.dp(compactBottomBar ? 18 : 22));
         box.addView(image, iconLp);
 
         if (label != null) {
             TextView caption = UI.text(this, label, 10, tint, active ? Typeface.BOLD : Typeface.NORMAL);
-            UI.margin(caption, 0, 3, 0, 0);
+            UI.margin(caption, compactBottomBar ? 3 : 0, compactBottomBar ? 0 : 3, 0, 0);
             box.addView(caption);
         }
         box.setClickable(true);
@@ -508,6 +557,7 @@ public class ConsoleActivity extends AppCompatActivity {
                 "新建隧道", "创建 Cloudflare Tunnel 并获取连接命令", this::showCreateTunnel);
         if (Session.hasPerm("domain_bind")) sheet.action(R.drawable.ic_nav_domain,
                 "绑定域名", "为当前服务配置访问地址", () -> open("/domain"));
+        sheet.action(R.drawable.ic_nav_assistant, "AI 助手", "描述目标，核对并执行配置任务", () -> open("/assistant"));
         sheet.show();
     }
 
@@ -525,14 +575,14 @@ public class ConsoleActivity extends AppCompatActivity {
         sheet.content(identityHead());
         List<Nav.Item> visible = Nav.visible();
         List<Nav.Item> network = new ArrayList<>();
-        String[] paths = {"/tunnels", "/domain", "/dns", "/lab/ip-selector", "/monitors"};
+        String[] paths = {"/tunnels", "/domain", "/dns", "/monitors"};
         for (String path : paths) {
             for (Nav.Item item : visible) {
                 if (path.equals(item.path)) network.add(item);
             }
         }
         if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "批量绑定", null,
-                R.drawable.ic_nav_plus, Nav.Group.NETWORK, "domain_bind", false, false, true));
+                R.drawable.ic_nav_plus, Nav.Group.NETWORK, "domain_bind", false, true));
         if (!network.isEmpty()) sheet.label("网络与解析").content(moreGrid(sheet, network));
         for (Nav.Group group : new Nav.Group[]{Nav.Group.SYSTEM, Nav.Group.PERSONAL}) {
             boolean labelled = false;
@@ -577,8 +627,7 @@ public class ConsoleActivity extends AppCompatActivity {
                 icon.setImageResource(item.icon);
                 UI.tint(icon, Theme.p().success);
                 tile.addView(icon, new LinearLayout.LayoutParams(UI.dp(24), UI.dp(24)));
-                String label = "/lab/ip-selector".equals(item.path) ? "IP 优选" : item.label;
-                TextView title = UI.text(this, label, 13, Theme.p().ink, Typeface.NORMAL);
+                TextView title = UI.text(this, item.label, 13, Theme.p().ink, Typeface.NORMAL);
                 title.setGravity(Gravity.CENTER);
                 UI.margin(title, 0, UI.SM, 0, 0);
                 tile.addView(title);
@@ -698,6 +747,9 @@ public class ConsoleActivity extends AppCompatActivity {
 
     void open(String path) {
         if (content == null) return;
+        if (path.startsWith("/lab/") && (!Session.isAdmin() || !Session.experimental())) {
+            path = "/dashboard";
+        }
         // MainActivity hands the console a route every time it is brought
         // forward, so the page already on screen arrives here a second time.
         // Re-opening it would stack a duplicate and leave the container empty
@@ -715,8 +767,9 @@ public class ConsoleActivity extends AppCompatActivity {
             page = WebPageFragment.forRoute(path);
         }
         currentPath = path;
-        getSupportFragmentManager().beginTransaction()
-                .setReorderingAllowed(true)
+        androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        if (Theme.motionEnabled()) transaction.setCustomAnimations(R.anim.page_in, R.anim.page_out, R.anim.page_back_in, R.anim.page_out);
+        transaction.setReorderingAllowed(true)
                 .replace(R.id.tm_content, page)
                 .addToBackStack(path)
                 .commit();
@@ -729,6 +782,8 @@ public class ConsoleActivity extends AppCompatActivity {
      * so have no {@link Nav.Item} of their own.
      */
     private Fragment nativePage(String path) {
+        if ("/lab/ip-selector".equals(path)) return new LabFragment();
+        if ("/assistant".equals(path)) return new AssistantFragment();
         if ("/dashboard".equals(path)) return new DashboardFragment();
         if ("/tunnels".equals(path)) return new TunnelsFragment();
         if (path.startsWith("/tunnels/")) {
@@ -742,7 +797,6 @@ public class ConsoleActivity extends AppCompatActivity {
         if ("/account".equals(path)) return new AccountFragment();
         if ("/about".equals(path)) return new AboutFragment();
         if ("/settings".equals(path)) return new SettingsFragment();
-        if ("/lab/ip-selector".equals(path)) return new LabFragment();
         if ("/monitors".equals(path)) return new MonitorsFragment();
         if (path.startsWith("/monitors/")) {
             String id = path.substring("/monitors/".length());
@@ -764,6 +818,7 @@ public class ConsoleActivity extends AppCompatActivity {
             fillSidebar(column);
         }
         if (bottomBar != null) fillBottomBar(bottomBar);
+        updateAssistantChrome();
     }
 
     private void installBackHandler() {
@@ -820,7 +875,7 @@ public class ConsoleActivity extends AppCompatActivity {
         // Branding is cosmetic; the shell already has usable defaults.
     }
 
-    private void rebuildNav() {
+    void rebuildNav() {
         if (isFinishing() || isDestroyed()) return;
         refreshChrome();
     }
@@ -877,6 +932,7 @@ public class ConsoleActivity extends AppCompatActivity {
             toggle.setOn(Theme.reducedEffects());
             UI.retheme(shell, Theme.p());
             if (bottomBar != null) bottomBar.setElevation(UI.dp(Theme.reducedEffects() ? 0 : 6));
+            updateAssistantChrome();
         });
         return row;
     }

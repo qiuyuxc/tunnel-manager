@@ -1,10 +1,10 @@
+import LabIPSelector from '../views/LabIPSelector.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import Login from '../views/Login.vue'
 import Landing from '../views/Landing.vue'
 import { useConfigStore } from '../stores/config'
 import { setupStatus } from '../api/setup'
-import LabIPSelector from '../views/LabIPSelector.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,6 +25,7 @@ const router = createRouter({
     { path: '/dns', name: 'dns', component: () => import('../views/DNSManagement.vue'), meta: { requiresAuth: true } },
     { path: '/lab/ip-selector', name: 'lab-ip-selector', component: LabIPSelector, meta: { requiresAuth: true, requiresExperimental: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
+    { path: '/assistant', name: 'assistant', component: () => import('../views/Assistant.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
     { path: '/notifications', name: 'notifications', component: () => import('../views/Notifications.vue'), meta: { requiresAuth: true } },
     { path: '/about', name: 'about', component: () => import('../views/About.vue'), meta: { requiresAuth: true } },

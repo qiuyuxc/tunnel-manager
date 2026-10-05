@@ -2,6 +2,39 @@ package store
 
 import "tunnel-manager/models"
 
+func (s *Store) GetLabSecurity() models.LabSecurityState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.labSecurity
+}
+
+func (s *Store) UpdateLabSecurity(update func(*models.LabSecurityState) error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.labSecurity
+	if err := update(&s.labSecurity); err != nil {
+		s.labSecurity = previous
+		return err
+	}
+	if err := s.saveLocked(); err != nil {
+		s.labSecurity = previous
+		return err
+	}
+	return nil
+}
+
+func (s *Store) SuspendLab() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.labSettings
+	s.labSettings.Schedule = false
+	if err := s.saveLocked(); err != nil {
+		s.labSettings = previous
+		return err
+	}
+	return nil
+}
+
 const maxLabRuns = 20
 
 // GetLabSettings returns the experimental IP selector configuration.
@@ -15,6 +48,7 @@ func (s *Store) GetLabSettings() models.LabIPSelectorSettings {
 func (s *Store) SetLabSettings(settings models.LabIPSelectorSettings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	settings.Limits = models.LabLimits{}
 	previous := s.labSettings
 	s.labSettings = settings
 	if err := s.saveLocked(); err != nil {

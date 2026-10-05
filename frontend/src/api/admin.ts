@@ -32,6 +32,9 @@ export interface AppSettings {
   turnstile_site_key?: string
   turnstile_has_secret?: boolean
   experimental_features_enabled?: boolean
+  lab_daily_request_limit?: number
+  lab_requests_per_second?: number
+  lab_max_workers?: number
   /** 面板全局禁用密码登录：必须使用通行密钥 */
   password_login_disabled?: boolean
   /** 通行密钥依赖方 ID；留空按访问域名自动推导 */

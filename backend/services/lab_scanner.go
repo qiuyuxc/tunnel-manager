@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
@@ -80,6 +81,9 @@ func expandLabTarget(field string) []string {
 			return []string{field}
 		}
 		ones, bits := network.Mask.Size()
+		if bits-ones > 16 {
+			return []string{field}
+		}
 		count := 1 << (bits - ones)
 		if count > maxLabScanTargets+1 {
 			return []string{field}
@@ -97,15 +101,21 @@ func expandLabTarget(field string) []string {
 		start := net.ParseIP(startText)
 		end := net.ParseIP(endText)
 		if start != nil && end != nil && start.To4() != nil && end.To4() != nil {
+			if compareIPs(start, end) > 0 {
+				return []string{field}
+			}
 			addresses := []string{}
 			for ip := start.To4(); ip != nil && compareIPs(ip, end.To4()) <= 0; incrementIP(ip) {
 				addresses = append(addresses, ip.String())
-				if len(addresses) > maxLabScanTargets {
+				if len(addresses) > maxLabScanTargets || compareIPs(ip, end) == 0 {
 					break
 				}
 			}
 			return addresses
 		}
+	}
+	if address := net.ParseIP(field); address != nil {
+		return []string{address.String()}
 	}
 	return []string{field}
 }
@@ -142,7 +152,7 @@ func ParseLabStatuses(input string) ([]int, error) {
 	seen := make(map[int]struct{}, len(parts))
 	for _, part := range parts {
 		status, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil || status < 100 || status > 599 {
+		if err != nil || status < 200 || status > 599 {
 			return nil, fmt.Errorf("invalid HTTP status %q", strings.TrimSpace(part))
 		}
 		if _, duplicate := seen[status]; duplicate {
@@ -165,6 +175,13 @@ type LabIPSelectorProgress struct {
 // ScanLabIPs probes every target with the configured Host and TLS SNI. The
 // optional callback receives throttled live progress updates.
 func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onProgress ...func(LabIPSelectorProgress)) ([]models.LabIPScanResult, []models.LabIPScanResult, []string, []models.LabIPSegmentResult, error) {
+	return scanLabIPs(ctx, settings, scanLabIP, onProgress...)
+}
+
+func scanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, probe func(context.Context, string, string, string, time.Duration, <-chan time.Time) models.LabIPScanResult, onProgress ...func(LabIPSelectorProgress)) ([]models.LabIPScanResult, []models.LabIPScanResult, []string, []models.LabIPSegmentResult, error) {
+	if err := NormalizeLabProbe(&settings); err != nil {
+		return nil, nil, nil, nil, err
+	}
 	var progressCallback func(LabIPSelectorProgress)
 	if len(onProgress) > 0 {
 		progressCallback = onProgress[0]
@@ -185,6 +202,9 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	if err := ValidateLabPublicTargets(targets); err != nil {
+		return nil, nil, nil, nil, err
+	}
 	if strings.TrimSpace(settings.Host) == "" {
 		return nil, nil, nil, nil, errors.New("Host is required")
 	}
@@ -201,11 +221,12 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 	}
 	request := fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: TunnelManagerLab/1.0\r\nConnection: close\r\n\r\n", path, settings.Host)
 	workers := settings.Workers
+	limits := settings.Limits.Normalized()
 	if workers < 1 {
-		workers = 32
+		workers = models.LabMaxWorkers
 	}
-	if workers > 256 {
-		workers = 256
+	if workers > limits.MaxWorkers {
+		workers = limits.MaxWorkers
 	}
 	timeout := time.Duration(settings.Timeout) * time.Second
 	if timeout <= 0 {
@@ -222,6 +243,8 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 		ip      string
 	}
 	jobs := make(chan scanJob)
+	requestTicker := time.NewTicker(time.Second / time.Duration(limits.RequestsPerSecond))
+	defer requestTicker.Stop()
 	results := make([]models.LabIPScanResult, len(targets))
 	var wg sync.WaitGroup
 	var progressMu sync.Mutex
@@ -248,13 +271,15 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 			progressCallback(progress)
 		}
 	}
-	progressCallback(LabIPSelectorProgress{Total: len(targets)})
+	if progressCallback != nil {
+		progressCallback(LabIPSelectorProgress{Total: len(targets)})
+	}
 	for worker := 0; worker < workers; worker++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
-				result := scanLabIP(ctx, job.ip, request, sni, timeout)
+				result := probe(ctx, job.ip, request, sni, timeout, requestTicker.C)
 				results[job.index] = result
 				reportProgress(result.Status, false)
 				select {
@@ -276,6 +301,9 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 	}
 	close(jobs)
 	wg.Wait()
+	if err := ctx.Err(); err != nil {
+		return nil, nil, nil, nil, err
+	}
 	if progressCallback != nil {
 		progressMu.Lock()
 		progress := LabIPSelectorProgress{
@@ -296,7 +324,7 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 	for index, result := range results {
 		segmentResult := &segmentResults[targetSegments[index]]
 		segmentResult.Scanned++
-		if _, ok := accepted[result.Status]; ok {
+		if _, ok := accepted[result.Status]; ok && result.Error == "" {
 			segmentResult.Matched++
 			matches = append(matches, result)
 		}
@@ -327,20 +355,32 @@ func ScanLabIPs(ctx context.Context, settings models.LabIPSelectorSettings, onPr
 	return results, matches, selected, segmentResults, nil
 }
 
-func scanLabIP(ctx context.Context, ip, request, sni string, timeout time.Duration) models.LabIPScanResult {
+func scanLabIP(ctx context.Context, ip, request, sni string, timeout time.Duration, gate <-chan time.Time) models.LabIPScanResult {
+	return scanLabIPWithDialer(ctx, ip, request, sni, timeout, gate, func(ctx context.Context, dialer *tls.Dialer, address string) (net.Conn, error) {
+		return dialer.DialContext(ctx, "tcp", address)
+	})
+}
+
+func scanLabIPWithDialer(ctx context.Context, ip, request, sni string, timeout time.Duration, gate <-chan time.Time, dial func(context.Context, *tls.Dialer, string) (net.Conn, error)) models.LabIPScanResult {
 	start := time.Now()
 	result := models.LabIPScanResult{IP: ip}
-	dialer := &net.Dialer{Timeout: timeout}
-	connection, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(ip, "443"), &tls.Config{
-		ServerName:         sni,
-		InsecureSkipVerify: true,
-	})
+	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: timeout}, Config: &tls.Config{ServerName: sni, MinVersion: tls.VersionTLS12}}
+	connection, err := dial(ctx, dialer, net.JoinHostPort(ip, "443"))
 	if err != nil {
 		result.LatencyMS = time.Since(start).Milliseconds()
 		result.Error = err.Error()
 		return result
 	}
 	defer connection.Close()
+	stopClosing := context.AfterFunc(ctx, func() { _ = connection.Close() })
+	defer stopClosing()
+	select {
+	case <-ctx.Done():
+		result.Error = ctx.Err().Error()
+		return result
+	case <-gate:
+	}
+	start = time.Now()
 	if err := connection.SetDeadline(time.Now().Add(timeout)); err != nil {
 		result.LatencyMS = time.Since(start).Milliseconds()
 		result.Error = err.Error()
@@ -351,30 +391,33 @@ func scanLabIP(ctx context.Context, ip, request, sni string, timeout time.Durati
 		result.Error = err.Error()
 		return result
 	}
-	statusLine, err := bufio.NewReader(connection).ReadString('\n')
+	status, err := readLabStatus(connection)
 	result.LatencyMS = time.Since(start).Milliseconds()
-	if err != nil && statusLine == "" {
+	if err != nil {
 		result.Error = err.Error()
 		return result
 	}
-	fields := strings.Fields(statusLine)
-	if len(fields) < 2 {
-		result.Error = "invalid HTTP response"
-		return result
-	}
-	status, err := strconv.Atoi(fields[1])
-	if err != nil {
-		result.Error = "invalid HTTP status"
-		return result
-	}
 	result.Status = status
-	if status == http.StatusSwitchingProtocols || status < 100 || status > 599 {
-		result.Error = "invalid HTTP status"
-	}
 	select {
 	case <-ctx.Done():
 		result.Error = ctx.Err().Error()
 	default:
 	}
 	return result
+}
+
+func readLabStatus(reader io.Reader) (int, error) {
+	line, err := bufio.NewReader(io.LimitReader(reader, 4096)).ReadString('\n')
+	if err != nil {
+		return 0, err
+	}
+	fields := strings.Fields(line)
+	if len(fields) < 2 || (fields[0] != "HTTP/1.1" && fields[0] != "HTTP/1.0") || !strings.HasSuffix(line, "\r\n") || len(fields[1]) != 3 {
+		return 0, errors.New("invalid HTTP response")
+	}
+	status, err := strconv.Atoi(fields[1])
+	if err != nil || status < http.StatusOK || status > 599 {
+		return 0, errors.New("invalid HTTP status")
+	}
+	return status, nil
 }

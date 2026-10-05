@@ -21,7 +21,7 @@
           </span>
           <div class="about-app-text">
             <strong>Cloudflare Tunnel 可视化管理面板</strong>
-            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、服务状态变化邮件告警、Telegram Bot 远程管理和双重身份验证；管理员还可开启实验性 IP 优选实验室，按输入段探测、筛选并剔除无命中地址。</p>
+            <p>面向单管理员的隧道与 DNS 管理面板，支持 AI 配置助手、IP 优选、服务状态告警、通行密钥和双重身份验证。</p>
             <a class="about-repo" :href="REPO_URL" target="_blank" rel="noopener">
               仓库地址：{{ REPO_URL }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -103,27 +103,23 @@
           </div>
           <div class="feature-item">
             <strong>DNS 管理</strong>
-            <p>按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除</p>
+            <p>支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，提供结构化字段编辑、批量新增与逐条结果</p>
           </div>
           <div class="feature-item">
-            <strong>IP 优选实验室</strong>
-            <p>实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，展示实时进度与分段命中，可一键剔除未命中段</p>
-          </div>
-          <div class="feature-item">
-            <strong>Telegram Bot</strong>
-            <p>在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook</p>
+            <strong>AI 助手</strong>
+            <p>描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对</p>
           </div>
           <div class="feature-item">
             <strong>Cloudflare OAuth</strong>
             <p>授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token</p>
           </div>
           <div class="feature-item">
-            <strong>多用户与管理后台</strong>
-            <p>邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略</p>
+            <strong>IP 优选实验室</strong>
+            <p>独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新</p>
           </div>
           <div class="feature-item">
-            <strong>邮件告警</strong>
-            <p>服务状态变化时自动发送告警邮件（仅状态变化触发），SMTP 可视化配置并支持测试发送</p>
+            <strong>状态告警</strong>
+            <p>服务状态变化时发送邮件或 Telegram 通知，仅用于告警推送，不提供远程控制</p>
           </div>
           <div class="feature-item">
             <strong>安全认证</strong>
@@ -140,7 +136,7 @@
         </div>
         <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
         <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
-        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
+        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram 通知 · GitHub Actions</code></div>
       </section>
     </div>
   </div>

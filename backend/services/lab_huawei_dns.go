@@ -2,12 +2,14 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -16,6 +18,7 @@ import (
 )
 
 type huaweiDNSClient struct {
+	context    context.Context
 	endpoint   string
 	accessKey  string
 	secretKey  string
@@ -35,10 +38,11 @@ func newHuaweiDNSClient(endpoint, accessKey, secretKey string) *huaweiDNSClient 
 		endpoint = "https://dns.myhuaweicloud.com"
 	}
 	return &huaweiDNSClient{
+		context:    context.Background(),
 		endpoint:   strings.TrimRight(endpoint, "/"),
 		accessKey:  accessKey,
 		secretKey:  secretKey,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 }
 
@@ -58,6 +62,11 @@ func (c *huaweiDNSClient) UpdateARecord(zoneID, zoneName, record string, ttl int
 	}
 	if len(ips) == 0 {
 		return fmt.Errorf("at least one selected IP is required")
+	}
+	for _, address := range ips {
+		if net.ParseIP(address).To4() == nil {
+			return fmt.Errorf("Huawei Cloud A records require IPv4 candidates")
+		}
 	}
 	if zoneID == "" {
 		foundZoneID, err := c.findZoneID(zoneName)
@@ -148,7 +157,7 @@ func (c *huaweiDNSClient) request(method, path string, query url.Values, payload
 	if len(query) > 0 {
 		target += "?" + query.Encode()
 	}
-	request, err := http.NewRequest(method, target, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(c.context, method, target, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

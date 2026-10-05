@@ -27,14 +27,23 @@ Cloudflare Tunnel 可视化管理面板，附带原生 Android 客户端。通�
 | --- | --- | --- |
 | 隧道管理 | 新建 / 删除隧道，Ingress 路由增删改，删除可联动清理 DNS | [隧道管理与路由](https://docs.kukie.cn/guide/tunnels) |
 | 域名绑定 | 简化直连与 SaaS 优选双模式，批量绑定逐组独立配置 | [域名绑定模式](https://docs.kukie.cn/guide/domain-binding) · [批量绑定](https://docs.kukie.cn/guide/batch-binding) |
-| DNS 管理 | A / AAAA / CNAME / TXT / MX 增删改查，TTL、代理状态与优先级，支持批量操作 | [DNS 记录管理](https://docs.kukie.cn/guide/dns-management) |
-| IP 优选实验室 | 实验性直连探测 IP 段，按 Host / SNI 与状态码筛选，实时进度、分段统计、一键剔除未命中段，可选自动更新华为云 DNS | [IP 优选实验室](https://docs.kukie.cn/guide/lab-ip-selector) |
+| DNS 管理 | A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR 增删改查，结构化字段编辑、批量新增预览与逐条结果 | [DNS 记录管理](https://docs.kukie.cn/guide/dns-management) |
+| AI 助手 | 通过兼容 Chat Completions 的连接生成配置任务，人工核对、明确确认后执行；会话、任务和加密密钥由后端保存 | [AI 助手](https://docs.kukie.cn/guide/ai-assistant) |
+| IP 优选实验室 | 独立 TXT 域名验证、HTTP 探测与诊断、动态预算和限速，可选定时执行与华为云 DNS 更新 | [IP 优选实验室](https://docs.kukie.cn/guide/lab-ip-selector) |
 | 服务监控 | HTTP / TCP / ICMP 探测，多目标挂载，近 7 天延迟柱图 | [服务监控](https://docs.kukie.cn/guide/monitors-status) |
 | 告警 | 仅在服务状态变化时通知，支持邮件（SMTP）或 Telegram 通知 Bot | [邮件服务与告警](https://docs.kukie.cn/guide/email-alerts) |
 | 公开状态页 | 免登录分享，支持短路径、自定义域名、直连 Tunnel 与优选 CNAME，自定义域名仅开放对应状态页 | [公开状态页](https://docs.kukie.cn/guide/monitors-status#公开状态页) |
 | Cloudflare 连接 | OAuth 2.0（PKCE）自动刷新令牌，多账户切换；兼容静态 Token | [OAuth 连接](https://docs.kukie.cn/guide/cloudflare-oauth) |
 | Android App | 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS、IP 优选实验室与通知，底部标签导航 + 系统通知 | [Android App](https://docs.kukie.cn/guide/android-app) |
 | 安全 | Argon2id 密码哈希、通行密钥（WebAuthn）、TOTP 双因素验证与一次性恢复码 | [安全](https://docs.kukie.cn/guide/security) |
+
+## 本次同步的使用说明
+
+- **全局设置 → IP 优选**：开启实验功能，并设置每日请求预算（1–10000000）、每秒请求数（1–1000）和并发上限（1–256）。默认仍为 100000 / 10 / 32，修改从下一轮生效；这是实例预算，不是云平台用量，取消不退还预留量，UTC 次日重置。
+- **域名验证**：验证域名与探测 Host / SNI 独立，无需先保存探测配置。验证成功后收起 TXT 信息，但不要删除 DNS 中的记录，任务启动及更新 DNS 前仍会复查。旧定时任务在未完成验证时保持停用。
+- **AI 助手**：slim 只显示管理员的连接配置，不提供多用户共享开关。已有共享连接数据仍兼容读取和编辑；模型生成任务不会自动执行，未知结果需先核对资源再重试。
+- **批量 DNS**：支持 A / AAAA / TXT / MX / NS / PTR；成功行不重复提交。切换账户或离开页面会停止尚未发送的操作，已发出但响应不明的写入需人工核对。
+- 升级前备份数据库及 `APP_ENCRYPTION_KEY`。本次仅同步源码，不改变版本号，也不代表已发布新版本；文档站继续由主分支维护。
 
 ## 架构
 

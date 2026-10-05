@@ -77,12 +77,14 @@ type Store struct {
 	appSettings      models.AppSettings
 	labSettings      models.LabIPSelectorSettings
 	labRuns          []models.LabIPSelectorRun
+	labSecurity      models.LabSecurityState
 	smtp             models.SMTPSettings
 	cfConns          []models.CFConnection
 	alertLogs        []models.AlertLog
 	oauthSettings    models.OAuthSettings
 	encryptionKeyRaw string
 	adminID          string
+	assistant        models.AIState
 }
 
 // settingsKey is the app_settings row holding the flat settings document.
@@ -107,6 +109,10 @@ func NewStore(dsn string) *Store {
 		dsn:     resolved,
 		dialect: db.DetectDialect(resolved),
 		prefs:   map[string]models.UserPrefs{},
+		labSettings: models.LabIPSelectorSettings{
+			Path: "/ip-check.txt", Statuses: "200", Timeout: 2, Workers: models.LabMaxWorkers,
+			Top: 10, IntervalMins: 30, TTL: 300, Endpoint: "https://dns.myhuaweicloud.com",
+		},
 		config: models.Config{
 			PreferredCNAME: "cf.090227.xyz",
 			CNAMEPresets: []models.CNAMEPreset{
@@ -296,15 +302,47 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	} else if ok {
 		_ = json.Unmarshal([]byte(appDoc), &s.appSettings)
 	}
-	if labDoc, ok, loadErr := loadSetting(handle, "lab_ip_selector"); loadErr != nil {
-		return false, loadErr
-	} else if ok {
-		_ = json.Unmarshal([]byte(labDoc), &s.labSettings)
+	for key, destination := range map[string]interface{}{
+		"lab_ip_selector":          &s.labSettings,
+		"lab_ip_selector_runs":     &s.labRuns,
+		"lab_ip_selector_security": &s.labSecurity,
+	} {
+		if document, found, loadErr := loadSetting(handle, key); loadErr != nil {
+			return false, loadErr
+		} else if found {
+			if err := json.Unmarshal([]byte(document), destination); err != nil {
+				return false, fmt.Errorf("load %s: %w", key, err)
+			}
+		}
 	}
-	if labRunsDoc, ok, loadErr := loadSetting(handle, "lab_ip_selector_runs"); loadErr != nil {
+	if s.labSecurity.Verification.VerifiedAt == 0 {
+		s.labSettings.Schedule = false
+	}
+	workerCeiling := models.LabWorkerCeiling
+	if s.appSettings.LabMaxWorkers == 0 {
+		workerCeiling = models.LabMaxWorkers
+	}
+	if s.labSettings.Workers > workerCeiling {
+		s.labSettings.Workers = workerCeiling
+	}
+	if assistantDoc, ok, loadErr := loadSetting(handle, "assistant"); loadErr != nil {
 		return false, loadErr
 	} else if ok {
-		_ = json.Unmarshal([]byte(labRunsDoc), &s.labRuns)
+		if err := json.Unmarshal([]byte(assistantDoc), &s.assistant); err != nil {
+			return false, fmt.Errorf("load assistant settings: %w", err)
+		}
+		for userID, state := range s.assistant.Users {
+			for conversationIndex := range state.Conversations {
+				for taskIndex := range state.Conversations[conversationIndex].Tasks {
+					task := &state.Conversations[conversationIndex].Tasks[taskIndex]
+					if task.Status == "running" {
+						task.Status = "unknown"
+						task.Result = "服务重启，执行结果未知。请先核对实际资源，勿重复创建。"
+					}
+				}
+			}
+			s.assistant.Users[userID] = state
+		}
 	}
 	if smtpDoc, ok, loadErr := loadSetting(handle, "smtp"); loadErr != nil {
 		return false, loadErr
@@ -381,25 +419,41 @@ func (s *Store) saveLocked() error {
 	if err := upsertSetting(tx, "app", string(appJSON)); err != nil {
 		return err
 	}
-	labJSON, err := json.Marshal(s.labSettings)
-	if err != nil {
-		return fmt.Errorf("marshal lab settings: %w", err)
-	}
-	if err := upsertSetting(tx, "lab_ip_selector", string(labJSON)); err != nil {
-		return err
-	}
-	labRunsJSON, err := json.Marshal(s.labRuns)
-	if err != nil {
-		return fmt.Errorf("marshal lab runs: %w", err)
-	}
-	if err := upsertSetting(tx, "lab_ip_selector_runs", string(labRunsJSON)); err != nil {
-		return err
+	for key, value := range map[string]interface{}{
+		"lab_ip_selector":          s.labSettings,
+		"lab_ip_selector_runs":     s.labRuns,
+		"lab_ip_selector_security": s.labSecurity,
+	} {
+		document, marshalErr := json.Marshal(value)
+		if marshalErr != nil {
+			return fmt.Errorf("marshal %s: %w", key, marshalErr)
+		}
+		if err := upsertSetting(tx, key, string(document)); err != nil {
+			return err
+		}
 	}
 	smtpJSON, err := json.Marshal(s.smtp)
 	if err != nil {
 		return fmt.Errorf("marshal smtp settings: %w", err)
 	}
 	if err := upsertSetting(tx, "smtp", string(smtpJSON)); err != nil {
+		return err
+	}
+	assistant := cloneAIState(s.assistant)
+	validUsers := map[string]bool{}
+	for _, user := range s.users {
+		validUsers[user.ID] = true
+	}
+	for userID := range assistant.Users {
+		if !validUsers[userID] {
+			delete(assistant.Users, userID)
+		}
+	}
+	assistantJSON, err := json.Marshal(assistant)
+	if err != nil {
+		return fmt.Errorf("marshal assistant settings: %w", err)
+	}
+	if err := upsertSetting(tx, "assistant", string(assistantJSON)); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

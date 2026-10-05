@@ -46,6 +46,10 @@ public class DomainFragment extends PageFragment {
     /** Last bind outcome, kept across re-renders so it does not blink away. */
     private String resultMessage = "";
     private boolean resultOk = false;
+    private boolean pending;
+    private String pendingTitle = "";
+    private long startedAt;
+    private String draftService;
 
     /**
      * The three domain fields are rebuilt whenever the result banner changes,
@@ -79,6 +83,7 @@ public class DomainFragment extends PageFragment {
     }
 
     private void load() {
+        if (pending) { refresh.setRefreshing(false); render(); return; }
         Api.async(() -> Api.get("/api/config"), loaded -> {
             refresh.setRefreshing(false);
             config = loaded;
@@ -87,6 +92,7 @@ public class DomainFragment extends PageFragment {
             draftCname = "";
             draftMain = "";
             draftAux = "";
+            draftService = null;
             render();
         }, failure -> {
             refresh.setRefreshing(false);
@@ -113,7 +119,7 @@ public class DomainFragment extends PageFragment {
         body.addView(subtitle);
 
         String tunnelId = config.optString("tunnel_id", "");
-        String serviceUrlValue = config.optString("service_url", "");
+        String serviceUrlValue = draftService == null ? config.optString("service_url", "") : draftService;
         if (tunnelId.isEmpty() || serviceUrlValue.isEmpty()) {
             body.addView(UI.banner(requireContext(), "前置条件未满足：请先在「隧道管理」锁定隧道，并配置转发地址。", true));
             body.addView(UI.spacer(requireContext(), UI.LG));
@@ -125,6 +131,10 @@ public class DomainFragment extends PageFragment {
         body.addView(UI.label(requireContext(), "绑定新域名"));
         body.addView(UI.spacer(requireContext(), UI.SM));
         body.addView(bindCard());
+        refresh.setEnabled(!pending);
+        if (pending) {
+            OperationProgress.setInputsEnabled(body, false);
+        }
 
         if (!resultMessage.isEmpty()) {
             TextView banner = UI.banner(requireContext(), resultMessage, !resultOk);
@@ -152,7 +162,8 @@ public class DomainFragment extends PageFragment {
         UI.margin(serviceUrl, 0, UI.XS, 0, 0);
         card.addView(serviceUrl);
 
-        TextView save = UI.button(requireContext(), "保存转发地址", UI.BTN_SECONDARY);
+        if (pending && pendingTitle.equals("正在保存转发地址")) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
+        TextView save = UI.button(requireContext(), pending ? "正在处理…" : "保存转发地址", UI.BTN_SECONDARY);
         UI.fill(save);
         UI.margin(save, 0, UI.SM, 0, UI.MD);
         save.setOnClickListener(v -> saveServiceUrl());
@@ -205,7 +216,8 @@ public class DomainFragment extends PageFragment {
         cnameField.setVisibility(mode == 1 ? View.VISIBLE : View.GONE);
         auxField.setVisibility(mode == 1 ? View.VISIBLE : View.GONE);
 
-        TextView bind = UI.button(requireContext(), "绑定域名", UI.BTN_PRIMARY);
+        if (pending && pendingTitle.equals("正在绑定域名")) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
+        TextView bind = UI.button(requireContext(), pending ? "正在处理…" : "绑定域名", UI.BTN_PRIMARY);
         UI.fill(bind);
         UI.margin(bind, 0, UI.LG, 0, 0);
         bind.setOnClickListener(v -> bind());
@@ -246,26 +258,37 @@ public class DomainFragment extends PageFragment {
     }
 
     private void saveServiceUrl() {
+        if (pending) return;
         String value = serviceUrl.getText().toString().trim();
         if (value.isEmpty()) {
             toast("转发地址不能为空");
             return;
         }
+        beginOperation("正在保存转发地址");
         Api.async(() -> {
             JSONObject payload = new JSONObject();
             payload.put("value", value);
             return Api.post("/api/config/service", payload);
         }, ok -> {
+            pending = false;
             config.remove("service_url");
             try {
                 config.put("service_url", value);
             } catch (Exception ignored) {
             }
             toast("转发地址已更新");
-        }, failure -> toast(failure.getMessage()));
+            render();
+        }, failure -> {
+            pending = false;
+            resultOk = false;
+            resultMessage = failure.getMessage();
+            render();
+            toast(resultMessage);
+        });
     }
 
     private void bind() {
+        if (pending) return;
         final String service = serviceUrl.getText().toString().trim();
         final String main = mainDomain.getText().toString().trim();
         final String aux = auxDomain.getText().toString().trim();
@@ -279,6 +302,8 @@ public class DomainFragment extends PageFragment {
         }
 
         final String previous = config.optString("service_url", "").trim();
+        final int requestedMode = mode;
+        beginOperation("正在绑定域名");
         Api.async(() -> {
             // The web console saves a changed forwarding address as part of the
             // same click, so the two never disagree about what was bound.
@@ -288,7 +313,7 @@ public class DomainFragment extends PageFragment {
                 Api.post("/api/config/service", servicePayload);
             }
             JSONObject payload = new JSONObject();
-            payload.put("mode", mode == 1 ? "preferred" : "simple");
+            payload.put("mode", requestedMode == 1 ? "preferred" : "simple");
             payload.put("preferred_cname", preferred);
             payload.put("main_domain", main);
             payload.put("aux_domain", aux);
@@ -304,6 +329,7 @@ public class DomainFragment extends PageFragment {
     }
 
     private void setResult(boolean ok, String message) {
+        pending = false;
         resultOk = ok;
         resultMessage = message == null ? "" : message;
         captureDraft();
@@ -313,9 +339,19 @@ public class DomainFragment extends PageFragment {
 
     private void captureDraft() {
         if (cname == null) return;
+        draftService = serviceUrl.getText().toString();
         draftCname = cname.getText().toString();
         draftMain = mainDomain.getText().toString();
         draftAux = auxDomain.getText().toString();
+    }
+
+    private void beginOperation(String title) {
+        captureDraft();
+        pending = true;
+        pendingTitle = title;
+        startedAt = android.os.SystemClock.elapsedRealtime();
+        resultMessage = "";
+        render();
     }
 
     private void toast(String message) {

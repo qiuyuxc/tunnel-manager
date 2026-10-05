@@ -443,6 +443,18 @@ func (c *CloudflareClient) CreateDNSRecord(zoneID string, payload models.DNSReco
 	return &record, nil
 }
 
+func (c *CloudflareClient) GetDNSRecord(zoneID, recordID string) (*models.DNSRecord, error) {
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, recordID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var record models.DNSRecord
+	if err := c.do(req, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 // UpdateDNSRecord replaces an existing DNS record.
 func (c *CloudflareClient) UpdateDNSRecord(zoneID, recordID string, payload models.DNSRecordRequest) (*models.DNSRecord, error) {
 	body, err := json.Marshal(payload)

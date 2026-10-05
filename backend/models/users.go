@@ -86,6 +86,9 @@ type AppSettings struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// ExperimentalFeatures controls whether lab navigation is exposed.
 	ExperimentalFeatures bool `json:"experimental_features_enabled"`
+	LabDailyRequestLimit int  `json:"lab_daily_request_limit"`
+	LabRequestsPerSecond int  `json:"lab_requests_per_second"`
+	LabMaxWorkers        int  `json:"lab_max_workers"`
 	// PasswordLoginDisabled turns off password sign-in for the whole panel:
 	// every account must use a passkey. Only settable while an active
 	// administrator has one bound, so the panel cannot lock itself out.
@@ -204,6 +207,9 @@ type AppSettingsView struct {
 	TurnstileSiteKey      string `json:"turnstile_site_key"`
 	TurnstileHasSecret    bool   `json:"turnstile_has_secret"`
 	ExperimentalFeatures  bool   `json:"experimental_features_enabled"`
+	LabDailyRequestLimit  int    `json:"lab_daily_request_limit"`
+	LabRequestsPerSecond  int    `json:"lab_requests_per_second"`
+	LabMaxWorkers         int    `json:"lab_max_workers"`
 	PasswordLoginDisabled bool   `json:"password_login_disabled"`
 	PasskeyRPID           string `json:"passkey_rp_id"`
 	PasskeyOrigins        string `json:"passkey_origins"`
@@ -390,8 +396,11 @@ type SaveAppSettingsRequest struct {
 	TurnstileSecret  string `json:"turnstile_secret,omitempty"`
 	// TurnstileHasSecret is accepted for round-tripping the GET response;
 	// it carries no save semantics.
-	TurnstileHasSecret   bool `json:"turnstile_has_secret,omitempty"`
-	ExperimentalFeatures bool `json:"experimental_features_enabled"`
+	TurnstileHasSecret   bool  `json:"turnstile_has_secret,omitempty"`
+	ExperimentalFeatures *bool `json:"experimental_features_enabled"`
+	LabDailyRequestLimit *int  `json:"lab_daily_request_limit"`
+	LabRequestsPerSecond *int  `json:"lab_requests_per_second"`
+	LabMaxWorkers        *int  `json:"lab_max_workers"`
 	// PasswordLoginDisabled is a pointer so a partial save (for example the
 	// Turnstile form) leaves the stored switch alone.
 	PasswordLoginDisabled      *bool  `json:"password_login_disabled"`
