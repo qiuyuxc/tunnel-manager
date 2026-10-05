@@ -74,7 +74,7 @@ socket.addEventListener('message', async event => {
         { name: 'Access-Control-Allow-Origin', value: origin }],
       body: Buffer.from(JSON.stringify([
         { tag_name: 'v9.0.0', body: 'Full edition', draft: false },
-        { tag_name: 'v2.7.0-slim', body: 'Slim edition', draft: false, prerelease: true },
+        { tag_name: 'v2.8.0-slim', body: 'Slim edition', draft: false, prerelease: true },
       ])).toString('base64') })
     return
   }
@@ -91,7 +91,7 @@ socket.addEventListener('message', async event => {
   let result = {}
   const body = request.postData ? JSON.parse(request.postData) : {}
   if (url.pathname === '/api/setup/status') status = 404
-  else if (url.pathname === '/api/health') result = { version: '2.7.0-slim' }
+  else if (url.pathname === '/api/health') result = { version: '2.8.0-slim' }
   else if (url.pathname === '/api/site') result = { name: 'Tunnel Manager', icon: '', landing_enabled: false, experimental_features_enabled: enabled }
   else if (url.pathname === '/api/auth/me') result = { id: 'test-admin', username: 'reviewer', role, permissions: [] }
   else if (url.pathname === '/api/config') result = { site_name: 'Tunnel Manager', experimental_features_enabled: enabled, cname_presets: [] }
@@ -385,7 +385,7 @@ try {
   await waitFor("location.pathname === '/dashboard' && !document.querySelector('.lab-page')")
   await command('Page.navigate', { url: `${origin}/about` })
   await waitFor("document.querySelector('.release-body')?.textContent.includes('Slim edition') && document.querySelector('.feature-grid')")
-  assert.equal(await evaluate("document.querySelectorAll('.version-row strong')[1].textContent"), 'v2.7.0-slim')
+  assert.equal(await evaluate("document.querySelectorAll('.version-row strong')[1].textContent"), 'v2.8.0-slim')
   assert.ok(releaseListRequested, 'slim update checks must use the release list rather than full-edition latest')
   assert.equal(await evaluate("document.querySelector('.feature-grid').textContent.includes('多用户与管理后台')"), false)
   assert.ok(await evaluate("document.querySelector('.feature-grid').textContent.includes('AI 助手') && document.querySelector('.feature-grid').textContent.includes('IP 优选实验室')"))

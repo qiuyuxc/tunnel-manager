@@ -43,7 +43,7 @@ Everything else is unchanged.
 - **Domain verification** is independent of probe Host/SNI and requires no saved probe settings. Successful verification hides TXT details; keep the DNS record for checks before scans and DNS updates. Previously scheduled jobs remain disabled without verification.
 - **AI assistant** shows one administrator connection, with no multi-user sharing controls. Existing shared connection data remains readable and editable. Proposed tasks never execute automatically; check actual resources before retrying an uncertain result.
 - **Batch DNS creation** supports A / AAAA / TXT / MX / NS / PTR and does not resubmit successful rows. Account changes or leaving the page stop unsent operations; manually check writes whose responses were lost.
-- Back up the database and `APP_ENCRYPTION_KEY` before upgrading. This source sync does not change version numbers or publish a release. The documentation site remains on the main branch.
+- Back up the database and `APP_ENCRYPTION_KEY` before upgrading. The server and app now target `2.8.0-slim` (Android build 280); no release has been published. The documentation site remains on the main branch.
 
 ## Architecture
 
