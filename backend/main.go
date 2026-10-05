@@ -26,7 +26,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.7.0"
+const Version = "v2.8.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -158,6 +158,7 @@ func main() {
 	// Service monitoring heartbeat storage and scheduler
 	heartbeatLog := services.NewHeartbeatLog(filepath.Join(dataDir, "heartbeats.json"))
 	monitorRunner := services.NewRunner(st, heartbeatLog)
+	labRunner := services.NewLabIPSelectorRunner(st, encryptionKey)
 	monitorRunner.SetMailer(func() *services.Mailer {
 		settings := st.GetSMTPSettings()
 		if !settings.Configured() || settings.Password == "" {
@@ -171,6 +172,7 @@ func main() {
 		return services.NewMailer(settings, string(plain))
 	})
 	go monitorRunner.Start(context.Background())
+	go labRunner.Start(context.Background())
 	go pruneAuditLogsLoop(st)
 	heartbeatLog.StartFlusher(10 * time.Second)
 
@@ -187,6 +189,7 @@ func main() {
 	dnsHandler := handlers.NewDNSHandler(cf)
 	monitorHandler := handlers.NewMonitorHandler(cf, st)
 	adminHandler := handlers.NewAdminHandler(st, encryptionKey)
+	labHandler := handlers.NewLabHandler(st, labRunner, encryptionKey)
 	cloudflareOAuthHandler := handlers.NewCloudflareOAuthHandler(st, cloudflareOAuth, cf, adminHandler)
 
 	telegramBot := services.NewTelegramBot(st, cf, domainService)
@@ -369,6 +372,15 @@ func main() {
 
 		// Service health monitoring
 		r.Get("/monitor/services", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorHandler.ServiceStatus)))
+		r.Get("/lab/ip-selector", adminOnly(labHandler.GetSettings))
+		r.Put("/lab/ip-selector", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabSettingsUpdate, nil, labHandler.SaveSettings)))
+		r.Get("/lab/ip-selector/status", adminOnly(labHandler.GetStatus))
+		r.Post("/lab/ip-selector/run", adminOnly(audit(models.AuditCategoryLab, models.AuditActionLabRun, nil, labHandler.Run)))
+		r.Post("/lab/ip-selector/stop", adminOnly(audit(models.AuditCategoryLab, "lab_stop", nil, labHandler.Stop)))
+		r.Post("/lab/ip-selector/ownership/challenge", adminOnly(audit(models.AuditCategoryLab, "lab_ownership_challenge", nil, labHandler.Challenge)))
+		r.Post("/lab/ip-selector/ownership/verify", adminOnly(audit(models.AuditCategoryLab, "lab_ownership_verify", nil, labHandler.Verify)))
+		r.Get("/lab/ip-selector/ownership/dns", adminOnly(labHandler.DNSAvailability))
+		r.Post("/lab/ip-selector/ownership/dns", adminOnly(audit(models.AuditCategoryLab, "lab_ownership_dns", nil, labHandler.ProvisionDNS)))
 
 		// Monitor projects (uptime-style)
 		r.Get("/monitors", mw.Auth(mw.RequirePerm(models.PermMonitors, monitorsHandler.List)))

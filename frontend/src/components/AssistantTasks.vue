@@ -34,7 +34,7 @@ const emit = defineEmits<{ action: [id: string, action: string]; execute: [ids: 
 const selected = ref<string[]>([])
 watch(() => props.tasks, tasks => { selected.value = selected.value.filter(id => tasks.some(task => task.id === id && task.status === 'pending')) }, { deep: true })
 const statusLabels: Record<AITask['status'], string> = { pending: '待确认', paused: '已暂停', running: '执行中', succeeded: '已完成', unknown: '需核对', cancelled: '已取消' }
-const argumentLabels: Record<string, string> = { name: '名称', zone_id: '区域 ID', tunnel_id: '隧道 ID', hostname: '公开域名', service_url: '源站地址', type: '类型', content: '记录值', ttl: 'TTL（1 为自动）', proxied: '代理', priority: 'MX 优先级', interval_sec: '间隔（秒）', monitor_id: '监控项目 ID', url: '探测地址' }
+const argumentLabels: Record<string, string> = { name: '名称', zone_id: '区域 ID', tunnel_id: '隧道 ID', hostname: '公开域名', service_url: '源站地址', type: '类型', content: '记录值', data: '记录数据（SRV / CAA）', ttl: 'TTL（1 为自动）', proxied: '代理', priority: 'MX 优先级', interval_sec: '间隔（秒）', monitor_id: '监控项目 ID', url: '探测地址' }
 </script>
 
 <style scoped>

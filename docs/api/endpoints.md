@@ -1,5 +1,29 @@
 # API 参考
 
+## IP 优选实验室
+
+所有实验室接口仅管理员可访问，实验开关关闭时返回 `404`。写操作要求真实管理员会话，不接受静态 API Key；域名授权绑定签发记录的管理员。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/lab/ip-selector` | 探测与 DNS 配置；只返回 `has_secret_key`，不返回 Secret Key |
+| PUT | `/api/lab/ip-selector` | 保存配置；Host / SNI 变化保留独立域名验证，未授权时关闭定时 |
+| GET | `/api/lab/ip-selector/status` | `status` 含进度、授权、预算、限速、`next_allowed_at` 和错误；`runs` 为最近 20 条历史 |
+| POST | `/api/lab/ip-selector/ownership/challenge` | 请求体为 `{"domain":"example.com"}`；返回 TXT `record_name` 与 `token`，撤销旧授权和定时 |
+| POST | `/api/lab/ip-selector/ownership/verify` | 复查当前 TXT；成功返回授权状态，失败为 `403` |
+| GET | `/api/lab/ip-selector/ownership/dns` | 真实管理员会话查询本人当前 DNS 连接，返回 `available`、`account_name`（可选）和 `message`；不返回凭据，也不保证有目标域名写入权限 |
+| POST | `/api/lab/ip-selector/ownership/dns` | 请求体为 `{"domain":"example.com"}`；用当前连接添加验证 TXT 并复查 DNS，返回 `verification`、`record_created`、`verified` 和 `message` |
+| POST | `/api/lab/ip-selector/run` | 只使用已保存配置，任务启动返回 `202`；不接受请求体覆盖探测目标 |
+| POST | `/api/lab/ip-selector/stop` | 取消当前任务并关闭定时，返回 `stopped: true` 表示停止请求已受理 |
+
+配置或挑战参数无效返回 `400`，执行时授权、预算或冷却校验失败返回 `403`，已有任务运行时返回 `409`。`202` 和 `stopped: true` 都不表示后台任务已执行完毕，需轮询状态。预算按完整候选数量预留、取消不退还，每日按 UTC 重置并跨重启保留。详见 [IP 优选实验室](../guide/lab-ip-selector.md)。
+
+新历史项含 `probe`（本次 `host`、`sni`、`path`、`statuses` 快照）、`rejected`（未命中总数）及最多 100 条 `diagnostics`（`ip`、`status`、`latency_ms`、`error`）。失败任务也保留诊断；`results` 仍仅为排名靠前的命中结果。旧历史可能没有新增字段，零未命中时可省略计数和诊断。
+
+TXT 签发和一键填写只使用请求中的验证域名，不依赖或修改探测 Host / SNI，客户端无需先保存探测配置。未绑定账户、无域名权限或写入失败返回 `400`，可回退到手动添加。写入成功但解析尚未生效时返回 `200`、`verified: false`，需等待后复查；`record_created: false` 可表示相同记录已存在。重试复用有效挑战，不覆盖其他记录，不启用定时或扫描。操作写入 `lab_ownership_dns` 审计。
+
+管理员通过 `GET/PUT /api/admin/settings` 读取和修改 `lab_daily_request_limit`（1–10000000，默认 100000）、`lab_requests_per_second`（1–1000，默认 10）、`lab_max_workers`（1–256，默认 32）。只接受整数，省略字段保留原值，非法值返回 `400` 且不保存。限制从下一轮生效，调低预算不重置已预留用量；这些是实例限制，不是云平台额度。状态接口返回当前配置限制，运行中任务保留启动时快照。读取探测配置时，并发数按当前上限显示；实际执行也按上限限制。
+
 ## AI 助手
 
 助手接口需要真实用户会话 `X-Auth-Token`，不接受静态 API Key 作为会话所有者。会话与任务仅向所属用户开放，管理员共享连接不会共享历史。
@@ -207,6 +231,29 @@
 | POST | `/api/zones/{zoneID}/dns-records` | 新增 DNS 记录 |
 | PUT | `/api/zones/{zoneID}/dns-records/{recordID}` | 编辑 DNS 记录 |
 | DELETE | `/api/zones/{zoneID}/dns-records/{recordID}` | 删除 DNS 记录 |
+
+新增与编辑仅接受 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR。未知类型只读，编辑/删除会先用当前用户的 CF 客户端读取原记录确认类型。所有写入继续使用当前用户凭据、`dns` 权限与逐条审计。
+
+| 字段 | 规则 |
+| --- | --- |
+| `type`, `name` | 必填；类型转大写，名称去首尾空白与末尾点，支持 `@`、通配符、ASCII/Punycode |
+| `ttl` | 省略默认 `1`（自动）；其他有效值 `60–86400` 整数；`0` / `null` 拒绝 |
+| `proxied` | 省略默认 `false`，`null` 拒绝；只有 A / AAAA / CNAME 可代理，其他类型强制 `false` |
+| `content` | 七种非结构化类型必填，最多 4096 字节；TXT 保留空白。A/AAAA 校验地址族，CNAME/MX/NS/PTR 校验目标域名 |
+| `priority` | MX 必填，`0–65535` 整数；空 MX 的 `content:"."` 要求 `priority:0` |
+| `data` | SRV/CAA 必填，其他类型不接受；SRV/CAA 不使用 `content` 字符串 |
+
+SRV 使用完整 `_service._protocol.name` 和 `data.priority/weight/port/target`；前三者为 `0–65535` 整数，target 为域名或 `.`。兼容并保留已存在的 `data.service/proto/name`，改名时按顶层 `name` 同步。CAA 使用 `data.flags`（`0–255` 整数）、`data.tag`（1–15 个字母数字）、`data.value`（单行，最多 4096 字节，可为空）。缺失、错误类型、未知字段、尾随 JSON 和超过 64 KiB 的请求体返回 400。
+
+```json
+{"type":"SRV","name":"_sip._tcp.example.com","ttl":300,"data":{"priority":0,"weight":5,"port":5060,"target":"sip.example.com"}}
+```
+
+```json
+{"type":"CAA","name":"example.com","data":{"flags":128,"tag":"iodef","value":"mailto:security@example.com"}}
+```
+
+GET 返回原始 `data`（包括未知类型的字段）；不要将其丢弃后更新。POST 成功返回 201 和记录，PUT 成功返回 200 和记录。Web/Android 的批量新增没有新增端点：仅针对 A / AAAA / TXT / MX / NS / PTR，每批最多 100 非空行，客户端预览校验/去重后串行 POST，每条独立审计，不提供原子性。明确失败保留重试；网络/响应不确定时标记“结果未知”并停队列，必须核对实际记录再手动重试，不能将传输错误解释为未创建。
 
 ## 域名绑定
 

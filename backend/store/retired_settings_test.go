@@ -7,7 +7,7 @@ import (
 	"tunnel-manager/db"
 )
 
-func TestStoreIgnoresRetiredIPSelectorSettings(t *testing.T) {
+func TestStoreRestoresLabSettingsWithoutUnverifiedSchedule(t *testing.T) {
 	st := testStore(t)
 	handle, err := db.Open(st.dsn)
 	if err != nil {
@@ -16,13 +16,11 @@ func TestStoreIgnoresRetiredIPSelectorSettings(t *testing.T) {
 	defer handle.Close()
 
 	legacyRecords := map[string]string{
-		"lab_ip_selector":      `{"schedule":true,"update_dns":true,"secret_key":"legacy-encrypted-secret"}`,
-		"lab_ip_selector_runs": `[{"id":"legacy-run","selected":["192.0.2.1"]}]`,
+		"lab_ip_selector":      `{"host":"probe.example.com","workers":256,"schedule":true,"update_dns":true,"secret_key":"legacy-encrypted-secret"}`,
+		"lab_ip_selector_runs": `[{"id":"legacy-run","selected_ips":["1.1.1.1"]}]`,
 	}
-	for key := range legacyRecords {
-		if _, found, err := loadSetting(handle, key); err != nil || found {
-			t.Fatalf("fresh store contains retired setting %q: found=%v, err=%v", key, found, err)
-		}
+	if st.GetAppSettings().ExperimentalFeatures || st.GetLabSettings().Schedule {
+		t.Fatal("fresh install enables experimental scans")
 	}
 
 	transaction, err := handle.Begin()
@@ -43,6 +41,17 @@ func TestStoreIgnoresRetiredIPSelectorSettings(t *testing.T) {
 	}
 
 	reloaded := NewStore(st.dsn)
+	lab := reloaded.GetLabSettings()
+	if lab.Host != "probe.example.com" || lab.Schedule || !lab.UpdateDNS || lab.Workers != 32 || lab.SecretKey != "legacy-encrypted-secret" {
+		t.Fatalf("unsafe or lossy lab migration: %#v", lab)
+	}
+	runs := reloaded.GetLabRuns(20)
+	if len(runs) != 1 || runs[0].ID != "legacy-run" || len(runs[0].SelectedIPs) != 1 || runs[0].SelectedIPs[0] != "1.1.1.1" {
+		t.Fatalf("lost legacy history: %#v", runs)
+	}
+	if reloaded.GetLabSecurity().Verification.VerifiedAt != 0 {
+		t.Fatal("migration fabricated domain authorization")
+	}
 	settings := reloaded.GetAppSettings()
 	if !reloaded.Installed() || !settings.RegistrationEnabled || settings.InviteMode != "optional" {
 		t.Fatalf("legacy settings disrupted existing configuration: %#v", settings)
@@ -60,16 +69,14 @@ func TestStoreIgnoresRetiredIPSelectorSettings(t *testing.T) {
 	if err := json.Unmarshal([]byte(storedApp), &persisted); err != nil {
 		t.Fatal(err)
 	}
-	if _, found := persisted["experimental_features_enabled"]; found {
-		t.Fatal("retired feature flag is still persisted")
+	if persisted["experimental_features_enabled"] != true {
+		t.Fatal("existing experimental preference was lost")
 	}
 	if persisted["registration_enabled"] != false || persisted["invite_mode"] != "optional" {
 		t.Fatalf("application settings did not persist correctly: %#v", persisted)
 	}
-	for key, expected := range legacyRecords {
-		actual, found, err := loadSetting(handle, key)
-		if err != nil || !found || actual != expected {
-			t.Fatalf("retired record %q was modified: value=%q, found=%v, err=%v", key, actual, found, err)
-		}
+	again := NewStore(st.dsn)
+	if again.GetLabSettings() != lab || len(again.GetLabRuns(20)) != 1 {
+		t.Fatal("restored lab settings/history did not survive a save and reload")
 	}
 }

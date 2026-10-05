@@ -256,6 +256,28 @@ try {
   await waitFor("document.querySelectorAll('.messages .task.pending').length === 2 && !document.querySelector('.loading')")
   await assertInlineTaskVisible()
   await screenshot('375-restored-task-cards')
+  history[0].tasks.push({ id: 'task-monitor-defaults', tool: 'create_monitor', title: '新建私有监控项目 · 默认频率', status: 'pending', arguments: { name: '默认频率', interval_sec: 60 } })
+  const srvData = { priority: 0, weight: 5, port: 5060, target: 'sip.example.com' }
+  history[0].tasks.push({ id: 'task-srv', tool: 'create_dns_record', title: '新增 DNS · _sip._tcp.example.com', status: 'pending', arguments: { zone_id: 'zone-id', name: '_sip._tcp.example.com', type: 'SRV', data: srvData, ttl: 1, proxied: false } })
+  for (const width of [1440, 375, 320]) {
+    await command('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 700 })
+    await command('Page.reload')
+    const container = width < 700 ? '.messages' : '.desktop-tasks'
+    await waitFor(`document.querySelectorAll('${container} .task.pending').length === 4 && !document.querySelector('.loading')`)
+    const fields = await evaluate(`Array.from(document.querySelectorAll('${container} .task')).map(task => Object.fromEntries(Array.from(task.querySelectorAll('dt')).map(label => [label.textContent, label.nextElementSibling.textContent.trim()])))`)
+    assert.equal(fields.find(item => item['名称'] === '默认频率')?.['间隔（秒）'], '60', 'normalized monitor interval must appear on the confirmation card')
+    assert.equal(fields.find(item => item['类型'] === 'CNAME')?.['TTL（1 为自动）'], '1')
+    assert.equal(fields.find(item => item['类型'] === 'CNAME')?.['代理'], '关闭')
+    assert.deepEqual(JSON.parse(fields.find(item => item['类型'] === 'SRV')?.['记录数据（SRV / CAA）']), srvData)
+    assert.equal(await evaluate(`document.querySelectorAll('${container} .task-title input:checked').length`), 0)
+    assert.equal(await evaluate(`document.querySelector('${container} .confirm').disabled`), true)
+    assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
+    assert.deepEqual(executed, ['task-1', 'task-2'], 'default values and reloads must not auto-execute proposals')
+    await evaluate(`Array.from(document.querySelectorAll('${container} .task')).find(task => task.textContent.includes('默认频率')).scrollIntoView({ block: 'center' })`)
+    await screenshot(`${width}-default-parameters`)
+    await evaluate(`Array.from(document.querySelectorAll('${container} .task')).find(task => task.textContent.includes('_sip._tcp.example.com')).scrollIntoView({ block: 'center' })`)
+    await screenshot(`${width}-structured-dns`)
+  }
   role = 'user'
   shared = true
   await command('Page.reload')

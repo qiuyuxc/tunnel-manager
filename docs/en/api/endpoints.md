@@ -1,5 +1,29 @@
 # API reference
 
+## IP selector lab
+
+Lab endpoints require administrator access and return `404` while experimental features are disabled. Writes require a real administrator session, not a static API key. Domain authorization belongs to the administrator who generated the challenge.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| GET | `/api/lab/ip-selector` | Probe and DNS settings; returns `has_secret_key`, never the secret |
+| PUT | `/api/lab/ip-selector` | Saves settings; Host/SNI changes preserve independent domain verification, and unverified schedules are disabled |
+| GET | `/api/lab/ip-selector/status` | `status` includes progress, authorization, budget, limits, `next_allowed_at`, and errors; `runs` holds up to 20 runs |
+| POST | `/api/lab/ip-selector/ownership/challenge` | Body `{"domain":"example.com"}`; returns TXT `record_name` and `token`, revoking previous authorization and scheduling |
+| POST | `/api/lab/ip-selector/ownership/verify` | Checks TXT; returns authorization state on success or `403` on failure |
+| GET | `/api/lab/ip-selector/ownership/dns` | Requires a real administrator session; returns the user's current DNS connection availability as `available`, optional `account_name`, and `message`, without credentials or a guarantee of zone write permission |
+| POST | `/api/lab/ip-selector/ownership/dns` | Body `{"domain":"example.com"}`; adds verification TXT through the current connection and checks DNS, returning `verification`, `record_created`, `verified`, and `message` |
+| POST | `/api/lab/ip-selector/run` | Uses persisted settings only; returns `202` on start, with no request-body target overrides |
+| POST | `/api/lab/ip-selector/stop` | Cancels work and disables scheduling; `stopped: true` acknowledges the stop request |
+
+Invalid configuration/challenge input returns `400`, authorization/budget/cooldown failures return `403`, and concurrent runs return `409`. Neither `202` nor `stopped: true` means the background task has finished; poll status. The full candidate count is reserved before starting, cancellation does not refund it, and the UTC daily budget survives restarts. See the [lab guide](../guide/lab-ip-selector.md).
+
+New run records include `probe` (the run's `host`, `sni`, `path`, and `statuses`), `rejected` (the rejected count), and up to 100 `diagnostics` with `ip`, `status`, `latency_ms`, and `error`. Failed runs also retain diagnostics; `results` still contains only top-ranked matches. Older records may lack the new fields, and zero rejections may omit the count and diagnostics.
+
+TXT challenge and one-click endpoints use only the requested verification domain, independent of probe Host/SNI. Clients need not save probe settings first. Missing accounts, missing zone permissions, or failed writes return `400`; manual entry remains available. A successful write with pending DNS propagation returns `200` with `verified: false`; wait and check again. `record_created: false` can mean the same record already exists. Retries reuse a valid challenge without replacing other records or enabling scheduling or scanning. The audit action is `lab_ownership_dns`.
+
+Administrators read and update limits through `GET/PUT /api/admin/settings`: `lab_daily_request_limit` (1–10000000, default 100000), `lab_requests_per_second` (1–1000, default 10), and `lab_max_workers` (1–256, default 32). Values must be integers; omitted fields retain stored values. Invalid input returns `400` without saving. Changes apply to subsequent runs, and lowering the budget preserves spent reservations. These are instance limits, not cloud quotas. Status reports the current configured limits; active runs retain their startup snapshot. Reading probe settings caps the displayed worker count to the current ceiling; execution also enforces that ceiling.
+
 ## AI assistant
 
 Assistant endpoints require a real user session through `X-Auth-Token`, not a static API key. Conversation ownership is enforced independently of shared provider settings.
@@ -206,6 +230,29 @@ Requires the `dns` permission.
 | POST | `/api/zones/{zoneID}/dns-records` | Create a record |
 | PUT | `/api/zones/{zoneID}/dns-records/{recordID}` | Edit a record |
 | DELETE | `/api/zones/{zoneID}/dns-records/{recordID}` | Delete a record |
+
+Creation and editing accept only A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR. Unknown types are read-only; update/delete first read the existing record through the current user's CF client to check its type. Credentials, the `dns` permission and per-record auditing remain scoped to the current user.
+
+| Field | Rules |
+| --- | --- |
+| `type`, `name` | Required; type is uppercased, name is trimmed and loses its trailing dot. Supports `@`, wildcards and ASCII/Punycode |
+| `ttl` | Omitted defaults to `1` (automatic); otherwise an integer `60–86400`. Explicit `0` / `null` is rejected |
+| `proxied` | Omitted defaults to `false`; `null` is rejected. Only A / AAAA / CNAME can be proxied; other types are forced to `false` |
+| `content` | Required for the seven non-structured types, up to 4096 bytes; TXT whitespace is preserved. A/AAAA validate the address family; CNAME/MX/NS/PTR require hostname targets |
+| `priority` | Required for MX, integer `0–65535`; null MX (`content:"."`) requires `priority:0` |
+| `data` | Required for SRV/CAA, rejected for other types. SRV/CAA do not use a `content` string |
+
+SRV uses a full `_service._protocol.name` and `data.priority/weight/port/target`. The numeric fields are integers `0–65535`, and target is a hostname or `.`. Existing legacy `data.service/proto/name` fields are retained and synchronized with the top-level name on rename. CAA uses `data.flags` (integer `0–255`), `data.tag` (1–15 ASCII letters/digits), and `data.value` (single-line string, up to 4096 bytes, empty allowed). Missing/incorrectly typed fields, unknown fields, trailing JSON or a request body over 64 KiB return 400.
+
+```json
+{"type":"SRV","name":"_sip._tcp.example.com","ttl":300,"data":{"priority":0,"weight":5,"port":5060,"target":"sip.example.com"}}
+```
+
+```json
+{"type":"CAA","name":"example.com","data":{"flags":128,"tag":"iodef","value":"mailto:security@example.com"}}
+```
+
+GET retains raw `data`, including fields on unknown record types; do not discard it before editing. Successful POST returns 201 and the record; PUT returns 200 and the record. Web/Android bulk creation adds no endpoint: only A / AAAA / TXT / MX / NS / PTR, up to 100 nonempty lines per client batch, validated/deduplicated locally and sent as serial POSTs. Every record is audited separately; the operation is not atomic. Definite failures remain for retry. Uncertain network/provider responses stop the queue and require checking the actual records before explicit retry; a transport error must not be interpreted as proof that no record was created.
 
 ## Domain binding
 

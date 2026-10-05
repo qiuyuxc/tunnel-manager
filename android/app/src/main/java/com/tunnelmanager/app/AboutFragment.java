@@ -31,19 +31,20 @@ public class AboutFragment extends PageFragment {
 
     /** Highlights of the current release, as the web page lists them. */
     private static final String[] HIGHLIGHTS = {
-            "原生 App 换用石墨与薄荷绿配色，统一登录、面板、按钮和浮动导航，支持深浅主题与轻量效果",
-            "更多菜单增加账户摘要和工具网格，常用入口继续按权限展示",
-            "隧道支持名称或 ID 搜索与状态筛选，当前选择、应用路由和危险操作分区更清楚",
-            "全局新建、隧道列表和空状态共用创建弹层，提交区固定在底部，保留运行命令和令牌反馈",
-            "监控列表增加真实七天可用率和服务历史条，未知、降级、异常与空数据分别展示",
-            "监控详情增加可切换服务的响应趋势，添加、编辑、检测间隔和公开链接改为独立弹层",
-            "关于页分别显示已安装 App 与服务端版本，避免旧服务端版本被误认为 App 版本",
+            "AI 助手支持独立会话、个人或管理员共享连接，配置任务须明确确认后执行",
+            "监控默认每 60 秒检查，DNS 默认自动 TTL、关闭代理，执行前展示实际配置",
+            "DNS 新增 NS / SRV / CAA / PTR，支持结构化编辑、批量新增及逐条结果，成功项不重复发送",
+            "IP 优选支持独立 TXT 验证和 Cloudflare 一键填写，验证成功后收起记录详情",
+            "管理设置可配置 IP 优选每日预算、请求速率和并发上限，支持诊断、停止与定时执行",
+            "域名绑定增加操作进度与失败反馈，页面切换加入过渡效果",
     };
 
     private static final String[][] FEATURES = {
             {"隧道管理", "新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS"},
             {"域名绑定", "简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS"},
-            {"DNS 管理", "按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除"},
+            {"DNS 管理", "支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，结构化字段编辑、批量新增与逐条结果"},
+            {"AI 助手", "描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对"},
+            {"IP 优选实验室", "独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新"},
             {"Telegram Bot", "在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook"},
             {"Cloudflare OAuth", "授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token"},
             {"多用户与管理后台", "邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略"},
@@ -55,7 +56,7 @@ public class AboutFragment extends PageFragment {
             {"Android", "Java · Android Views · AndroidX"},
             {"前端", "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
             {"后端", "Go · chi · SQLite"},
-            {"集成", "Cloudflare API · Telegram Bot API · GitHub Actions"},
+            {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
     };
 
     private ScrollView scroll;

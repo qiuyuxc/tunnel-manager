@@ -92,6 +92,10 @@ export interface AppSettings {
   turnstile_enabled?: boolean
   turnstile_site_key?: string
   turnstile_has_secret?: boolean
+  experimental_features_enabled?: boolean
+  lab_daily_request_limit?: number
+  lab_requests_per_second?: number
+  lab_max_workers?: number
   /** 审计日志保留天数；负数表示永久保留，0 表示使用默认值（90 天）。 */
   audit_retention_days?: number
   /** 面板全局禁用密码登录：所有账户都必须使用通行密钥 */
@@ -228,6 +232,7 @@ export const AUDIT_CATEGORY_LABELS: Record<string, string> = {
   domain: '域名绑定',
   dns: 'DNS 记录',
   monitor: '服务监控',
+  lab: 'IP 优选实验室',
   telegram: 'TG 机器人',
   passkey: '通行密钥',
 }
@@ -274,6 +279,12 @@ export const AUDIT_ACTIONS: { category: string; action: string; label: string }[
   { category: 'monitor', action: 'target_add', label: '新增监控目标' },
   { category: 'monitor', action: 'target_update', label: '修改监控目标' },
   { category: 'monitor', action: 'target_delete', label: '删除监控目标' },
+  { category: 'lab', action: 'lab_settings_update', label: '修改实验室设置' },
+  { category: 'lab', action: 'lab_run', label: '执行 IP 优选' },
+  { category: 'lab', action: 'lab_stop', label: '停止 IP 优选' },
+  { category: 'lab', action: 'lab_ownership_challenge', label: '生成域名验证记录' },
+  { category: 'lab', action: 'lab_ownership_verify', label: '验证优选域名' },
+  { category: 'lab', action: 'lab_ownership_dns', label: '自动填写域名验证 TXT' },
   { category: 'telegram', action: 'telegram_endpoint_update', label: '修改 TG API 端点' },
   { category: 'passkey', action: 'passkey_add', label: '绑定通行密钥' },
   { category: 'passkey', action: 'passkey_remove', label: '删除通行密钥' },

@@ -749,6 +749,9 @@ public class ConsoleActivity extends AppCompatActivity {
 
     void open(String path) {
         if (content == null) return;
+        if (path.startsWith("/lab/") && (!Session.isAdmin() || !Session.experimental())) {
+            path = "/dashboard";
+        }
         // MainActivity hands the console a route every time it is brought
         // forward, so the page already on screen arrives here a second time.
         // Re-opening it would stack a duplicate and leave the container empty
@@ -766,8 +769,9 @@ public class ConsoleActivity extends AppCompatActivity {
             page = WebPageFragment.forRoute(path);
         }
         currentPath = path;
-        getSupportFragmentManager().beginTransaction()
-                .setReorderingAllowed(true)
+        androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        if (Theme.motionEnabled()) transaction.setCustomAnimations(R.anim.page_in, R.anim.page_out, R.anim.page_back_in, R.anim.page_out);
+        transaction.setReorderingAllowed(true)
                 .replace(R.id.tm_content, page)
                 .addToBackStack(path)
                 .commit();
@@ -780,6 +784,7 @@ public class ConsoleActivity extends AppCompatActivity {
      * so have no {@link Nav.Item} of their own.
      */
     private Fragment nativePage(String path) {
+        if ("/lab/ip-selector".equals(path)) return new LabFragment();
         if ("/assistant".equals(path)) return new AssistantFragment();
         if ("/dashboard".equals(path)) return new DashboardFragment();
         if ("/tunnels".equals(path)) return new TunnelsFragment();
@@ -874,7 +879,7 @@ public class ConsoleActivity extends AppCompatActivity {
         // Branding is cosmetic; the shell already has usable defaults.
     }
 
-    private void rebuildNav() {
+    void rebuildNav() {
         if (isFinishing() || isDestroyed()) return;
         refreshChrome();
     }

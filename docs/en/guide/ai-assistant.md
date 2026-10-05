@@ -30,13 +30,17 @@ History and tasks are stored per user. A shared provider does not share conversa
 | --- | --- | --- |
 | Create tunnel | Creates a tunnel, without installing or starting a connector | `tunnels` |
 | New direct domain binding | Adds an ingress rule and proxied CNAME with automatic TTL, exposing the service publicly | `domain_bind` |
-| Create DNS record | Adds A, AAAA, CNAME, TXT or MX records | `dns` |
+| Create DNS record | Adds A, AAAA, CNAME, TXT, MX, NS, SRV, CAA or PTR records | `dns` |
 | Create monitor project | Creates an empty private project, without publishing or enabling alerts | `monitors` |
 | Add HTTP target | Adds a GET target to an existing project and starts scheduled checks | `monitors` |
 
 Only fixed tools are accepted. The model cannot execute commands, choose arbitrary API routes, read secrets or modify permissions. Execution rechecks authorization and the Cloudflare connection. Changing connections invalidates old plans.
 
+Once required information is clear, the assistant proposes pending tasks without asking for optional parameters that have safe product defaults: monitor checks default to **60 seconds**, with publishing and alerts disabled; new DNS records default to **TTL 1 (automatic)** and **proxy off**. The server fills in and validates these values before saving tasks, so Web and Android confirmation cards show the effective defaults. Explicit valid values are preserved; invalid `0`, `null` or empty strings are not treated as omission (`false` is a valid proxy value, and `0` is a valid MX priority). Missing or ambiguous required information, such as real resource IDs, names, domains, record types and values, target URLs or MX priority, still requires clarification. Resources are never invented, and execution still requires confirmation.
+
 Existing-record updates/deletes, optimized/SaaS bindings, connector installation, same-batch task dependencies, streaming and automatic rollback are not supported. Create the prerequisite resource first, then use its actual ID in a subsequent request. Existing DNS or matching ingress rules block a new direct binding.
+
+SRV uses structured `data.priority`, `weight`, `port`, and `target`, with a `_service._protocol.name` record name; CAA uses `data.flags`, `tag`, and `value`. Other types use `content`. These record-specific fields have no implicit defaults and must be provided. An explicitly empty CAA value is valid, unlike omission. Confirmation cards retain structured data for review before execution.
 
 ## Confirmation and recovery
 

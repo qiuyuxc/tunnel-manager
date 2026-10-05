@@ -47,6 +47,16 @@ public abstract class PageFragment extends Fragment {
 
     protected abstract View build(@NonNull LayoutInflater inflater, @Nullable ViewGroup container);
 
+    @Override
+    public android.view.animation.Animation onCreateAnimation(int transit, boolean enter, int nextAnim) {
+        if (!Theme.motionEnabled()) {
+            android.view.animation.AlphaAnimation still = new android.view.animation.AlphaAnimation(1f, 1f);
+            still.setDuration(0);
+            return still;
+        }
+        return super.onCreateAnimation(transit, enter, nextAnim);
+    }
+
     /** Called when the page is brought back to the front. */
     void onShown() {
     }

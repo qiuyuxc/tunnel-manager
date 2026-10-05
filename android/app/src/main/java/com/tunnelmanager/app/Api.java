@@ -61,6 +61,15 @@ final class Api {
         MAIN.post(listener);
     }
 
+    private static void notifySessionLost(RequestScope.Snapshot expected) {
+        Runnable listener = sessionLost;
+        if (listener == null || !expected.matches(Session.snapshot())) return;
+        MAIN.post(() -> {
+            if (listener != sessionLost || !expected.matches(Session.snapshot())) return;
+            if (sessionLostFired.compareAndSet(false, true)) listener.run();
+        });
+    }
+
     /** A request that failed. {@link #auth} means the session is gone. */
     static class Failure extends Exception {
         final int code;
@@ -85,6 +94,10 @@ final class Api {
 
     static JSONObject post(String path, JSONObject body) throws Failure {
         return object(request("POST", path, body));
+    }
+
+    static JSONObject post(RequestScope scope, String path, JSONObject body) throws Failure {
+        return object(request("POST", path, body, scope));
     }
 
     static JSONObject put(String path, JSONObject body) throws Failure {
@@ -247,7 +260,12 @@ final class Api {
     }
 
     private static String request(String method, String path, JSONObject body) throws Failure {
-        String base = Session.server();
+        return request(method, path, body, null);
+    }
+
+    private static String request(String method, String path, JSONObject body, RequestScope scope) throws Failure {
+        if (scope != null) scope.check();
+        String base = scope == null ? Session.server() : scope.session.server;
         if (base.isEmpty()) throw new Failure(0, "未配置服务器地址");
         HttpURLConnection conn = null;
         try {
@@ -256,7 +274,7 @@ final class Api {
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(path.startsWith("/api/assistant/") ? 180000 : 25000);
             conn.setRequestProperty("Accept", "application/json");
-            String token = Session.token();
+            String token = scope == null ? Session.token() : scope.session.token;
             if (!token.isEmpty()) conn.setRequestProperty("X-Auth-Token", token);
 
             if (body != null) {
@@ -264,6 +282,7 @@ final class Api {
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
                 byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
                 conn.setFixedLengthStreamingMode(payload.length);
+                if (scope != null) scope.check();
                 OutputStream out = conn.getOutputStream();
                 try {
                     out.write(payload);
@@ -272,14 +291,20 @@ final class Api {
                 }
             }
 
+            if (body == null && scope != null) scope.check();
             int code = conn.getResponseCode();
             InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
             String raw = readAll(in);
-            if (code == 401 && !token.isEmpty()) notifySessionLost();
+            if (code == 401 && !token.isEmpty()) {
+                if (scope == null) notifySessionLost();
+                else notifySessionLost(scope.session);
+            }
             if (code >= 400) throw new Failure(code, serverMessage(raw, code));
             return raw;
         } catch (Failure e) {
             throw e;
+        } catch (RequestScope.Stopped stopped) {
+            throw stopped;
         } catch (Exception e) {
             throw new Failure(0, networkMessage(e));
         } finally {

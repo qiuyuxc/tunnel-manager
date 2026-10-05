@@ -266,6 +266,7 @@ func (h *ManagementHandler) DeleteInvite(w http.ResponseWriter, r *http.Request)
 // GetAppSettings handles GET /api/admin/settings.
 func (h *ManagementHandler) GetAppSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.store.GetAppSettings()
+	limits := settings.LabLimits()
 	// The panel only lets an administrator turn password sign-in off once one of
 	// them can still get in with a passkey.
 	passkeyAdminReady := false
@@ -282,6 +283,10 @@ func (h *ManagementHandler) GetAppSettings(w http.ResponseWriter, r *http.Reques
 		TurnstileEnabled:                    settings.TurnstileEnabled,
 		TurnstileSiteKey:                    settings.TurnstileSiteKey,
 		TurnstileHasSecret:                  settings.TurnstileSecret != "",
+		ExperimentalFeatures:                settings.ExperimentalFeatures,
+		LabDailyRequestLimit:                limits.DailyRequests,
+		LabRequestsPerSecond:                limits.RequestsPerSecond,
+		LabMaxWorkers:                       limits.MaxWorkers,
 		AuditRetentionDays:                  settings.AuditRetentionDays,
 		PasswordLoginDisabled:               settings.PasswordLoginDisabled,
 		PasskeyRPID:                         settings.PasskeyRPID,
@@ -357,6 +362,24 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 		rateLimitNotify = *req.RateLimitNotify
 	}
 
+	experimentalFeatures := stored.ExperimentalFeatures
+	limits := stored.LabLimits()
+	if req.LabDailyRequestLimit != nil {
+		limits.DailyRequests = *req.LabDailyRequestLimit
+	}
+	if req.LabRequestsPerSecond != nil {
+		limits.RequestsPerSecond = *req.LabRequestsPerSecond
+	}
+	if req.LabMaxWorkers != nil {
+		limits.MaxWorkers = *req.LabMaxWorkers
+	}
+	if err := limits.Validate(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if req.ExperimentalFeatures != nil {
+		experimentalFeatures = *req.ExperimentalFeatures
+	}
 	settings := models.AppSettings{
 		RegistrationEnabled:         req.RegistrationEnabled,
 		InviteMode:                  req.InviteMode,
@@ -364,6 +387,10 @@ func (h *ManagementHandler) UpdateAppSettings(w http.ResponseWriter, r *http.Req
 		EmailVerifyDisabled:         req.EmailVerifyDisabled,
 		TurnstileEnabled:            req.TurnstileEnabled,
 		TurnstileSiteKey:            strings.TrimSpace(req.TurnstileSiteKey),
+		ExperimentalFeatures:        experimentalFeatures,
+		LabDailyRequestLimit:        limits.DailyRequests,
+		LabRequestsPerSecond:        limits.RequestsPerSecond,
+		LabMaxWorkers:               limits.MaxWorkers,
 		AuditRetentionDays:          auditRetention,
 		PasswordLoginDisabled:       passwordLoginDisabled,
 		PasskeyRPID:                 strings.TrimSpace(req.PasskeyRPID),

@@ -62,17 +62,16 @@
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">本版本亮点</div>
-            <div class="settings-card-desc">v2.6.0 的重点变化，以 Android 原生体验更新为主。</div>
+            <div class="settings-card-desc">v2.8.0 的重点变化：AI 助手、DNS 批量操作与 IP 优选增强。</div>
           </div>
         </div>
         <ul class="changelog-list">
-          <li>原生 App 统一石墨与薄荷绿配色、圆角面板和浮动导航，保留深浅主题与轻量效果</li>
-          <li>更多菜单增加账户摘要与工具网格，常用入口继续按权限展示</li>
-          <li>隧道支持名称或 ID 搜索与状态筛选，当前选择、应用路由和危险操作分区更清楚</li>
-          <li>全局新建、隧道列表和空状态共用创建弹层，保留运行命令、令牌及失败反馈</li>
-          <li>监控列表增加真实七天可用率与服务历史条，未知、异常和空数据分别展示</li>
-          <li>监控详情增加可切换服务的响应趋势，添加、编辑、检查间隔和公开链接改为独立弹层</li>
-          <li>App 关于页分别显示安装包版本与服务端版本，不再将两者混淆</li>
+          <li>AI 助手支持独立会话、个人或管理员共享连接，配置任务须明确确认后执行</li>
+          <li>监控默认每 60 秒检查，DNS 默认自动 TTL、关闭代理，执行前展示实际配置</li>
+          <li>DNS 新增 NS / SRV / CAA / PTR，支持结构化编辑、批量新增及逐条结果，成功项不重复发送</li>
+          <li>IP 优选支持独立 TXT 验证和 Cloudflare 一键填写，验证成功后收起记录详情</li>
+          <li>管理设置可配置 IP 优选每日预算、请求速率和并发上限，支持诊断、停止与定时执行</li>
+          <li>域名绑定增加操作进度与失败反馈，页面切换加入过渡效果</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">
@@ -103,7 +102,15 @@
           </div>
           <div class="feature-item">
             <strong>DNS 管理</strong>
-            <p>按 Zone 增删改查 A / AAAA / CNAME / TXT / MX 记录，支持多选批量修改与批量删除</p>
+            <p>支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，提供结构化字段编辑、批量新增与逐条结果</p>
+          </div>
+          <div class="feature-item">
+            <strong>AI 助手</strong>
+            <p>描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对</p>
+          </div>
+          <div class="feature-item">
+            <strong>IP 优选实验室</strong>
+            <p>独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新</p>
           </div>
           <div class="feature-item">
             <strong>Telegram Bot</strong>
@@ -136,7 +143,7 @@
         </div>
         <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
         <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
-        <div class="stack-row"><span>集成</span><code>Cloudflare API · Telegram Bot API · GitHub Actions</code></div>
+        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
       </section>
     </div>
   </div>

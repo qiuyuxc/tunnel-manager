@@ -40,6 +40,34 @@ func TestUpdateAppSettingsAcceptsItsOwnGetResponse(t *testing.T) {
 	}
 }
 
+func TestUpdateAppSettingsPreservesOmittedExperimentalFlag(t *testing.T) {
+	state := newTestStore(t)
+	settings := state.GetAppSettings()
+	settings.ExperimentalFeatures = true
+	if err := state.SetAppSettings(settings); err != nil {
+		t.Fatal(err)
+	}
+	handler := NewManagementHandler(state, nil)
+	for _, scenario := range []struct {
+		body string
+		want bool
+	}{
+		{`{"invite_mode":"off","audit_retention_days":30}`, true},
+		{`{"invite_mode":"off","experimental_features_enabled":false}`, false},
+		{`{"invite_mode":"off","experimental_features_enabled":true}`, true},
+	} {
+		response := performJSON(t, handler.UpdateAppSettings, http.MethodPut, "/api/admin/settings", scenario.body, "")
+		if response.Code != http.StatusOK {
+			t.Fatal(response.Body.String())
+		}
+		var view models.AppSettingsView
+		decodeResponse(t, response, &view)
+		if view.ExperimentalFeatures != scenario.want || state.GetAppSettings().ExperimentalFeatures != scenario.want {
+			t.Fatalf("experimental flag = %v, want %v after %s", view.ExperimentalFeatures, scenario.want, scenario.body)
+		}
+	}
+}
+
 func TestUpdateAppSettingsRejectsMismatchedPasskeyRelyingParty(t *testing.T) {
 	st := newTestStore(t)
 	h := NewManagementHandler(st, nil)

@@ -131,6 +131,27 @@
 
     <section v-show="activeTab === 'settings'" class="admin-section">
       <div class="admin-card">
+        <h3>IP 优选</h3>
+        <div class="setting-row">
+          <span class="setting-label">实验性功能（IP 优选）</span>
+          <n-switch v-model:value="settings.experimental_features_enabled" size="small" :disabled="busy" @update:value="saveSettings" />
+        </div>
+        <label class="setting-row">
+          <span class="setting-label">每日请求预算（UTC）</span>
+          <input v-model.number="settings.lab_daily_request_limit" class="vercel-input narrow" type="number" min="1" max="10000000" step="1" :disabled="busy" />
+        </label>
+        <label class="setting-row">
+          <span class="setting-label">每秒请求数</span>
+          <input v-model.number="settings.lab_requests_per_second" class="vercel-input narrow" type="number" min="1" max="1000" step="1" :disabled="busy" />
+        </label>
+        <label class="setting-row">
+          <span class="setting-label">并发上限</span>
+          <input v-model.number="settings.lab_max_workers" class="vercel-input narrow" type="number" min="1" max="256" step="1" :disabled="busy" />
+        </label>
+        <p class="text-muted">实例共享预算，不是云平台额度。按候选 IP 预留，取消不退；修改从下一轮生效。</p>
+        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">保存优选限制</button>
+      </div>
+      <div class="admin-card">
         <h3>注册策略</h3>
         <div class="setting-row">
           <span class="setting-label">开放注册</span>
@@ -357,6 +378,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
+import { validateLabLimits } from '../utils/lab'
 import {
   listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser, setUserPasswordLogin,
   listGroups, createGroup, updateGroup, deleteGroup,
@@ -513,7 +535,11 @@ async function loadAll() {
     groups.value = g.data.groups
     invites.value = i.data.invites
     // 0/未设置表示默认窗口（90 天），-1 表示永久保留。
-    settings.value = { ...s.data, audit_retention_days: s.data.audit_retention_days || 90 }
+    settings.value = { ...s.data, audit_retention_days: s.data.audit_retention_days || 90,
+      lab_daily_request_limit: s.data.lab_daily_request_limit ?? 100000,
+      lab_requests_per_second: s.data.lab_requests_per_second ?? 10,
+      lab_max_workers: s.data.lab_max_workers ?? 32 }
+    configStore.setExperimentalFeatures(!!s.data.experimental_features_enabled)
     turnstile.value.enabled = !!s.data.turnstile_enabled
     turnstile.value.site_key = s.data.turnstile_site_key || ''
     turnstileHasSecret.value = !!s.data.turnstile_has_secret
@@ -633,7 +659,14 @@ function removeInvite(invite: Invite) {
 function saveSettings() {
   void run(async () => {
     await updateAppSettings(settings.value)
+    configStore.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
   }, '设置已保存')
+}
+
+function saveLabLimits() {
+  const error = validateLabLimits(settings.value)
+  if (error) return notify(error, true)
+  saveSettings()
 }
 
 function saveTurnstile() {

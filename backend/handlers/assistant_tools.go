@@ -32,6 +32,19 @@ func aiTools(user *models.SessionUser) []map[string]any {
 	text := func(description string) map[string]any {
 		return map[string]any{"type": "string", "description": description}
 	}
+	dnsData := map[string]any{
+		"type": "object", "additionalProperties": false,
+		"description": "仅 SRV/CAA 必填，不可与 content 同时提供。SRV 必须提供 priority、weight、port、target；CAA 必须提供 flags、tag、value。不得猜测未提供的必要值。",
+		"properties": map[string]any{
+			"priority": map[string]any{"type": "integer", "minimum": 0, "maximum": 65535},
+			"weight":   map[string]any{"type": "integer", "minimum": 0, "maximum": 65535},
+			"port":     map[string]any{"type": "integer", "minimum": 0, "maximum": 65535},
+			"target":   text("SRV 目标主机名，或 . 表示服务不可用"),
+			"flags":    map[string]any{"type": "integer", "minimum": 0, "maximum": 255},
+			"tag":      text("CAA 标签，例如 issue、issuewild、iodef"),
+			"value":    text("CAA 记录值，必须由用户明确提供，可为空字符串"),
+		},
+	}
 	definitions := []struct {
 		name, description string
 		properties        map[string]any
@@ -39,8 +52,8 @@ func aiTools(user *models.SessionUser) []map[string]any {
 	}{
 		{"bind_domain", "准备将已有隧道上的 HTTP/HTTPS 服务通过新域名公开访问。仅新增直连 CNAME（代理开启、TTL自动）及路由，不覆盖已有 DNS 或路由；不支持优选/SaaS模式。执行前必须让用户确认将服务公开到互联网。", map[string]any{"tunnel_id": text("已存在隧道的真实 ID"), "zone_id": text("域名区域真实 ID"), "hostname": text("要公开的新域名"), "service_url": text("源站 HTTP/HTTPS URL，例如 http://192.168.1.8:5000")}, []string{"tunnel_id", "zone_id", "hostname", "service_url"}},
 		{"create_tunnel", "准备创建隧道，不会立即执行。不含部署主机或启动连接器。", map[string]any{"name": text("隧道名称")}, []string{"name"}},
-		{"create_dns_record", "准备新增 DNS 记录，不修改已有记录。必须使用上下文或用户提供的真实 zone_id。", map[string]any{"zone_id": text("区域 ID"), "name": text("完整域名"), "type": map[string]any{"type": "string", "enum": []string{"A", "AAAA", "CNAME", "TXT", "MX"}}, "content": text("记录值"), "ttl": map[string]any{"type": "integer", "description": "1 表示自动，否则 60 至 86400"}, "proxied": map[string]any{"type": "boolean"}, "priority": map[string]any{"type": "integer", "description": "仅 MX 必填，0 至 65535"}}, []string{"zone_id", "name", "type", "content", "ttl", "proxied"}},
-		{"create_monitor", "准备创建空的私有监控项目，默认不公开、不发告警。执行成功后才能添加目标。", map[string]any{"name": text("项目名称"), "interval_sec": map[string]any{"type": "integer", "description": "探测间隔秒数，60 至 3600"}}, []string{"name", "interval_sec"}},
+		{"create_dns_record", "准备新增 DNS 记录，不修改已有记录。必须使用上下文或用户提供的真实 zone_id。未指定 TTL 或代理时直接生成待确认任务，采用自动 TTL、关闭代理，不要追问这两个可选参数。SRV/CAA 使用 data，其他类型必须提供 content。", map[string]any{"zone_id": text("区域 ID"), "name": text("完整域名；SRV 必须为 _服务._协议.域名"), "type": map[string]any{"type": "string", "enum": []string{"A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA", "PTR"}}, "content": text("除 SRV/CAA 外必填的记录值，SRV/CAA 请省略"), "data": dnsData, "ttl": map[string]any{"type": "integer", "default": 1, "description": "可选，省略时为 1（自动），否则 60 至 86400；0 或 null 无效"}, "proxied": map[string]any{"type": "boolean", "default": false, "description": "可选，省略时关闭代理；仅 A/AAAA/CNAME 可代理"}, "priority": map[string]any{"type": "integer", "description": "仅 MX 必填，0 至 65535；SRV 使用 data.priority"}}, []string{"zone_id", "name", "type"}},
+		{"create_monitor", "准备创建空的私有监控项目，默认不公开、不发告警。未指定检测频率时直接生成待确认任务，不要追问间隔。执行成功后才能添加目标。", map[string]any{"name": text("项目名称"), "interval_sec": map[string]any{"type": "integer", "default": services.DefaultMonitorInterval, "minimum": 60, "maximum": 3600, "description": "可选，省略时采用产品默认 60 秒；指定时须为 60 至 3600 的整数"}}, []string{"name"}},
 		{"add_monitor_target", "为已有的本人监控项目准备添加 HTTP GET 探测目标，添加后会周期访问该 URL。", map[string]any{"monitor_id": text("已存在项目的真实 ID"), "name": text("目标名称"), "url": text("目标 HTTP 或 HTTPS URL，不可含密码")}, []string{"monitor_id", "name", "url"}},
 	}
 	tools := []map[string]any{}
@@ -58,6 +71,18 @@ var aiHostnameLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 func aiDecodeArguments(raw string, target any) error {
 	if len(raw) > 12000 {
 		return errors.New("任务参数过大")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+		return err
+	}
+	if fields == nil {
+		return errors.New("任务参数须为对象")
+	}
+	for _, value := range fields {
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return errors.New("任务参数不可为 null；使用默认值时请省略可选参数")
+		}
 	}
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -110,7 +135,8 @@ func aiBuildTask(user *models.SessionUser, call services.AIToolCall) (models.AIT
 			ZoneID string `json:"zone_id"`
 			models.DNSRecordRequest
 		}
-		if aiDecodeArguments(call.Function.Arguments, &payload) != nil || !aiResourceID.MatchString(payload.ZoneID) || len(payload.Name) > 253 || len(payload.Content) > 4096 {
+		payload.TTL = 1
+		if aiDecodeArguments(call.Function.Arguments, &payload) != nil || !aiResourceID.MatchString(payload.ZoneID) || len(payload.Name) > 253 || len(payload.Content) > 4096 || payload.TTL == 0 {
 			return task, errors.New("DNS 参数无效")
 		}
 		body, _ := json.Marshal(payload.DNSRecordRequest)
@@ -127,6 +153,7 @@ func aiBuildTask(user *models.SessionUser, call services.AIToolCall) (models.AIT
 			Name     string `json:"name"`
 			Interval int    `json:"interval_sec"`
 		}
+		payload.Interval = services.DefaultMonitorInterval
 		if aiDecodeArguments(call.Function.Arguments, &payload) != nil || strings.TrimSpace(payload.Name) == "" || len(payload.Name) > 200 || payload.Interval < 60 || payload.Interval > 3600 {
 			return task, errors.New("监控项目参数无效")
 		}

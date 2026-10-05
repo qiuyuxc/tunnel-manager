@@ -76,6 +76,7 @@ export default defineConfig({
                 { text: '服务监控与公开状态页', link: '/guide/monitors-status' },
                 { text: 'Telegram Bot 远程管理', link: '/guide/telegram-bot' },
                 { text: 'AI 助手', link: '/guide/ai-assistant' },
+                { text: 'IP 优选实验室', link: '/guide/lab-ip-selector' },
                 { text: 'Android App', link: '/guide/android-app' }
               ]
             }
@@ -156,6 +157,7 @@ export default defineConfig({
                 { text: 'Monitoring & status pages', link: '/en/guide/monitors-status' },
                 { text: 'Telegram bot', link: '/en/guide/telegram-bot' },
                 { text: 'AI assistant', link: '/en/guide/ai-assistant' },
+                { text: 'IP selector lab', link: '/en/guide/lab-ip-selector' },
                 { text: 'Android app', link: '/en/guide/android-app' }
               ]
             }

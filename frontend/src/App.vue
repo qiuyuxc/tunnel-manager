@@ -7,7 +7,11 @@
           <div class="app-area" :class="{ 'app-area-login': isLogin }">
             <console-header v-if="!isLogin" />
             <main class="app-main" :class="{ 'app-main-login': isLogin }">
-              <router-view />
+              <router-view v-slot="{ Component, route: pageRoute }">
+                <transition name="page" mode="out-in">
+                  <component :is="Component" :key="pageRoute.path" />
+                </transition>
+              </router-view>
             </main>
           </div>
           <mobile-nav v-if="!isLogin" />

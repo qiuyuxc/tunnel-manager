@@ -55,6 +55,8 @@ public class BatchBindFragment extends PageFragment {
     private JSONObject config = new JSONObject();
     private final List<Group> groups = new ArrayList<>();
     private String summary = "";
+    private boolean submitting;
+    private long startedAt;
 
     @Override
     String route() {
@@ -80,6 +82,7 @@ public class BatchBindFragment extends PageFragment {
     }
 
     private void load() {
+        if (submitting) { refresh.setRefreshing(false); render(); return; }
         Api.async(() -> Api.get("/api/config"), loaded -> {
             refresh.setRefreshing(false);
             config = loaded;
@@ -141,11 +144,18 @@ public class BatchBindFragment extends PageFragment {
             body.addView(banner);
         }
 
-        TextView submit = UI.button(requireContext(), "批量绑定", UI.BTN_PRIMARY);
+        TextView submit = UI.button(requireContext(), submitting ? "批量绑定中…" : "批量绑定", UI.BTN_PRIMARY);
         UI.fill(submit);
         UI.margin(submit, 0, UI.MD, 0, 0);
         submit.setOnClickListener(v -> submit());
         body.addView(submit);
+        refresh.setEnabled(!submitting);
+        if (submitting) {
+            OperationProgress.setInputsEnabled(body, false);
+            OperationProgress progress = new OperationProgress(requireContext(), "正在绑定 " + groups.size() + " 组域名", startedAt);
+            UI.margin(progress, 0, UI.MD, 0, 0);
+            body.addView(progress, body.getChildCount() - 1);
+        }
     }
 
     private View groupCard(final Group group, final int index) {
@@ -254,6 +264,7 @@ public class BatchBindFragment extends PageFragment {
     }
 
     private void submit() {
+        if (submitting) return;
         capture();
         boolean valid = true;
         for (Group group : groups) {
@@ -291,11 +302,16 @@ public class BatchBindFragment extends PageFragment {
             items.put(item);
         }
 
+        submitting = true;
+        startedAt = android.os.SystemClock.elapsedRealtime();
+        summary = "";
+        render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
             payload.put("items", items);
             return Api.post("/api/domain/bind-batch", payload);
         }, response -> {
+            submitting = false;
             JSONArray results = response.optJSONArray("results");
             int succeeded = 0;
             for (int i = 0; i < groups.size(); i++) {
@@ -313,7 +329,12 @@ public class BatchBindFragment extends PageFragment {
             summary = "批量绑定完成：" + succeeded + "/" + groups.size() + " 成功";
             render();
             toast(summary);
-        }, failure -> toast(failure.getMessage()));
+        }, failure -> {
+            submitting = false;
+            summary = "请求未完成：" + failure.getMessage() + "。若请求超时或断连，结果可能已写入，请核对后再重试。";
+            render();
+            toast(summary);
+        });
     }
 
     private void toast(String message) {

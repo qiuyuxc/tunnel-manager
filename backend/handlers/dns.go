@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -57,6 +60,9 @@ func (h *DNSHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !editableDNSRecord(w, r, zoneID, recordID) {
+		return
+	}
 	record, err := UserCF(r).UpdateDNSRecord(zoneID, recordID, payload)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -73,6 +79,9 @@ func (h *DNSHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "zone_id and record_id are required"})
 		return
 	}
+	if !editableDNSRecord(w, r, zoneID, recordID) {
+		return
+	}
 	if err := UserCF(r).DeleteDNSRecord(zoneID, recordID); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -80,46 +89,52 @@ func (h *DNSHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func editableDNSRecord(w http.ResponseWriter, r *http.Request, zoneID, recordID string) bool {
+	record, err := UserCF(r).GetDNSRecord(zoneID, recordID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return false
+	}
+	if !models.EditableDNSRecordType(record.Type) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported DNS record type (read-only)"})
+		return false
+	}
+	return true
+}
+
 func readDNSRecordRequest(w http.ResponseWriter, r *http.Request, zoneID string) (models.DNSRecordRequest, bool) {
-	var payload models.DNSRecordRequest
+	payload := models.DNSRecordRequest{TTL: 1}
 	if zoneID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "zone_id is required"})
 		return payload, false
 	}
-	if err := readJSON(r, &payload); err != nil {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	var raw json.RawMessage
+	if err := decoder.Decode(&raw); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return payload, false
 	}
-	payload.Name = strings.TrimSuffix(strings.TrimSpace(payload.Name), ".")
-	payload.Type = strings.ToUpper(strings.TrimSpace(payload.Type))
-	payload.Content = strings.TrimSpace(payload.Content)
-	if payload.Name == "" || payload.Content == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and content are required"})
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil || fields == nil || decoder.Decode(new(any)) != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return payload, false
 	}
-	allowed := map[string]bool{"A": true, "AAAA": true, "CNAME": true, "TXT": true, "MX": true}
-	if !allowed[payload.Type] {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported DNS record type"})
-		return payload, false
-	}
-	if payload.TTL == 0 {
-		payload.TTL = 1
-	}
-	if payload.TTL != 1 && (payload.TTL < 60 || payload.TTL > 86400) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ttl must be automatic or between 60 and 86400 seconds"})
-		return payload, false
-	}
-	if payload.Type == "MX" {
-		if payload.Priority == nil || *payload.Priority < 0 || *payload.Priority > 65535 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "MX priority must be between 0 and 65535"})
+	for _, key := range []string{"ttl", "proxied"} {
+		if value, exists := fields[key]; exists && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": key + " must not be null"})
 			return payload, false
 		}
-		payload.Proxied = false
-	} else {
-		payload.Priority = nil
-		if payload.Type == "TXT" {
-			payload.Proxied = false
-		}
+	}
+	decoder = json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request fields: " + err.Error()})
+		return payload, false
+	}
+	if err := models.ValidateDNSRecordRequest(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return payload, false
 	}
 	return payload, true
 }

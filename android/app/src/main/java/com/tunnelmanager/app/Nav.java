@@ -53,6 +53,7 @@ final class Nav {
         ALL.add(new Item("/settings", "全局设置", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, true));
         ALL.add(new Item("/telegram", "TG 机器人", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, true));
         ALL.add(new Item("/assistant", "AI 助手", null, R.drawable.ic_nav_assistant, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/lab/ip-selector", "IP 优选实验室", null, R.drawable.ic_nav_lab, Group.SYSTEM, null, true, true));
         ALL.add(new Item("/admin", "管理后台", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, true));
         ALL.add(new Item("/notifications", "通知", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, true));
         ALL.add(new Item("/account", "账户", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, true));
@@ -68,6 +69,7 @@ final class Nav {
     static List<Item> visible() {
         List<Item> out = new ArrayList<>();
         for (Item item : ALL) {
+            if ("/lab/ip-selector".equals(item.path) && !Session.experimental()) continue;
             if (item.admin && !Session.isAdmin()) continue;
             if (item.perm != null && !Session.hasPerm(item.perm)) continue;
             out.add(item);

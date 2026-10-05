@@ -48,6 +48,7 @@ public final class AssistantTaskSelectionTest {
             case "labels":
                 check("间隔（秒）".equals(AssistantTaskSelection.argumentLabel("interval_sec")), "untranslated interval");
                 check("探测地址".equals(AssistantTaskSelection.argumentLabel("url")), "untranslated URL");
+                check("记录数据（SRV / CAA）".equals(AssistantTaskSelection.argumentLabel("data")), "untranslated DNS data");
                 check("future_field".equals(AssistantTaskSelection.argumentLabel("future_field")), "unknown parameter hidden");
                 break;
             default: throw new AssertionError("unknown scenario");

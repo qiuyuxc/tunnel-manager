@@ -76,6 +76,9 @@ type Store struct {
 	verifyCodes      []verifyCodeRecord
 	prefs            map[string]models.UserPrefs
 	appSettings      models.AppSettings
+	labSettings      models.LabIPSelectorSettings
+	labRuns          []models.LabIPSelectorRun
+	labSecurity      models.LabSecurityState
 	smtp             models.SMTPSettings
 	cfConns          []models.CFConnection
 	alertLogs        []models.AlertLog
@@ -107,6 +110,10 @@ func NewStore(dsn string) *Store {
 		dsn:     resolved,
 		dialect: db.DetectDialect(resolved),
 		prefs:   map[string]models.UserPrefs{},
+		labSettings: models.LabIPSelectorSettings{
+			Path: "/ip-check.txt", Statuses: "200", Timeout: 2, Workers: models.LabMaxWorkers,
+			Top: 10, IntervalMins: 30, TTL: 300, Endpoint: "https://dns.myhuaweicloud.com",
+		},
 		config: models.Config{
 			PreferredCNAME: "cf.090227.xyz",
 			CNAMEPresets: []models.CNAMEPreset{
@@ -299,6 +306,29 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 	} else if ok {
 		_ = json.Unmarshal([]byte(appDoc), &s.appSettings)
 	}
+	for key, destination := range map[string]interface{}{
+		"lab_ip_selector":          &s.labSettings,
+		"lab_ip_selector_runs":     &s.labRuns,
+		"lab_ip_selector_security": &s.labSecurity,
+	} {
+		if document, found, loadErr := loadSetting(handle, key); loadErr != nil {
+			return false, loadErr
+		} else if found {
+			if err := json.Unmarshal([]byte(document), destination); err != nil {
+				return false, fmt.Errorf("load %s: %w", key, err)
+			}
+		}
+	}
+	if s.labSecurity.Verification.VerifiedAt == 0 {
+		s.labSettings.Schedule = false
+	}
+	workerCeiling := models.LabWorkerCeiling
+	if s.appSettings.LabMaxWorkers == 0 {
+		workerCeiling = models.LabMaxWorkers
+	}
+	if s.labSettings.Workers > workerCeiling {
+		s.labSettings.Workers = workerCeiling
+	}
 	if assistantDoc, ok, loadErr := loadSetting(handle, "assistant"); loadErr != nil {
 		return false, loadErr
 	} else if ok {
@@ -395,6 +425,19 @@ func (s *Store) saveLocked() error {
 	}
 	if err := upsertSetting(tx, "app", string(appJSON)); err != nil {
 		return err
+	}
+	for key, value := range map[string]interface{}{
+		"lab_ip_selector":          s.labSettings,
+		"lab_ip_selector_runs":     s.labRuns,
+		"lab_ip_selector_security": s.labSecurity,
+	} {
+		document, marshalErr := json.Marshal(value)
+		if marshalErr != nil {
+			return fmt.Errorf("marshal %s: %w", key, marshalErr)
+		}
+		if err := upsertSetting(tx, key, string(document)); err != nil {
+			return err
+		}
 	}
 	smtpJSON, err := json.Marshal(s.smtp)
 	if err != nil {

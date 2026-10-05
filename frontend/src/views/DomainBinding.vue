@@ -22,8 +22,8 @@
       <div class="summary-row summary-row-edit">
         <span class="summary-label caption-mono">转发地址</span>
         <div class="summary-edit">
-          <input v-model="serviceURL" placeholder="http://localhost:3000" class="vercel-input summary-input" />
-          <button class="btn btn-secondary btn-sm" :disabled="savingService" @click="saveServiceURL">
+          <input v-model="serviceURL" :disabled="binding || savingService" placeholder="http://localhost:3000" class="vercel-input summary-input" />
+          <button class="btn btn-secondary btn-sm" :disabled="savingService || binding" @click="saveServiceURL">
             {{ savingService ? '...' : '保存' }}
           </button>
         </div>
@@ -37,6 +37,7 @@
       <div class="form-card-header">
         <span class="caption-mono form-card-label">绑定新域名</span>
       </div>
+      <fieldset class="binding-fields" :disabled="binding || savingService">
       <div class="mode-selector" role="radiogroup" aria-label="绑定模式">
         <button type="button" class="mode-option" :class="{ active: form.mode === 'simple' }" role="radio" :aria-checked="form.mode === 'simple'" @click="form.mode = 'simple'">
           <strong>简单模式</strong><span>只需主域名和转发服务</span>
@@ -51,6 +52,7 @@
           <div class="input-wrapper">
             <cname-picker
               v-model="form.preferred_cname"
+              :disabled="binding || savingService"
               :presets="config.cname_presets"
               :show-default="true"
               :default-value="config.preferred_cname"
@@ -86,6 +88,7 @@
           </div>
         </div>
       </div>
+      <OperationStatus v-if="binding || savingService" :title="binding ? '正在绑定域名' : '正在保存转发地址'" />
       <div class="form-action">
         <button class="btn btn-primary" @click="handleBind" :disabled="binding || !isValid">
           <svg v-if="binding" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -93,6 +96,7 @@
           {{ binding ? '绑定中...' : '绑定域名' }}
         </button>
       </div>
+      </fieldset>
     </div>
     <transition name="result-slide">
       <div v-if="result" class="result-card section" :class="result.success ? 'success' : 'error'">
@@ -111,6 +115,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomain, setServiceURL, type BindRequest } from '../api'
 import CnamePicker from '../components/CNAMEPicker.vue'
+import OperationStatus from '../components/OperationStatus.vue'
 import { useConfigStore } from '../stores/config'
 const message = useMessage()
 const configStore = useConfigStore()
@@ -129,6 +134,7 @@ function validate(field: string) {
     ? (!v ? '此字段不能为空' : '') : ''
 }
 async function saveServiceURL() {
+  if (savingService.value || binding.value) return
   savingService.value = true
   try {
     await setServiceURL(serviceURL.value)
@@ -141,7 +147,8 @@ async function saveServiceURL() {
   }
 }
 async function handleBind() {
-  if (!isValid.value) return
+  if (binding.value || savingService.value || !isValid.value) return
+  const payload = { ...form.value }
   binding.value = true
   result.value = null
   try {
@@ -150,7 +157,7 @@ async function handleBind() {
       await setServiceURL(nextServiceURL)
       config.service_url = nextServiceURL
     }
-    const { data } = await bindDomain(form.value)
+    const { data } = await bindDomain(payload)
     result.value = { success: true, message: data.message || '域名绑定成功' }
     message.success('绑定成功！')
   } catch (e: any) {
@@ -167,6 +174,7 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
+.binding-fields { padding: 0; margin: 0; border: 0; min-width: 0; }
 .prereq-banner {
   display: flex;
   align-items: flex-start;

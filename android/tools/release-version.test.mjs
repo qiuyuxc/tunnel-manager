@@ -28,7 +28,7 @@ test('both Android packaging paths use the same version metadata', () => {
   assert.ok(Number(buildCode) > 0)
   const fallback = read('android/tools/build-nogradle.sh')
   assert.equal(fallback.match(/--version-code\s+(\d+)/)?.[1], buildCode)
-  assert.equal(fallback.match(/--version-name\s+([\d.]+)/)?.[1], version)
+  assert.equal(fallback.match(/--version-name\s+(\S+)/)?.[1], version)
 })
 
 test('both changelogs and web highlights describe the current release', () => {
@@ -36,4 +36,15 @@ test('both changelogs and web highlights describe the current release', () => {
     assert.equal(read(file).match(/^## v([^\s]+)$/m)?.[1], version, file)
   }
   assert.ok(read('frontend/src/views/About.vue').includes(`v${version} 的重点变化`))
+})
+
+test('native and web release highlights stay aligned', () => {
+  const native = read('android/app/src/main/java/com/tunnelmanager/app/AboutFragment.java')
+    .match(/String\[\] HIGHLIGHTS = \{([\s\S]*?)\n    \};/)?.[1] || ''
+  const web = read('frontend/src/views/About.vue')
+    .match(/<ul class="changelog-list">([\s\S]*?)<\/ul>/)?.[1] || ''
+  const nativeItems = [...native.matchAll(/"([^"]+)"/g)].map(match => match[1])
+  const webItems = [...web.matchAll(/<li>([^<]+)<\/li>/g)].map(match => match[1])
+  assert.ok(nativeItems.length > 0)
+  assert.deepEqual(nativeItems, webItems)
 })

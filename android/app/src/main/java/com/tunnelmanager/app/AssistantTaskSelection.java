@@ -42,6 +42,7 @@ final class AssistantTaskSelection {
             case "service_url": return "源站地址";
             case "type": return "类型";
             case "content": return "记录值";
+            case "data": return "记录数据（SRV / CAA）";
             case "ttl": return "TTL（1 为自动）";
             case "proxied": return "代理";
             case "priority": return "MX 优先级";

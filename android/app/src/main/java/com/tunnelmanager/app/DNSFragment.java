@@ -40,8 +40,7 @@ import java.util.Set;
  */
 public class DNSFragment extends PageFragment {
 
-    /** A / AAAA / CNAME / TXT / MX, in the order the console lists them. */
-    private static final String[] TYPES = {"A", "AAAA", "CNAME", "TXT", "MX"};
+    private static final String[] TYPES = DNSValues.SIMPLE_TYPES;
     private static final int[] TTLS = {1, 60, 120, 300, 600, 1800, 3600, 7200, 18000, 43200, 86400};
 
     private SwipeRefreshLayout refresh;
@@ -173,9 +172,16 @@ public class DNSFragment extends PageFragment {
 
         LinearLayout actions = UI.row(requireContext());
         TextView add = UI.button(requireContext(), "添加记录", UI.BTN_PRIMARY);
+        add.setEnabled(!zoneId.isEmpty());
         add.setOnClickListener(v -> openEditor(null));
         UI.weight(add, 1f);
         actions.addView(add);
+        TextView bulk = UI.button(requireContext(), "批量新增", UI.BTN_SECONDARY);
+        bulk.setEnabled(!zoneId.isEmpty());
+        bulk.setOnClickListener(view -> openBatchCreate());
+        UI.weight(bulk, 1f);
+        UI.margin(bulk, UI.SM, 0, 0, 0);
+        actions.addView(bulk);
         TextView reload = UI.button(requireContext(), "刷新", UI.BTN_SECONDARY);
         reload.setOnClickListener(v -> loadRecords());
         UI.weight(reload, 1f);
@@ -369,6 +375,8 @@ public class DNSFragment extends PageFragment {
         }
         dot.setClickable(true);
         dot.setOnClickListener(v -> toggle(id));
+        dot.setEnabled(DNSJson.editable(record));
+        dot.setAlpha(DNSJson.editable(record) ? 1f : 0.35f);
         LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(UI.dp(20), UI.dp(20));
         dotLp.rightMargin = UI.dp(UI.MD);
         head.addView(dot, dotLp);
@@ -388,12 +396,16 @@ public class DNSFragment extends PageFragment {
         name.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         head.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_edit, p.body, v -> openEditor(record)));
-        head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_trash, p.error,
-                v -> confirmDelete(record)));
+        if (DNSJson.editable(record)) {
+            head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_edit, p.body, v -> openEditor(record)));
+            head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_trash, p.error, v -> confirmDelete(record)));
+        } else {
+            head.addView(UI.muted(requireContext(), "只读"));
+        }
         card.addView(head);
 
         String content = record.optString("content");
+        if (content.isEmpty() && record.has("data")) content = record.optString("data");
         if ("MX".equals(type)) content = "优先级 " + record.optInt("priority") + " · " + content;
         TextView value = UI.mono(requireContext(), content, p.body);
         value.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
@@ -437,63 +449,8 @@ public class DNSFragment extends PageFragment {
         return "目标内容";
     }
 
-    /** Mirrors frontend/src/utils/dnsValidation.ts, message for message. */
     private static String validateContent(String type, String raw) {
-        String content = raw.trim();
-        if (content.isEmpty()) return "解析值不能为空";
-        switch (type) {
-            case "A":
-                return isIPv4(content) ? null : "A 记录必须填写有效的 IPv4 地址";
-            case "AAAA":
-                return isIPv6(content) ? null : "AAAA 记录必须填写有效的 IPv6 地址";
-            case "CNAME":
-                return isHostname(content) ? null : "CNAME 记录必须填写域名目标，不能填写 IP 地址";
-            case "MX":
-                return isHostname(content) ? null : "MX 记录必须填写邮件服务器域名";
-            default:
-                return null;
-        }
-    }
-
-    private static boolean isIPv4(String value) {
-        String[] parts = value.split("\\.", -1);
-        if (parts.length != 4) return false;
-        for (String part : parts) {
-            if (part.isEmpty() || part.length() > 3) return false;
-            for (int i = 0; i < part.length(); i++) {
-                if (!Character.isDigit(part.charAt(i))) return false;
-            }
-            if (Integer.parseInt(part) > 255) return false;
-        }
-        return true;
-    }
-
-    private static boolean isIPv6(String value) {
-        if (!value.contains(":")) return false;
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            if (Character.digit(c, 16) < 0 && c != ':' && c != '.') return false;
-        }
-        // One "::" at most; a trailing single colon is never valid.
-        int doubles = value.split("::", -1).length - 1;
-        return doubles <= 1 && !value.endsWith(":");
-    }
-
-    private static boolean isHostname(String value) {
-        if (value.isEmpty() || value.length() > 253) return false;
-        if (isIPv4(value) || value.contains(":")) return false;
-        String trimmed = value.endsWith(".") ? value.substring(0, value.length() - 1) : value;
-        if (trimmed.isEmpty()) return false;
-        for (String label : trimmed.split("\\.", -1)) {
-            if (label.isEmpty() || label.length() > 63) return false;
-            for (int i = 0; i < label.length(); i++) {
-                char c = label.charAt(i);
-                boolean ok = Character.isLetterOrDigit(c) || c == '-' || c == '_' || c > 127;
-                if (!ok) return false;
-            }
-            if (label.charAt(0) == '-' || label.charAt(label.length() - 1) == '-') return false;
-        }
-        return true;
+        return DNSValues.contentError(type, raw);
     }
 
     // ------------------------------------------------------------------ sheets
@@ -520,129 +477,28 @@ public class DNSFragment extends PageFragment {
         sheet.show();
     }
 
-    /**
-     * Add or edit one record.
-     *
-     * {@code record} null means 添加; the sheet holds every field, and the ones
-     * that do not apply to the chosen type are hidden rather than disabled.
-     */
     private void openEditor(@Nullable JSONObject record) {
-        final boolean editing = record != null;
-        final String[] type = {editing ? record.optString("type") : "A"};
-        final int[] ttl = {editing ? record.optInt("ttl") : 1};
-        final boolean[] proxied = {editing && record.optBoolean("proxied")};
-
-        LinearLayout form = UI.column(requireContext());
-
-        final LinearLayout contentField = UI.column(requireContext());
-        final EditText content = UI.textArea(requireContext(), "解析值");
-        content.setMinLines(2);
-        content.setHint(placeholderFor(type[0]));
-
-        final LinearLayout priorityField = UI.field(requireContext(), "MX 优先级",
-                UI.input(requireContext(), "0 - 65535"), UI.MD);
-        EditText priority = (EditText) priorityField.getChildAt(1);
-        priority.setInputType(InputType.TYPE_CLASS_NUMBER);
-        priority.setText(String.valueOf(editing ? record.optInt("priority") : 0));
-
-        final TextView ttlButton = UI.button(requireContext(), ttlLabel(ttl[0]), UI.BTN_SECONDARY);
-        UI.fill(ttlButton);
-        ttlButton.setOnClickListener(v -> {
-            String[] labels = new String[TTLS.length];
-            for (int i = 0; i < TTLS.length; i++) labels[i] = ttlLabel(TTLS[i]);
-            Sheet.Builder sheet = Sheet.of(requireContext(), "TTL").label("缓存时间");
-            for (int i = 0; i < TTLS.length; i++) {
-                final int value = TTLS[i];
-                sheet.item(R.drawable.ic_nav_check, labels[i], () -> {
-                    ttl[0] = value;
-                    ttlButton.setText(ttlLabel(value));
-                });
-            }
-            sheet.show();
-        });
-
-        final LinearLayout proxyRow = UI.row(requireContext());
-        proxyRow.setGravity(Gravity.CENTER_VERTICAL);
-        proxyRow.addView(UI.strong(requireContext(), "代理状态"),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        UI.Toggle proxyToggle = new UI.Toggle(requireContext(), proxied[0]);
-        LinearLayout.LayoutParams toggleLp = new LinearLayout.LayoutParams(UI.dp(34), UI.dp(20));
-        toggleLp.leftMargin = UI.dp(UI.MD);
-        proxyRow.addView(proxyToggle, toggleLp);
-        proxyRow.setClickable(true);
-        proxyRow.setOnClickListener(v -> {
-            proxied[0] = !proxyToggle.isOn();
-            proxyToggle.setOn(proxied[0]);
-        });
-
-        final EditText name = UI.input(requireContext(), "例如 www 或 example.com");
-        if (editing) name.setText(record.optString("name"));
-        if (editing) content.setText(record.optString("content", ""));
-
-        final Runnable[] sync = new Runnable[1];
-        LinearLayout modes = UI.segmented(requireContext(), TYPES, indexOf(type[0]), index -> {
-            type[0] = TYPES[index];
-            sync[0].run();
-        });
-
-        sync[0] = () -> {
-            content.setHint(placeholderFor(type[0]));
-            contentField.removeAllViews();
-            contentField.addView(UI.label(requireContext(), contentLabel(type[0])));
-            UI.margin(content, 0, UI.dp(6), 0, 0);
-            contentField.addView(content);
-            priorityField.setVisibility("MX".equals(type[0]) ? View.VISIBLE : View.GONE);
-            proxyRow.setVisibility(proxyEligible(type[0]) ? View.VISIBLE : View.GONE);
-        };
-
-        form.addView(modes);
-        form.addView(UI.field(requireContext(), "名称", name, UI.MD));
-        UI.margin(contentField, 0, UI.MD, 0, 0);
-        UI.fill(contentField);
-        form.addView(contentField);
-        form.addView(priorityField);
-        form.addView(UI.field(requireContext(), "TTL", ttlButton, UI.MD));
-        UI.margin(proxyRow, 0, UI.MD, 0, 0);
-        form.addView(proxyRow);
-        sync[0].run();
-
-        TextView save = UI.button(requireContext(), editing ? "保存更改" : "添加记录", UI.BTN_PRIMARY);
-        UI.fill(save);
-        UI.margin(save, 0, UI.LG, 0, 0);
-        save.setOnClickListener(v -> {
-            String recordName = name.getText().toString().trim();
-            String value = content.getText().toString().trim();
-            String problem = recordName.isEmpty() ? "请输入记录名称"
-                    : validateContent(type[0], value);
-            if (problem == null && "MX".equals(type[0]))
-                problem = priority.getText().toString().trim().isEmpty() ? "请输入 MX 优先级" : null;
-            if (problem != null) {
-                toast(problem);
-                return;
-            }
-            int priorityValue = 0;
-            try {
-                priorityValue = Integer.parseInt(priority.getText().toString().trim());
-            } catch (NumberFormatException ignored) {
-            }
-            saveRecord(editing ? record : null, type[0], recordName, value, ttl[0], proxied[0], priorityValue);
-        });
-        form.addView(save);
-
-        Sheet.of(requireContext(), editing ? "编辑 DNS 记录" : "添加 DNS 记录").content(form).show();
+        if (zoneId.isEmpty() || (record != null && !DNSJson.editable(record))) return;
+        final String targetZone = zoneId;
+        new DNSRecordEditor(requireContext(), targetZone, record, () -> {
+            if (alive() && zoneId.equals(targetZone)) loadRecords();
+        }).show();
     }
 
-    private static int indexOf(String type) {
-        for (int i = 0; i < TYPES.length; i++) {
-            if (TYPES[i].equals(type)) return i;
-        }
-        return 0;
+    private void openBatchCreate() {
+        if (zoneId.isEmpty()) return;
+        final String targetZone = zoneId;
+        new DNSBatchCreate(requireContext(), targetZone, zoneName, records, () -> {
+            if (alive() && zoneId.equals(targetZone)) loadRecords();
+        }).show();
     }
 
     private static String placeholderFor(String type) {
         switch (type) {
             case "AAAA":
                 return "例如 2001:db8::1";
+            case "NS":
+            case "PTR":
             case "CNAME":
                 return "例如 target.example.com";
             case "TXT":
@@ -652,27 +508,6 @@ public class DNSFragment extends PageFragment {
             default:
                 return "例如 192.0.2.1";
         }
-    }
-
-    private void saveRecord(@Nullable JSONObject record, String type, String name, String content,
-                            int ttl, boolean proxied, int priority) {
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("type", type);
-            payload.put("name", name);
-            payload.put("content", content);
-            payload.put("ttl", ttl);
-            if (proxyEligible(type)) payload.put("proxied", proxied);
-            if ("MX".equals(type)) payload.put("priority", priority);
-            if (record != null) {
-                return Api.put("/api/zones/" + zoneId + "/dns-records/" + record.optString("id"), payload);
-            }
-            return Api.post("/api/zones/" + zoneId + "/dns-records", payload);
-        }, ok -> {
-            Sheet.dismissVisible();
-            toast(record != null ? "记录已更新" : "记录已添加");
-            loadRecords();
-        }, failure -> toast(failure.getMessage()));
     }
 
     // ------------------------------------------------------------------ batch
@@ -790,7 +625,14 @@ public class DNSFragment extends PageFragment {
             JSONObject record = records.optJSONObject(i);
             if (record != null && selected.contains(record.optString("id"))) targets.add(record);
         }
+        for (JSONObject record : targets) {
+            if (!DNSJson.editable(record) || (!type.isEmpty() && DNSValues.structured(record.optString("type")))) {
+                toast("包含只读记录，或尝试批量改变 SRV/CAA 类型；请逐条编辑结构化字段");
+                return;
+            }
+        }
         statusMessage = "";
+        final String targetZone = zoneId;
         Api.async(() -> {
             int done = 0;
             for (JSONObject record : targets) {
@@ -798,7 +640,8 @@ public class DNSFragment extends PageFragment {
                 String recordType = type.isEmpty() ? record.optString("type") : type;
                 payload.put("type", recordType);
                 payload.put("name", record.optString("name"));
-                payload.put("content", type.isEmpty() ? record.optString("content") : content);
+                if (DNSValues.structured(recordType)) payload.put("data", record.getJSONObject("data"));
+                else payload.put("content", type.isEmpty() ? record.optString("content") : content);
                 payload.put("ttl", ttl == -1 ? record.optInt("ttl") : ttl);
                 if (proxyEligible(recordType)) {
                     if (proxyChoice == 0) {
@@ -808,7 +651,7 @@ public class DNSFragment extends PageFragment {
                     }
                 }
                 if ("MX".equals(recordType)) payload.put("priority", record.optInt("priority"));
-                Api.put("/api/zones/" + zoneId + "/dns-records/" + record.optString("id"), payload);
+                Api.put("/api/zones/" + targetZone + "/dns-records/" + record.optString("id"), payload);
                 done++;
             }
             return done;
@@ -849,12 +692,14 @@ public class DNSFragment extends PageFragment {
     }
 
     private void confirmDelete(JSONObject record) {
+        if (!DNSJson.editable(record)) return;
+        final String targetZone = zoneId;
         Modal.of(requireContext(), "删除 DNS 记录")
                 .message("确定删除 " + record.optString("type") + " 记录 " + record.optString("name")
                         + " 吗？此操作无法撤销。")
                 .cancel("取消")
                 .confirm("确认删除", true, () -> Api.async(
-                        () -> Api.delete("/api/zones/" + zoneId + "/dns-records/" + record.optString("id")),
+                        () -> Api.delete("/api/zones/" + targetZone + "/dns-records/" + record.optString("id")),
                         ok -> {
                             toast("记录已删除");
                             loadRecords();

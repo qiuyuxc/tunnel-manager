@@ -2,13 +2,22 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
-## Unreleased
+## v2.8.0
+
+Unreleased; Android build number 280.
+
+- **Configurable IP selector limits**: Web and Android administrators can set the daily budget, shared request rate, and worker ceiling for subsequent runs. The panel budget is independent of cloud quotas; lowering it preserves spent reservations.
+- **Independent TXT verification**: Verify a domain without saving or changing probe Host/SNI settings. Successful verification collapses TXT details, with shorter on-page guidance.
 
 - Added the Web/native Android AI assistant with a plus-menu entry, isolated conversations, personal or administrator-shared connections, encrypted keys and Chat Completions-compatible calls
 - Added approval-gated tunnel creation, direct domain binding, DNS creation, private monitors and HTTP targets, with existing permissions/audit and pending-task pause, cancellation and verified retry
+- The AI assistant now uses safe defaults instead of asking for omitted optional parameters: 60-second monitor checks, automatic DNS TTL, and proxy off; confirmation cards show effective values, while required or invalid inputs still need clarification and execution still needs approval
+- DNS management and the AI assistant now support NS, SRV, CAA, and PTR; Web / Android add line-based batch creation and failed-item retries, requiring verification of unknown results without resending successful items
+- Domain binding now shows operation progress and failure feedback, with page transitions on Web and Android
 
-- Removed the IP optimizer lab, its Web / Android entry points, probe and scheduling APIs, automatic Huawei Cloud DNS updates, and dedicated experimental-features switch; regular DNS management and preferred domain binding are unchanged
-- Upgrades stop reading and writing legacy lab settings and run history without automatically deleting existing database records
+- Restored the IP selector lab and Web / Android entry points with DNS TXT authorization, request throttling, a persistent daily budget, and a stop control; HTTP probes, scheduling, and Huawei DNS updates coexist with the AI assistant and regular DNS/domain management
+- Restored legacy lab settings, encrypted credentials, and run history; unverified legacy schedules remain disabled without automatically scanning or changing business DNS
+- Added one-click TXT creation and verification through the current bound Cloudflare account; manual entry remains available without a suitable account or zone permission, and retries neither duplicate the same record nor enable scheduling or scanning
 
 ## v2.6.0
 

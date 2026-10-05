@@ -47,6 +47,7 @@ export interface NavItem {
   group: NavGroup
   perm?: string
   admin?: boolean
+  experimental?: boolean
   /** Listed verbatim in the group's action sheet rather than in the sidebar only. */
   badge?: string
 }
@@ -59,6 +60,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network', perm: 'dns' },
   { path: '/settings', label: '全局设置', icon: icons.settings, group: 'management', admin: true },
   { path: '/assistant', label: 'AI 助手', icon: icons.assistant, group: 'workspace' },
+  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.tunnels, group: 'network', admin: true, experimental: true },
   { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, group: 'management' },
   { path: '/notifications', label: '通知设置', tabLabel: '通知', icon: icons.bell, group: 'management' },
   { path: '/admin', label: '管理后台', icon: icons.admin, group: 'management', admin: true },
@@ -129,6 +131,7 @@ export function useNavItems() {
   const configStore = useConfigStore()
   return computed(() =>
     NAV_ITEMS.filter((item) => {
+      if (item.experimental && !configStore.experimentalFeatures) return false
       if (item.admin) return configStore.isAdmin()
       if (item.perm) return configStore.hasPerm(item.perm)
       return true

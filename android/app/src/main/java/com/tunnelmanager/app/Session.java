@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -19,20 +20,44 @@ import java.util.Set;
  */
 final class Session {
 
-    private static SharedPreferences prefs;
+    private static volatile SharedPreferences prefs;
+    private static long revision;
+    private static final SharedPreferences.OnSharedPreferenceChangeListener identityChanged = (preferences, key) -> {
+        if (key == null || MainActivity.KEY_SERVER.equals(key) || MainActivity.KEY_TOKEN.equals(key) || "username".equals(key)) {
+            synchronized (Session.class) { revision++; }
+        }
+    };
     private static final Set<String> permissions = new HashSet<>();
     private static String nickname = "";
     private static String avatar = "";
     private static String siteName = "";
+    private static boolean experimental = false;
+    private static String userId = "";
 
     private Session() {
     }
 
-    static void init(Context ctx) {
+    private static void initPreferences(Context ctx) {
         if (prefs == null) {
             prefs = ctx.getApplicationContext().getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
+            prefs.registerOnSharedPreferenceChangeListener(identityChanged);
         }
+    }
+
+    static synchronized void init(Context ctx) {
+        initPreferences(ctx);
         Theme.init(ctx);
+    }
+
+    static synchronized RequestScope.Snapshot snapshot() {
+        Map<String, ?> values = prefs == null ? Collections.emptyMap() : prefs.getAll();
+        return new RequestScope.Snapshot(identityValue(values, MainActivity.KEY_SERVER),
+                identityValue(values, MainActivity.KEY_TOKEN), identityValue(values, "username"), revision);
+    }
+
+    private static String identityValue(Map<String, ?> values, String key) {
+        Object value = values.get(key);
+        return value instanceof String ? (String) value : "";
     }
 
     static String server() {
@@ -68,12 +93,21 @@ final class Session {
         return "admin".equals(role());
     }
 
+    static boolean experimental() {
+        return experimental;
+    }
+
+    static String userId() {
+        return userId;
+    }
+
     static boolean hasPerm(String perm) {
         return isAdmin() || permissions.contains(perm);
     }
 
-    static void save(Context ctx, String server, String token, String user, String userRole) {
-        prefs = ctx.getApplicationContext().getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
+    static synchronized void save(Context ctx, String server, String token, String user, String userRole) {
+        initPreferences(ctx);
+        revision++;
         prefs.edit()
                 .putString(MainActivity.KEY_SERVER, server)
                 .putString(MainActivity.KEY_TOKEN, token)
@@ -82,20 +116,29 @@ final class Session {
                 .apply();
     }
 
-    static void logout(Context ctx) {
+    static synchronized void logout(Context ctx) {
+        revision++;
         if (prefs != null) prefs.edit().remove(MainActivity.KEY_TOKEN).apply();
         permissions.clear();
+        experimental = false;
+        userId = "";
     }
 
     /** Applies the identity payload from /api/me or /api/config. */
     static void applyConfig(JSONObject me) {
         if (me == null) return;
+        if (me.has("id")) userId = me.optString("id", "");
         // The two endpoints this is fed from carry different halves of the
         // picture, so only keys actually present are allowed to overwrite.
         if (me.has("nickname")) nickname = me.optString("nickname", "");
         if (me.has("avatar")) avatar = me.optString("avatar", "");
         String site = me.has("site_name") ? me.optString("site_name", "") : me.optString("name", "");
         if (!site.isEmpty()) siteName = site;
+        if (me.has("experimental_features_enabled")) {
+            experimental = me.optBoolean("experimental_features_enabled", false);
+        } else if (me.has("experimental_features")) {
+            experimental = me.optBoolean("experimental_features", false);
+        }
         if (me.has("username")) {
             prefs.edit().putString("username", me.optString("username", "")).apply();
         }

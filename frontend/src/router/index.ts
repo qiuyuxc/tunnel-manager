@@ -24,6 +24,7 @@ const router = createRouter({
     { path: '/dns', name: 'dns', component: () => import('../views/DNSManagement.vue'), meta: { requiresAuth: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
     { path: '/assistant', name: 'assistant', component: () => import('../views/Assistant.vue'), meta: { requiresAuth: true } },
+    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: () => import('../views/LabIPSelector.vue'), meta: { requiresAuth: true, requiresAdmin: true, experimental: true } },
     { path: '/telegram', name: 'telegram', component: () => import('../views/TelegramSettings.vue'), meta: { requiresAuth: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
     { path: '/notifications', name: 'notifications', component: () => import('../views/Notifications.vue'), meta: { requiresAuth: true } },
@@ -60,6 +61,7 @@ router.beforeEach(async (to, from) => {
   if (to.meta.requiresAdmin && !store.isAdmin()) {
     return '/dashboard'
   }
+  if (to.meta.experimental && !store.experimentalFeatures) return '/dashboard'
   if (to.path === '/login' && store.isAuthenticated) {
     return store.landingEnabled ? '/' : '/dashboard'
   }

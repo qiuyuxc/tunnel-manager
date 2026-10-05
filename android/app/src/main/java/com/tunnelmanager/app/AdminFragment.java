@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -41,10 +42,10 @@ public class AdminFragment extends PageFragment {
     /** Audit categories, mirroring the web panel's filter list. */
     private static final String[] AUDIT_CATEGORIES = {
             "", "auth", "passkey", "user", "group", "invite", "settings",
-            "tunnel", "domain", "dns", "monitor", "telegram"};
+            "tunnel", "domain", "dns", "monitor", "lab", "telegram"};
     private static final String[] AUDIT_CATEGORY_LABELS = {
             "全部", "登录认证", "通行密钥", "用户管理", "用户组", "邀请码", "系统设置",
-            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "TG 机器人"};
+            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "IP 优选实验室", "TG 机器人"};
     private static final String[] AUDIT_RANGE_LABELS = {"全部", "今天", "近 7 天", "近 30 天"};
     private static final String[] AUDIT_ACTIONS = {
             "login", "login_failed", "logout",
@@ -61,7 +62,7 @@ public class AdminFragment extends PageFragment {
             "dns_create", "dns_update", "dns_delete",
             "monitor_create", "monitor_update", "monitor_delete", "monitor_check",
             "target_add", "target_update", "target_delete",
-            "telegram_endpoint_update"};
+            "lab_settings_update", "lab_run", "lab_stop", "lab_ownership_challenge", "lab_ownership_verify", "lab_ownership_dns", "telegram_endpoint_update"};
     private static final String[] AUDIT_ACTION_LABELS = {
             "登录成功", "登录失败", "退出登录",
             "绑定通行密钥", "删除通行密钥", "重命名通行密钥", "通行密钥登录", "通行密钥登录失败",
@@ -77,7 +78,7 @@ public class AdminFragment extends PageFragment {
             "新增 DNS 记录", "修改 DNS 记录", "删除 DNS 记录",
             "创建监控项目", "修改监控项目", "删除监控项目", "手动检测监控",
             "新增监控目标", "修改监控目标", "删除监控目标",
-            "修改 TG API 端点"};
+            "修改实验室设置", "执行 IP 优选", "停止 IP 优选", "签发域名验证记录", "验证域名所有权", "自动填写域名验证 TXT", "修改 TG API 端点"};
     private static final String[] INVITE_MODES = {"off", "optional", "required"};
     private static final String[] INVITE_LABELS = {"关闭", "选填", "必填"};
     private static final String[] PERMISSIONS = {"tunnels", "domain_bind", "dns", "monitors", "oauth_connect"};
@@ -244,6 +245,8 @@ public class AdminFragment extends PageFragment {
             groups = array(payload.optJSONObject("groups"), "groups");
             invites = array(payload.optJSONObject("invites"), "invites");
             settings = orEmpty(payload.optJSONObject("settings"));
+            Session.applyConfig(settings);
+            if (alive()) console().rebuildNav();
             applySmtp(payload.optJSONObject("smtp"));
             applyOauth(payload.optJSONObject("oauth"));
             JSONObject key = payload.optJSONObject("key");
@@ -1050,6 +1053,7 @@ public class AdminFragment extends PageFragment {
     private void settingsTab() {
         body.addView(registrationCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
+        body.addView(experimentalCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(turnstileCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
@@ -1174,6 +1178,47 @@ public class AdminFragment extends PageFragment {
         card.addView(picker("默认用户组", defaulted(groupName(settings.optString("default_group_id", ""))),
                 this::pickDefaultGroup));
         UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.MD, 0, 0);
+        return card;
+    }
+
+    private View experimentalCard() {
+        LinearLayout card = UI.card(requireContext());
+        card.addView(UI.cardTitle(requireContext(), "IP 优选"));
+        TextView hint = UI.muted(requireContext(),
+                "实例共享预算，非云平台额度。UTC 重置，取消不退；修改从下一轮生效。");
+        UI.margin(hint, 0, UI.XS, 0, UI.MD);
+        card.addView(hint);
+        UI.addRow(card, toggleRow("开启实验性功能",
+                settings.optBoolean("experimental_features_enabled", false), !busy, next -> {
+                    settingsPut("experimental_features_enabled", next);
+                    saveSettings();
+                }), 0);
+        EditText daily = numberInput(requireContext(), "1 至 10000000", String.valueOf(settings.optInt("lab_daily_request_limit", 100000)));
+        EditText rate = numberInput(requireContext(), "1 至 1000", String.valueOf(settings.optInt("lab_requests_per_second", 10)));
+        EditText maximum = numberInput(requireContext(), "1 至 256", String.valueOf(settings.optInt("lab_max_workers", 32)));
+        daily.setEnabled(!busy);
+        rate.setEnabled(!busy);
+        maximum.setEnabled(!busy);
+        card.addView(UI.field(requireContext(), "每日请求预算（UTC）", daily, UI.MD));
+        card.addView(UI.field(requireContext(), "每秒请求数", rate, UI.MD));
+        card.addView(UI.field(requireContext(), "并发上限", maximum, UI.MD));
+        TextView save = UI.button(requireContext(), "保存优选限制", UI.BTN_PRIMARY);
+        save.setEnabled(!busy);
+        save.setOnClickListener(view -> {
+            int dailyValue = parseInt(daily.getText().toString());
+            int rateValue = parseInt(rate.getText().toString());
+            int maximumValue = parseInt(maximum.getText().toString());
+            if (dailyValue < 1 || dailyValue > 10000000 || rateValue < 1 || rateValue > 1000 || maximumValue < 1 || maximumValue > 256) {
+                new AlertDialog.Builder(requireContext()).setMessage("预算须为 1 至 10000000、每秒请求数为 1 至 1000、并发上限为 1 至 256 的整数。")
+                        .setPositiveButton("知道了", null).show();
+                return;
+            }
+            settingsPut("lab_daily_request_limit", dailyValue);
+            settingsPut("lab_requests_per_second", rateValue);
+            settingsPut("lab_max_workers", maximumValue);
+            saveSettings();
+        });
+        UI.addRow(card, save, UI.MD);
         return card;
     }
 
@@ -1304,10 +1349,10 @@ public class AdminFragment extends PageFragment {
     }
 
     private void saveSettings() {
-        run(() -> {
+        run(() -> Api.put("/api/admin/settings", settings), "设置已保存", () -> {
             Session.applyConfig(settings);
-            return Api.put("/api/admin/settings", settings);
-        }, "设置已保存");
+            if (alive()) console().rebuildNav();
+        });
     }
 
     private void saveTurnstile() {
