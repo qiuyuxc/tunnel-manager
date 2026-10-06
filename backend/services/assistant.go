@@ -1,12 +1,8 @@
 package services
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -14,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"tunnel-manager/models"
 )
 
 type AIToolCall struct {
@@ -29,6 +23,7 @@ type AIToolCall struct {
 
 type AIReply struct {
 	Content   string       `json:"content"`
+	Reasoning string       `json:"reasoning_content,omitempty"`
 	ToolCalls []AIToolCall `json:"tool_calls"`
 }
 
@@ -110,56 +105,5 @@ func NewAIClient() *AIClient {
 			return nil, dialErr
 		},
 	}
-	return &AIClient{Client: &http.Client{Timeout: 75 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
-}
-
-func (client *AIClient) Complete(ctx context.Context, connection models.AIConnection, key string, messages []models.AIMessage, tools []map[string]any) (AIReply, error) {
-	endpoint, err := ValidateAIEndpoint(connection.Endpoint)
-	if err != nil {
-		return AIReply{}, err
-	}
-	if !strings.HasSuffix(endpoint, "/chat/completions") {
-		endpoint += "/chat/completions"
-	}
-	request := map[string]any{"model": connection.Model, "messages": messages, "stream": false}
-	if len(tools) > 0 {
-		request["tools"] = tools
-		request["tool_choice"] = "auto"
-	}
-	body, err := json.Marshal(request)
-	if err != nil {
-		return AIReply{}, errors.New("构造 AI 请求失败")
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return AIReply{}, errors.New("构造 AI 请求失败")
-	}
-	req.Header.Set("Authorization", "Bearer "+key)
-	req.Header.Set("Content-Type", "application/json")
-	response, err := client.Client.Do(req)
-	if err != nil {
-		return AIReply{}, errors.New("AI 连接失败或超时，请检查端点与网络后重试")
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return AIReply{}, fmt.Errorf("AI 服务返回 HTTP %d，请检查密钥、模型和额度", response.StatusCode)
-	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
-	if err != nil || len(data) > 1<<20 {
-		return AIReply{}, errors.New("AI 响应过大或读取失败")
-	}
-	var result struct {
-		Choices []struct {
-			Message      AIReply `json:"message"`
-			FinishReason string  `json:"finish_reason"`
-		} `json:"choices"`
-	}
-	if json.Unmarshal(data, &result) != nil || len(result.Choices) == 0 {
-		return AIReply{}, errors.New("AI 响应格式无效，需兼容 Chat Completions")
-	}
-	reply := result.Choices[0].Message
-	if result.Choices[0].FinishReason == "length" || len(reply.ToolCalls) > 8 || len(reply.Content) > 32000 || (strings.TrimSpace(reply.Content) == "" && len(reply.ToolCalls) == 0) {
-		return AIReply{}, errors.New("AI 输出为空、过长或任务过多，请缩小本次请求范围")
-	}
-	return reply, nil
+	return &AIClient{Client: &http.Client{Timeout: 170 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }

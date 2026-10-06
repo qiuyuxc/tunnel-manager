@@ -49,6 +49,25 @@ final class AssistantTaskSelection {
             case "interval_sec": return "间隔（秒）";
             case "monitor_id": return "监控项目 ID";
             case "url": return "探测地址";
+            case "id": return "对象 ID";
+            case "record_id": return "DNS 记录 ID";
+            case "target_id": return "探测目标 ID";
+            case "description": return "站点描述";
+            case "icon": return "站点图标";
+            case "landing_enabled": return "落地页";
+            case "registration_enabled": return "开放注册";
+            case "invite_mode": return "邀请码模式";
+            case "experimental_features_enabled": return "实验功能";
+            case "value": return "优选 CNAME";
+            case "items": return "优选 CNAME 预设";
+            case "targets": return "探测目标";
+            case "publish_enabled": return "公开监控";
+            case "alert_enabled": return "监控告警";
+            case "weight": return "权重";
+            case "port": return "端口";
+            case "target": return "目标主机";
+            case "flags": return "标记";
+            case "tag": return "标签";
             default: return key;
         }
     }

@@ -15,8 +15,10 @@ let shared = false
 let keySet = false
 let history = []
 const executed = []
+const executedArguments = []
 const failures = []
 const pending = new Map()
+let pageLoaded
 const connection = { endpoint: 'https://example.com/v1', model: 'test-model', key_set: true }
 const settings = () => ({ shared_enabled: shared, is_admin: role === 'admin', configured: true, ...(!shared || role === 'admin' ? { personal: { ...connection, key_set: keySet } } : {}), ...(role === 'admin' ? { shared: connection } : {}) })
 
@@ -34,6 +36,7 @@ socket.addEventListener('message', async event => {
     else request?.resolve(message.result)
     return
   }
+  if (message.method === 'Page.loadEventFired' && pageLoaded) { pageLoaded(); pageLoaded = undefined }
   if (message.method === 'Runtime.exceptionThrown') failures.push(message.params.exceptionDetails.text)
   if (message.method !== 'Fetch.requestPaused') return
   const { requestId, request } = message.params
@@ -52,7 +55,7 @@ socket.addEventListener('message', async event => {
   else if (url.pathname === '/api/auth/me') result = { id: `test-${role}`, username: 'reviewer', role, permissions: ['tunnels', 'dns', 'monitors'] }
   else if (url.pathname === '/api/monitors') result = []
   else if (url.pathname === '/api/assistant/settings') {
-    if (request.method === 'PUT') { keySet ||= !!body.api_key; if (body.shared_enabled !== undefined) shared = body.shared_enabled }
+    if (request.method === 'PUT') { keySet ||= !!body.api_key; if (body.shared_enabled !== undefined) shared = body.shared_enabled; connection.api_format = body.api_format; connection.reasoning_summary = body.reasoning_summary }
     result = settings()
   } else if (url.pathname === '/api/assistant/conversations') {
     if (request.method === 'POST') { result = { id: `conversation-${history.length}`, title: '新会话', updated_at: 1, messages: [], tasks: [] }; history.unshift(result) }
@@ -65,12 +68,19 @@ socket.addEventListener('message', async event => {
     result = conversation
   } else if (url.pathname.includes('/tasks/')) {
     const task = history.flatMap(item => item.tasks).find(item => url.pathname.endsWith(`/${item.id}`))
-    if (body.action === 'execute') { assert.equal(body.confirmed, true); executed.push(task.id); task.status = 'succeeded'; task.result = '执行成功，测试资源 ID：mock-resource' }
+    if (body.action === 'edit') { assert.equal(body.expected_revision, task.revision || 0); task.arguments = body.arguments; task.revision = (task.revision || 0) + 1 }
+    else if (body.action === 'execute') { assert.equal(body.confirmed, true); assert.equal(body.expected_revision, task.revision || 0); executedArguments.push(JSON.parse(JSON.stringify(task.arguments))); executed.push(task.id); task.status = 'succeeded'; task.result = '执行成功，测试资源 ID：mock-resource' }
     else task.status = body.action === 'pause' ? 'paused' : body.action === 'resume' ? 'pending' : 'cancelled'
     result = task
   } else if (url.pathname.startsWith('/api/assistant/conversations/') && request.method === 'DELETE') history = history.filter(item => !url.pathname.endsWith(`/${item.id}`))
   await command('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(result)).toString('base64') })
 })
+
+async function reloadPage() {
+  const loaded = new Promise(resolve => { pageLoaded = resolve })
+  await command('Page.reload')
+  await loaded
+}
 
 async function evaluate(expression) {
   const result = await command('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
@@ -197,12 +207,22 @@ try {
   await waitFor("document.querySelectorAll('.desktop-tasks .task').length === 2")
   assert.equal(executed.length, 0)
   assert.equal(await evaluate("document.querySelector('.message.assistant img') === null"), true)
+  await clickText('修改参数')
+  await waitFor("!!document.querySelector('.task-editor')")
+  await evaluate("const field = document.querySelector('.task-editor input[type=text]'); field.value = '手动修改后的最终名称'; field.dispatchEvent(new Event('input', { bubbles: true }))")
+  assert.equal(await evaluate("document.querySelector('.desktop-tasks .confirm').disabled"), true, 'unsaved edits cannot be executed')
+  await screenshot('1440-edit-task')
+  await clickText('保存修改')
+  await waitFor("!document.querySelector('.task-editor') && document.querySelector('.desktop-tasks .task').textContent.includes('手动修改后的最终名称')")
+  assert.equal(executed.length, 0, 'saving edits must not execute')
+  assert.equal(history[0].tasks[0].revision, 1)
   await evaluate("document.querySelector('.desktop-tasks .task-title input').click()")
   await clickText('核对并执行 1 项')
   assert.equal(executed.length, 0)
   await clickText('确认执行')
   await waitFor("!!document.querySelector('.desktop-tasks .task.succeeded')")
   assert.deepEqual(executed, ['task-1'])
+  assert.equal(executedArguments[0].name, '手动修改后的最终名称', 'confirmation must execute the saved manual value')
   await clickText('暂停')
   await waitFor("!!document.querySelector('.desktop-tasks .task.paused')")
   await clickText('恢复待确认')
@@ -231,17 +251,22 @@ try {
   assert.deepEqual(executed, ['task-1', 'task-2'])
   await evaluate("document.querySelector('[aria-label=\"AI 连接配置\"]').click()")
   await waitFor("!!document.querySelector('input[type=password]')")
+  await evaluate("const format = document.querySelector('.settings-body form select'); format.value = 'responses'; format.dispatchEvent(new Event('change', { bubbles: true }))")
+  await waitFor("!!document.querySelector('.settings-body form input[type=checkbox]')")
+  await evaluate("document.querySelector('.settings-body form input[type=checkbox]').click()")
   await evaluate("const password = document.querySelector('input[type=password]'); password.value = 'mock-key-never-persist'; password.dispatchEvent(new Event('input',{bubbles:true}))")
   await screenshot('320-settings')
   await clickText('保存配置')
   await waitFor("!document.querySelector('input[type=password]')")
+  assert.equal(connection.api_format, 'responses')
+  assert.equal(connection.reasoning_summary, true)
   assert.equal(await evaluate("!JSON.stringify(localStorage).includes('mock-key-never-persist') && !JSON.stringify(sessionStorage).includes('mock-key-never-persist')"), true)
   await evaluate("document.querySelector('.tab-fab').click()")
   await waitFor("!!Array.from(document.querySelectorAll('.action-title')).find(item => item.textContent === 'AI 助手')")
   await screenshot('320-plus-menu')
   history = []
   await command('Emulation.setDeviceMetricsOverride', { width: 375, height: 710, deviceScaleFactor: 1, mobile: true })
-  await command('Page.reload')
+  await reloadPage()
   await waitFor("!!document.querySelector('.welcome') && !document.querySelector('.loading')")
   await evaluate("document.querySelector('textarea').value = '生成两项待确认任务'; document.querySelector('textarea').dispatchEvent(new Event('input',{bubbles:true}))")
   await clickText('发送')
@@ -252,19 +277,27 @@ try {
   assert.equal(await evaluate("document.querySelector('.mobile-tasks').textContent"), '待确认 2')
   assert.deepEqual(executed, ['task-1', 'task-2'], 'receiving mobile proposals must not execute anything')
   await screenshot('375-new-task-cards')
-  await command('Page.reload')
+  await reloadPage()
   await waitFor("document.querySelectorAll('.messages .task.pending').length === 2 && !document.querySelector('.loading')")
   await assertInlineTaskVisible()
   await screenshot('375-restored-task-cards')
   history[0].tasks.push({ id: 'task-monitor-defaults', tool: 'create_monitor', title: '新建私有监控项目 · 默认频率', status: 'pending', arguments: { name: '默认频率', interval_sec: 60 } })
   const srvData = { priority: 0, weight: 5, port: 5060, target: 'sip.example.com' }
   history[0].tasks.push({ id: 'task-srv', tool: 'create_dns_record', title: '新增 DNS · _sip._tcp.example.com', status: 'pending', arguments: { zone_id: 'zone-id', name: '_sip._tcp.example.com', type: 'SRV', data: srvData, ttl: 1, proxied: false } })
+  history[0].tasks.push({ id: 'task-update-dns', tool: 'update_dns_record', title: '修改 DNS · a.example.com', status: 'pending', before: { name: 'a.example.com', type: 'A', content: '192.0.2.1', ttl: 300, proxied: true }, arguments: { zone_id: 'zone-id', record_id: 'record-id', name: 'a.example.com', type: 'A', content: '192.0.2.2', ttl: 300, proxied: true } })
+  history[0].tasks.push({ id: 'task-delete-dns', tool: 'delete_dns_record', title: '删除 DNS · retired.example.com', status: 'pending', before: { name: 'retired.example.com', type: 'A', content: '192.0.2.9', ttl: 1, proxied: false }, arguments: { zone_id: 'zone-id', record_id: 'retired-record-id' } })
+  history[0].tasks.push({ id: 'task-settings', tool: 'update_app_settings', title: '修改后台设置', status: 'pending', before: { registration_enabled: true, invite_mode: 'off', experimental_features_enabled: false }, arguments: { registration_enabled: false } })
   for (const width of [1440, 375, 320]) {
     await command('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 700 })
-    await command('Page.reload')
+    await reloadPage()
     const container = width < 700 ? '.messages' : '.desktop-tasks'
-    await waitFor(`document.querySelectorAll('${container} .task.pending').length === 4 && !document.querySelector('.loading')`)
+    await waitFor(`document.querySelectorAll('${container} .task.pending').length === 7 && !document.querySelector('.loading')`)
     const fields = await evaluate(`Array.from(document.querySelectorAll('${container} .task')).map(task => Object.fromEntries(Array.from(task.querySelectorAll('dt')).map(label => [label.textContent, label.nextElementSibling.textContent.trim()])))`)
+    const changeCards = await evaluate(`Array.from(document.querySelectorAll('${container} .task')).filter(task => task.querySelector('.before')).map(task => ({ title: task.querySelector('.task-title').textContent, before: task.querySelector('.before').textContent, text: task.textContent }))`)
+    assert.equal(changeCards.length, 3)
+    assert.ok(changeCards[0].before.includes('192.0.2.1') && changeCards[0].text.includes('192.0.2.2'), 'DNS old and new values must both be visible')
+    assert.ok(changeCards[1].before.includes('retired.example.com') && changeCards[1].text.includes('删除上述对象') && changeCards[1].text.includes('retired-record-id'), 'deletion must identify the actual record')
+    assert.ok(changeCards[2].before.includes('开放注册开启') && changeCards[2].text.includes('开放注册关闭'), 'settings switch must show old and new state')
     assert.equal(fields.find(item => item['名称'] === '默认频率')?.['间隔（秒）'], '60', 'normalized monitor interval must appear on the confirmation card')
     assert.equal(fields.find(item => item['类型'] === 'CNAME')?.['TTL（1 为自动）'], '1')
     assert.equal(fields.find(item => item['类型'] === 'CNAME')?.['代理'], '关闭')
@@ -278,9 +311,71 @@ try {
     await evaluate(`Array.from(document.querySelectorAll('${container} .task')).find(task => task.textContent.includes('_sip._tcp.example.com')).scrollIntoView({ block: 'center' })`)
     await screenshot(`${width}-structured-dns`)
   }
+  await evaluate("const task = Array.from(document.querySelectorAll('.messages .task')).find(task => task.textContent.includes('修改 DNS ·')); Array.from(task.querySelectorAll('button')).find(button => button.textContent === '修改参数').click()")
+  await waitFor("!!document.querySelector('.task-editor')")
+  assert.equal(await evaluate("document.querySelectorAll('.task-editor input[type=text]').length"), 1, 'DNS target IDs must stay read-only')
+  await evaluate("const field = document.querySelector('.task-editor textarea'); field.value = '192.0.2.8'; field.dispatchEvent(new Event('input', { bubbles: true }))")
+  await screenshot('320-edit-dns')
+  await clickText('保存修改')
+  await waitFor("!document.querySelector('.task-editor') && document.querySelector('.messages').textContent.includes('192.0.2.8')")
+  assert.equal(history[0].tasks.find(task => task.id === 'task-update-dns').arguments.content, '192.0.2.8')
+  assert.deepEqual(executed, ['task-1', 'task-2'], 'editing DNS must not execute')
+  // Hold each stream open until assertions observe the incremental UI. This
+  // mock stays entirely inside the browser and never calls a model service.
+  history = []
+  await reloadPage()
+  await waitFor("!!document.querySelector('.welcome') && !document.querySelector('.loading')")
+  await evaluate(`(() => {
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+    const original = window.fetch.bind(window);
+    window.assistantStreams = [];
+    window.fetch = (url, options) => {
+      if (!String(url).endsWith('/messages')) return original(url, options);
+      let controller;
+      const stream = new ReadableStream({ start(value) { controller = value; } });
+      const entry = { request: JSON.parse(options.body), aborted: false,
+        emit(type, data) { controller.enqueue(new TextEncoder().encode('event: ' + type + '\\ndata: ' + JSON.stringify(data) + '\\n\\n')); },
+        close() { controller.close(); }
+      };
+      options.signal.addEventListener('abort', () => { entry.aborted = true; controller.error(new DOMException('Aborted', 'AbortError')); });
+      window.assistantStreams.push(entry);
+      return Promise.resolve(new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } }));
+    };
+  })()`)
+  await evaluate("document.querySelector('textarea').value = '流式测试消息'; document.querySelector('textarea').dispatchEvent(new Event('input', { bubbles: true }))")
+  await clickText('发送')
+  await waitFor("window.assistantStreams.length === 1 && !!document.querySelector('.live-reply')")
+  assert.equal(await evaluate("document.querySelector('textarea').value"), '', 'send must clear the composer before the reply')
+  assert.equal(await evaluate("document.querySelector('.message.user').textContent.includes('流式测试消息') && !document.querySelector('.welcome')"), true)
+  assert.equal(await evaluate("document.querySelector('.thinking-details summary').textContent.includes('AI 思考中')"), true)
+  assert.equal(await evaluate("window.assistantStreams[0].request.stream"), true)
+  await evaluate("window.assistantStreams[0].emit('reasoning', { delta: '先核对资源摘要' }); window.assistantStreams[0].emit('text', { delta: '第一段' })")
+  await waitFor("document.querySelector('.live-reply').textContent.includes('第一段')")
+  assert.equal(await evaluate("document.querySelector('.thinking-details').open"), false, 'reasoning must be folded initially')
+  await evaluate("document.querySelector('.thinking-details summary').click()")
+  assert.equal(await evaluate("document.querySelector('.thinking-details').open && document.querySelector('.thinking-details p').textContent === '先核对资源摘要'"), true)
+  await screenshot('320-streaming-summary')
+  await evaluate("document.querySelector('textarea').value = '下一条草稿'; document.querySelector('textarea').dispatchEvent(new Event('input', { bubbles: true })); window.assistantStreams[0].emit('text', { delta: '，第二段' }); window.assistantStreams[0].close()")
+  await waitFor("!!document.querySelector('.live-reply .error button:not(:disabled)')")
+  assert.equal(await evaluate("document.querySelector('.live-reply').textContent.includes('第一段，第二段')"), true, 'partial reply must survive interruption')
+  assert.equal(await evaluate("document.querySelectorAll('.task').length"), 0, 'interrupted reply must not create tasks')
+  await clickText('重试这条消息')
+  await waitFor("window.assistantStreams.length === 2")
+  assert.equal(await evaluate("window.assistantStreams[1].request.message"), '流式测试消息')
+  assert.equal(await evaluate("document.querySelector('textarea').value"), '下一条草稿', 'retry must not replace the new draft')
+  history[0].messages = [{ role: 'user', content: '流式测试消息' }, { role: 'assistant', content: '完成的回复', reasoning: '完成的摘要' }]
+  await evaluate(`window.assistantStreams[1].emit('text', { delta: '完成的回复' }); window.assistantStreams[1].emit('done', ${JSON.stringify(history[0])}); window.assistantStreams[1].close()`)
+  await waitFor("!document.querySelector('.live-reply') && document.querySelector('.message.assistant')?.textContent.includes('完成的回复')")
+  assert.equal(await evaluate("document.querySelectorAll('.message.user').length"), 1, 'retry must replace the local turn without duplicating the user message')
+  assert.equal(await evaluate("document.querySelector('textarea').value"), '下一条草稿')
+  await clickText('发送')
+  await waitFor("window.assistantStreams.length === 3")
+  await evaluate("(async () => { (await import('/src/stores/config.ts')).useConfigStore().token = 'stream-other-session' })()")
+  await waitFor("window.assistantStreams[2].aborted")
+  assert.equal(await evaluate("(async () => { const state = (await import('/src/stores/assistant.ts')).useAssistantStore(); return state.liveTurns.length === 0 && state.conversations.length === 0 && !state.sending })()"), true, 'account switch must abort and discard the prior stream')
   role = 'user'
   shared = true
-  await command('Page.reload')
+  await reloadPage()
   await waitFor("document.querySelector('.identity p')?.textContent.includes('管理员共享连接')")
   await evaluate("document.querySelector('[aria-label=\"AI 连接配置\"]').click()")
   await waitFor("document.querySelector('.settings-body')?.textContent.includes('由管理员提供')")
@@ -297,7 +392,7 @@ try {
     assert.ok(count > 0, 'replayed conversation must contain tasks')
     for (const width of [375, 320]) {
       await command('Emulation.setDeviceMetricsOverride', { width, height: 710, deviceScaleFactor: 1, mobile: true })
-      await command('Page.reload')
+      await reloadPage()
       await waitFor(`document.querySelectorAll('.messages .task').length === ${count} && !document.querySelector('.loading')`)
       if (history[0].tasks.some(task => task.status === 'pending')) await assertInlineTaskVisible()
       assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)

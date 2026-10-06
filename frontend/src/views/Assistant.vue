@@ -10,16 +10,20 @@
       <section class="conversation" aria-label="助手对话">
         <div class="conversation-top"><span>{{ store.current?.title || '新的配置计划' }}</span><button class="mobile-tasks" :class="{ 'has-pending': pendingTasks > 0 }" :disabled="!store.current?.tasks.length" @click="revealTasks">{{ pendingTasks ? `待确认 ${pendingTasks}` : `任务 ${store.current?.tasks.length || 0}` }}</button></div>
         <div ref="messagesElement" class="messages" role="log" aria-label="对话记录" aria-live="polite">
-          <div v-if="!store.current?.messages.length" class="welcome">
+          <div v-if="!store.current?.messages.length && !currentTurns.length" class="welcome">
             <span class="eyebrow">TUNNEL MANAGER / ASSISTANT</span><h2><span class="desktop-copy">描述目标，<br />一起核对每一步。</span><span class="mobile-copy">今天想配置什么？</span></h2>
-            <p><span class="desktop-copy">查询资源、准备隧道与 DNS 配置，或安排多个监控任务。所有新增操作都需要你确认。</span><span class="mobile-copy">从隧道、DNS 或监控开始，执行前由你确认。</span></p>
+            <p><span class="desktop-copy">查询资源、准备隧道与 DNS 配置，或安排多个监控任务。所有变更都需要你确认。</span><span class="mobile-copy">从隧道、DNS 或监控开始，执行前由你确认。</span></p>
             <button v-for="prompt in prompts" :key="prompt" type="button" class="suggestion" @click="draft = prompt">{{ prompt }}<span aria-hidden="true">↗</span></button>
           </div>
-          <article v-for="(message, index) in store.current?.messages || []" :key="index" class="message" :class="message.role"><span class="speaker">{{ message.role === 'user' ? '你' : 'AI 助手' }}</span><div>{{ message.content }}</div></article>
+          <article v-for="(message, index) in store.current?.messages || []" :key="index" class="message" :class="message.role"><span class="speaker">{{ message.role === 'user' ? '你' : 'AI 助手' }}</span><AssistantThinking v-if="message.role === 'assistant'" :reasoning="message.reasoning" /><div>{{ message.content }}</div></article>
+          <template v-for="turn in currentTurns" :key="turn.id">
+            <article class="message user"><span class="speaker">你</span><div>{{ turn.message }}</div></article>
+            <article class="message assistant live-reply"><span class="speaker">AI 助手</span><AssistantThinking :active="turn.active" :reasoning="turn.reasoning" :status="turn.status" :replying="!!turn.content" /><div>{{ turn.content }}</div><p v-if="turn.error" class="error" role="alert">{{ turn.error }}<button :disabled="store.sending" @click="store.send(turn.includeResources, turn.id)">重试这条消息</button></p></article>
+          </template>
           <div v-if="stacked && store.current?.tasks.length" ref="inlineTasksElement" class="inline-tasks">
-            <AssistantTasks :key="store.currentID" :tasks="store.current.tasks" :busy="store.busyTasks" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" />
+            <AssistantTasks :key="store.currentID" :tasks="store.current.tasks" :busy="store.busyTasks" :save-task="saveTask" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" />
           </div>
-          <p v-if="store.sending" class="thinking" role="status">正在准备回复与配置计划，尚未执行任何操作…</p>
+          <p v-if="store.sending" class="thinking" role="status">正在接收回复，尚未执行任何操作…</p>
         </div>
         <div class="composer" @focusout="onComposerBlur">
           <div v-if="store.settings && !store.settings.configured" class="setup-note">{{ store.settings.shared_enabled ? '共享连接未就绪，请联系管理员。' : '先配置 API 端点、模型和密钥。' }}<button @click="settingsOpen = true">连接配置</button></div>
@@ -34,7 +38,7 @@
           <p class="privacy">会话仅对你可见。输入内容将发送给所配置的 AI 服务，请勿填写密码或连接令牌。<span class="desktop-copy">Enter 发送，Shift + Enter 换行。</span></p>
         </div>
       </section>
-      <aside v-if="!stacked" class="desktop-tasks"><AssistantTasks :key="store.currentID" :tasks="store.current?.tasks || []" :busy="store.busyTasks" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" /></aside>
+      <aside v-if="!stacked" class="desktop-tasks"><AssistantTasks :key="store.currentID" :tasks="store.current?.tasks || []" :busy="store.busyTasks" :save-task="saveTask" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" /></aside>
     </div>
     <n-drawer v-model:show="historyOpen" :width="320" placement="left"><n-drawer-content title="我的会话" closable><button class="history-new" :disabled="store.sending" @click="createConversation">新建会话</button><div v-for="conversation in store.conversations" :key="conversation.id" class="history-row"><button @click="store.currentID = conversation.id; historyOpen = false">{{ conversation.title }}</button><button :disabled="store.sending" :aria-label="`删除会话：${conversation.title}`" @click="removeConversation(conversation.id)">×</button></div></n-drawer-content></n-drawer>
     <AssistantSettings :open="settingsOpen" :settings="store.settings" @close="settingsOpen = false" @saved="store.settings = $event" />
@@ -48,6 +52,7 @@ import { icons } from '../navigation'
 import { useAssistantStore } from '../stores/assistant'
 import AssistantSettings from '../components/AssistantSettings.vue'
 import AssistantTasks from '../components/AssistantTasks.vue'
+import AssistantThinking from '../components/AssistantThinking.vue'
 
 const store = useAssistantStore()
 const dialog = useDialog()
@@ -62,10 +67,11 @@ const compactQuery = window.matchMedia('(max-width: 768px)')
 const compact = ref(compactQuery.matches)
 const stackedQuery = window.matchMedia('(max-width: 1050px)')
 const stacked = ref(stackedQuery.matches)
+const currentTurns = computed(() => store.liveTurns.filter(turn => turn.conversationID === (store.currentID || 'new')))
 const pendingTasks = computed(() => store.current?.tasks.filter(task => task.status === 'pending').length || 0)
 const viewportHeight = ref(window.visualViewport?.height ?? window.innerHeight)
 const draft = computed({ get: () => store.drafts[store.currentID || 'new'] || '', set: value => { store.drafts[store.currentID || 'new'] = value } })
-const prompts = ['查看我现有的隧道与监控项目', '把 NAS 和相册接入域名，先问我所需信息', '创建一个名为「站点可用性」的私有监控项目']
+const prompts = ['查看我现有的隧道与监控项目', '把 NAS 和相册接入域名，先生成可调整的配置计划', '创建一个名为「站点可用性」的私有监控项目']
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   void store.load()
@@ -94,9 +100,15 @@ function resizeComposer() {
   const textarea = composerElement.value
   if (!textarea) return
   textarea.style.height = ''
-  if (compact.value) textarea.style.height = `${Math.min(textarea.scrollHeight, 104)}px`
+  if (compact.value && textarea.value) textarea.style.height = `${Math.min(textarea.scrollHeight, 104)}px`
 }
 watch(draft, () => nextTick(resizeComposer))
+watch(() => currentTurns.value.map(turn => turn.content.length + turn.reasoning.length).join(','), async () => {
+  const pane = messagesElement.value
+  const nearBottom = pane && pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140
+  await nextTick()
+  if (pane && nearBottom) pane.scrollTo({ top: pane.scrollHeight, behavior: 'auto' })
+})
 function onComposerBlur(event: FocusEvent) {
   if (!(event.relatedTarget instanceof Node) || !(event.currentTarget as HTMLElement).contains(event.relatedTarget)) composing.value = false
 }
@@ -115,18 +127,25 @@ function onComposerKey(event: KeyboardEvent) { if (!compact.value && event.key =
 async function createConversation() { await store.create(); historyOpen.value = false }
 function removeConversation(id: string) { dialog.warning({ title: '删除这个会话？', content: '删除会话和任务记录，不会删除已创建的业务资源。', positiveText: '删除会话', negativeText: '保留', onPositiveClick: () => store.remove(id) }) }
 function taskAction(id: string, action: string) { if (store.currentID) void store.taskAction(store.currentID, id, action) }
+async function saveTask(id: string, args: Record<string, unknown>, revision: number) {
+  const conversationID = store.currentID
+  if (!conversationID) return
+  return store.taskAction(conversationID, id, 'edit', false, false, { arguments: args, expected_revision: revision })
+}
 function confirmExecute(ids: string[]) {
   const conversationID = store.currentID
   if (!conversationID) return
-  dialog.warning({ title: `确认执行 ${ids.length} 项新增操作？`, content: '仅执行已勾选任务。域名绑定将把服务公开到互联网，任务可能创建收费资源，监控目标会开始周期探测。执行中的请求不能撤回。', positiveText: '确认执行', negativeText: '继续核对', onPositiveClick: () => {
-    const queue = [...ids]
-    async function worker() { while (queue.length) { const id = queue.shift()!; const task = store.conversations.find(item => item.id === conversationID)?.tasks.find(item => item.id === id); if (task?.status === 'pending') await store.taskAction(conversationID, id, 'execute', true) } }
+  const approved = ids.map(id => ({ id, revision: store.current?.tasks.find(task => task.id === id)?.revision || 0 }))
+  dialog.warning({ title: `确认执行 ${ids.length} 项变更？`, content: '仅执行已勾选任务。修改或删除可能中断服务，删除不会自动恢复。域名绑定将把服务公开到互联网，任务可能创建收费资源，监控目标会开始周期探测。执行中的请求不能撤回。', positiveText: '确认执行', negativeText: '继续核对', onPositiveClick: () => {
+    const queue = [...approved]
+    async function worker() { while (queue.length) { const { id, revision } = queue.shift()!; const task = store.conversations.find(item => item.id === conversationID)?.tasks.find(item => item.id === id); if (task?.status === 'pending') await store.taskAction(conversationID, id, 'execute', true, false, { expected_revision: revision }) } }
     void Promise.all([worker(), worker()])
   } })
 }
 function retry(id: string) {
   const conversationID = store.currentID
-  dialog.warning({ title: '已核对实际资源，确认没有重复创建？', content: '超时或失败不代表没有生效。请先到业务页面核对，只有确认尚未创建时才重试。', positiveText: '已核对，重新执行', negativeText: '先去核对', onPositiveClick: () => store.taskAction(conversationID, id, 'retry', true, true) })
+  const revision = store.current?.tasks.find(task => task.id === id)?.revision || 0
+  dialog.warning({ title: '已核对实际资源，确认仍需执行？', content: '超时或失败不代表没有生效。请先到业务页面核对，只有确认变更尚未生效且仍需执行时才重试；原值变化需重新生成任务。', positiveText: '已核对，重新执行', negativeText: '先去核对', onPositiveClick: () => store.taskAction(conversationID, id, 'retry', true, true, { expected_revision: revision }) })
 }
 </script>
 

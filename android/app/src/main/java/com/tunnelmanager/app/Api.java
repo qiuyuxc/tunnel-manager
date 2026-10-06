@@ -8,6 +8,8 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -102,6 +104,50 @@ final class Api {
 
     static JSONObject put(String path, JSONObject body) throws Failure {
         return object(request("PUT", path, body));
+    }
+
+    static JSONObject streamAssistant(RequestScope scope, String path, JSONObject body, Consumer<JSONObject> onEvent) throws Failure {
+        scope.check();
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(scope.session.server + path).openConnection();
+            conn.setRequestMethod("POST"); conn.setConnectTimeout(10000); conn.setReadTimeout(180000);
+            conn.setRequestProperty("Accept", "text/event-stream");
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            conn.setRequestProperty("X-Auth-Token", scope.session.token);
+            conn.setDoOutput(true);
+            byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
+            conn.setFixedLengthStreamingMode(payload.length);
+            scope.check();
+            try (OutputStream out = conn.getOutputStream()) { out.write(payload); }
+            int code = conn.getResponseCode();
+            if (code == 401) notifySessionLost(scope.session);
+            if (code >= 400) throw new Failure(code, serverMessage(readAll(conn.getErrorStream()), code));
+            if (conn.getContentType() == null || !conn.getContentType().contains("text/event-stream")) return object(readAll(conn.getInputStream()));
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line, event = "message";
+                StringBuilder data = new StringBuilder();
+                int total = 0;
+                while ((line = reader.readLine()) != null) {
+                    scope.check();
+                    total += line.length();
+                    if (total > 4 * 1024 * 1024) throw new Failure(0, "回复过长，请缩小请求范围");
+                    if (line.isEmpty()) {
+                        if (data.length() == 0) { event = "message"; continue; }
+                        JSONObject value = new JSONObject(data.toString());
+                        if ("error".equals(event)) throw new Failure(0, value.optString("error", "回复未完成，请重试"));
+                        if ("done".equals(event)) return value;
+                        value.put("event", event);
+                        MAIN.post(() -> { if (scope.session.matches(Session.snapshot())) onEvent.accept(value); });
+                        data.setLength(0); event = "message";
+                    } else if (line.startsWith("event:")) event = line.substring(6).trim();
+                    else if (line.startsWith("data:")) { String value = line.substring(5); if (value.startsWith(" ")) value = value.substring(1); data.append(value).append('\n'); }
+                }
+            }
+            throw new Failure(0, "连接已中断，回复未完整接收，尚未生成新任务");
+        } catch (Failure e) { throw e; }
+        catch (Exception e) { throw new Failure(0, networkMessage(e)); }
+        finally { if (conn != null) conn.disconnect(); }
     }
 
     static JSONObject delete(String path) throws Failure {

@@ -3,9 +3,11 @@ package models
 import "encoding/json"
 
 type AIConnection struct {
-	Endpoint     string `json:"endpoint"`
-	Model        string `json:"model"`
-	KeyEncrypted string `json:"key_encrypted,omitempty"`
+	Endpoint         string `json:"endpoint"`
+	Model            string `json:"model"`
+	APIFormat        string `json:"api_format,omitempty"`
+	ReasoningSummary bool   `json:"reasoning_summary,omitempty"`
+	KeyEncrypted     string `json:"key_encrypted,omitempty"`
 }
 
 type AIBindingRequest struct {
@@ -16,8 +18,9 @@ type AIBindingRequest struct {
 }
 
 type AIMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	Reasoning string `json:"reasoning,omitempty"`
 }
 
 type AITask struct {
@@ -25,6 +28,8 @@ type AITask struct {
 	Tool         string          `json:"tool"`
 	Title        string          `json:"title"`
 	Arguments    json.RawMessage `json:"arguments"`
+	Before       json.RawMessage `json:"before,omitempty"`
+	Revision     int             `json:"revision,omitempty"`
 	Status       string          `json:"status"`
 	Result       string          `json:"result,omitempty"`
 	ConnectionID string          `json:"connection_id,omitempty"`

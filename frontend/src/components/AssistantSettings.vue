@@ -10,9 +10,11 @@
         <p class="notice">{{ scope === 'shared' ? '开启后所有用户使用此连接，关闭后恢复各自个人配置。共享异常时不会回退到个人密钥。' : '此连接仅供你使用。开启全站共享时暂停使用，但不会删除。' }}</p>
         <form @submit.prevent="save">
           <label>API 端点<input v-model="endpoint" type="url" placeholder="https://api.example.com/v1" autocomplete="off" :disabled="saving" /></label>
+          <label>接口格式<select v-model="apiFormat" :disabled="saving"><option value="chat_completions">Chat Completions（兼容接口）</option><option value="responses">OpenAI Responses（原生接口）</option></select></label>
+          <label v-if="apiFormat === 'responses'" class="check"><input v-model="reasoningSummary" type="checkbox" :disabled="saving" />请求思考摘要（需要模型支持）</label>
           <label>模型名称<input v-model="model" placeholder="填写服务商支持的模型 ID" maxlength="200" autocomplete="off" :disabled="saving" /></label>
           <label>API 密钥<input v-model="apiKey" type="password" :placeholder="keySet ? '已设置，留空保留原密钥' : '请输入 API 密钥'" autocomplete="new-password" :disabled="saving" /></label>
-          <p class="note">兼容 Chat Completions 与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 指运行后端的电脑或容器。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥在服务端加密保存，不回显；更换端点需重新填写密钥。</p>
+          <p class="note">支持 Chat Completions 和 OpenAI Responses，均支持流式回复与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 指运行后端的电脑或容器。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥在服务端加密保存，不回显；更换端点需重新填写密钥。</p>
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <button class="primary" :disabled="saving" type="submit">{{ saving ? '保存中…' : '保存配置' }}</button>
         </form>
@@ -33,6 +35,8 @@ const emit = defineEmits<{ close: []; saved: [settings: AISettings] }>()
 const scope = ref<'personal' | 'shared'>('personal')
 const endpoint = ref('')
 const model = ref('')
+const apiFormat = ref<'chat_completions' | 'responses'>('chat_completions')
+const reasoningSummary = ref(false)
 const apiKey = ref('')
 const keySet = ref(false)
 const sharedEnabled = ref(false)
@@ -43,6 +47,8 @@ function fill() {
   const connection = props.settings?.[scope.value]
   endpoint.value = connection?.endpoint || ''
   model.value = connection?.model || ''
+  apiFormat.value = connection?.api_format || 'chat_completions'
+  reasoningSummary.value = !!connection?.reasoning_summary
   keySet.value = !!connection?.key_set
   apiKey.value = ''
   sharedEnabled.value = !!props.settings?.shared_enabled
@@ -57,7 +63,7 @@ async function save() {
   saving.value = true
   error.value = ''
   try {
-    const { data } = await saveAISettings({ scope: scope.value, endpoint: endpoint.value.trim(), model: model.value.trim(), api_key: apiKey.value, ...(scope.value === 'shared' ? { shared_enabled: sharedEnabled.value } : {}) })
+    const { data } = await saveAISettings({ scope: scope.value, endpoint: endpoint.value.trim(), model: model.value.trim(), api_key: apiKey.value, api_format: apiFormat.value, reasoning_summary: reasoningSummary.value, ...(scope.value === 'shared' ? { shared_enabled: sharedEnabled.value } : {}) })
     apiKey.value = ''
     emit('saved', data)
     emit('close')

@@ -20,11 +20,20 @@ func aiDefaultTestCall(tool, arguments string) services.AIToolCall {
 
 func TestAIToolOptionalDefaultsSchema(test *testing.T) {
 	expectedRequired := map[string][]string{
-		"bind_domain":        {"tunnel_id", "zone_id", "hostname", "service_url"},
-		"create_tunnel":      {"name"},
-		"create_dns_record":  {"zone_id", "name", "type"},
-		"create_monitor":     {"name"},
-		"add_monitor_target": {"monitor_id", "name", "url"},
+		"bind_domain":           {"tunnel_id", "zone_id", "hostname", "service_url"},
+		"create_tunnel":         {"name"},
+		"create_dns_record":     {"zone_id", "name", "type"},
+		"create_monitor":        {"name"},
+		"add_monitor_target":    {"monitor_id", "name", "url"},
+		"update_dns_record":     {"zone_id", "record_name", "record_type", "changes"},
+		"delete_dns_record":     {"zone_id", "record_name", "record_type"},
+		"delete_tunnel":         {"tunnel_id"},
+		"delete_monitor":        {"monitor_id"},
+		"delete_monitor_target": {"monitor_id", "target_id"},
+		"update_site_settings":  {},
+		"update_app_settings":   {},
+		"set_preferred_cname":   {"value"},
+		"set_cname_presets":     {"items"},
 	}
 	expectedDefaults := map[string]map[string]any{
 		"create_monitor":    {"interval_sec": services.DefaultMonitorInterval},

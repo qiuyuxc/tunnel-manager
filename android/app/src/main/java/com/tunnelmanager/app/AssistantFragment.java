@@ -34,6 +34,10 @@ import java.util.Map;
 import java.util.Set;
 
 public class AssistantFragment extends PageFragment {
+    static final class LiveTurn {
+        String conversationID, message, content = "", reasoning = "", status = "正在发送…", error = "";
+        boolean active = true, expanded, resources;
+    }
     static final class State {
         final String token = Session.token();
         final String server = Session.server();
@@ -44,6 +48,7 @@ public class AssistantFragment extends PageFragment {
         String currentID = "";
         String error = "";
         boolean sending;
+        final List<LiveTurn> turns = new ArrayList<>();
         boolean includeResources;
         boolean loaded;
     }
@@ -62,6 +67,7 @@ public class AssistantFragment extends PageFragment {
     private String renderedConversationID = "";
     private int renderedTaskCount;
     private final AssistantTaskSelection selection = new AssistantTaskSelection();
+    private boolean streamRenderScheduled;
     private final Handler poller = new Handler(Looper.getMainLooper());
 
     @Override String route() { return "/assistant"; }
@@ -191,10 +197,12 @@ public class AssistantFragment extends PageFragment {
             messages.addView(error);
         }
         JSONArray history = current().optJSONArray("messages");
-        if (history == null || history.length() == 0) {
+        boolean hasLiveTurn = false;
+        for (LiveTurn turn : state.turns) if (turn.conversationID.equals(state.currentID)) hasLiveTurn = true;
+        if ((history == null || history.length() == 0) && !hasLiveTurn) {
             messages.addView(UI.text(requireContext(), "今天想配置什么？", 22, Theme.p().ink, Typeface.BOLD));
             messages.addView(UI.muted(requireContext(), "从隧道、DNS 或监控开始，执行前由你确认。"));
-            for (String prompt : new String[]{"查看我现有的隧道与监控项目", "把 NAS 接入域名，先问我所需信息", "创建一个私有监控项目，每 60 秒检查一次"}) {
+            for (String prompt : new String[]{"查看我现有的隧道与监控项目", "把 NAS 接入域名，先生成可调整的配置计划", "创建一个私有监控项目，每 60 秒检查一次"}) {
                 TextView suggestion = UI.button(requireContext(), prompt, UI.BTN_SECONDARY);
                 suggestion.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                 suggestion.setTextSize(12);
@@ -202,17 +210,37 @@ public class AssistantFragment extends PageFragment {
                 messages.addView(suggestion, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                 UI.margin(suggestion, 0, UI.SM, 0, 0);
             }
-        } else {
+        } else if (history != null) {
             for (int index = 0; index < history.length(); index++) {
                 JSONObject message = history.optJSONObject(index);
                 LinearLayout card = UI.card(requireContext());
                 card.addView(UI.label(requireContext(), "user".equals(message.optString("role")) ? "你" : "AI 助手"));
                 TextView text = UI.text(requireContext(), message.optString("content"), 14, Theme.p().ink, Typeface.NORMAL);
                 text.setTextIsSelectable(true);
+                if ("assistant".equals(message.optString("role")) && !message.optString("reasoning").isEmpty()) addThinking(card, message.optString("reasoning"), "", false, null);
                 card.addView(text);
                 messages.addView(card);
                 UI.margin(card, 0, UI.SM, 0, UI.SM);
             }
+        }
+        for (LiveTurn turn : state.turns) {
+            if (!turn.conversationID.equals(state.currentID)) continue;
+            LinearLayout userCard = UI.card(requireContext());
+            userCard.addView(UI.label(requireContext(), "你"));
+            userCard.addView(UI.text(requireContext(), turn.message, 14, Theme.p().ink, Typeface.NORMAL));
+            messages.addView(userCard); UI.margin(userCard, 0, UI.SM, 0, UI.SM);
+            LinearLayout reply = UI.card(requireContext());
+            reply.addView(UI.label(requireContext(), "AI 助手"));
+            addThinking(reply, turn.reasoning, turn.status, turn.active, turn);
+            if (!turn.content.isEmpty()) reply.addView(UI.text(requireContext(), turn.content, 14, Theme.p().ink, Typeface.NORMAL));
+            if (!turn.error.isEmpty()) {
+                reply.addView(UI.muted(requireContext(), turn.error));
+                TextView retry = UI.button(requireContext(), "重试这条消息", UI.BTN_SECONDARY);
+                retry.setEnabled(!state.sending);
+                retry.setOnClickListener(view -> { if (!state.sending) startTurn(turn); });
+                reply.addView(retry);
+            }
+            messages.addView(reply); UI.margin(reply, 0, UI.SM, 0, UI.SM);
         }
         renderTasks();
         if (state.sending) messages.addView(UI.muted(requireContext(), "正在准备回复与计划，尚未执行…"));
@@ -242,47 +270,60 @@ public class AssistantFragment extends PageFragment {
         }
     }
 
+    private void addThinking(LinearLayout card, String reasoning, String phase, boolean active, LiveTurn turn) {
+        if (!active && reasoning.isEmpty()) return;
+        TextView toggle = UI.button(requireContext(), (active ? "AI 思考中" : "思考摘要") + "  ⌄", UI.BTN_GHOST);
+        TextView detail = UI.muted(requireContext(), reasoning.isEmpty() ? phase : reasoning);
+        detail.setMaxLines(12); detail.setMovementMethod(new android.text.method.ScrollingMovementMethod());
+        detail.setTextIsSelectable(true);
+        detail.setVisibility(turn != null && turn.expanded ? View.VISIBLE : View.GONE);
+        toggle.setOnClickListener(view -> { boolean expanded = detail.getVisibility() != View.VISIBLE; detail.setVisibility(expanded ? View.VISIBLE : View.GONE); if (turn != null) turn.expanded = expanded; });
+        card.addView(toggle); card.addView(detail);
+    }
+
     private void sendMessage() {
         String text = input.getText().toString().trim();
         if (text.isEmpty() || state.sending || !sameSession() || !state.settings.optBoolean("configured")) return;
-        String conversationID = state.currentID;
-        String oldDraftKey = draftKey();
-        boolean resources = state.includeResources;
-        state.sending = true;
-        state.error = "";
-        render();
-        if (conversationID.isEmpty()) {
-            Api.async(() -> {
-                if (!sameSession()) throw new IllegalStateException("会话已变更");
-                return Api.post("/api/assistant/conversations", new JSONObject());
-            }, created -> {
-                if (!sameSession()) return;
-                merge(created);
-                state.currentID = created.optString("id");
-                state.drafts.put(state.currentID, state.drafts.getOrDefault(oldDraftKey, text));
-                state.drafts.remove(oldDraftKey);
-                performSend(state.currentID, text, resources);
-            }, failure -> { if (sameSession()) { state.sending = false; state.error = failure.getMessage(); render(); } });
-        } else performSend(conversationID, text, resources);
+        LiveTurn turn = new LiveTurn();
+        turn.conversationID = state.currentID; turn.message = text; turn.resources = state.includeResources;
+        state.turns.add(turn);
+        state.drafts.put(draftKey(), "");
+        input.setText("");
+        startTurn(turn);
     }
 
-    private void performSend(String conversationID, String text, boolean resources) {
-        Api.async(() -> {
-            if (!sameSession()) throw new IllegalStateException("会话已变更");
-            return Api.post("/api/assistant/conversations/" + conversationID + "/messages", new JSONObject().put("message", text).put("include_resources", resources));
-        }, conversation -> {
+    private void startTurn(LiveTurn turn) {
+        state.sending = true; state.error = "";
+        turn.active = true; turn.error = ""; turn.content = ""; turn.reasoning = ""; turn.status = "正在发送…";
+        render();
+        if (alive() && scroll != null) scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); });
+        if (turn.conversationID.isEmpty()) {
+            Api.async(() -> { if (!sameSession()) throw new IllegalStateException("会话已变更"); return Api.post("/api/assistant/conversations", new JSONObject()); }, created -> {
+                if (!sameSession()) return;
+                merge(created); state.currentID = created.optString("id"); turn.conversationID = state.currentID;
+                String draft = state.drafts.remove("new"); if (draft != null) state.drafts.put(state.currentID, draft);
+                performSend(turn);
+            }, failure -> { if (sameSession()) { state.sending = false; turn.active = false; turn.error = failure.getMessage(); render(); } });
+        } else performSend(turn);
+    }
+
+    private void performSend(LiveTurn turn) {
+        RequestScope scope = new RequestScope(Session::snapshot);
+        Api.async(() -> Api.streamAssistant(scope, "/api/assistant/conversations/" + turn.conversationID + "/messages", new JSONObject().put("message", turn.message).put("include_resources", turn.resources).put("stream", true), event -> {
             if (!sameSession()) return;
-            state.sending = false;
-            merge(conversation);
-            if (text.equals(state.drafts.getOrDefault(conversationID, "").trim())) state.drafts.put(conversationID, "");
-            restoreDraft();
-            render();
-            if (alive() && scroll != null) {
-                JSONArray resultTasks = conversation.optJSONArray("tasks");
-                if (resultTasks != null && resultTasks.length() > 0) revealTasks();
-                else scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); });
+            String kind = event.optString("event");
+            if ("text".equals(kind)) { turn.content += event.optString("delta"); turn.status = "正在回复…"; }
+            if ("reasoning".equals(kind)) turn.reasoning += event.optString("delta");
+            if ("status".equals(kind)) turn.status = event.optString("message");
+            if (!"ping".equals(kind) && !streamRenderScheduled) {
+                streamRenderScheduled = true;
+                poller.postDelayed(() -> { streamRenderScheduled = false; boolean follow = alive() && scroll != null && messages != null && messages.getHeight() - scroll.getScrollY() - scroll.getHeight() < UI.dp(140); render(); if (follow && scroll != null) scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); }); }, 60);
             }
-        }, failure -> { if (sameSession()) { state.sending = false; state.error = failure.getMessage(); render(); } });
+        }), conversation -> {
+            if (!sameSession()) return;
+            state.sending = false; state.turns.remove(turn); merge(conversation); render();
+            if (alive() && scroll != null) { JSONArray tasks = conversation.optJSONArray("tasks"); if (tasks != null && tasks.length() > 0) revealTasks(); else scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); }); }
+        }, failure -> { if (sameSession()) { state.sending = false; turn.active = false; turn.error = failure.getMessage(); turn.status = "回复未完成"; render(); } });
     }
 
     private void showHistory() {
@@ -338,7 +379,7 @@ public class AssistantFragment extends PageFragment {
         heading.addView(refresh);
         messages.addView(heading);
         taskSection = heading;
-        messages.addView(UI.muted(requireContext(), "只执行勾选后再次确认的新增操作。不修改或删除现有资源，正在执行的请求无法撤回。"));
+        messages.addView(UI.muted(requireContext(), "只执行勾选后再次确认的变更。修改或删除前请核对原值和对象，正在执行的请求无法撤回。"));
         for (int index = 0; index < tasks.length(); index++) {
             JSONObject task = tasks.optJSONObject(index);
             if (task == null) continue;
@@ -361,7 +402,21 @@ public class AssistantFragment extends PageFragment {
                 card.addView(UI.text(requireContext(), title, 14, Theme.p().ink, Typeface.BOLD));
             }
             JSONObject arguments = task.optJSONObject("arguments");
-            card.addView(UI.muted(requireContext(), "变更前：不修改现有资源\n变更后：新增以下配置"));
+            JSONObject before = task.optJSONObject("before");
+            boolean deleting = task.optString("tool").startsWith("delete_");
+            if (before != null) {
+                card.addView(UI.muted(requireContext(), "变更前："));
+                Iterator<String> beforeKeys = before.keys();
+                while (beforeKeys.hasNext()) {
+                    String key = beforeKeys.next();
+                    Object value = before.opt(key);
+                    String display = value instanceof Boolean ? ((Boolean) value ? "开启" : "关闭") : String.valueOf(value);
+                    TextView detail = UI.text(requireContext(), AssistantTaskSelection.argumentLabel(key) + "：" + display, 13, Theme.p().ink, Typeface.NORMAL);
+                    detail.setTextIsSelectable(true);
+                    card.addView(detail);
+                }
+            }
+            card.addView(UI.muted(requireContext(), deleting ? "变更后：删除上述对象，可能中断服务或停止探测。删除项目会清理目标与历史记录；隧道关联 DNS 不自动删除。以下为删除对象 ID：" : before != null ? "变更后：应用以下配置，未列出的字段保持不变" : "操作：新增以下配置"));
             if (arguments != null) {
                 Iterator<String> keys = arguments.keys();
                 while (keys.hasNext()) {
@@ -376,12 +431,14 @@ public class AssistantFragment extends PageFragment {
             }
             if (!task.optString("result").isEmpty()) card.addView(UI.muted(requireContext(), task.optString("result")));
             LinearLayout controls = UI.row(requireContext());
+            if ("pending".equals(taskStatus) && !task.optString("tool").startsWith("delete_")) addButton(controls, "修改参数", () -> editTask(conversationID, task));
             if ("pending".equals(taskStatus)) addButton(controls, "暂停", () -> taskAction(conversationID, id, "pause", false, null));
             if ("paused".equals(taskStatus)) addButton(controls, "恢复", () -> taskAction(conversationID, id, "resume", false, null));
             if ("unknown".equals(taskStatus)) addButton(controls, "核对后重试", () -> {
+                int revision = task.optInt("revision", 0);
                 Sheet.Builder retry = Sheet.of(requireContext(), "请先核对实际资源");
-                retry.content(UI.muted(requireContext(), "失败或超时不代表未生效。请先确认没有重复创建，再重试。"));
-                retry.action(R.drawable.ic_nav_assistant, "已核对，确认重新执行", "可能创建资源或启动周期探测", () -> taskAction(conversationID, id, "retry", true, null));
+                retry.content(UI.muted(requireContext(), "失败或超时不代表未生效。请先确认变更尚未生效且仍需执行，再重试；原值变化需重新生成任务。"));
+                retry.action(R.drawable.ic_nav_assistant, "已核对，确认重新执行", "按已确认内容新增、修改或删除资源", () -> taskAction(conversationID, id, "retry", true, revision, null));
                 retry.show();
             });
             if (!"running".equals(taskStatus) && !"succeeded".equals(taskStatus) && !"cancelled".equals(taskStatus)) addButton(controls, "取消任务", () -> taskAction(conversationID, id, "cancel", false, null));
@@ -410,12 +467,14 @@ public class AssistantFragment extends PageFragment {
         String conversationID = state.currentID;
         List<String> approved = selection.snapshot(conversationID, !state.busy.isEmpty());
         if (approved.isEmpty() || !sameSession()) return;
+        Map<String, Integer> revisions = new HashMap<>();
+        for (int i = 0; i < tasks().length(); i++) { JSONObject task = tasks().optJSONObject(i); if (task != null) revisions.put(task.optString("id"), task.optInt("revision", 0)); }
         Sheet.Builder confirm = Sheet.of(requireContext(), "确认执行 " + approved.size() + " 项操作？");
-        confirm.content(UI.muted(requireContext(), "域名绑定将把服务公开到互联网。可能创建收费资源；监控目标会开始周期探测。执行中的请求不能撤回。"));
+        confirm.content(UI.muted(requireContext(), "修改或删除可能中断服务，删除不会自动恢复。域名绑定将把服务公开到互联网。可能创建收费资源；监控目标会开始周期探测。执行中的请求不能撤回。"));
         confirm.action(R.drawable.ic_nav_assistant, "确认执行", "仅执行已勾选任务", () -> {
             selection.clear();
             updateExecute();
-            executeNext(conversationID, approved);
+            executeNext(conversationID, approved, revisions);
         });
         confirm.show();
     }
@@ -433,11 +492,11 @@ public class AssistantFragment extends PageFragment {
         });
     }
 
-    private void executeNext(String conversationID, List<String> queue) {
+    private void executeNext(String conversationID, List<String> queue, Map<String, Integer> revisions) {
         if (queue.isEmpty() || !sameSession()) return;
         String id = queue.remove(0);
-        if (!isPendingTask(conversationID, id)) { executeNext(conversationID, queue); return; }
-        taskAction(conversationID, id, "execute", true, () -> executeNext(conversationID, queue));
+        if (!isPendingTask(conversationID, id)) { executeNext(conversationID, queue, revisions); return; }
+        taskAction(conversationID, id, "execute", true, revisions.getOrDefault(id, 0), () -> executeNext(conversationID, queue, revisions));
     }
 
     private boolean isPendingTask(String conversationID, String taskID) {
@@ -455,11 +514,15 @@ public class AssistantFragment extends PageFragment {
     }
 
     private void taskAction(String conversationID, String id, String action, boolean confirmed, Runnable complete) {
+        taskAction(conversationID, id, action, confirmed, 0, complete);
+    }
+
+    private void taskAction(String conversationID, String id, String action, boolean confirmed, int revision, Runnable complete) {
         if (!sameSession() || !state.busy.add(id)) return;
         render();
         Api.async(() -> {
             if (!sameSession()) throw new IllegalStateException("会话已变更");
-            return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, new JSONObject().put("action", action).put("confirmed", confirmed).put("checked_resources", "retry".equals(action)));
+            return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, new JSONObject().put("action", action).put("confirmed", confirmed).put("checked_resources", "retry".equals(action)).put("expected_revision", revision));
         }, result -> {
             if (!sameSession()) return;
             state.busy.remove(id);
@@ -475,6 +538,39 @@ public class AssistantFragment extends PageFragment {
             render();
             if (complete != null) complete.run();
         }, failure -> { if (sameSession()) { state.busy.remove(id); state.error = failure.getMessage() + "；执行结果不确定时请先核对资源。"; render(); load(); } });
+    }
+
+    private void editTask(String conversationID, JSONObject task) {
+        String id = task.optString("id");
+        int revision = task.optInt("revision", 0);
+        selection.select(id, false);
+        updateExecute();
+        final AssistantTaskEditor editor;
+        try { editor = new AssistantTaskEditor(requireContext(), task); }
+        catch (Exception invalid) { state.error = "无法读取任务参数，请刷新重试"; render(); return; }
+        Sheet.Builder sheet = Sheet.of(requireContext(), "修改任务参数");
+        TextView error = UI.muted(requireContext(), "");
+        LinearLayout content = UI.column(requireContext());
+        content.addView(editor.form); content.addView(error);
+        TextView save = UI.button(requireContext(), "保存修改", UI.BTN_PRIMARY);
+        save.setOnClickListener(view -> {
+            final JSONObject payload;
+            try { payload = new JSONObject().put("action", "edit").put("expected_revision", revision).put("arguments", new JSONObject(editor.draft.toString())); }
+            catch (Exception invalid) { error.setText("请检查参数格式"); return; }
+            if (!sameSession() || !state.busy.add(id)) return;
+            save.setEnabled(false); editor.setEnabled(false); sheet.setDismissible(false);
+            Api.async(() -> {
+                if (!sameSession()) throw new IllegalStateException("会话已变更");
+                return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, payload);
+            }, result -> {
+                sheet.setDismissible(true); sheet.dismiss();
+                if (sameSession()) { state.busy.remove(id); state.error = ""; load(); }
+            }, failure -> {
+                sheet.setDismissible(true); save.setEnabled(true); editor.setEnabled(true);
+                if (sameSession()) { state.busy.remove(id); error.setText(failure.getMessage()); }
+            });
+        });
+        sheet.content(content).footer(save).show();
     }
 
     private void showSettings() { showSettings(state.settings.optBoolean("shared_enabled") && state.settings.optBoolean("is_admin")); }
@@ -498,6 +594,11 @@ public class AssistantFragment extends PageFragment {
         EditText endpoint = UI.input(requireContext(), "https://api.example.com/v1");
         endpoint.setText(connection.optString("endpoint"));
         form.addView(UI.field(requireContext(), "API 端点", endpoint));
+        final String[] apiFormat = {connection.optString("api_format", "chat_completions")};
+        form.addView(UI.label(requireContext(), "接口格式"));
+        form.addView(UI.segmented(requireContext(), new String[]{"兼容接口", "OpenAI 原生"}, "responses".equals(apiFormat[0]) ? 1 : 0, index -> apiFormat[0] = index == 1 ? "responses" : "chat_completions"));
+        CheckBox reasoningSummary = new CheckBox(requireContext());
+        reasoningSummary.setText("请求思考摘要（Responses，需模型支持）"); reasoningSummary.setTextColor(Theme.p().ink); reasoningSummary.setChecked(connection.optBoolean("reasoning_summary")); form.addView(reasoningSummary);
         EditText model = UI.input(requireContext(), "服务商支持的模型 ID");
         model.setText(connection.optString("model"));
         form.addView(UI.field(requireContext(), "模型名称", model));
@@ -506,14 +607,14 @@ public class AssistantFragment extends PageFragment {
         key.setSaveEnabled(false);
         key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         form.addView(UI.field(requireContext(), "API 密钥", key));
-        form.addView(UI.muted(requireContext(), "兼容 Chat Completions 与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 按后端所在主机或容器解析。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥服务端加密、不回显；更换端点需重新填写。关闭共享后恢复个人配置。"));
+        form.addView(UI.muted(requireContext(), "支持 Chat Completions 与 OpenAI Responses，均支持流式回复与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 按后端所在主机或容器解析。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥服务端加密、不回显；更换端点需重新填写。关闭共享后恢复个人配置。"));
         TextView error = UI.muted(requireContext(), "");
         form.addView(error);
         TextView save = UI.button(requireContext(), "保存配置", UI.BTN_PRIMARY);
         save.setOnClickListener(view -> {
             JSONObject payload = new JSONObject();
             try {
-                payload.put("scope", sharedScope ? "shared" : "personal").put("endpoint", endpoint.getText().toString().trim()).put("model", model.getText().toString().trim()).put("api_key", key.getText().toString());
+                payload.put("scope", sharedScope ? "shared" : "personal").put("endpoint", endpoint.getText().toString().trim()).put("model", model.getText().toString().trim()).put("api_key", key.getText().toString()).put("api_format", apiFormat[0]).put("reasoning_summary", reasoningSummary.isChecked());
                 if (sharedScope) payload.put("shared_enabled", shared.isChecked());
             } catch (Exception ignored) { return; }
             save.setEnabled(false);
@@ -553,7 +654,7 @@ public class AssistantFragment extends PageFragment {
             default: return "已取消";
         }
     }
-    @Override public void onResume() { super.onResume(); poller.postDelayed(this::poll, 5000); }
+    @Override public void onResume() { super.onResume(); if (sameSession()) render(); poller.postDelayed(this::poll, 5000); }
     private void poll() {
         if (!alive() || !sameSession()) return;
         boolean running = false;
@@ -562,9 +663,10 @@ public class AssistantFragment extends PageFragment {
         if (running && state.busy.isEmpty()) load();
         poller.postDelayed(this::poll, 5000);
     }
-    @Override public void onPause() { poller.removeCallbacksAndMessages(null); super.onPause(); }
+    @Override public void onPause() { poller.removeCallbacksAndMessages(null); streamRenderScheduled = false; super.onPause(); }
     @Override public void onDestroyView() {
         poller.removeCallbacksAndMessages(null);
+        streamRenderScheduled = false;
         selection.clear();
         renderedConversationID = "";
         renderedTaskCount = 0;

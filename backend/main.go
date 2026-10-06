@@ -284,13 +284,23 @@ func main() {
 		// audit records one entry per mutating request once the handler
 		// returns; read-only routes are left unwrapped.
 		audit := mw.Audit
+		pathParam := handlers.PathParam
 		assistantActions := map[string]http.HandlerFunc{
-			"create_tunnel":      mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelCreate, nil, tunnelHandler.CreateTunnel)),
-			"create_dns_record":  mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSCreate, nil, dnsHandler.Create)),
-			"create_monitor":     mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCreate, nil, monitorsHandler.Create)),
-			"add_monitor_target": mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetAdd, mw.MonitorTarget("monitorID"), monitorsHandler.AddTarget)),
+			"create_tunnel":         mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelCreate, nil, tunnelHandler.CreateTunnel)),
+			"create_dns_record":     mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSCreate, nil, dnsHandler.Create)),
+			"create_monitor":        mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorCreate, nil, monitorsHandler.Create)),
+			"add_monitor_target":    mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetAdd, mw.MonitorTarget("monitorID"), monitorsHandler.AddTarget)),
+			"update_dns_record":     mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSUpdate, nil, dnsHandler.Update)),
+			"delete_dns_record":     mw.RequirePerm(models.PermDNS, audit(models.AuditCategoryDNS, models.AuditActionDNSDelete, pathParam("recordID"), dnsHandler.Delete)),
+			"delete_tunnel":         mw.RequirePerm(models.PermTunnels, audit(models.AuditCategoryTunnel, models.AuditActionTunnelDelete, pathParam("tunnelID"), tunnelHandler.DeleteTunnel)),
+			"delete_monitor":        mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionMonitorDelete, mw.MonitorTarget("monitorID"), monitorsHandler.Delete)),
+			"delete_monitor_target": mw.RequirePerm(models.PermMonitors, audit(models.AuditCategoryMonitor, models.AuditActionTargetDelete, mw.MonitorTarget("monitorID"), monitorsHandler.RemoveTarget)),
+			"update_site_settings":  mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionSiteUpdate, nil, configHandler.SetSiteSettings)),
+			"set_preferred_cname":   mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionPreferredCNAME, nil, configHandler.SetPreferredCNAME)),
+			"set_cname_presets":     mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionCNAMEPresetsUpdate, nil, configHandler.SetCNAMEPresets)),
 		}
 		assistantHandler := handlers.NewAssistantHandler(st, encryptionKey, assistantActions)
+		assistantActions["update_app_settings"] = mw.RequireAdmin(audit(models.AuditCategorySettings, models.AuditActionSettingsUpdate, nil, assistantHandler.UpdateAppSettings))
 		assistantActions["bind_domain"] = mw.RequirePerm(models.PermDomainBind, audit(models.AuditCategoryDomain, models.AuditActionDomainBind, nil, assistantHandler.BindDomain))
 		r.Get("/assistant/settings", mw.Auth(assistantHandler.Settings))
 		r.Put("/assistant/settings", mw.Auth(audit(models.AuditCategorySettings, "assistant_settings_update", nil, assistantHandler.SaveSettings)))
@@ -299,7 +309,6 @@ func main() {
 		r.Delete("/assistant/conversations/{conversationID}", mw.Auth(assistantHandler.DeleteConversation))
 		r.Post("/assistant/conversations/{conversationID}/messages", mw.Auth(assistantHandler.Chat))
 		r.Post("/assistant/conversations/{conversationID}/tasks/{taskID}", mw.Auth(assistantHandler.TaskAction))
-		pathParam := handlers.PathParam
 		r.Route("/admin", func(r chi.Router) {
 			r.Get("/users", adminOnly(managementHandler.ListUsers))
 			r.Post("/users", adminOnly(audit(models.AuditCategoryUser, models.AuditActionUserCreate, nil, managementHandler.CreateUser)))

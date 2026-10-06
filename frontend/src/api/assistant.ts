@@ -1,6 +1,6 @@
 import { api } from './index'
 
-export interface AIConnection { endpoint: string; model: string; key_set: boolean }
+export interface AIConnection { endpoint: string; model: string; key_set: boolean; api_format?: 'chat_completions' | 'responses'; reasoning_summary?: boolean }
 export interface AISettings {
   shared_enabled: boolean
   is_admin: boolean
@@ -13,6 +13,8 @@ export interface AITask {
   tool: string
   title: string
   arguments: Record<string, unknown>
+  before?: Record<string, unknown>
+  revision?: number
   status: 'pending' | 'paused' | 'running' | 'succeeded' | 'unknown' | 'cancelled'
   result?: string
 }
@@ -20,7 +22,7 @@ export interface AIConversation {
   id: string
   title: string
   updated_at: number
-  messages: { role: 'user' | 'assistant'; content: string }[]
+  messages: { role: 'user' | 'assistant'; content: string; reasoning?: string }[]
   tasks: AITask[]
 }
 export interface AISaveSettings {
@@ -28,6 +30,8 @@ export interface AISaveSettings {
   endpoint: string
   model: string
   api_key: string
+  api_format?: 'chat_completions' | 'responses'
+  reasoning_summary?: boolean
   shared_enabled?: boolean
 }
 
@@ -38,5 +42,6 @@ export const newAIConversation = () => api.post<AIConversation>('/assistant/conv
 export const deleteAIConversation = (id: string) => api.delete(`/assistant/conversations/${encodeURIComponent(id)}`)
 export const sendAIMessage = (id: string, message: string, includeResources: boolean) =>
   api.post<AIConversation>(`/assistant/conversations/${encodeURIComponent(id)}/messages`, { message, include_resources: includeResources }, { timeout: 180000 })
-export const actOnAITask = (conversationID: string, taskID: string, action: string, confirmed = false, checkedResources = false) =>
-  api.post<AITask>(`/assistant/conversations/${encodeURIComponent(conversationID)}/tasks/${encodeURIComponent(taskID)}`, { action, confirmed, checked_resources: checkedResources }, { timeout: 180000 })
+export interface AITaskOptions { arguments?: Record<string, unknown>; expected_revision?: number }
+export const actOnAITask = (conversationID: string, taskID: string, action: string, confirmed = false, checkedResources = false, options: AITaskOptions = {}) =>
+  api.post<AITask>(`/assistant/conversations/${encodeURIComponent(conversationID)}/tasks/${encodeURIComponent(taskID)}`, { action, confirmed, checked_resources: checkedResources, ...options }, { timeout: 180000 })
