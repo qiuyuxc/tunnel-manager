@@ -81,6 +81,8 @@
         </div>
       </section>
 
+      <OIDCAccount @password-status="hasLocalPassword = $event" />
+
       <section class="settings-card security-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.04s' }" aria-labelledby="two-factor-title">
         <div class="security-heading">
           <div>
@@ -222,7 +224,7 @@
 
           <div v-else class="security-state disabled-state">
             <div class="status-copy">
-              <strong>账户目前仅由密码保护</strong>
+              <strong>尚未启用本站双重验证</strong>
               <p v-if="setupNotice" class="setup-notice" role="status">{{ setupNotice }}</p>
               <p v-else>连接任意兼容 TOTP 的验证器应用，设置过程不会将密钥发送到外部二维码服务。</p>
             </div>
@@ -431,7 +433,7 @@
         </div>
       </div>
 
-      <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.16s' }">
+      <div v-if="hasLocalPassword !== false" class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.16s' }">
         <div class="settings-card-header">
           <div class="settings-card-title">修改密码</div>
           <div class="settings-card-desc">密码长度不少于 6 位</div>
@@ -492,8 +494,10 @@ import {
   type PasskeySettings,
   type PasskeyView,
 } from '../api/passkey'
+import OIDCAccount from '../components/OIDCAccount.vue'
 import { useConfigStore } from '../stores/config'
 
+const hasLocalPassword = ref<boolean | null>(null)
 const message = useMessage()
 const dialog = useDialog()
 const route = useRoute()

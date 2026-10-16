@@ -3,15 +3,18 @@ module tunnel-manager
 go 1.26
 
 require (
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-webauthn/webauthn v0.14.0
 	github.com/jackc/pgx/v5 v5.9.2
+	golang.org/x/oauth2 v0.36.0
 	modernc.org/sqlite v1.57.0
 )
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-webauthn/x v0.1.25 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect

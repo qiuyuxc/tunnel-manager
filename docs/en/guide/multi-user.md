@@ -16,6 +16,20 @@ How they combine:
 - Mail service configured: registration requires the emailed code (valid for 10 minutes, no resend within 60 seconds)
 - Invite codes required: a valid code is needed as well
 
+## OIDC sign-in (Admin console → OIDC authentication)
+
+Administrators can add multiple standard OIDC providers with a display name, Issuer URL, Client ID, Client Secret, callback URL, scopes, enabled state and order. Discovery reads the endpoints from the issuer. Scopes default to `openid profile email`. Secrets are encrypted at rest; the console only reports whether a secret is configured.
+
+The callback defaults to `/api/auth/oidc/callback` on the current site. Register the exact URL with the provider and use the same site hostname for starting sign-in and returning to the callback. Use HTTPS in production. HTTP is allowed for local testing on `localhost`, `127.0.0.1` and `::1`.
+
+- Enabled providers appear on the sign-in page. The first sign-in matches a local account by email.
+- Existing account: a provider-verified email links the identity and signs in. Otherwise a local email code must prove ownership. Without SMTP, unverified email addresses cannot link existing accounts.
+- New account: automatically creates an ordinary user in the default group, independently of password registration and invite codes. When SMTP and local registration email verification are enabled, the local email code is required even if the provider already verified the address.
+- Subsequent sign-ins resolve the provider, issuer and subject. An external email change cannot move the identity to another account. Local account restrictions, permissions and two-factor authentication still apply.
+- Account settings supports linking and unlinking identities. Adding a binding requires confirmation of the current local password. Accounts without a local password can reauthenticate with their linked identity to set their first password and use existing password-confirmed security settings. Unlinking must leave a password, passkey or another enabled OIDC identity available.
+
+Providers with linked accounts cannot change their Issuer or Client ID or be deleted directly. Disable them first and have users unlink their identities. Configuration changes invalidate sign-ins already in progress.
+
 ## Users and groups
 
 - Every user has their own Cloudflare authorization, tunnel selection and monitors; none of it is visible to anyone else

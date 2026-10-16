@@ -64,6 +64,8 @@ export interface UserView {
   passkeys: number
   /** 该账户已禁用密码登录 */
   password_login_disabled: boolean
+  has_password?: boolean
+  oidc_identities?: number
 }
 
 export interface UserGroup {

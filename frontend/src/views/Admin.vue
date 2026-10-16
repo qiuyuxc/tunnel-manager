@@ -43,7 +43,10 @@
                 <td>{{ groupName(user.group_id) }}</td>
                 <td><span class="tag" :class="user.status === 'active' ? 'tag-ok' : 'tag-down'">{{ user.status === 'active' ? '正常' : '已禁用' }}</span></td>
                 <td>
-                  <span class="tag" :class="user.passkeys > 0 ? 'tag-ok' : ''">{{ user.passkeys > 0 ? user.passkeys + ' 个通行密钥' : '仅密码' }}</span>
+                  <span v-if="user.has_password !== false" class="tag">密码</span>
+                  <span v-if="user.passkeys > 0" class="tag tag-ok">{{ user.passkeys }} 个通行密钥</span>
+                  <span v-if="user.oidc_identities" class="tag tag-ok">{{ user.oidc_identities }} 个 OIDC 身份</span>
+                  <span v-if="user.has_password === false && !user.passkeys && !user.oidc_identities" class="tag tag-down">未设置登录方式</span>
                   <span v-if="user.password_login_disabled" class="tag tag-down">已禁用密码</span>
                 </td>
                 <td>{{ formatTime(user.last_login_at) }}</td>
@@ -282,6 +285,7 @@
       </div>
     </section>
 
+    <section v-if="activeTab === 'oidc'" class="admin-section"><OIDCProviders /></section>
     <section v-show="activeTab === 'smtp'" class="admin-section">
       <div class="admin-card">
         <h3>SMTP 邮件服务</h3>
@@ -378,6 +382,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
+import OIDCProviders from '../components/OIDCProviders.vue'
 import { validateLabLimits } from '../utils/lab'
 import {
   listUsers, createUser, setUserStatus, setUserGroup, resetUserPassword, deleteUser, setUserPasswordLogin,
@@ -398,6 +403,7 @@ const tabs = [
   { key: 'groups', label: '用户组' },
   { key: 'invites', label: '邀请码' },
   { key: 'settings', label: '系统设置' },
+  { key: 'oidc', label: 'OIDC 认证' },
   { key: 'smtp', label: '邮件服务' },
   { key: 'audit', label: '审计日志' },
 ]

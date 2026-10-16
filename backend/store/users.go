@@ -455,9 +455,14 @@ func (s *Store) ListUsers() []models.UserView {
 		log.Printf("count passkeys per account: %v", err)
 	}
 	views := make([]models.UserView, 0, len(s.users))
+	oidcCounts := make(map[string]int)
+	for _, identity := range s.oidc.Identities {
+		oidcCounts[identity.UserID]++
+	}
 	for i := range s.users {
 		view := s.userViewLocked(&s.users[i])
 		view.Passkeys = counts[s.users[i].ID]
+		view.OIDCIdentities = oidcCounts[s.users[i].ID]
 		views = append(views, view)
 	}
 	return views
@@ -480,6 +485,7 @@ func (s *Store) userViewLocked(user *models.User) models.UserView {
 		Permissions:   append([]string(nil), models.AllPermissions...),
 		// Passkeys is filled in by ListUsers, which batches the counts.
 		PasswordLoginDisabled: user.PasswordLoginDisabled,
+		HasPassword:           user.PasswordHash != "",
 	}
 	if group := s.findGroupLocked(user.GroupID); group != nil {
 		view.GroupName = group.Name
@@ -631,6 +637,13 @@ func (s *Store) DeleteUser(id string) error {
 	}
 	previousUsers := append([]models.User(nil), s.users...)
 	previousSessions := append([]sessionRecord(nil), s.sessions...)
+	previousOIDC := s.oidc.Identities
+	s.oidc.Identities = nil
+	for _, identity := range previousOIDC {
+		if identity.UserID != id {
+			s.oidc.Identities = append(s.oidc.Identities, identity)
+		}
+	}
 	previousPrefs := len(s.prefs)
 	s.users = append(s.users[:idx], s.users[idx+1:]...)
 	sessions := s.sessions[:0]
@@ -647,6 +660,7 @@ func (s *Store) DeleteUser(id string) error {
 	if err := s.saveLocked(); err != nil {
 		s.users = previousUsers
 		s.sessions = previousSessions
+		s.oidc.Identities = previousOIDC
 		if previousPrefs > len(s.prefs) {
 			s.prefs[id] = models.UserPrefs{}
 		}

@@ -18,7 +18,24 @@
       </div>
       <Transition name="step-fade" mode="out-in">
         <div :key="mode + '-' + step">
-          <template v-if="mode === 'forgot'">
+          <template v-if="step === 'oidc-email'">
+            <form class="login-form" @submit.prevent="finishOIDCLogin">
+              <p class="login-subtitle">验证邮箱后继续登录，首次登录将自动创建账号。</p>
+              <div class="field">
+                <label class="field-label" for="oidc-email">账户邮箱</label>
+                <input id="oidc-email" :value="oidcEmail" class="vercel-input" type="email" readonly />
+              </div>
+              <div class="field">
+                <label class="field-label" for="oidc-code">邮件验证码</label>
+                <input id="oidc-code" v-model="oidcCode" class="vercel-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位数字" />
+              </div>
+              <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+              <button type="button" class="btn btn-secondary login-btn" :disabled="codeSending || codeCooldown > 0 || loading" @click="handleOIDCSendCode">{{ codeSending ? '发送中...' : codeCooldown > 0 ? codeCooldown + ' 秒后重发' : '发送验证码' }}</button>
+              <button type="submit" class="btn btn-primary login-btn" :disabled="loading || !oidcCode.trim()">{{ loading ? '验证中...' : '验证并登录' }}</button>
+              <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="cancelOIDC">返回登录</button>
+            </form>
+          </template>
+          <template v-else-if="mode === 'forgot'">
             <div class="factor-heading">
               <span class="security-stamp">RESET PASSWORD</span>
               <p class="login-subtitle">通过注册邮箱重置密码（需管理员已配置邮件服务）</p>
@@ -132,6 +149,10 @@
                 <span v-if="passkeyBusy" class="spinner"></span>
                 {{ passkeyBusy ? '等待验证...' : '使用通行密钥登录' }}
               </button>
+              <div v-if="oidcProviders.length" class="oidc-login-options" aria-label="其他登录方式">
+                <p class="field-label">其他登录方式</p>
+                <button v-for="provider in oidcProviders" :key="provider.id" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handleOIDCLogin(provider.id)">使用 {{ provider.name }} 登录</button>
+              </div>
               <button type="button" class="link-btn" @click="switchMode('forgot')">忘记密码？</button>
             </form>
           </template>
@@ -188,9 +209,14 @@ import { completeTwoFactorLogin, login as loginApi } from '../api'
 import { getAuthConfig, sendRegisterCode, register, forgotPassword, resetPassword, type AuthConfig } from '../api/admin'
 import { beginPasskeyLogin, beginPasskeyTwoFactor, finishPasskeyLogin, finishPasskeyTwoFactor } from '../api/passkey'
 import { useConfigStore } from '../stores/config'
+import { listOIDCProviders, startOIDCLogin, completeOIDC, sendOIDCCode, type OIDCPublicProvider } from '../api/oidc'
 const router = useRouter()
 const store = useConfigStore()
-const step = ref<'credentials' | 'factor'>('credentials')
+const step = ref<'credentials' | 'factor' | 'oidc-email'>('credentials')
+const oidcProviders = ref<OIDCPublicProvider[]>([])
+const oidcTicket = ref('')
+const oidcEmail = ref('')
+const oidcCode = ref('')
 const mode = ref<'login' | 'register' | 'forgot'>('login')
 const authConfig = ref<AuthConfig>({ registration_enabled: false, invite_mode: 'off', email_verify_enabled: false, turnstile_enabled: false, turnstile_site_key: '' })
 const turnstileEnabled = ref(false)
@@ -232,6 +258,15 @@ let shakeTimer: number | undefined
 let disposed = false
 const countdown = ref('05:00')
 onMounted(() => {
+  void listOIDCProviders().then(({ data }) => { if (!disposed) oidcProviders.value = data }).catch(() => {})
+  const query = router.currentRoute.value.query
+  if (typeof query.oidc_error === 'string') {
+    error.value = query.oidc_error
+    void router.replace({ path: '/login', query: {} })
+  } else if (typeof query.oidc_ticket === 'string') {
+    oidcTicket.value = query.oidc_ticket
+    void router.replace({ path: '/login', query: {} }).then(() => finishOIDCLogin())
+  }
   passkeySupported.value = browserSupportsWebAuthn()
   entranceFrame = requestAnimationFrame(() => {
     entranceFrame = undefined
@@ -245,7 +280,7 @@ onMounted(() => {
     modeSwitchable.value = data.registration_enabled
     turnstileEnabled.value = data.turnstile_enabled
     turnstileSiteKey.value = data.turnstile_site_key || ''
-    if (router.currentRoute.value.query.mode === 'register' && data.registration_enabled) {
+    if (!oidcTicket.value && router.currentRoute.value.query.mode === 'register' && data.registration_enabled) {
       mode.value = 'register'
     }
     if (data.turnstile_enabled) nextTick(() => void renderTurnstile())
@@ -500,6 +535,7 @@ function clearChallengeTimer() {
 function switchMode(target: 'login' | 'register' | 'forgot') {
   if (mode.value === target) return
   mode.value = target
+  oidcTicket.value = ''
   error.value = ''
   step.value = 'credentials'
   nextTick(() => {
@@ -512,6 +548,93 @@ function switchMode(target: 'login' | 'register' | 'forgot') {
       usernameInput.value?.focus()
     }
   })
+}
+
+async function handleOIDCLogin(id: string) {
+  if (loading.value || passkeyBusy.value || disposed) return
+  const token = takeTurnstileToken()
+  if (turnstileEnabled.value && !token) {
+    error.value = '请完成人机验证'
+    void renderTurnstile()
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    const { data } = await startOIDCLogin(id, token)
+    if (!disposed) window.location.assign(data.authorization_url)
+  } catch (e: any) {
+    if (disposed) return
+    error.value = e.response?.data?.error || 'OIDC 登录暂不可用'
+    loading.value = false
+    void renderTurnstile()
+  }
+}
+
+async function finishOIDCLogin() {
+  if (!oidcTicket.value || loading.value || disposed) return
+  loading.value = true
+  error.value = ''
+  try {
+    const { data } = await completeOIDC(oidcTicket.value, oidcCode.value.trim())
+    if (disposed) return
+    if ('email_verification_required' in data) {
+      oidcEmail.value = data.email
+      step.value = 'oidc-email'
+      destroyTurnstile()
+      await nextTick()
+      document.getElementById('oidc-code')?.focus()
+    } else if ('two_factor_required' in data) {
+      challengeToken.value = data.challenge_token
+      challengeExpiresAt.value = Date.parse(data.expires_at)
+      passkeyFactorAvailable.value = !!data.passkeys_available
+      factorCode.value = ''
+      failedFactorAttempts.value = 0
+      oidcTicket.value = ''
+      step.value = 'factor'
+      destroyTurnstile()
+      startChallengeTimer()
+      await nextTick()
+      factorInput.value?.focus()
+    } else if ('token' in data) {
+      oidcTicket.value = ''
+      store.setAuth(data.token, data.username, data.role)
+      await router.replace('/dashboard')
+    } else error.value = '认证结果无效，请重新登录'
+  } catch (e: any) {
+    if (!disposed) error.value = e.response?.data?.error || 'OIDC 登录失败，请重新登录'
+  } finally {
+    if (!disposed) loading.value = false
+  }
+}
+
+async function handleOIDCSendCode() {
+  if (codeSending.value || codeCooldown.value > 0 || disposed) return
+  codeSending.value = true
+  error.value = ''
+  try {
+    await sendOIDCCode(oidcTicket.value)
+    if (disposed) return
+    codeCooldown.value = 60
+    if (cooldownTimer !== undefined) window.clearInterval(cooldownTimer)
+    cooldownTimer = window.setInterval(() => {
+      codeCooldown.value -= 1
+      if (codeCooldown.value <= 0) window.clearInterval(cooldownTimer)
+    }, 1000)
+  } catch (e: any) {
+    if (!disposed) error.value = e.response?.data?.error || '邮件发送失败'
+  } finally {
+    if (!disposed) codeSending.value = false
+  }
+}
+
+function cancelOIDC() {
+  oidcTicket.value = ''
+  oidcEmail.value = ''
+  oidcCode.value = ''
+  error.value = ''
+  step.value = 'credentials'
+  nextTick(() => { void renderTurnstile(); usernameInput.value?.focus() })
 }
 
 async function handleSendCode() {
@@ -726,6 +849,9 @@ function triggerShake() {
 .login-subtitle { font-size: 14px; color: var(--color-mute); margin: 0 0 var(--spacing-xl); }
 
 .login-form { display: flex; flex-direction: column; gap: var(--spacing-md); text-align: left; }
+.oidc-login-options { display: flex; flex-direction: column; gap: var(--spacing-sm); padding-top: var(--spacing-md); border-top: 1px solid var(--color-hairline); }
+.oidc-login-options p { margin: 0; color: var(--color-mute); }
+.oidc-login-options .btn { white-space: normal; overflow-wrap: anywhere; }
 
 .mode-tabs {
   display: flex;

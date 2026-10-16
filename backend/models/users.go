@@ -73,6 +73,8 @@ type UserView struct {
 	// the account can still sign in with a password.
 	Passkeys              int  `json:"passkeys"`
 	PasswordLoginDisabled bool `json:"password_login_disabled"`
+	HasPassword           bool `json:"has_password"`
+	OIDCIdentities        int  `json:"oidc_identities"`
 }
 
 // UserGroup bundles a set of permissions granted to invited users.

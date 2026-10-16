@@ -83,6 +83,7 @@ type Store struct {
 	cfConns          []models.CFConnection
 	alertLogs        []models.AlertLog
 	oauthSettings    models.OAuthSettings
+	oidc             models.OIDCState
 	encryptionKeyRaw string
 	adminID          string
 	assistant        models.AIState
@@ -307,6 +308,7 @@ func (s *Store) loadFromDB(handle *sql.DB) (bool, error) {
 		_ = json.Unmarshal([]byte(appDoc), &s.appSettings)
 	}
 	for key, destination := range map[string]interface{}{
+		"oidc":                     &s.oidc,
 		"lab_ip_selector":          &s.labSettings,
 		"lab_ip_selector_runs":     &s.labRuns,
 		"lab_ip_selector_security": &s.labSecurity,
@@ -427,6 +429,7 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	for key, value := range map[string]interface{}{
+		"oidc":                     s.oidc,
 		"lab_ip_selector":          s.labSettings,
 		"lab_ip_selector_runs":     s.labRuns,
 		"lab_ip_selector_security": s.labSecurity,
