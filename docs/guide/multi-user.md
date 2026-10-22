@@ -18,6 +18,8 @@ v2.0.0 起，Tunnel Manager 支持多用户注册与管理后台。所有数据�
 
 ## OIDC 登录（管理后台 → OIDC 认证）
 
+v2.9.0 的 OIDC 登录和账户绑定在 Web 端提供。Android 原生 App 尚无 OIDC 入口；仅有 OIDC 身份的用户可先在 Web 账户页设置本站密码，再通过 App 密码登录。
+
 管理员可以添加多个标准 OIDC 接入方。配置显示名称、Issuer URL、Client ID、Client Secret、回调地址、Scopes、启用状态和排序。Issuer 用于 Discovery 自动发现端点；Scopes 默认 `openid profile email`。客户端密钥加密保存，后台读取时只返回是否已设置。
 
 回调地址默认为当前站点的 `/api/auth/oidc/callback`。将完整地址登记到身份提供方，并确保发起登录和回调使用相同的站点域名。生产环境使用 HTTPS，本机验证允许 `localhost`、`127.0.0.1` 或 `::1` 的 HTTP 地址。

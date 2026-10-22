@@ -31,14 +31,16 @@ TXT 签发和一键填写只使用请求中的验证域名，不依赖或修改�
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/assistant/settings` | 有效模式与配置状态，密钥不返回；普通用户在共享模式下看不到共享端点 |
-| PUT | `/api/assistant/settings` | 保存 `scope: personal/shared`、`endpoint`、`model`、`api_key`；共享范围仅管理员可写，可附 `shared_enabled` |
+| PUT | `/api/assistant/settings` | 保存 `scope: personal/shared`、`endpoint`、`model`、`api_key`、`api_format: chat_completions/responses` 和 `reasoning_summary`；共享范围仅管理员可写，可附 `shared_enabled` |
 | GET | `/api/assistant/conversations` | 本人会话、消息与任务 |
 | POST | `/api/assistant/conversations` | 新建会话 |
 | DELETE | `/api/assistant/conversations/{conversationID}` | 删除会话记录，不删除业务资源；执行中禁止删除 |
-| POST | `/api/assistant/conversations/{conversationID}/messages` | `message` 与 `include_resources`，调用模型并保存回复及待确认任务，不执行写操作 |
-| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action` 为 `execute`、`pause`、`resume`、`cancel`、`retry` |
+| POST | `/api/assistant/conversations/{conversationID}/messages` | `message` 与 `include_resources`，调用模型并保存回复及待确认任务；`stream: true` 返回 SSE，不执行写操作 |
+| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action` 为 `edit`、`execute`、`pause`、`resume`、`cancel`、`retry`；编辑提交 `arguments` 与 `expected_revision` |
 
-`execute` 必须提供 `confirmed: true`。`retry` 仅适用于 `unknown` 状态，必须同时提供 `confirmed: true` 与 `checked_resources: true`，表示已核对真实资源。参数从服务端保存的任务读取，不接受客户端替换参数。已完成或正在执行的任务不可重复执行。任务接口的 HTTP 200 表示状态已保存，执行成功须看 `status: succeeded`，不能只看 HTTP 状态码。
+`edit` 只校验并保存待确认参数，返回新的 `revision`，不执行写操作；删除任务不可编辑。`execute` 必须提供 `confirmed: true`，已编辑任务还须提供核对时的 `expected_revision`。`retry` 仅适用于 `unknown` 状态，必须同时提供 `confirmed: true` 与 `checked_resources: true`，表示已核对真实资源。执行参数从服务端保存的任务读取，不能在执行请求中替换。旧版本、已完成或正在执行的任务不可重复执行。任务接口的 HTTP 200 表示状态已保存，执行成功须看 `status: succeeded`。
+
+流式消息返回 `Content-Type: text/event-stream`，事件包括 `status`、`text`、`reasoning`、`ping`、`done` 和 `error`；最终 `done` 包含保存后的会话。反向代理须允许流式响应并关闭缓冲，失败或断流不能当作任务已生成。
 
 详情及限制见 [AI 助手](../guide/ai-assistant.md)。
 
@@ -77,6 +79,25 @@ TXT 签发和一键填写只使用请求中的验证域名，不依赖或修改�
 | POST | `/api/auth/forgot-password` | 发送密码重置验证码（需已配置 SMTP） | 无 |
 | POST | `/api/auth/reset-password` | 使用重置验证码设置新密码，成功后踢掉所有会话 | 无 |
 | GET | `/api/auth/me` | 当前登录身份：ID、用户名、昵称、头像、邮箱、角色与权限列表 | 用户会话 |
+
+## OIDC 登录与账户绑定
+
+| 方法 | 路径 | 说明 | 鉴权 |
+| --- | --- | --- | --- |
+| GET | `/api/auth/oidc/providers` | 已启用接入方的 ID 与名称 | 无 |
+| POST | `/api/auth/oidc/start` | `provider_id` 与按需提供的 `cf_turnstile_response`；返回 `authorization_url` | 无 |
+| GET | `/api/auth/oidc/callback` | 接入方回调，校验授权后返回本站 Web 登录页 | OIDC state 与浏览器 Cookie |
+| POST | `/api/auth/oidc/complete` | `ticket` 与按需提供的邮箱 `code`；完成登录 / 绑定，或返回邮箱验证、二步验证、首次密码设置结果 | ticket 与浏览器 Cookie；绑定 / 设置密码还需原用户会话 |
+| POST | `/api/auth/oidc/send-code` | 为待完成的 `ticket` 发送本站邮箱验证码 | ticket 与浏览器 Cookie |
+| GET | `/api/account/oidc` | 当前账户是否有本站密码及已绑定身份，不返回接入方密钥 | 用户会话 |
+| POST | `/api/account/oidc/start` | `provider_id`、`action: bind/password`；新增绑定还需确认本站 `password` | 用户会话 |
+| POST | `/api/account/oidc/password` | 重新认证后用 `ticket` 设置首个本站 `password`，不能覆盖已有密码 | 用户会话与单次 ticket |
+| DELETE | `/api/account/oidc/{id}` | 按接入方 ID 解绑；须保留至少一种可用登录方式 | 用户会话 |
+| GET | `/api/admin/oidc/providers` | 管理配置，仅返回 `has_client_secret` | 管理员 |
+| POST / PUT | `/api/admin/oidc/providers`、`/api/admin/oidc/providers/{id}` | 新增 / 编辑名称、Issuer、Client ID、回调、Scopes、启用与排序；密钥留空保留，`clear_secret` 清除 | 管理员 |
+| DELETE | `/api/admin/oidc/providers/{id}` | 删除接入方，有关联身份时拒绝 | 管理员 |
+
+账户接口仅接受真实用户会话，静态 API Key 不能代替账户所有者。首次登录的邮箱归属和新用户策略见 [多用户与管理后台](../guide/multi-user.md)。
 
 ## 登录与会话
 

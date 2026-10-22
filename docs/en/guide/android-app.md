@@ -8,6 +8,8 @@ A native Android client for the same panel. The backend is still the same REST A
 
 The app is currently built from source (`android/` in the repository); no APK ships with GitHub Releases yet.
 
+The current version is **2.9.0 (build 290)**. The assistant supports Responses / Chat Completions, streaming replies, reasoning summaries and editing pending arguments. OIDC sign-in and identity linking are currently available on Web; users with only an OIDC identity can reauthenticate and set a local password in the Web account page, then use password sign-in in the app.
+
 ## What it does
 
 - Overview, monitoring, tunnels, domain binding, DNS, the Telegram bot, notifications, the admin console, global settings, account and About are all native screens

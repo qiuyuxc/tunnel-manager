@@ -31,13 +31,15 @@ Assistant endpoints require a real user session through `X-Auth-Token`, not a st
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/assistant/settings` | Effective mode and configuration status; keys are never returned |
-| PUT | `/api/assistant/settings` | Save `scope`, `endpoint`, `model`, `api_key`; `shared` scope and its `shared_enabled` flag are administrator-only |
+| PUT | `/api/assistant/settings` | Save `scope`, `endpoint`, `model`, `api_key`, `api_format: chat_completions/responses` and `reasoning_summary`; `shared` scope and its `shared_enabled` flag are administrator-only |
 | GET / POST | `/api/assistant/conversations` | List owned conversations / create a conversation |
 | DELETE | `/api/assistant/conversations/{conversationID}` | Delete history, not business resources; unavailable while a task runs |
-| POST | `/api/assistant/conversations/{conversationID}/messages` | Submit `message` and `include_resources`; generate replies and pending tasks without executing writes |
-| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action`: `execute`, `pause`, `resume`, `cancel` or `retry` |
+| POST | `/api/assistant/conversations/{conversationID}/messages` | Submit `message` and `include_resources`; `stream: true` returns SSE. Generate replies and pending tasks without executing writes |
+| POST | `/api/assistant/conversations/{conversationID}/tasks/{taskID}` | `action`: `edit`, `execute`, `pause`, `resume`, `cancel` or `retry`; editing takes `arguments` and `expected_revision` |
 
-Execution requires `confirmed: true`. Retry additionally requires `checked_resources: true` and an `unknown` task status. Arguments come from the stored task and cannot be replaced by the client. Completed or in-flight tasks cannot execute again. HTTP 200 means the task state was saved; check for `status: succeeded` to determine execution success.
+Editing validates and saves pending arguments, returns a new `revision` and performs no business writes; delete tasks cannot be edited. Execution requires `confirmed: true`; edited tasks also require the reviewed `expected_revision`. Retry additionally requires `checked_resources: true` and an `unknown` task status. Execution arguments come from the stored task and cannot be replaced in the execution request. Stale, completed or in-flight tasks cannot execute again. HTTP 200 means the task state was saved; check for `status: succeeded` to determine execution success.
+
+Streaming messages use `Content-Type: text/event-stream` with `status`, `text`, `reasoning`, `ping`, `done` and `error` events. The final `done` includes the saved conversation. Reverse proxies must support streaming without buffering; errors or interrupted streams do not establish that tasks were saved.
 
 See [AI assistant](../guide/ai-assistant.md) for privacy and operational limits.
 
@@ -76,6 +78,25 @@ Until the panel has an administrator account the process mounts only these endpo
 | POST | `/api/auth/forgot-password` | Send a password-reset code (needs SMTP) | none |
 | POST | `/api/auth/reset-password` | Set a new password with a reset code, dropping all sessions on success | none |
 | GET | `/api/auth/me` | The signed-in identity: ID, username, display name, avatar, email, role and permissions | user session |
+
+## OIDC sign-in & identity linking
+
+| Method | Path | Description | Auth |
+| --- | --- | --- | --- |
+| GET | `/api/auth/oidc/providers` | IDs and names of enabled providers | none |
+| POST | `/api/auth/oidc/start` | `provider_id` and `cf_turnstile_response` when required; returns `authorization_url` | none |
+| GET | `/api/auth/oidc/callback` | Provider callback; validates authorization and returns to the Web sign-in page | OIDC state and browser cookie |
+| POST | `/api/auth/oidc/complete` | `ticket` and email `code` when required; completes sign-in/linking or returns an email, 2FA or first-password result | ticket and browser cookie; linking/password setup also require the original user session |
+| POST | `/api/auth/oidc/send-code` | Send the local email code for a pending `ticket` | ticket and browser cookie |
+| GET | `/api/account/oidc` | Whether the account has a local password, plus linked identities; no provider secrets | user session |
+| POST | `/api/account/oidc/start` | `provider_id`, `action: bind/password`; binding also requires the current local `password` | user session |
+| POST | `/api/account/oidc/password` | Set the first local `password` using the reauthentication `ticket`; cannot replace an existing password | user session and single-use ticket |
+| DELETE | `/api/account/oidc/{id}` | Unlink by provider ID; preserves at least one available sign-in method | user session |
+| GET | `/api/admin/oidc/providers` | Provider configuration, with only `has_client_secret` for secrets | administrator |
+| POST / PUT | `/api/admin/oidc/providers`, `/api/admin/oidc/providers/{id}` | Create/edit name, issuer, client ID, callback, scopes, enabled state and order; an empty secret preserves it, `clear_secret` removes it | administrator |
+| DELETE | `/api/admin/oidc/providers/{id}` | Delete a provider; refused while identities remain linked | administrator |
+
+Account endpoints require a real user session; static API keys cannot act as the account owner. See [Multi-user & admin console](../guide/multi-user.md) for first-sign-in email checks and account creation policy.
 
 ## Sign-in & sessions
 

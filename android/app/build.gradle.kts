@@ -10,8 +10,8 @@ android {
         applicationId = "com.tunnelmanager.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 280
-        versionName = "2.8.0"
+        versionCode = 290
+        versionName = "2.9.0"
     }
 
     // The debug key is the one build.sh already generated, so `adb install -r`

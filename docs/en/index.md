@@ -30,9 +30,17 @@ features:
     link: /en/guide/domain-binding
     linkText: Compare the modes
   - title: DNS management
-    details: Query and manage A, AAAA, CNAME, TXT and MX records per zone, with TTL, proxy status, MX priority and multi-select bulk operations.
+    details: Manage A, AAAA, CNAME, TXT, MX, NS, SRV, CAA and PTR records per zone, with structured editing, batch creation and per-record results.
     link: /en/guide/dns-management
     linkText: Open DNS management
+  - title: AI assistant
+    details: Responses and Chat Completions connections, streaming replies and reasoning summaries; edit generated tasks, review their arguments and explicitly approve execution.
+    link: /en/guide/ai-assistant
+    linkText: Configure the assistant
+  - title: Multi-user & OIDC sign-in
+    details: Web supports multiple standard OIDC providers and identity linking, with email ownership checks, local two-factor authentication, account restrictions and group permissions.
+    link: /en/guide/multi-user
+    linkText: Configure accounts & sign-in
   - title: Service monitoring
     details: HTTP (GET/POST), TCP and ICMP probes, several targets per monitor, and a dashboard with seven days of latency bars.
     link: /en/guide/monitors-status

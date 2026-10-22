@@ -30,9 +30,17 @@ features:
     link: /guide/domain-binding
     linkText: 查看绑定模式
   - title: DNS 管理
-    details: 按 Zone 查询和管理 A、AAAA、CNAME、TXT、MX 记录，支持 TTL、代理状态、MX 优先级与多选批量操作。
+    details: 按 Zone 管理 A、AAAA、CNAME、TXT、MX、NS、SRV、CAA、PTR，支持结构化字段编辑、批量新增与逐条结果。
     link: /guide/dns-management
     linkText: 进入 DNS 管理
+  - title: AI 助手
+    details: 支持 Responses 与 Chat Completions、流式对话和思考摘要；生成可编辑任务，核对参数并明确确认后执行。
+    link: /guide/ai-assistant
+    linkText: 配置与使用助手
+  - title: 多用户与 OIDC 登录
+    details: Web 支持多个标准 OIDC 接入方与账户绑定，保留邮箱归属验证、本站二步验证、账号禁用和用户组权限。
+    link: /guide/multi-user
+    linkText: 配置账号与认证
   - title: 服务监控
     details: HTTP（GET/POST）、TCP、ICMP 三种探测方式，每个监控挂多个目标，仪表盘展示近 7 天延迟柱图。
     link: /guide/monitors-status

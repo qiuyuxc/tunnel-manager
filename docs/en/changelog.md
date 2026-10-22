@@ -2,9 +2,21 @@
 
 Compiled from the repository's release commits; older details are on [GitHub Releases](https://github.com/qiuyuxc/tunnel-manager/releases).
 
+## v2.9.0
+
+Android version 2.9.0, build number 290.
+
+- **Two AI protocols**: supports native Responses and compatible Chat Completions. Existing connections keep the compatible format; reasoning summaries can be requested when supported by the provider and model.
+- **Streaming conversations**: Web and Android display incremental replies and provider-supplied reasoning summaries. Sending clears the composer for the next draft; interrupted streams retain visible text and offer retry.
+- **Editable task approval**: edit pending arguments and review DNS snapshots and changes, tunnels and monitor targets before execution. Saving edits performs no business writes; stale task revisions or changed resources prevent execution.
+- **More AI tasks**: update/delete DNS, delete tunnels and owned monitors/targets, and update administrator-only ordinary site settings and optimized CNAME presets, with existing permissions, explicit approval and audit rules.
+- **Web OIDC sign-in**: administrators can configure multiple standard providers, verify email ownership, link existing accounts and create ordinary users. Local account restrictions, two-factor authentication and group permissions still apply.
+- **OIDC account management**: link/unlink identities and reauthenticate to set the first local password in the Web account page. Unlinking preserves at least one sign-in method; client secrets are encrypted and never returned.
+- Android has no native OIDC entry yet. OIDC users can first set a local password on Web, then use password sign-in in the app.
+
 ## v2.8.0
 
-Unreleased; Android build number 280.
+Android build number 280.
 
 - **Configurable IP selector limits**: Web and Android administrators can set the daily budget, shared request rate, and worker ceiling for subsequent runs. The panel budget is independent of cloud quotas; lowering it preserves spent reservations.
 - **Independent TXT verification**: Verify a domain without saving or changing probe Host/SNI settings. Successful verification collapses TXT details, with shorter on-page guidance.

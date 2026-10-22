@@ -62,16 +62,16 @@
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">本版本亮点</div>
-            <div class="settings-card-desc">v2.8.0 的重点变化：AI 助手、DNS 批量操作与 IP 优选增强。</div>
+            <div class="settings-card-desc">v2.9.0 的重点变化：AI 流式对话、可编辑任务确认与 Web OIDC 登录。</div>
           </div>
         </div>
         <ul class="changelog-list">
-          <li>AI 助手支持独立会话、个人或管理员共享连接，配置任务须明确确认后执行</li>
-          <li>监控默认每 60 秒检查，DNS 默认自动 TTL、关闭代理，执行前展示实际配置</li>
-          <li>DNS 新增 NS / SRV / CAA / PTR，支持结构化编辑、批量新增及逐条结果，成功项不重复发送</li>
-          <li>IP 优选支持独立 TXT 验证和 Cloudflare 一键填写，验证成功后收起记录详情</li>
-          <li>管理设置可配置 IP 优选每日预算、请求速率和并发上限，支持诊断、停止与定时执行</li>
-          <li>域名绑定增加操作进度与失败反馈，页面切换加入过渡效果</li>
+          <li>AI 助手支持原生 Responses 与 Chat Completions 协议，连接配置可选择 API 协议</li>
+          <li>Web 和 Android 支持流式对话与思考状态，配置任务仍须明确确认后执行</li>
+          <li>待确认任务支持编辑参数，并可核对 DNS、隧道路由和监控的变更内容</li>
+          <li>Web 支持多个标准 OIDC 接入方登录，可关联已有账户或按注册策略创建新用户</li>
+          <li>Web 账户页支持 OIDC 绑定、解绑与首次设置本站密码，保留至少一种登录方式</li>
+          <li>OIDC 登录继续遵循本站账号禁用、二步验证和用户组权限规则</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">

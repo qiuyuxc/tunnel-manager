@@ -18,6 +18,8 @@ How they combine:
 
 ## OIDC sign-in (Admin console → OIDC authentication)
 
+In v2.9.0, OIDC sign-in and identity linking are available on Web. The native Android app has no OIDC entry yet; users with only an OIDC identity can set a local password in the Web account page, then sign in to the app with that password.
+
 Administrators can add multiple standard OIDC providers with a display name, Issuer URL, Client ID, Client Secret, callback URL, scopes, enabled state and order. Discovery reads the endpoints from the issuer. Scopes default to `openid profile email`. Secrets are encrypted at rest; the console only reports whether a secret is configured.
 
 The callback defaults to `/api/auth/oidc/callback` on the current site. Register the exact URL with the provider and use the same site hostname for starting sign-in and returning to the callback. Use HTTPS in production. HTTP is allowed for local testing on `localhost`, `127.0.0.1` and `::1`.

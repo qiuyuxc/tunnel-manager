@@ -48,6 +48,7 @@ const stubs = {
     public class JSONObject {
       public JSONObject() {}
       public JSONObject(String raw) {}
+      public JSONObject put(String key, Object value) { return this; }
       public boolean has(String key) { return false; }
       public String optString(String key, String fallback) { return fallback; }
       public boolean optBoolean(String key, boolean fallback) { return fallback; }
