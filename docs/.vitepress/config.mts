@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitepress'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import labels from './labels.json'
 import { sections } from './navigation'
+
+// Hosting builds may invoke VitePress directly instead of the package script.
+// Generate routes before VitePress discovers Markdown pages in either path.
+execFileSync(process.execPath, [fileURLToPath(new URL('../scripts/content.mjs', import.meta.url))], { stdio: 'inherit' })
 
 const GITHUB = 'https://github.com/qiuyuxc/tunnel-manager'
 function settings(language: 'zh-CN' | 'en') {
