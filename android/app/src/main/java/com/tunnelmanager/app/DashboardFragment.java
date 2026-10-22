@@ -92,11 +92,11 @@ public class DashboardFragment extends PageFragment {
         if (body == null || !alive()) return;
         int scrollY = scroll == null ? 0 : scroll.getScrollY();
         body.removeAllViews();
-        TextView date = UI.label(requireContext(), new SimpleDateFormat("M月d日 EEEE", Locale.CHINA).format(new Date()));
+        TextView date = UI.label(requireContext(), java.text.DateFormat.getDateInstance(java.text.DateFormat.FULL, I18n.locale()).format(new Date()));
         body.addView(date);
         UI.margin(date, 0, 0, 0, UI.SM);
-        body.addView(UI.pageTitle(requireContext(), "一切尽在掌握"));
-        TextView subtitle = UI.muted(requireContext(), "你的服务状态，清晰可见。");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_0db8ec03228d")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_8ec0d0243772"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.LG);
         body.addView(subtitle);
 
@@ -105,7 +105,7 @@ public class DashboardFragment extends PageFragment {
             return;
         }
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
         if (overview == null) return;
@@ -130,20 +130,20 @@ public class DashboardFragment extends PageFragment {
         int down = overview.optInt("down");
         int warning = overview.optInt("warn");
         int unknown = Math.max(0, targets - healthy - down - warning);
-        String heading = targets == 0 ? "等待第一份心跳" : down > 0 ? "有服务需要关注"
-                : warning > 0 ? "部分服务响应较慢" : unknown > 0 ? "等待状态更新" : "服务运行平稳";
+        String heading = targets == 0 ? I18n.text("m_2155118bef9d") : down > 0 ? I18n.text("m_d82e21620f20")
+                : warning > 0 ? I18n.text("m_52daa7b71afd") : unknown > 0 ? I18n.text("m_c463b68e64bb") : I18n.text("m_bc82d5ed1265");
         int accent = down > 0 ? palette.error : warning > 0 || unknown > 0 ? palette.warning : palette.success;
         LinearLayout card = UI.card(requireContext());
-        TextView label = UI.label(requireContext(), "运行概况");
+        TextView label = UI.label(requireContext(), I18n.text("m_7b9f9de918f0"));
         label.setTextColor(accent);
         card.addView(label);
         LinearLayout summary = UI.row(requireContext());
         LinearLayout words = UI.column(requireContext());
         words.addView(UI.text(requireContext(), heading, 22, palette.ink, Typeface.BOLD));
-        TextView status = UI.muted(requireContext(), targets == 0 ? "添加监控后，这里会显示服务状态。"
-                : healthy + " 个正常 · " + down + " 个异常"
-                + (warning > 0 ? " · " + warning + " 个降级" : "")
-                + (unknown > 0 ? " · " + unknown + " 个待检测" : ""));
+        TextView status = UI.muted(requireContext(), targets == 0 ? I18n.text("m_bccad81c9ac0")
+                : healthy + I18n.text("m_8163fb8824fd") + down + I18n.text("m_ef5bc8130038")
+                + (warning > 0 ? " · " + warning + I18n.text("m_c2235f6c0f6d") : "")
+                + (unknown > 0 ? " · " + unknown + I18n.text("m_e348103e296a") : ""));
         UI.margin(status, 0, UI.SM, 0, 0);
         words.addView(status);
         summary.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -153,7 +153,7 @@ public class DashboardFragment extends PageFragment {
         summary.addView(ring, ringParams);
         UI.addRow(card, summary, UI.MD);
         double uptime = overview.has("uptime") ? overview.optDouble("uptime") : overview.optDouble("uptime_24h");
-        TextView availability = UI.muted(requireContext(), "近 7 天可用率  " + (targets == 0 ? "暂无数据" : percent(uptime)));
+        TextView availability = UI.muted(requireContext(), I18n.text("m_acdb2a150295") + (targets == 0 ? I18n.text("m_497c85690c4c") : percent(uptime)));
         UI.addRow(card, availability, UI.LG);
         return card;
     }
@@ -161,12 +161,12 @@ public class DashboardFragment extends PageFragment {
     private View quickActions() {
         LinearLayout actions = UI.row(requireContext());
         if (Session.hasPerm("tunnels")) {
-            TextView tunnels = UI.button(requireContext(), "隧道管理", UI.BTN_SECONDARY);
+            TextView tunnels = UI.button(requireContext(), I18n.text("m_e920f47d0c05"), UI.BTN_SECONDARY);
             actions.addView(tunnels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             tunnels.setOnClickListener(view -> openRoute("/tunnels"));
         }
         if (Session.hasPerm("domain_bind")) {
-            TextView domains = UI.button(requireContext(), "绑定域名", UI.BTN_SECONDARY);
+            TextView domains = UI.button(requireContext(), I18n.text("m_dd799f925f94"), UI.BTN_SECONDARY);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             if (actions.getChildCount() > 0) params.leftMargin = UI.dp(UI.MD);
             actions.addView(domains, params);
@@ -178,8 +178,8 @@ public class DashboardFragment extends PageFragment {
     private View stats(JSONObject overview) {
         LinearLayout grid = UI.column(requireContext());
         grid.addView(statRow(
-                stat("监控目标", String.valueOf(overview.optInt("targets")), null),
-                stat("平均延迟", overview.optInt("avg_latency_ms") + " ms", null)));
+                stat(I18n.text("m_12eeb7ca4534"), String.valueOf(overview.optInt("targets")), null),
+                stat(I18n.text("m_24e14c0ff18c"), overview.optInt("avg_latency_ms") + " ms", null)));
         return grid;
     }
 
@@ -209,13 +209,13 @@ public class DashboardFragment extends PageFragment {
     private View chartCard(JSONObject overview) {
         JSONArray buckets = overview.optJSONArray("buckets");
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "近 7 天 · 响应趋势"));
-        TextView hint = UI.muted(requireContext(), "峰值与平均延迟，点击查看当天异常。");
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_b1136b80c98b")));
+        TextView hint = UI.muted(requireContext(), I18n.text("m_373302d2286a"));
         UI.margin(hint, 0, UI.XS, 0, 0);
         card.addView(hint);
         if (buckets == null || buckets.length() == 0) {
             UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.XS, 0, UI.LG);
-            card.addView(UI.muted(requireContext(), "暂无心跳数据"));
+            card.addView(UI.muted(requireContext(), I18n.text("m_47ecaccb61dc")));
             return card;
         }
 
@@ -237,10 +237,10 @@ public class DashboardFragment extends PageFragment {
         LinearLayout row = UI.row(requireContext());
         row.setGravity(Gravity.END);
         UI.margin(row, 0, 10, 0, 0);
-        row.addView(legendItem("峰值", p.ink, false));
-        row.addView(legendItem("平均", p.ink, true));
-        row.addView(legendItem("降级", p.warning, true));
-        row.addView(legendItem("不可达", p.error, true));
+        row.addView(legendItem(I18n.text("m_5fa34377ddca"), p.ink, false));
+        row.addView(legendItem(I18n.text("m_a49ffd73bc85"), p.ink, true));
+        row.addView(legendItem(I18n.text("m_9f22b41cf5d7"), p.warning, true));
+        row.addView(legendItem(I18n.text("m_8d7c03019f1d"), p.error, true));
         return row;
     }
 
@@ -271,8 +271,8 @@ public class DashboardFragment extends PageFragment {
         LinearLayout box = UI.column(requireContext());
         if (monitors == null || monitors.length() == 0) {
             LinearLayout card = UI.card(requireContext());
-            card.addView(UI.cardTitle(requireContext(), "监控项目"));
-            TextView empty = UI.muted(requireContext(), "还没有监控项目，去「服务监控」新建一个");
+            card.addView(UI.cardTitle(requireContext(), I18n.text("m_ce0d1c8bffa4")));
+            TextView empty = UI.muted(requireContext(), I18n.text("m_7fba8a0e8167"));
             UI.margin(empty, 0, UI.SM, 0, 0);
             card.addView(empty);
             box.addView(card);
@@ -291,14 +291,14 @@ public class DashboardFragment extends PageFragment {
         LinearLayout card = UI.card(requireContext());
 
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.text(requireContext(), monitor.optString("name", "监控项目"), 15, p.ink, Typeface.BOLD),
+        header.addView(UI.text(requireContext(), monitor.optString("name", I18n.text("m_ce0d1c8bffa4")), 15, p.ink, Typeface.BOLD),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(UI.mono(requireContext(), monitor.optInt("interval_sec") + "s", p.mute));
         card.addView(header);
 
         JSONArray targets = monitor.optJSONArray("targets");
         if (targets == null || targets.length() == 0) {
-            TextView empty = UI.muted(requireContext(), "未配置探测目标");
+            TextView empty = UI.muted(requireContext(), I18n.text("m_c49ad918e1c5"));
             UI.margin(empty, 0, UI.SM, 0, 0);
             card.addView(empty);
             return card;
@@ -363,16 +363,16 @@ public class DashboardFragment extends PageFragment {
      */
     private void showBucketDetail(JSONObject bucket) {
 	Context ctx = requireContext();
-	Sheet.Builder sheet = Sheet.of(ctx, dayLabel(bucket.optLong("hour")) + " 的问题");
+	Sheet.Builder sheet = Sheet.of(ctx, dayLabel(bucket.optLong("hour")) + I18n.text("m_70bcee5995c2"));
 	sheet.content(bucketStats(bucket));
 
 	JSONArray issues = bucket.optJSONArray("issues");
 	if (issues == null || issues.length() == 0) {
-		sheet.content(UI.muted(ctx, "这一天没有出现异常。"));
+		sheet.content(UI.muted(ctx, I18n.text("m_5435dc68f0ff")));
 		sheet.show();
 		return;
 	}
-	sheet.label("涉及 " + issues.length() + " 个目标");
+	sheet.label(I18n.text("m_04656c447ef6") + issues.length() + I18n.text("m_bfccaf26c23e"));
 	for (int i = 0; i < issues.length(); i++) {
 		JSONObject issue = issues.optJSONObject(i);
 		if (issue != null) sheet.content(issueCard(issue));
@@ -383,12 +383,12 @@ public class DashboardFragment extends PageFragment {
     /** The day's totals, on one wrapping line so five figures fit a phone. */
     private View bucketStats(JSONObject bucket) {
 	List<String> bits = new ArrayList<>();
-	bits.add("检测 " + bucket.optInt("total") + " 次");
-	if (bucket.optInt("warn") > 0) bits.add("异常 " + bucket.optInt("warn"));
-	if (bucket.optInt("down") > 0) bits.add("不可达 " + bucket.optInt("down"));
-	if (bucket.optLong("peak_ms") > 0) bits.add("峰值 " + bucket.optLong("peak_ms") + "ms");
+	bits.add(I18n.text("m_8533a9ba995e") + bucket.optInt("total") + I18n.text("m_f81526efce19"));
+	if (bucket.optInt("warn") > 0) bits.add(I18n.text("m_aafb70b7aab2") + bucket.optInt("warn"));
+	if (bucket.optInt("down") > 0) bits.add(I18n.text("m_edc10d4f3ecf") + bucket.optInt("down"));
+	if (bucket.optLong("peak_ms") > 0) bits.add(I18n.text("m_cd4fd6677c07") + bucket.optLong("peak_ms") + "ms");
 	double avg = bucket.optDouble("avg_ms", 0);
-	if (avg > 0) bits.add("平均 " + Math.round(avg) + "ms");
+	if (avg > 0) bits.add(I18n.text("m_acf531be9aa9") + Math.round(avg) + "ms");
 	TextView line = UI.muted(requireContext(), TextUtils.join(" · ", bits));
 	UI.margin(line, UI.MD, UI.MD, UI.MD, 0);
 	return line;
@@ -412,9 +412,9 @@ public class DashboardFragment extends PageFragment {
 	card.addView(head);
 
 	List<String> meta = new ArrayList<>();
-	if (issue.optInt("down") > 0) meta.add("不可达 " + issue.optInt("down"));
-	if (issue.optInt("warn") > 0) meta.add("异常 " + issue.optInt("warn"));
-	if (issue.optLong("peak_ms") > 0) meta.add("峰值 " + issue.optLong("peak_ms") + "ms");
+	if (issue.optInt("down") > 0) meta.add(I18n.text("m_edc10d4f3ecf") + issue.optInt("down"));
+	if (issue.optInt("warn") > 0) meta.add(I18n.text("m_aafb70b7aab2") + issue.optInt("warn"));
+	if (issue.optLong("peak_ms") > 0) meta.add(I18n.text("m_cd4fd6677c07") + issue.optLong("peak_ms") + "ms");
 	if (!meta.isEmpty()) {
 		TextView line = UI.muted(requireContext(), TextUtils.join(" · ", meta));
 		UI.margin(line, 0, 2, 0, 0);
@@ -430,7 +430,7 @@ public class DashboardFragment extends PageFragment {
 	}
 	int windows = issue.optInt("incident_count", shown);
 	if (windows > shown) {
-		TextView more = UI.muted(requireContext(), "另有 " + (windows - shown) + " 段未列出");
+		TextView more = UI.muted(requireContext(), I18n.text("m_dff74742a6f0") + (windows - shown) + I18n.text("m_0ca688cba31e"));
 		UI.margin(more, 0, UI.SM, 0, 0);
 		card.addView(more);
 	}
@@ -459,7 +459,7 @@ public class DashboardFragment extends PageFragment {
 	LinearLayout.LayoutParams stateLp = new LinearLayout.LayoutParams(
 		ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 	stateLp.leftMargin = UI.dp(UI.SM);
-	row.addView(UI.text(requireContext(), down ? "不可达" : "降级", 12,
+	row.addView(UI.text(requireContext(), down ? I18n.text("m_8d7c03019f1d") : I18n.text("m_9f22b41cf5d7"), 12,
 		down ? p.error : p.warning, Typeface.BOLD), stateLp);
 
 	String cause = incidentCause(inc);
@@ -493,7 +493,7 @@ public class DashboardFragment extends PageFragment {
     private static String incidentCause(JSONObject inc) {
 	List<String> bits = new ArrayList<>();
 	int count = inc.optInt("count");
-	if (count > 1) bits.add("连续 " + count + " 次");
+	if (count > 1) bits.add(I18n.text("m_3c54ef9ee95e") + count + I18n.text("m_f81526efce19"));
 	String error = inc.optString("error", "");
 	if (!error.isEmpty()) bits.add(error);
 	else if (inc.optInt("code") > 0) bits.add("HTTP " + inc.optInt("code"));

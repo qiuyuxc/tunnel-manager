@@ -1,54 +1,54 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2>域名绑定</h2>
-      <p>将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源</p>
+      <h2>{{ tr('m_4bf8b66d7390') }}</h2>
+      <p>{{ tr('m_de782b9792c7') }}</p>
     </div>
     <div v-if="!config.tunnel_id || !config.service_url" class="prereq-banner section">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-banner-warning-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
-        <div class="prereq-title">前置条件未满足</div>
-        <div class="prereq-desc">请先在「隧道管理」选择隧道，并配置转发地址。</div>
+        <div class="prereq-title">{{ tr('m_5141efda7b2c') }}</div>
+        <div class="prereq-desc">{{ tr('m_788ed2899d7d') }}</div>
       </div>
     </div>
     <div class="config-summary section">
       <div class="summary-row">
-        <span class="summary-label caption-mono">当前隧道</span>
+        <span class="summary-label caption-mono">{{ tr('m_b903d203f70a') }}</span>
         <div v-if="config.tunnel_id" class="summary-tunnel">
-          <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+          <strong>{{ config.tunnel_name || tr('m_8ce5320404d5') }}</strong>
         </div>
-        <span v-else class="summary-empty">未配置</span>
+        <span v-else class="summary-empty">{{ tr('m_80a57e03f071') }}</span>
       </div>
       <div class="summary-row summary-row-edit">
-        <span class="summary-label caption-mono">转发地址</span>
+        <span class="summary-label caption-mono">{{ tr('m_c762fbaaad6f') }}</span>
         <div class="summary-edit">
           <input v-model="serviceURL" :disabled="binding || savingService" placeholder="http://localhost:3000" class="vercel-input summary-input" />
           <button class="btn btn-secondary btn-sm" :disabled="savingService || binding" @click="saveServiceURL">
-            {{ savingService ? '...' : '保存' }}
+            {{ savingService ? '...' : tr('m_a3030bf8f16d') }}
           </button>
         </div>
       </div>
       <div class="summary-row">
-        <span class="summary-label caption-mono">默认 CNAME</span>
+        <span class="summary-label caption-mono">{{ tr('m_54125d36ad63') }}</span>
         <code class="inline-code">{{ config.preferred_cname }}</code>
       </div>
     </div>
     <div class="form-card section">
       <div class="form-card-header">
-        <span class="caption-mono form-card-label">绑定新域名</span>
+        <span class="caption-mono form-card-label">{{ tr('m_bce4481a7278') }}</span>
       </div>
       <fieldset class="binding-fields" :disabled="binding || savingService">
-      <div class="mode-selector" role="radiogroup" aria-label="绑定模式">
+      <div class="mode-selector" role="radiogroup" :aria-label="tr('m_fab2b113742d')">
         <button type="button" class="mode-option" :class="{ active: form.mode === 'simple' }" role="radio" :aria-checked="form.mode === 'simple'" @click="form.mode = 'simple'">
-          <strong>简单模式</strong><span>只需主域名和转发服务</span>
+          <strong>{{ tr('m_fa521927b78a') }}</strong><span>{{ tr('m_e80df2700f06') }}</span>
         </button>
         <button type="button" class="mode-option" :class="{ active: form.mode === 'preferred' }" role="radio" :aria-checked="form.mode === 'preferred'" @click="form.mode = 'preferred'">
-          <strong>优选模式</strong><span>配置优选 CNAME 和辅助回源域名</span>
+          <strong>{{ tr('m_a7974623c82b') }}</strong><span>{{ tr('m_ca4102dd0afd') }}</span>
         </button>
       </div>
       <div class="form-fields" :class="{ 'simple-fields': form.mode === 'simple' }">
         <div v-if="form.mode === 'preferred'" class="field cname-field">
-          <label class="field-label">本次优选 CNAME <span class="field-note">可直接选择常用线路或手动输入</span></label>
+          <label class="field-label">{{ tr('m_309710e63b6d') }} <span class="field-note">{{ tr('m_531883b0ad87') }}</span></label>
           <div class="input-wrapper">
             <cname-picker
               v-model="form.preferred_cname"
@@ -56,17 +56,17 @@
               :presets="config.cname_presets"
               :show-default="true"
               :default-value="config.preferred_cname"
-              placeholder="留空使用默认值"
+              :placeholder="tr('m_d60669bb26a2')"
             />
-            <span class="field-hint">默认：{{ config.preferred_cname }}</span>
+            <span class="field-hint">{{ tr('m_c0ae8e199e92') }}{{ config.preferred_cname }}</span>
           </div>
         </div>
         <div class="field">
-          <label class="field-label">主域名 <span class="field-note">对外访问域名</span></label>
+          <label class="field-label">{{ tr('m_13cfe9660cdf') }} <span class="field-note">{{ tr('m_90845d8dacde') }}</span></label>
           <div class="input-wrapper">
             <input
               v-model="form.main_domain"
-              placeholder="例如: kukie.cn"
+              :placeholder="tr('m_fc3c7f8bc7aa')"
               class="vercel-input"
               :class="{ 'input-error': errors.main_domain }"
               @blur="validate('main_domain')"
@@ -75,11 +75,11 @@
           </div>
         </div>
         <div v-if="form.mode === 'preferred'" class="field">
-          <label class="field-label">辅助域名 <span class="field-note">用作回源</span></label>
+          <label class="field-label">{{ tr('m_0135beb32bd5') }} <span class="field-note">{{ tr('m_320f1773293f') }}</span></label>
           <div class="input-wrapper">
             <input
               v-model="form.aux_domain"
-              placeholder="例如: fallback.169977.xyz"
+              :placeholder="tr('m_8aa71f623840')"
               class="vercel-input"
               :class="{ 'input-error': errors.aux_domain }"
               @blur="validate('aux_domain')"
@@ -88,12 +88,12 @@
           </div>
         </div>
       </div>
-      <OperationStatus v-if="binding || savingService" :title="binding ? '正在绑定域名' : '正在保存转发地址'" />
+      <OperationStatus v-if="binding || savingService" :title="binding ? tr('m_919b869a5aef') : tr('m_f0556b822864')" />
       <div class="form-action">
         <button class="btn btn-primary" @click="handleBind" :disabled="binding || !isValid">
           <svg v-if="binding" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ binding ? '绑定中...' : '绑定域名' }}
+          {{ binding ? tr('m_8220de90afa8') : tr('m_dd799f925f94') }}
         </button>
       </div>
       </fieldset>
@@ -103,7 +103,7 @@
       <div class="result-header">
         <svg v-if="result.success" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        <span>{{ result.success ? '绑定成功' : '绑定失败' }}</span>
+        <span>{{ result.success ? tr('m_67076a58977b') : tr('m_cdc8411c0d72') }}</span>
       </div>
       <div class="result-body">{{ result.message }}</div>
     </div>
@@ -111,6 +111,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomain, setServiceURL, type BindRequest } from '../api'
@@ -131,7 +133,7 @@ function validate(field: string) {
   const value = form.value[field as keyof BindRequest]
   const v = typeof value === 'string' ? value.trim() : value
   errors.value[field] = field === 'main_domain' || (field === 'aux_domain' && form.value.mode === 'preferred')
-    ? (!v ? '此字段不能为空' : '') : ''
+    ? (!v ? tr('m_7541de4d1a3f') : '') : ''
 }
 async function saveServiceURL() {
   if (savingService.value || binding.value) return
@@ -139,9 +141,9 @@ async function saveServiceURL() {
   try {
     await setServiceURL(serviceURL.value)
     config.service_url = serviceURL.value
-    message.success('转发地址已更新')
+    message.success(tr('m_0aaac7dade14'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingService.value = false
   }
@@ -158,12 +160,12 @@ async function handleBind() {
       config.service_url = nextServiceURL
     }
     const { data } = await bindDomain(payload)
-    result.value = { success: true, message: data.message || '域名绑定成功' }
-    message.success('绑定成功！')
+    result.value = { success: true, message: data.message || tr('m_27347bf9fa01') }
+    message.success(tr('m_16330690424e'))
   } catch (e: any) {
     const errMsg = e.response?.data?.error || e.message
     result.value = { success: false, message: errMsg }
-    message.error('绑定失败: ' + errMsg)
+    message.error(tr('m_234f3125fccd') + errMsg)
   } finally {
     binding.value = false
   }

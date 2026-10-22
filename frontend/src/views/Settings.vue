@@ -1,26 +1,26 @@
 <template>
   <div class="page-container">
     <div class="page-header settings-heading">
-            <h2>全局设置</h2>
-      <p>集中管理站点品牌、域名绑定偏好、回退源与隧道设置。</p>
+            <h2>{{ tr('m_3f754f38a654') }}</h2>
+      <p>{{ tr('m_3729a3070b01') }}</p>
     </div>
     <div class="settings-grid section">
       <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.04s;">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">站点信息</div>
-            <div class="settings-card-desc">自定义浏览器标题、导航品牌、登录页名称、描述与站点图标。</div>
+            <div class="settings-card-title">{{ tr('m_a719b867f3fc') }}</div>
+            <div class="settings-card-desc">{{ tr('m_22196a1072dc') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="savingSite" @click="saveSite">
-            {{ savingSite ? '保存中...' : '保存站点信息' }}
+            {{ savingSite ? tr('m_917b1c1f18d0') : tr('m_bcf1ace464e5') }}
           </button>
         </div>
         <div class="brand-editor">
           <div class="brand-preview">
-            <span class="brand-preview-label caption-mono">实时预览</span>
+            <span class="brand-preview-label caption-mono">{{ tr('m_a76fdaad7519') }}</span>
             <div class="brand-preview-content">
               <span class="brand-preview-icon">
-                <img v-if="site.icon" :src="site.icon" alt="站点图标预览" />
+                <img v-if="site.icon" :src="site.icon" :alt="tr('m_2d68220dd51e')" />
                 <svg v-else width="24" height="24" viewBox="0 0 76 76" fill="none" aria-hidden="true">
                   <path d="M49 26H27v24l22-24z" fill="currentColor"/>
                   <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
@@ -28,38 +28,38 @@
               </span>
               <div>
                 <strong>{{ site.name || 'Tunnel Manager' }}</strong>
-                <p>{{ site.description || 'Cloudflare 隧道管理中心' }}</p>
+                <p>{{ site.description || tr('m_c2c8982623de') }}</p>
               </div>
             </div>
           </div>
           <div class="brand-fields">
             <label class="field">
-              <span class="field-label">站点名称</span>
+              <span class="field-label">{{ tr('m_8ac4f0447b99') }}</span>
               <input v-model="site.name" maxlength="60" class="vercel-input" placeholder="Tunnel Manager" />
             </label>
             <label class="field">
-              <span class="field-label">站点描述</span>
-              <input v-model="site.description" maxlength="160" class="vercel-input" placeholder="Cloudflare 隧道管理中心" />
+              <span class="field-label">{{ tr('m_9ddde2b92952') }}</span>
+              <input v-model="site.description" maxlength="160" class="vercel-input" :placeholder="tr('m_c2c8982623de')" />
             </label>
             <label class="field">
-              <span class="field-label">站点图标</span>
-              <input v-model="site.icon" class="vercel-input" placeholder="https://example.com/icon.png，或上传本地图片" />
+              <span class="field-label">{{ tr('m_e220e37bbb93') }}</span>
+              <input v-model="site.icon" class="vercel-input" :placeholder="tr('m_22f956aa4f06')" />
             </label>
             <div class="icon-actions">
               <input ref="iconInput" type="file" accept="image/*" class="file-input" @change="handleIconUpload" />
-              <button class="btn btn-secondary" type="button" @click="iconInput?.click()">上传图片</button>
-              <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">清除图标</button>
-              <span>建议使用 1:1 图片，文件不超过 512 KB。</span>
+              <button class="btn btn-secondary" type="button" @click="iconInput?.click()">{{ tr('m_9fbb4750bb39') }}</button>
+              <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">{{ tr('m_10e0fd099bd2') }}</button>
+              <span>{{ tr('m_8647947e6b61') }}</span>
             </div>
             <label class="field">
-              <span class="field-label">面板域名</span>
+              <span class="field-label">{{ tr('m_d22b7b6d0776') }}</span>
               <input v-model="site.panelHost" class="vercel-input" placeholder="panel.example.com" />
-              <span class="field-help">状态页自定义域名会复制该域名 ingress 的服务与源站参数。留空时自动使用管理员首次登录时的访问域名。</span>
+              <span class="field-help">{{ tr('m_51b4048beb35') }}</span>
             </label>
             <div class="landing-toggle">
               <div class="landing-toggle-text">
-                <span class="field-label">启用首页（落地页）</span>
-                <span class="landing-toggle-help">开启后，未登录用户访问站点将先看到首页，而不是直接进入登录页；关闭则保持原来的登录页。</span>
+                <span class="field-label">{{ tr('m_87b31918524a') }}</span>
+                <span class="landing-toggle-help">{{ tr('m_f4746045e90d') }}</span>
               </div>
               <n-switch v-model:value="site.landingEnabled" size="small" :disabled="savingSite" @update:value="saveSite" />
             </div>
@@ -69,81 +69,83 @@
       <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.1s;">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">常用 CNAME 组</div>
-            <div class="settings-card-desc">维护常用优选线路。域名绑定时可以直接选择，也可以继续手动输入。</div>
+            <div class="settings-card-title">{{ tr('m_f60a2d511962') }}</div>
+            <div class="settings-card-desc">{{ tr('m_7e7f12cf948f') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="savingPresets" @click="savePresets">
-            {{ savingPresets ? '保存中...' : '保存 CNAME 组' }}
+            {{ savingPresets ? tr('m_917b1c1f18d0') : tr('m_801a8daafa2e') }}
           </button>
         </div>
         <div class="default-cname-row">
           <div class="field">
-            <span class="field-label">默认优选 CNAME</span>
-            <span class="field-help">未指定线路时自动使用此值。</span>
+            <span class="field-label">{{ tr('m_71b3aeb8f73c') }}</span>
+            <span class="field-help">{{ tr('m_bb8bd65fc13f') }}</span>
             <cname-picker v-model="preferredCNAME" :presets="cnamePresets" placeholder="cf.090227.xyz" />
           </div>
           <button class="btn btn-secondary" :disabled="savingCNAME" @click="savePreferredCNAME">
-            {{ savingCNAME ? '保存中...' : '保存默认值' }}
+            {{ savingCNAME ? tr('m_917b1c1f18d0') : tr('m_9e9ef2c6a1ec') }}
           </button>
         </div>
         <div class="preset-list">
           <div v-for="(item, index) in cnamePresets" :key="index" class="preset-row">
             <span class="preset-index">{{ index + 1 }}</span>
             <label class="field">
-              <span class="field-label">线路名称</span>
-              <input v-model="item.name" maxlength="40" class="vercel-input" placeholder="例如：移动优选" />
+              <span class="field-label">{{ tr('m_2035432e8a18') }}</span>
+              <input v-model="item.name" maxlength="40" class="vercel-input" :placeholder="tr('m_93bc08a447ce')" />
             </label>
             <label class="field preset-value">
-              <span class="field-label">CNAME 地址</span>
-              <input v-model="item.value" class="vercel-input" placeholder="例如：cdn.example.com" />
+              <span class="field-label">{{ tr('m_ce05579d19d5') }}</span>
+              <input v-model="item.value" class="vercel-input" :placeholder="tr('m_91d03241c65a')" />
             </label>
-            <button class="remove-button" type="button" :disabled="cnamePresets.length === 1" aria-label="删除此 CNAME" @click="removePreset(index)">
+            <button class="remove-button" type="button" :disabled="cnamePresets.length === 1" :aria-label="tr('m_cd2e36b1f425')" @click="removePreset(index)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5 5 19"/></svg>
             </button>
           </div>
         </div>
         <button class="add-preset" type="button" :disabled="cnamePresets.length >= 20" @click="addPreset">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          添加常用 CNAME
+          {{ tr('m_f47cac452640') }}
         </button>
       </section>
       <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.16s;">
         <div class="settings-card-header compact">
           <div>
-            <div class="settings-card-title">回退源设置</div>
-            <div class="settings-card-desc">设置 Custom Hostnames 的 Fallback Origin。</div>
+            <div class="settings-card-title">{{ tr('m_119e1fd67f70') }}</div>
+            <div class="settings-card-desc">{{ tr('m_855cdae806a9') }}</div>
           </div>
         </div>
         <div class="settings-input-row">
-          <input v-model="fallbackDomain" placeholder="例如: fallback.example.com" class="vercel-input" />
+          <input v-model="fallbackDomain" :placeholder="tr('m_078389cf3046')" class="vercel-input" />
           <button class="btn btn-secondary" :disabled="savingFallback" @click="saveFallback">
-            {{ savingFallback ? '设置中...' : '设置回退源' }}
+            {{ savingFallback ? tr('m_599be7aa10be') : tr('m_0bb58707f90c') }}
           </button>
         </div>
       </section>
       <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.22s;">
         <div class="settings-card-header compact">
           <div>
-            <div class="settings-card-title">当前隧道</div>
-            <div class="settings-card-desc">隧道选择统一在隧道管理页完成，避免误填 ID。</div>
+            <div class="settings-card-title">{{ tr('m_b903d203f70a') }}</div>
+            <div class="settings-card-desc">{{ tr('m_8401fe7d0746') }}</div>
           </div>
         </div>
         <div v-if="config.tunnel_id" class="tunnel-summary">
           <div>
-            <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+            <strong>{{ config.tunnel_name || tr('m_8ce5320404d5') }}</strong>
             <code>{{ config.tunnel_id }}</code>
           </div>
-          <router-link to="/tunnels" class="btn btn-secondary">切换隧道</router-link>
+          <router-link to="/tunnels" class="btn btn-secondary">{{ tr('m_42b8762044e2') }}</router-link>
         </div>
         <div v-else class="tunnel-empty">
-          <span>尚未选择隧道</span>
-          <router-link to="/tunnels" class="btn btn-primary">选择隧道</router-link>
+          <span>{{ tr('m_0e2cf15a2702') }}</span>
+          <router-link to="/tunnels" class="btn btn-primary">{{ tr('m_acfb8f32676c') }}</router-link>
         </div>
       </section>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onMounted, reactive, ref } from 'vue'
 import { NSwitch, useMessage } from 'naive-ui'
 import {
@@ -179,7 +181,7 @@ function syncFormFromConfig() {
 }
 async function saveSite() {
   if (!site.name.trim()) {
-    message.error('请输入站点名称')
+    message.error(tr('m_85c2f8365c82'))
     return
   }
   savingSite.value = true
@@ -192,9 +194,9 @@ async function saveSite() {
     config.panel_host = site.panelHost.trim()
     store.landingEnabled = data.landing_enabled
     Object.assign(site, data)
-    message.success('站点信息已更新')
+    message.success(tr('m_1964b400b352'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingSite.value = false
   }
@@ -205,22 +207,22 @@ function handleIconUpload(event: Event) {
   input.value = ''
   if (!file) return
   if (!file.type.startsWith('image/')) {
-    message.error('请选择图片文件')
+    message.error(tr('m_35fc560913c0'))
     return
   }
   if (file.size > 512 * 1024) {
-    message.error('图片不能超过 512 KB')
+    message.error(tr('m_78c1f649e77d'))
     return
   }
   const reader = new FileReader()
   reader.onload = () => { site.icon = String(reader.result || '') }
-  reader.onerror = () => message.error('读取图片失败')
+  reader.onerror = () => message.error(tr('m_c72ad3f4aa4e'))
   reader.readAsDataURL(file)
 }
 async function savePreferredCNAME() {
   const value = preferredCNAME.value.trim()
   if (!value) {
-    message.error('请输入默认优选 CNAME')
+    message.error(tr('m_5799ba3fe8dc'))
     return
   }
   savingCNAME.value = true
@@ -228,9 +230,9 @@ async function savePreferredCNAME() {
     await setPreferredCNAME(value)
     preferredCNAME.value = value
     config.preferred_cname = value
-    message.success('默认优选 CNAME 已更新')
+    message.success(tr('m_20737048a527'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingCNAME.value = false
   }
@@ -246,7 +248,7 @@ function removePreset(index: number) {
 async function savePresets() {
   const items = cnamePresets.value.map((item) => ({ name: item.name.trim(), value: item.value.trim() }))
   if (items.some((item) => !item.name || !item.value)) {
-    message.error('请补全所有线路名称和 CNAME 地址')
+    message.error(tr('m_ea92a5f61f83'))
     return
   }
   savingPresets.value = true
@@ -254,9 +256,9 @@ async function savePresets() {
     const { data } = await setCNAMEPresets(items)
     cnamePresets.value = data.cname_presets.map((item) => ({ ...item }))
     config.cname_presets = data.cname_presets
-    message.success('常用 CNAME 组已更新')
+    message.success(tr('m_d12fd29ea414'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingPresets.value = false
   }
@@ -264,15 +266,15 @@ async function savePresets() {
 async function saveFallback() {
   const domain = fallbackDomain.value.trim()
   if (!domain) {
-    message.error('请输入回退源域名')
+    message.error(tr('m_6301facafab9'))
     return
   }
   savingFallback.value = true
   try {
     const { data } = await setFallbackOrigin(domain)
-    message.success(data.message || '回退源已设置')
+    message.success(data.message || tr('m_b9ed9651aa57'))
   } catch (e: any) {
-    message.error('设置失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_885260b488be') + (e.response?.data?.error || e.message))
   } finally {
     savingFallback.value = false
   }

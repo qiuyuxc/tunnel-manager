@@ -1,9 +1,10 @@
-export const assistantArgumentLabels: Record<string, string> = {
-  id: '对象 ID', name: '名称', zone_id: '区域 ID', record_id: 'DNS 记录 ID', tunnel_id: '隧道 ID', hostname: '公开域名', service_url: '源站地址',
-  type: '类型', content: '记录值', data: '记录数据（SRV / CAA）', ttl: 'TTL（1 为自动）', proxied: '代理', priority: '优先级', weight: '权重', port: '端口', target: '目标主机', flags: '标记', tag: '标签', value: '值',
-  interval_sec: '间隔（秒）', monitor_id: '监控项目 ID', target_id: '探测目标 ID', url: '探测地址', description: '站点描述', icon: '站点图标', landing_enabled: '落地页',
-  registration_enabled: '开放注册', invite_mode: '邀请码模式', experimental_features_enabled: '实验功能', items: '优选 CNAME 预设', targets: '探测目标', publish_enabled: '公开监控', alert_enabled: '监控告警',
-}
+import { t as tr, localized } from '../i18n.ts'
+export const assistantArgumentLabels: Record<string, string> = localized(() => ({
+  id: tr('m_b0719015e486'), name: tr('m_d44e9b3d3b31'), zone_id: tr('m_d8399be73059'), record_id: tr('m_79081a3c812e'), tunnel_id: tr('m_17f261a9385c'), hostname: tr('m_1ac79aa3aff0'), service_url: tr('m_693f764b0b0b'),
+  type: tr('m_ba40014ff496'), content: tr('m_7175aa5fa2ba'), data: tr('m_98d11221a1cd'), ttl: tr('m_5fada8da5e20'), proxied: tr('m_5e84ea61e838'), priority: tr('m_565d64601d4d'), weight: tr('m_db18831a0457'), port: tr('m_e71ac32b544b'), target: tr('m_252e26071ac9'), flags: tr('m_269635727321'), tag: tr('m_1d0fd5f9336d'), value: tr('m_cda1d55c5231'),
+  interval_sec: tr('m_45455dc4b517'), monitor_id: tr('m_b57b23459372'), target_id: tr('m_f621ef3eb10c'), url: tr('m_c935cb3a1ded'), description: tr('m_9ddde2b92952'), icon: tr('m_e220e37bbb93'), landing_enabled: tr('m_6a654dc0b0c0'),
+  registration_enabled: tr('m_04f83ab519b2'), invite_mode: tr('m_936bac542e64'), experimental_features_enabled: tr('m_001a51a407db'), items: tr('m_4a385e41088a'), targets: tr('m_100d9e4baf2a'), publish_enabled: tr('m_4521b52c08c9'), alert_enabled: tr('m_6406d409c964'),
+}))
 
 export function changeAssistantDNSType(arguments_: Record<string, unknown>, type: string): Record<string, unknown> {
   const next: Record<string, unknown> = { ...arguments_, type }

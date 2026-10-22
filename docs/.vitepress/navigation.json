@@ -1,0 +1,77 @@
+[
+  {
+    "path": "guide",
+    "groups": [
+      {
+        "id": "deploy",
+        "pages": [
+          "getting-started",
+          "docker-compose",
+          "binary-deploy",
+          "slim-edition",
+          "upgrade-backup"
+        ]
+      },
+      {
+        "id": "accounts",
+        "pages": [
+          "multi-user",
+          "email-alerts",
+          "cloudflare-oauth",
+          "security"
+        ]
+      },
+      {
+        "id": "features",
+        "pages": [
+          "tunnels",
+          "domain-binding",
+          "batch-binding",
+          "dns-management",
+          "site-branding",
+          "monitors-status",
+          "telegram-bot",
+          "ai-assistant",
+          "lab-ip-selector",
+          "android-app",
+          "language"
+        ]
+      }
+    ]
+  },
+  {
+    "path": "api",
+    "groups": [
+      {
+        "id": "api",
+        "pages": [
+          "endpoints",
+          "examples"
+        ]
+      }
+    ]
+  },
+  {
+    "path": "reference",
+    "groups": [
+      {
+        "id": "reference",
+        "pages": [
+          "architecture",
+          "/changelog"
+        ]
+      }
+    ]
+  },
+  {
+    "path": "faq",
+    "groups": [
+      {
+        "id": "support",
+        "pages": [
+          "index"
+        ]
+      }
+    ]
+  }
+]

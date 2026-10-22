@@ -2,40 +2,42 @@
   <div class="oidc-admin">
     <div class="settings-card">
       <div class="settings-card-header">
-        <div><h3 class="settings-card-title">OIDC 身份认证</h3><p class="settings-card-desc">添加通用身份提供方。首次登录自动注册，已有账号按已验证邮箱关联。</p></div>
-        <button type="button" class="btn btn-secondary" :disabled="busy" @click="newProvider">添加接入方</button>
+        <div><h3 class="settings-card-title">{{ tr('m_87619ee9ddbe') }}</h3><p class="settings-card-desc">{{ tr('m_2d8122d8db5b') }}</p></div>
+        <button type="button" class="btn btn-secondary" :disabled="busy" @click="newProvider">{{ tr('m_7fac60538e4c') }}</button>
       </div>
       <p v-if="error" class="oidc-error" role="alert">{{ error }}</p>
       <p v-if="notice" class="field-help" role="status">{{ notice }}</p>
-      <p v-if="loading" class="field-help" role="status">正在读取接入方...</p>
-      <p v-else-if="!providers.length" class="field-help">尚未添加 OIDC 接入方。</p>
+      <p v-if="loading" class="field-help" role="status">{{ tr('m_ed7eebd11ae8') }}</p>
+      <p v-else-if="!providers.length" class="field-help">{{ tr('m_a912583729ca') }}</p>
       <ul v-else class="oidc-provider-list">
         <li v-for="provider in providers" :key="provider.id">
-          <div class="oidc-provider-info"><strong>{{ provider.name }}</strong><code>{{ provider.issuer }}</code><span class="field-help">{{ provider.enabled ? '已启用' : '已停用' }} · 排序 {{ provider.order }}</span></div>
-          <div class="oidc-actions"><button type="button" class="btn btn-secondary" :disabled="busy" @click="editProvider(provider)">编辑</button><button type="button" class="btn btn-ghost" :disabled="busy" @click="removeProvider(provider)">删除</button></div>
+          <div class="oidc-provider-info"><strong>{{ provider.name }}</strong><code>{{ provider.issuer }}</code><span class="field-help">{{ provider.enabled ? tr('m_dfb802238b38') : tr('m_a8c3698b5b8c') }} {{ tr('m_7b57ee5fb610') }} {{ provider.order }}</span></div>
+          <div class="oidc-actions"><button type="button" class="btn btn-secondary" :disabled="busy" @click="editProvider(provider)">{{ tr('m_051836569928') }}</button><button type="button" class="btn btn-ghost" :disabled="busy" @click="removeProvider(provider)">{{ tr('m_2f9daa828907') }}</button></div>
         </li>
       </ul>
     </div>
     <form v-if="editing" class="settings-card oidc-provider-form" @submit.prevent="save">
-      <h3 class="settings-card-title">{{ editingID ? '编辑接入方' : '添加接入方' }}</h3>
+      <h3 class="settings-card-title">{{ editingID ? tr('m_1844ff89583e') : tr('m_7fac60538e4c') }}</h3>
       <div class="oidc-fields">
-        <label class="field"><span class="field-label">显示名称</span><input v-model="form.name" class="vercel-input" maxlength="80" required placeholder="如：公司统一登录" /></label>
-        <label class="field"><span class="field-label">Issuer URL</span><input v-model="form.issuer" class="vercel-input" type="url" required placeholder="https://id.example.com/realms/company" /><span class="field-help">填写发行者地址，系统自动发现认证端点。</span></label>
+        <label class="field"><span class="field-label">{{ tr('m_a98585871c53') }}</span><input v-model="form.name" class="vercel-input" maxlength="80" required :placeholder="tr('m_e0ad94affff1')" /></label>
+        <label class="field"><span class="field-label">Issuer URL</span><input v-model="form.issuer" class="vercel-input" type="url" required placeholder="https://id.example.com/realms/company" /><span class="field-help">{{ tr('m_982712ebed87') }}</span></label>
         <label class="field"><span class="field-label">Client ID</span><input v-model="form.client_id" class="vercel-input" required autocomplete="off" /></label>
-        <label class="field"><span class="field-label">Client Secret</span><input v-model="form.client_secret" class="vercel-input" type="password" autocomplete="new-password" :placeholder="hasSecret ? '已设置，留空保持不变' : '机密客户端填写，公共客户端可留空'" /><span class="field-help">密钥加密保存，读取配置时不会返回。</span></label>
-        <label v-if="hasSecret" class="oidc-check"><input v-model="form.clear_secret" type="checkbox" /> 清除原密钥，改用公共客户端</label>
-        <label class="field"><span class="field-label">回调地址</span><input v-model="form.redirect_uri" class="vercel-input" type="url" required /><span class="field-help">复制此地址到身份提供方的允许回调地址配置。</span></label>
-        <label class="field"><span class="field-label">Scopes</span><input v-model="form.scopes" class="vercel-input" required /><span class="field-help">必须包含 openid，按空格分隔。</span></label>
-        <label class="field"><span class="field-label">排序</span><input v-model.number="form.order" class="vercel-input" type="number" min="0" max="9999" required /></label>
-        <label class="oidc-check"><input v-model="form.enabled" type="checkbox" /> 启用此接入方</label>
+        <label class="field"><span class="field-label">Client Secret</span><input v-model="form.client_secret" class="vercel-input" type="password" autocomplete="new-password" :placeholder="hasSecret ? tr('m_15b376320e0c') : tr('m_2b266f7e9eda')" /><span class="field-help">{{ tr('m_7d5ad81f26c5') }}</span></label>
+        <label v-if="hasSecret" class="oidc-check"><input v-model="form.clear_secret" type="checkbox" /> {{ tr('m_2e76ff3f55a0') }}</label>
+        <label class="field"><span class="field-label">{{ tr('m_9ca160d65985') }}</span><input v-model="form.redirect_uri" class="vercel-input" type="url" required /><span class="field-help">{{ tr('m_b7171daba293') }}</span></label>
+        <label class="field"><span class="field-label">Scopes</span><input v-model="form.scopes" class="vercel-input" required /><span class="field-help">{{ tr('m_2e4e44079324') }}</span></label>
+        <label class="field"><span class="field-label">{{ tr('m_a96c9a854190') }}</span><input v-model.number="form.order" class="vercel-input" type="number" min="0" max="9999" required /></label>
+        <label class="oidc-check"><input v-model="form.enabled" type="checkbox" /> {{ tr('m_2cf816d1e4b5') }}</label>
       </div>
-      <div class="form-actions"><button type="submit" class="btn btn-primary" :disabled="busy">{{ busy ? '保存中...' : '保存' }}</button><button type="button" class="btn btn-secondary" :disabled="busy" @click="copyCallback">复制回调地址</button><button type="button" class="btn btn-ghost" :disabled="busy" @click="editing = false">取消</button></div>
-      <p class="field-help">启用后允许该接入方用户自动注册，不受密码注册开关和邀请码限制；新用户沿用本站邮箱验证设置。</p>
+      <div class="form-actions"><button type="submit" class="btn btn-primary" :disabled="busy">{{ busy ? tr('m_917b1c1f18d0') : tr('m_a3030bf8f16d') }}</button><button type="button" class="btn btn-secondary" :disabled="busy" @click="copyCallback">{{ tr('m_1d9d7da8233f') }}</button><button type="button" class="btn btn-ghost" :disabled="busy" @click="editing = false">{{ tr('m_2cd0f3be8738') }}</button></div>
+      <p class="field-help">{{ tr('m_14b74debf223') }}</p>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onMounted, reactive, ref } from 'vue'
 import { useDialog } from 'naive-ui'
 import { listAdminOIDCProviders, saveOIDCProvider, deleteOIDCProvider, type OIDCProvider, type OIDCProviderInput } from '../api/oidc'
@@ -54,7 +56,7 @@ const form = reactive<OIDCProviderInput>(defaults())
 async function load() {
   loading.value = true
   try { providers.value = (await listAdminOIDCProviders()).data }
-  catch (e: any) { error.value = e.response?.data?.error || '接入方读取失败' }
+  catch (e: any) { error.value = e.response?.data?.error || tr('m_52c86532ad99') }
   finally { loading.value = false }
 }
 function newProvider() { Object.assign(form, defaults()); editingID.value = ''; hasSecret.value = false; editing.value = true; error.value = ''; notice.value = '' }
@@ -64,19 +66,19 @@ async function save() {
   try {
     const { data } = await saveOIDCProvider(editingID.value, { name: form.name.trim(), issuer: form.issuer.trim(), client_id: form.client_id.trim(), client_secret: form.client_secret, redirect_uri: form.redirect_uri.trim(), scopes: form.scopes.trim(), enabled: form.enabled, order: form.order, clear_secret: form.clear_secret })
     form.client_secret = ''; editingID.value = data.id; hasSecret.value = data.has_client_secret
-    await load(); editing.value = false; notice.value = 'OIDC 接入方已保存'
-  } catch (e: any) { error.value = e.response?.data?.error || '保存失败' }
+    await load(); editing.value = false; notice.value = tr('m_cd758cd9faeb')
+  } catch (e: any) { error.value = e.response?.data?.error || tr('m_6309a3bb5ba4') }
   finally { busy.value = false }
 }
 function removeProvider(provider: OIDCProvider) {
-  dialog.warning({ title: '删除 OIDC 接入方', content: `删除“${provider.name}”？仍有关联账号时需先停用并解绑。`, positiveText: '删除', negativeText: '取消', onPositiveClick: async () => {
+  dialog.warning({ title: tr('m_a5e005fe5785'), content: tr('m_36f7c18ac9fd', { p0: provider.name }), positiveText: tr('m_2f9daa828907'), negativeText: tr('m_2cd0f3be8738'), onPositiveClick: async () => {
     busy.value = true; error.value = ''; notice.value = ''
-    try { await deleteOIDCProvider(provider.id); if (editingID.value === provider.id) editing.value = false; await load(); notice.value = '接入方已删除' }
-    catch (e: any) { error.value = e.response?.data?.error || '删除失败' }
+    try { await deleteOIDCProvider(provider.id); if (editingID.value === provider.id) editing.value = false; await load(); notice.value = tr('m_6765098c31a5') }
+    catch (e: any) { error.value = e.response?.data?.error || tr('m_c228558cf257') }
     finally { busy.value = false }
   } })
 }
-async function copyCallback() { try { await navigator.clipboard.writeText(form.redirect_uri); notice.value = '回调地址已复制' } catch { error.value = '复制失败，请从回调地址输入框手动复制' } }
+async function copyCallback() { try { await navigator.clipboard.writeText(form.redirect_uri); notice.value = tr('m_f36d6add2ed0') } catch { error.value = tr('m_4a6277670d51') } }
 onMounted(load)
 </script>
 

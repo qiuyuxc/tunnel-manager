@@ -1,59 +1,59 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-            <h2>TG 机器人设置</h2>
-      <p>每人一个独立 Bot，远程管理自己的隧道、DNS 与域名，账户之间互相隔离</p>
+            <h2>{{ tr('m_3ba721cb5dd3') }}</h2>
+      <p>{{ tr('m_d4463e3d9fb2') }}</p>
     </div>
     <div class="settings-list section">
       <!-- Status card -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.08s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">Bot 状态</div>
+          <div class="settings-card-title">{{ tr('m_6888e1669b1b') }}</div>
         </div>
         <div class="status-row">
           <div class="status-left">
             <span class="status-dot" :class="status.running ? 'on' : 'off'" />
             <span class="status-text">
               <template v-if="status.running">
-                运行中 @{{ status.bot_username }} · {{ modeLabel }}
+                {{ tr('m_72316475f6b7') }}{{ status.bot_username }} · {{ modeLabel }}
               </template>
               <template v-else>
-                已停止
+                {{ tr('m_f006455e3baf') }}
               </template>
             </span>
           </div>
           <button class="btn btn-ghost btn-sm" @click="fetchStatus">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            刷新
+            {{ tr('m_aee887434131') }}
           </button>
         </div>
         <div v-if="status.last_error" class="status-error">{{ status.last_error }}</div>
-        <div v-if="status.last_update_at" class="status-meta">最近更新: {{ formatTime(status.last_update_at) }}</div>
+        <div v-if="status.last_update_at" class="status-meta">{{ tr('m_d150bcc25633') }} {{ formatTime(status.last_update_at) }}</div>
       </div>
       <!-- Enable toggle -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.16s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">启用 Bot</div>
-          <div class="settings-card-desc">开启后 Bot 将在后台运行（长轮询模式），或注册 Webhook 接收消息。</div>
+          <div class="settings-card-title">{{ tr('m_13df38f938ce') }}</div>
+          <div class="settings-card-desc">{{ tr('m_80de49d10357') }}</div>
         </div>
         <div class="toggle-row">
           <label class="switch">
             <input type="checkbox" v-model="settings.enabled" />
             <span class="switch-slider" />
           </label>
-          <span class="toggle-label">{{ settings.enabled ? '已启用' : '已禁用' }}</span>
+          <span class="toggle-label">{{ settings.enabled ? tr('m_dfb802238b38') : tr('m_bc5a87a757a5') }}</span>
         </div>
       </div>
       <!-- Mode: polling / webhook -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.20s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">运行模式</div>
-          <div class="settings-card-desc">长轮询无需公网入口；Webhook 需要面板有可公网访问的 HTTPS 地址，消息推送更及时。</div>
+          <div class="settings-card-title">{{ tr('m_87ed126f7bd1') }}</div>
+          <div class="settings-card-desc">{{ tr('m_1c9d99d7be2c') }}</div>
         </div>
         <div class="radio-group">
           <label class="radio-option" :class="{ active: settings.mode === 'polling' }">
             <input type="radio" value="polling" v-model="settings.mode" />
-            <span>长轮询（Polling）</span>
+            <span>{{ tr('m_be8c427c4c2c') }}</span>
           </label>
           <label class="radio-option" :class="{ active: settings.mode === 'webhook' }">
             <input type="radio" value="webhook" v-model="settings.mode" />
@@ -69,7 +69,7 @@
               class="vercel-input"
             />
           </div>
-          <p class="webhook-note">系统会自动追加 <code>/api/telegram/webhook/{userID}</code>，这里只需填写面板公网 HTTPS 基础地址。</p>
+          <p class="webhook-note">{{ tr('m_6e30809e1ea2') }} <code>/api/telegram/webhook/{userID}</code>{{ tr('m_0a4ee354241f') }}</p>
         </div>
       </div>
       <!-- Bot Token -->
@@ -77,8 +77,8 @@
         <div class="settings-card-header">
           <div class="settings-card-title">Bot Token</div>
           <div class="settings-card-desc">
-            在 Telegram 中与 @BotFather 对话创建机器人并获取 Token。
-            <span v-if="settings.bot_token_set" class="token-hint">已保存: {{ settings.bot_token_hint }}</span>
+            {{ tr('m_4b81c912b6aa') }}
+            <span v-if="settings.bot_token_set" class="token-hint">{{ tr('m_8e5c79c01a0e') }} {{ settings.bot_token_hint }}</span>
           </div>
         </div>
         <div class="settings-input-row">
@@ -86,7 +86,7 @@
             <input
               v-model="settings.bot_token"
               type="password"
-              :placeholder="settings.bot_token_set ? '留空则保留当前 Token' : '输入 Bot Token'"
+              :placeholder="settings.bot_token_set ? tr('m_607873e79fce') : tr('m_5e76895396d6')"
               class="vercel-input"
             />
           </div>
@@ -98,22 +98,22 @@
           @click="handleReuse"
           style="margin-top: 12px"
         >
-          {{ reusing ? '复用中...' : '一键复用通知的 Bot' }}
+          {{ reusing ? tr('m_7b2d8b6a9ebf') : tr('m_888c2f8b0daf') }}
         </button>
       </div>
       <!-- Admin TG IDs -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.32s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">授权 TG ID</div>
+          <div class="settings-card-title">{{ tr('m_fa8620c6138e') }}</div>
           <div class="settings-card-desc">
-            逗号分隔的数字 ID。与 @userinfobot 对话可获取你的 ID。只有这些 TG 账号能向你的 Bot 发指令，可填多个，用英文逗号隔开。
+            {{ tr('m_90ffb63a8969') }}
           </div>
         </div>
         <div class="settings-input-row">
           <div class="input-wrapper">
             <input
               v-model="settings.admin_tg_ids"
-              placeholder="例如: 123456789,987654321"
+              :placeholder="tr('m_05e89e31b863')"
               class="vercel-input"
             />
           </div>
@@ -122,9 +122,9 @@
       <!-- API Endpoint (panel-wide, admin editable) -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.40s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">API 端点</div>
+          <div class="settings-card-title">{{ tr('m_3d1ab62be024') }}</div>
           <div class="settings-card-desc">
-            面板级配置，所有用户的 Bot 都走该端点。国内网络建议使用自建反代（如 https://tele.example.com），默认官方 api.telegram.org 在国内无法直连。
+            {{ tr('m_77e5f35acfb7') }}
           </div>
         </div>
         <div class="settings-input-row">
@@ -137,47 +137,49 @@
             />
           </div>
           <button v-if="isAdmin" class="btn btn-primary btn-sm" :disabled="savingEndpoint" @click="handleSaveEndpoint">
-            {{ savingEndpoint ? '保存中...' : '保存端点' }}
+            {{ savingEndpoint ? tr('m_917b1c1f18d0') : tr('m_459cf7f8c7e9') }}
           </button>
         </div>
-        <p v-if="!isAdmin" class="field-hint">端点由管理员统一配置，所有用户自动生效。</p>
+        <p v-if="!isAdmin" class="field-hint">{{ tr('m_4ce7ea1d6b95') }}</p>
       </div>
       <!-- Actions -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.56s' }">
         <div class="actions-row">
           <button class="btn btn-primary" :disabled="saving" @click="handleSave">
             <svg v-if="saving" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            {{ saving ? '保存中...' : '保存并应用' }}
+            {{ saving ? tr('m_917b1c1f18d0') : tr('m_a7ec01a65f09') }}
           </button>
           <button class="btn btn-secondary" :disabled="testing" @click="handleTest">
-            {{ testing ? '发送中...' : '发送测试消息' }}
+            {{ testing ? tr('m_9d2ee1e4d8c3') : tr('m_15041725283e') }}
           </button>
         </div>
       </div>
       <!-- Setup guide -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.64s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">设置教程</div>
+          <div class="settings-card-title">{{ tr('m_1a1b001776ed') }}</div>
         </div>
         <ol class="guide-list">
-          <li>在 Telegram 中与 <strong>@BotFather</strong> 对话，发送 <code>/newbot</code> 创建机器人并复制 Token。</li>
-          <li>与 <strong>@userinfobot</strong> 对话获取自己的数字 TG ID。</li>
-          <li>在此页面填入 Token 和 ID，启用并保存。</li>
-          <li>向你的 Bot 发送 <code>/help</code> 查看可用指令。</li>
+          <li>{{ tr('m_18ddc12c857f') }} <strong>@BotFather</strong> {{ tr('m_0c8d3811377b') }} <code>/newbot</code> {{ tr('m_24fdd328e093') }}</li>
+          <li>{{ tr('m_de1d5dd076fb') }} <strong>@userinfobot</strong> {{ tr('m_f8fe94a47d01') }}</li>
+          <li>{{ tr('m_5e8f0e26ee1b') }}</li>
+          <li>{{ tr('m_5aa90e74a202') }} <code>/help</code> {{ tr('m_48498890c5ea') }}</li>
         </ol>
         <div class="command-list">
-          <span class="command-label">可用指令：</span>
-          <code>/当前配置</code> <code>/列出隧道</code> <code>/选择隧道</code> <code>/转发</code>
-          <code>/直连域名</code> <code>/优选绑定</code> <code>/绑定域名</code> <code>/列出区域</code>
-          <code>/DNS列表</code> <code>/DNS详情</code> <code>/DNS添加</code> <code>/DNS修改</code> <code>/DNS删除</code> <code>/确认删除</code>
-          <code>/全局优选</code> <code>/设置回退源</code> <code>/help</code>
+          <span class="command-label">{{ tr('m_5c5959808bc9') }}</span>
+          <code>{{ tr('m_a7abb08280bc') }}</code> <code>{{ tr('m_8d842f736d2c') }}</code> <code>{{ tr('m_470ea7ab4fc4') }}</code> <code>{{ tr('m_fe04b040c3e7') }}</code>
+          <code>{{ tr('m_25bb6b27d7e8') }}</code> <code>{{ tr('m_8e3c17dabfb4') }}</code> <code>{{ tr('m_ae34c518af79') }}</code> <code>{{ tr('m_0ff4af2bf55e') }}</code>
+          <code>{{ tr('m_98eac9a936ab') }}</code> <code>{{ tr('m_792dcb89058f') }}</code> <code>{{ tr('m_b7b575ef731b') }}</code> <code>{{ tr('m_9c55f982ca74') }}</code> <code>{{ tr('m_31affd89f87a') }}</code> <code>{{ tr('m_0ed55bf1a072') }}</code>
+          <code>{{ tr('m_1b68ba88d96b') }}</code> <code>{{ tr('m_ad8f2f05e741') }}</code> <code>/help</code>
         </div>
-        <p class="guide-note">每个用户的 Bot 只操作自己的账户资源（隧道、DNS、域名绑定），互不影响。</p>
+        <p class="guide-note">{{ tr('m_0c09f6b0b1b0') }}</p>
       </div>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { locale, t as tr } from '../i18n'
+
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import {
@@ -220,12 +222,12 @@ const savingEndpoint = ref(false)
 const notifyBotSet = ref(false)
 let statusTimer: ReturnType<typeof setInterval> | null = null
 const modeLabel = computed(() => {
-  return status.value.mode === 'webhook' ? 'Webhook 模式' : '长轮询模式'
+  return status.value.mode === 'webhook' ? tr('m_96011210ccb6') : tr('m_d1d1fb7d3129')
 })
 function formatTime(ts: string): string {
   try {
     const d = new Date(ts)
-    return d.toLocaleString()
+    return d.toLocaleString(locale.value)
   } catch {
     return ts
   }
@@ -252,14 +254,14 @@ async function handleSaveEndpoint() {
   try {
     const endpoint = settings.value.api_endpoint.trim().replace(/\/+$/, '')
     if (!endpoint) {
-      message.error('API 端点不能为空')
+      message.error(tr('m_bcd372c0a699'))
       return
     }
     const { data } = await saveTelegramAPIEndpoint(endpoint)
     settings.value.api_endpoint = data.api_endpoint
-    message.success('API 端点已保存，所有 Bot 已重启生效')
+    message.success(tr('m_f07cfdf5580f'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingEndpoint.value = false
   }
@@ -271,9 +273,9 @@ async function handleReuse() {
     await reuseTelegramFromNotify()
     await fetchSettings()
     await fetchStatus()
-    message.success('已复用通知的 Bot Token，请填写授权 TG ID 并保存启用')
+    message.success(tr('m_8f2a14658df1'))
   } catch (e: any) {
-    message.error('复用失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_c3b5ab812dfe') + (e.response?.data?.error || e.message))
   } finally {
     reusing.value = false
   }
@@ -300,12 +302,12 @@ async function handleSave() {
     await fetchSettings()
     await fetchStatus()
     if (data.error) {
-      message.warning('已保存，但启动失败: ' + data.error)
+      message.warning(tr('m_c9d309e48308') + data.error)
     } else {
-      message.success('设置已保存')
+      message.success(tr('m_bd03c0aad701'))
     }
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     saving.value = false
   }
@@ -314,9 +316,9 @@ async function handleTest() {
   testing.value = true
   try {
     const { data } = await testTelegram()
-    message.success(data.message || '测试消息已发送')
+    message.success(data.message || tr('m_a422e5f7f4c4'))
   } catch (e: any) {
-    message.error('发送失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_df54bb0e45fb') + (e.response?.data?.error || e.message))
   } finally {
     testing.value = false
   }

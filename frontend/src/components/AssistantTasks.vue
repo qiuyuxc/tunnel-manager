@@ -1,38 +1,40 @@
 <template>
-  <section class="tasks" aria-label="任务与变更确认">
-    <div class="task-heading"><h2>任务清单 <span>{{ tasks.length }}</span></h2><button type="button" class="quiet" @click="emit('refresh')">刷新</button></div>
-    <p class="explanation">参数可以修改，保存后按最终内容勾选确认。修改和删除前请核对原值及对象。执行中的请求无法撤回，暂停仅影响待执行任务。</p>
-    <p v-if="!tasks.length" class="empty">这里将显示助手准备的变更。对话本身不会修改任何配置。</p>
+  <section class="tasks" :aria-label="tr('m_a6cd1ccbb69c')">
+    <div class="task-heading"><h2>{{ tr('m_a4ea7d95390b') }} <span>{{ tasks.length }}</span></h2><button type="button" class="quiet" @click="emit('refresh')">{{ tr('m_aee887434131') }}</button></div>
+    <p class="explanation">{{ tr('m_b1a4629063e7') }}</p>
+    <p v-if="!tasks.length" class="empty">{{ tr('m_7ae3131fbef4') }}</p>
     <article v-for="task in tasks" :key="task.id" class="task" :class="task.status">
       <div class="task-top">
         <label class="task-title"><input v-if="task.status === 'pending'" v-model="selected" type="checkbox" :value="task.id" :disabled="busy.has(task.id) || editing === task.id" /><span>{{ task.title }}</span></label>
-        <span class="status">{{ busy.has(task.id) ? '处理中' : statusLabels[task.status] }}</span>
+        <span class="status">{{ busy.has(task.id) ? tr('m_694b71bc8013') : statusLabels[task.status] }}</span>
       </div>
-      <div class="change"><span>{{ task.before ? '变更前：' : '操作：新增配置' }}</span></div>
+      <div class="change"><span>{{ task.before ? tr('m_39f615acdc2b') : tr('m_df6bad194002') }}</span></div>
       <dl v-if="task.before" class="before"><template v-for="(value, key) in task.before" :key="key"><dt>{{ argumentLabels[key] || key }}</dt><dd>{{ displayValue(value) }}</dd></template></dl>
-      <p v-if="task.tool.startsWith('delete_')" class="result">变更后：删除上述对象。可能中断域名访问或停止探测；删除监控项目也会清理目标与历史记录。隧道关联的 DNS 不会自动删除。</p>
-      <div v-else-if="task.before" class="change"><strong>变更后：应用以下配置（未列出的字段保持不变）</strong></div>
-      <div v-if="task.tool.startsWith('delete_')" class="change"><strong>删除对象 ID</strong></div>
+      <p v-if="task.tool.startsWith('delete_')" class="result">{{ tr('m_e32f672b8d4e') }}</p>
+      <div v-else-if="task.before" class="change"><strong>{{ tr('m_9e1bec64e83a') }}</strong></div>
+      <div v-if="task.tool.startsWith('delete_')" class="change"><strong>{{ tr('m_45a0b7135449') }}</strong></div>
       <dl><template v-for="(value, key) in task.arguments" :key="key"><dt>{{ argumentLabels[key] || key }}</dt><dd>{{ displayValue(value) }}</dd></template></dl>
-      <p v-if="task.tool === 'bind_domain'" class="result">将服务公开到互联网，新增代理 CNAME → {{ task.arguments.tunnel_id }}.cfargotunnel.com，TTL 自动，并添加源站路由。DNS 与路由不是原子事务，失败时请核对两处。</p>
+      <p v-if="task.tool === 'bind_domain'" class="result">{{ tr('m_5c8a09719294') }} {{ task.arguments.tunnel_id }}{{ tr('m_82bf4e360710') }}</p>
       <p v-if="task.result" class="result" role="status">{{ task.result }}</p>
       <AssistantTaskEditor v-if="editing === task.id" :task="task" :busy="busy.has(task.id)" :save-task="saveTask" @saved="editing = ''" @cancel="editing = ''" />
       <div v-if="!['succeeded', 'cancelled', 'running'].includes(task.status)" class="task-actions">
-        <button v-if="task.status === 'pending' && !task.tool.startsWith('delete_') && !editing" :disabled="busy.has(task.id)" @click="beginEdit(task.id)">修改参数</button>
-        <button v-if="task.status === 'pending'" :disabled="busy.has(task.id) || !!editing" @click="emit('action', task.id, 'pause')">暂停</button>
-        <button v-if="task.status === 'paused'" :disabled="busy.has(task.id)" @click="emit('action', task.id, 'resume')">恢复待确认</button>
-        <button v-if="task.status === 'unknown'" :disabled="busy.has(task.id)" @click="emit('retry', task.id)">核对后重试</button>
-        <button :disabled="busy.has(task.id)" @click="emit('action', task.id, 'cancel')">取消任务</button>
+        <button v-if="task.status === 'pending' && !task.tool.startsWith('delete_') && !editing" :disabled="busy.has(task.id)" @click="beginEdit(task.id)">{{ tr('m_87615fbf148a') }}</button>
+        <button v-if="task.status === 'pending'" :disabled="busy.has(task.id) || !!editing" @click="emit('action', task.id, 'pause')">{{ tr('m_8d12fc0d4eb2') }}</button>
+        <button v-if="task.status === 'paused'" :disabled="busy.has(task.id)" @click="emit('action', task.id, 'resume')">{{ tr('m_27f565a90066') }}</button>
+        <button v-if="task.status === 'unknown'" :disabled="busy.has(task.id)" @click="emit('retry', task.id)">{{ tr('m_276ce6b7b87a') }}</button>
+        <button :disabled="busy.has(task.id)" @click="emit('action', task.id, 'cancel')">{{ tr('m_537d17f1c531') }}</button>
       </div>
     </article>
     <div v-if="tasks.some(task => task.status === 'pending')" class="confirm-bar">
-      <p>修改或删除可能中断服务；请核对每项原值和变更内容。</p>
-      <button class="confirm" :disabled="!selected.length || busy.size > 0 || !!editing" @click="emit('execute', [...selected]); selected = []">核对并执行 {{ selected.length }} 项</button>
+      <p>{{ tr('m_b6e825657ab8') }}</p>
+      <button class="confirm" :disabled="!selected.length || busy.size > 0 || !!editing" @click="emit('execute', [...selected]); selected = []">{{ tr('m_b3d3b0b6fc80') }} {{ selected.length }} {{ tr('m_49ccde43a154') }}</button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { t as tr, localized } from '../i18n'
+
 import { ref, watch } from 'vue'
 import type { AITask } from '../api/assistant'
 import AssistantTaskEditor from './AssistantTaskEditor.vue'
@@ -43,9 +45,9 @@ const selected = ref<string[]>([])
 const editing = ref('')
 function beginEdit(id: string) { editing.value = id; selected.value = selected.value.filter(item => item !== id) }
 watch(() => props.tasks, tasks => { selected.value = selected.value.filter(id => tasks.some(task => task.id === id && task.status === 'pending')) }, { deep: true })
-const statusLabels: Record<AITask['status'], string> = { pending: '待确认', paused: '已暂停', running: '执行中', succeeded: '已完成', unknown: '需核对', cancelled: '已取消' }
+const statusLabels: Record<AITask['status'], string> = localized(() => ({ pending: tr('m_a8b0bd9c65f7'), paused: tr('m_eb0c326b60ae'), running: tr('m_5026a63b58cd'), succeeded: tr('m_f28461bb49c8'), unknown: tr('m_db6343cfca18'), cancelled: tr('m_a37778f17c5f') }))
 function displayValue(value: unknown): string {
-  if (typeof value === 'boolean') return value ? '开启' : '关闭'
+  if (typeof value === 'boolean') return value ? tr('m_8da97ddda990') : tr('m_3fd47edce45b')
   if (value !== null && typeof value === 'object') return JSON.stringify(value, null, 2)
   return String(value ?? '—')
 }

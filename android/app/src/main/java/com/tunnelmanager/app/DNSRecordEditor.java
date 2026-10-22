@@ -42,30 +42,30 @@ final class DNSRecordEditor {
             });
             menu.show();
         });
-        form.addView(UI.field(context, "记录类型", type, UI.MD));
-        field("name", "名称（SRV 用 _服务._协议.域名）", draft.name, false);
-        field("content", "解析值（TXT 保留原样）", draft.content, false);
-        field("priority", "优先级（MX / SRV）", draft.priority, true);
-        field("weight", "SRV 权重", draft.weight, true);
-        field("port", "SRV 端口", draft.port, true);
-        field("target", "SRV 服务目标（域名或 .）", draft.target, false);
+        form.addView(UI.field(context, I18n.text("m_8f6363220575"), type, UI.MD));
+        field("name", I18n.text("m_ae45cd6fbacf"), draft.name, false);
+        field("content", I18n.text("m_a76ff9e03742"), draft.content, false);
+        field("priority", I18n.text("m_fefb7dd1c2dd"), draft.priority, true);
+        field("weight", I18n.text("m_8e12951d4f9b"), draft.weight, true);
+        field("port", I18n.text("m_b6315eb5f488"), draft.port, true);
+        field("target", I18n.text("m_db4ee932a0d3"), draft.target, false);
         field("flags", "CAA flags（0–255）", draft.flags, true);
         field("tag", "CAA tag（issue / issuewild / iodef）", draft.tag, false);
         field("value", "CAA value", draft.value, false);
-        field("ttl", "TTL（1 为自动，或 60–86400）", draft.ttl, true);
+        field("ttl", I18n.text("m_1005edfc97dd"), draft.ttl, true);
         proxy = UI.button(context, "", UI.BTN_SECONDARY);
         proxy.setOnClickListener(view -> { draft.proxied = !draft.proxied; sync(); });
-        form.addView(UI.field(context, "代理状态（仅 A / AAAA / CNAME）", proxy, UI.MD));
+        form.addView(UI.field(context, I18n.text("m_30efb7690431"), proxy, UI.MD));
         error = UI.muted(context, ""); error.setTextColor(Theme.p().error); form.addView(error);
-        save = UI.button(context, original == null ? "添加记录" : "保存更改", UI.BTN_PRIMARY);
+        save = UI.button(context, original == null ? I18n.text("m_42845d86b969") : I18n.text("m_ecf0ea01192d"), UI.BTN_PRIMARY);
         UI.fill(save); UI.margin(save, 0, UI.MD, 0, 0); form.addView(save);
         save.setOnClickListener(view -> submit());
-        sheet = Sheet.of(context, original == null ? "添加 DNS 记录" : "编辑 DNS 记录").content(form);
+        sheet = Sheet.of(context, original == null ? I18n.text("m_b6e583370f98") : I18n.text("m_aa4d3660ca67")).content(form);
         sync(); sheet.show();
     }
 
     private void field(String key, String label, String value, boolean numeric) {
-        EditText input = key.equals("content") ? UI.textArea(context, "解析值") : UI.input(context, label);
+        EditText input = key.equals("content") ? UI.textArea(context, I18n.text("m_5632a6a4e542")) : UI.input(context, label);
         if (numeric) input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setText(value);
         View field = UI.field(context, label, input, UI.MD);
@@ -79,7 +79,7 @@ final class DNSRecordEditor {
         for (String key : new String[]{"weight", "port", "target"}) fields.get(key).setVisibility(draft.type.equals("SRV") ? View.VISIBLE : View.GONE);
         for (String key : new String[]{"flags", "tag", "value"}) fields.get(key).setVisibility(draft.type.equals("CAA") ? View.VISIBLE : View.GONE);
         ((View) proxy.getParent()).setVisibility(DNSValues.proxy(draft.type) ? View.VISIBLE : View.GONE);
-        proxy.setText(draft.proxied ? "已代理" : "仅 DNS");
+        proxy.setText(draft.proxied ? I18n.text("m_5c7bbf98286f") : I18n.text("m_80848ec9f9a4"));
     }
 
     private String text(String key) { return inputs.get(key).getText().toString(); }
@@ -105,6 +105,6 @@ final class DNSRecordEditor {
         saving = value; sheet.setDismissible(!value);
         for (EditText input : inputs.values()) input.setEnabled(!value);
         type.setEnabled(!value); proxy.setEnabled(!value); save.setEnabled(!value);
-        save.setText(value ? "正在保存…" : original == null ? "添加记录" : "保存更改");
+        save.setText(value ? I18n.text("m_6bdb4435095e") : original == null ? I18n.text("m_42845d86b969") : I18n.text("m_ecf0ea01192d"));
     }
 }

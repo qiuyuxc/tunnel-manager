@@ -1,8 +1,8 @@
 <template>
   <div class="page-container account-page">
     <div class="page-header">
-            <h2>账户设置</h2>
-      <p>管理登录凭据、Cloudflare 账户连接与账户安全</p>
+            <h2>{{ tr('m_a720b4000be6') }}</h2>
+      <p>{{ tr('m_d86f5c72c33e') }}</p>
     </div>
 
     <div class="settings-list">
@@ -10,39 +10,39 @@
         <div class="profile-heading">
           <div>
             <p class="security-kicker">Personal profile</p>
-            <h3 id="profile-title" class="settings-card-title">个人主页</h3>
-            <p class="settings-card-desc">设置展示名称与自定义头像，并管理账户邮箱。</p>
+            <h3 id="profile-title" class="settings-card-title">{{ tr('m_227eef9cd7b1') }}</h3>
+            <p class="settings-card-desc">{{ tr('m_c9ce2f44a713') }}</p>
           </div>
         </div>
 
         <div class="profile-main">
           <div class="avatar-block">
             <div class="avatar-preview" aria-hidden="true">
-              <img v-if="store.avatar" :src="store.avatar" alt="自定义头像" />
+              <img v-if="store.avatar" :src="store.avatar" :alt="tr('m_1841af00f45a')" />
               <span v-else>{{ avatarInitial }}</span>
             </div>
             <div class="avatar-actions">
               <button class="btn btn-secondary" type="button" :disabled="uploadingAvatar" @click="triggerAvatarUpload">
-                {{ uploadingAvatar ? '上传中...' : '上传头像' }}
+                {{ uploadingAvatar ? tr('m_593470c32d44') : tr('m_d7d2344d545d') }}
               </button>
               <button v-if="store.avatar" class="btn btn-ghost danger-outline" type="button" :disabled="uploadingAvatar" @click="removeAvatar">
-                移除
+                {{ tr('m_6135d4159e89') }}
               </button>
             </div>
             <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="avatar-input" @change="handleAvatarFile" />
-            <span class="avatar-hint">PNG / JPG / GIF / WebP，最大 4 MiB</span>
+            <span class="avatar-hint">{{ tr('m_78786baa366b') }}</span>
           </div>
 
           <div class="profile-fields">
             <div class="form-stack">
               <label class="field">
-                <span class="field-label">自定义名称</span>
-                <input v-model="nickname" placeholder="输入展示名称（留空则显示用户名）" class="vercel-input" :maxlength="64" />
+                <span class="field-label">{{ tr('m_bf3b4816f16e') }}</span>
+                <input v-model="nickname" :placeholder="tr('m_9e366ced887c')" class="vercel-input" :maxlength="64" />
               </label>
-              <p class="profile-meta">登录用户名: <strong>{{ store.username }}</strong></p>
+              <p class="profile-meta">{{ tr('m_e4985caf0e6c') }} <strong>{{ store.username }}</strong></p>
               <div class="form-actions">
                 <button class="btn btn-primary" :disabled="savingProfile" @click="saveProfile">
-                  {{ savingProfile ? '保存中...' : '保存资料' }}
+                  {{ savingProfile ? tr('m_917b1c1f18d0') : tr('m_c0a70fcb56f0') }}
                 </button>
               </div>
             </div>
@@ -54,27 +54,27 @@
         <div class="email-section">
           <div class="email-heading">
             <div>
-              <span class="email-status" :class="store.email ? 'bound' : 'unbound'">{{ store.email ? '已绑定' : '未绑定' }}</span>
-              <h4 class="email-title">账户邮箱</h4>
-              <p v-if="store.email" class="email-current">当前邮箱: <strong>{{ store.email }}</strong></p>
-              <p v-else class="email-current">绑定邮箱后可用于找回密码与接收服务告警。</p>
+              <span class="email-status" :class="store.email ? 'bound' : 'unbound'">{{ store.email ? tr('m_f70c0007f30f') : tr('m_e026c6693dc5') }}</span>
+              <h4 class="email-title">{{ tr('m_f8f1b032f460') }}</h4>
+              <p v-if="store.email" class="email-current">{{ tr('m_cdd2259a6d69') }} <strong>{{ store.email }}</strong></p>
+              <p v-else class="email-current">{{ tr('m_e6bddbeaa97b') }}</p>
             </div>
           </div>
 
           <form class="form-stack email-form" @submit.prevent="saveEmail">
             <div class="email-fields">
               <label class="field">
-                <span class="field-label">{{ store.email ? '新邮箱' : '邮箱地址' }}</span>
+                <span class="field-label">{{ store.email ? tr('m_3067c39fa4b2') : tr('m_2e412e03837f') }}</span>
                 <input v-model="newEmail" type="email" placeholder="name@example.com" class="vercel-input" />
               </label>
               <label class="field">
-                <span class="field-label">当前密码确认</span>
-                <input v-model="emailPassword" type="password" placeholder="输入当前密码确认" class="vercel-input" autocomplete="current-password" />
+                <span class="field-label">{{ tr('m_ab48ee83149b') }}</span>
+                <input v-model="emailPassword" type="password" :placeholder="tr('m_632da57acf53')" class="vercel-input" autocomplete="current-password" />
               </label>
             </div>
             <div class="form-actions">
               <button class="btn btn-secondary" type="submit" :disabled="savingEmail || !newEmail.trim() || !emailPassword">
-                {{ savingEmail ? '保存中...' : store.email ? '修改邮箱' : '绑定邮箱' }}
+                {{ savingEmail ? tr('m_917b1c1f18d0') : store.email ? tr('m_da0f5e37e88b') : tr('m_6d4b7dce1ee6') }}
               </button>
             </div>
           </form>
@@ -87,8 +87,8 @@
         <div class="security-heading">
           <div>
             <p class="security-kicker">Operations security</p>
-            <h3 id="two-factor-title" class="settings-card-title">双重身份验证</h3>
-            <p class="settings-card-desc">使用验证器动态口令保护管理操作，即使密码泄露也能阻止直接登录。</p>
+            <h3 id="two-factor-title" class="settings-card-title">{{ tr('m_cb5e99d1a4d8') }}</h3>
+            <p class="settings-card-desc">{{ tr('m_303aeceaf321') }}</p>
           </div>
           <div class="status-stamp" :class="`stamp-${statusStamp.tone}`" role="status" aria-live="polite">
             <span class="stamp-mark" aria-hidden="true"></span>
@@ -104,104 +104,104 @@
         <div class="security-content" aria-live="polite">
           <div v-if="statusLoading" class="security-state compact-state">
             <span class="state-pulse" aria-hidden="true"></span>
-            <div><strong>正在核验安全状态</strong><p>正在读取当前账户的双重验证配置。</p></div>
+            <div><strong>{{ tr('m_49823bd59ceb') }}</strong><p>{{ tr('m_b5ec8b23b9d0') }}</p></div>
           </div>
 
           <div v-else-if="statusError" class="security-state compact-state state-error">
-            <div><strong>无法读取双重验证状态</strong><p>{{ statusError }}</p></div>
-            <button class="btn btn-secondary" type="button" @click="loadTwoFactorStatus">重试</button>
+            <div><strong>{{ tr('m_d38c903220bb') }}</strong><p>{{ statusError }}</p></div>
+            <button class="btn btn-secondary" type="button" @click="loadTwoFactorStatus">{{ tr('m_b8784c8dd563') }}</button>
           </div>
 
           <div v-else-if="recoveryCodes.length" ref="recoveryPanel" class="recovery-panel" tabindex="-1" aria-labelledby="recovery-title">
             <div class="operation-header">
               <div>
-                <span class="operation-index">完成前的最后一步</span>
-                <h4 id="recovery-title">保存恢复代码</h4>
+                <span class="operation-index">{{ tr('m_265eb059dc03') }}</span>
+                <h4 id="recovery-title">{{ tr('m_faa3e777003d') }}</h4>
               </div>
-              <span class="operation-state state-critical">仅显示此次</span>
+              <span class="operation-state state-critical">{{ tr('m_47687872a258') }}</span>
             </div>
-            <p class="operation-copy">验证器不可用时，每个代码可用于一次登录。离开此页前请复制或下载，完成后无法再次查看。</p>
+            <p class="operation-copy">{{ tr('m_294245ce1fb4') }}</p>
             <div class="recovery-actions">
-              <button class="btn btn-secondary" type="button" @click="copyRecoveryCodes">复制全部</button>
-              <button class="btn btn-secondary" type="button" @click="downloadRecoveryCodes">下载文本文件</button>
+              <button class="btn btn-secondary" type="button" @click="copyRecoveryCodes">{{ tr('m_75c393923f87') }}</button>
+              <button class="btn btn-secondary" type="button" @click="downloadRecoveryCodes">{{ tr('m_6b717f958200') }}</button>
             </div>
-            <ol class="recovery-grid" aria-label="恢复代码">
+            <ol class="recovery-grid" :aria-label="tr('m_c5674f920ef6')">
               <li v-for="code in recoveryCodes" :key="code"><code>{{ code }}</code></li>
             </ol>
             <label class="completion-check">
               <input v-model="recoveryAcknowledged" type="checkbox" />
-              <span>我已将这些恢复代码保存到安全位置</span>
+              <span>{{ tr('m_688057d713b7') }}</span>
             </label>
-            <button class="btn btn-primary finish-button" type="button" :disabled="!recoveryAcknowledged" @click="finishRecovery">完成并重新登录</button>
+            <button class="btn btn-primary finish-button" type="button" :disabled="!recoveryAcknowledged" @click="finishRecovery">{{ tr('m_581139134404') }}</button>
           </div>
 
           <div v-else-if="setupSession" class="setup-panel">
             <div class="operation-header">
               <div>
                 <span class="operation-index">Enrollment / 01</span>
-                <h4>连接验证器</h4>
+                <h4>{{ tr('m_e1cea76538f3') }}</h4>
               </div>
               <span class="operation-state" :class="setupExpired ? 'state-critical' : 'state-live'">
-                {{ setupExpired ? '设置已过期' : `剩余 ${countdownLabel}` }}
+                {{ setupExpired ? tr('m_7b1f68536f70') : tr('m_b8c53db09738', { p0: countdownLabel }) }}
               </span>
             </div>
 
             <div class="setup-grid">
               <div class="qr-column">
                 <div class="qr-frame" :class="{ 'qr-error': qrError }">
-                  <canvas ref="qrCanvas" role="img" aria-label="双重验证二维码">双重验证二维码无法显示，请使用右侧密钥手动添加。</canvas>
-                  <p v-if="qrError">二维码生成失败，请使用右侧密钥手动添加。</p>
+                  <canvas ref="qrCanvas" role="img" :aria-label="tr('m_e2cb31d85549')">{{ tr('m_6b7b30837d07') }}</canvas>
+                  <p v-if="qrError">{{ tr('m_88a88f2592bb') }}</p>
                 </div>
-                <span class="qr-caption">仅在本机生成，不发送至外部服务</span>
+                <span class="qr-caption">{{ tr('m_5c2483a4c94c') }}</span>
               </div>
               <div class="setup-instructions">
                 <ol class="instruction-list">
-                  <li><span>01</span><p>在验证器应用中选择“扫描二维码”或“输入设置密钥”。</p></li>
-                  <li><span>02</span><p>确认账户信息后，输入应用生成的 6 位动态口令。</p></li>
+                  <li><span>01</span><p>{{ tr('m_426b8f5bd163') }}</p></li>
+                  <li><span>02</span><p>{{ tr('m_134aa8c4fa86') }}</p></li>
                 </ol>
                 <div class="secret-block">
-                  <span class="field-label">手动设置密钥</span>
+                  <span class="field-label">{{ tr('m_b39ca453b31d') }}</span>
                   <div class="secret-row">
                     <code>{{ setupSession.secret }}</code>
-                    <button class="text-button" type="button" @click="copySecret">复制密钥</button>
+                    <button class="text-button" type="button" @click="copySecret">{{ tr('m_d22d5fd54ca0') }}</button>
                   </div>
                 </div>
                 <form class="confirm-form" @submit.prevent="confirmSetup">
-                  <label for="confirm-code" class="field-label">6 位动态口令</label>
+                  <label for="confirm-code" class="field-label">{{ tr('m_97b339ba13ec') }}</label>
                   <div class="confirm-row">
                     <input id="confirm-code" ref="confirmCodeInput" v-model="confirmCode" class="vercel-input code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" :disabled="confirming || setupExpired" @input="normalizeConfirmCode" />
                     <button class="btn btn-primary" type="submit" :disabled="confirming || setupExpired || confirmCode.length !== 6">
-                      {{ confirming ? '验证中...' : '验证并启用' }}
+                      {{ confirming ? tr('m_6c128e0ad353') : tr('m_4e634e80bcff') }}
                     </button>
                   </div>
                 </form>
               </div>
             </div>
-            <button class="text-button cancel-action" type="button" @click="cancelSetup">取消此次设置</button>
+            <button class="text-button cancel-action" type="button" @click="cancelSetup">{{ tr('m_40e037727419') }}</button>
           </div>
 
           <div v-else-if="disableOpen" class="disable-panel">
             <div class="operation-header">
               <div>
                 <span class="operation-index">Security override</span>
-                <h4>停用双重身份验证</h4>
+                <h4>{{ tr('m_2d971783b5af') }}</h4>
               </div>
-              <span class="operation-state state-critical">高风险操作</span>
+              <span class="operation-state state-critical">{{ tr('m_d224b38d6907') }}</span>
             </div>
-            <p class="operation-copy">停用后账户将仅由密码保护。请输入当前密码，以及验证器动态口令或一枚恢复代码。</p>
+            <p class="operation-copy">{{ tr('m_f8fa10e61725') }}</p>
             <form class="disable-form" @submit.prevent="submitDisable">
               <label>
-                <span class="field-label">当前密码</span>
-                <input ref="disablePasswordInput" v-model="disablePassword" class="vercel-input" type="password" autocomplete="current-password" placeholder="输入当前密码" />
+                <span class="field-label">{{ tr('m_a114cfb687e6') }}</span>
+                <input ref="disablePasswordInput" v-model="disablePassword" class="vercel-input" type="password" autocomplete="current-password" :placeholder="tr('m_e0499346b818')" />
               </label>
               <label>
-                <span class="field-label">动态口令或恢复代码</span>
-                <input ref="disableCodeInput" v-model="disableCode" class="vercel-input" type="text" autocomplete="one-time-code" placeholder="输入验证代码" />
+                <span class="field-label">{{ tr('m_63b1e717d40a') }}</span>
+                <input ref="disableCodeInput" v-model="disableCode" class="vercel-input" type="text" autocomplete="one-time-code" :placeholder="tr('m_181e416ac212')" />
               </label>
               <div class="form-actions">
-                <button class="btn btn-secondary" type="button" :disabled="disabling" @click="cancelDisable">取消</button>
+                <button class="btn btn-secondary" type="button" :disabled="disabling" @click="cancelDisable">{{ tr('m_2cd0f3be8738') }}</button>
                 <button class="btn btn-danger" type="submit" :disabled="disabling || !disablePassword || !disableCode.trim()">
-                  {{ disabling ? '停用中...' : '确认停用并退出' }}
+                  {{ disabling ? tr('m_334f03fa0b8d') : tr('m_6030ce142189') }}
                 </button>
               </div>
             </form>
@@ -209,27 +209,27 @@
 
           <div v-else-if="twoFactorStatus?.enabled" class="security-state enabled-state">
             <div class="status-copy">
-              <strong>双重身份验证正在保护此账户</strong>
-              <p>登录时需要密码与第二重凭据。当前还有 <b>{{ twoFactorStatus.recovery_codes_remaining }}</b> 枚恢复代码可用。</p>
+              <strong>{{ tr('m_9fd43dbdf1fc') }}</strong>
+              <p>{{ tr('m_356c07078edb') }} <b>{{ twoFactorStatus.recovery_codes_remaining }}</b> {{ tr('m_b47e4a044c7b') }}</p>
             </div>
-            <button class="btn btn-secondary danger-outline" type="button" @click="openDisable">停用 2FA</button>
+            <button class="btn btn-secondary danger-outline" type="button" @click="openDisable">{{ tr('m_411939586e8d') }}</button>
           </div>
 
           <div v-else-if="twoFactorStatus && !twoFactorStatus.setup_available" class="security-state unavailable-state">
             <div class="status-copy">
-              <strong>当前无法开始设置</strong>
-              <p>后端尚未配置 <code>APP_ENCRYPTION_KEY</code>。请设置密钥并重启后端，现有用户名和密码功能不受影响。</p>
+              <strong>{{ tr('m_6c9a1b789007') }}</strong>
+              <p>{{ tr('m_89727b9c363f') }} <code>APP_ENCRYPTION_KEY</code>{{ tr('m_e1f51d1ee9a2') }}</p>
             </div>
           </div>
 
           <div v-else class="security-state disabled-state">
             <div class="status-copy">
-              <strong>尚未启用本站双重验证</strong>
+              <strong>{{ tr('m_58e8e4793ce2') }}</strong>
               <p v-if="setupNotice" class="setup-notice" role="status">{{ setupNotice }}</p>
-              <p v-else>连接任意兼容 TOTP 的验证器应用，设置过程不会将密钥发送到外部二维码服务。</p>
+              <p v-else>{{ tr('m_88de4f3ef0b9') }}</p>
             </div>
             <button class="btn btn-primary" type="button" :disabled="startingSetup" @click="startSetup">
-              {{ startingSetup ? '准备中...' : '设置双重验证' }}
+              {{ startingSetup ? tr('m_c68d88d6f41e') : tr('m_cb0ea9c6dfa1') }}
             </button>
           </div>
         </div>
@@ -239,8 +239,8 @@
         <div class="security-heading">
           <div>
             <p class="security-kicker">Passwordless sign-in</p>
-            <h3 id="passkey-title" class="settings-card-title">通行密钥</h3>
-            <p class="settings-card-desc">用指纹、面容或硬件安全密钥登录，不必输入密码；绑定后还可以关闭本账户的密码登录。</p>
+            <h3 id="passkey-title" class="settings-card-title">{{ tr('m_102824e51a9d') }}</h3>
+            <p class="settings-card-desc">{{ tr('m_49626291c59d') }}</p>
           </div>
           <div class="status-stamp" :class="'stamp-' + passkeyStamp.tone" role="status" aria-live="polite">
             <span class="stamp-mark" aria-hidden="true"></span>
@@ -256,21 +256,21 @@
         <div class="security-content">
           <div v-if="passkeyLoading" class="security-state compact-state">
             <span class="state-pulse" aria-hidden="true"></span>
-            <div><strong>正在读取通行密钥</strong><p>正在读取本账户已绑定的凭据。</p></div>
+            <div><strong>{{ tr('m_9887a9d3d7d2') }}</strong><p>{{ tr('m_6d5519d3ffad') }}</p></div>
           </div>
 
           <div v-else-if="!passkeys.available" class="security-state unavailable-state">
             <div class="status-copy">
-              <strong>当前域名无法使用通行密钥</strong>
-              <p>通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在管理后台「系统设置 → 通行密钥」填写依赖方 ID 与允许的来源。</p>
+              <strong>{{ tr('m_142d8abc422e') }}</strong>
+              <p>{{ tr('m_e59ca37942c3') }}</p>
             </div>
           </div>
 
           <template v-else>
             <div v-if="!passkeys.passkeys.length" class="security-state disabled-state">
               <div class="status-copy">
-                <strong>尚未绑定通行密钥</strong>
-                <p>依赖方：<code>{{ passkeys.rp_id }}</code>。绑定后可以用设备上的指纹、面容或安全密钥直接登录。</p>
+                <strong>{{ tr('m_af592dc55215') }}</strong>
+                <p>{{ tr('m_470297890c68') }}<code>{{ passkeys.rp_id }}</code>{{ tr('m_23fe5e96d758') }}</p>
               </div>
             </div>
             <ul v-else class="passkey-list">
@@ -278,46 +278,46 @@
                 <div class="passkey-info">
                   <span class="passkey-name">
                     <strong>{{ item.name }}</strong>
-                    <span v-if="item.backup_eligible" class="conn-badge">{{ item.backup_state ? '已同步' : '可同步' }}</span>
+                    <span v-if="item.backup_eligible" class="conn-badge">{{ item.backup_state ? tr('m_04062edb583b') : tr('m_f450fddb8f2f') }}</span>
                   </span>
                   <span class="passkey-meta">
-                    添加于 {{ formatPasskeyDate(item.created_at) }}
-                    <template v-if="item.last_used_at"> · 最近使用 {{ formatPasskeyDate(item.last_used_at) }}</template>
+                    {{ tr('m_76d76ed548a8') }} {{ formatPasskeyDate(item.created_at) }}
+                    <template v-if="item.last_used_at"> {{ tr('m_310f9beb85f1') }} {{ formatPasskeyDate(item.last_used_at) }}</template>
                   </span>
                 </div>
                 <div class="passkey-actions">
-                  <button class="btn btn-ghost" type="button" :disabled="passkeyBusy" @click="renamePasskeyEntry(item)">重命名</button>
-                  <button class="btn btn-ghost danger" type="button" :disabled="passkeyBusy" @click="removePasskeyEntry(item)">删除</button>
+                  <button class="btn btn-ghost" type="button" :disabled="passkeyBusy" @click="renamePasskeyEntry(item)">{{ tr('m_0d0cbac2eee5') }}</button>
+                  <button class="btn btn-ghost danger" type="button" :disabled="passkeyBusy" @click="removePasskeyEntry(item)">{{ tr('m_2f9daa828907') }}</button>
                 </div>
               </li>
             </ul>
 
             <form class="passkey-form" @submit.prevent="addPasskey">
               <div class="field">
-                <label class="field-label" for="passkey-name">名称</label>
-                <input id="passkey-name" v-model="passkeyName" type="text" class="vercel-input" placeholder="如 MacBook 指纹" maxlength="60" />
+                <label class="field-label" for="passkey-name">{{ tr('m_d44e9b3d3b31') }}</label>
+                <input id="passkey-name" v-model="passkeyName" type="text" class="vercel-input" :placeholder="tr('m_76cd75a6386c')" maxlength="60" />
               </div>
               <div class="field">
-                <label class="field-label" for="passkey-password">当前密码</label>
+                <label class="field-label" for="passkey-password">{{ tr('m_a114cfb687e6') }}</label>
                 <input
                   id="passkey-password"
                   v-model="passkeyPassword"
                   type="password"
                   class="vercel-input"
-                  placeholder="添加、删除或切换密码登录时需要"
+                  :placeholder="tr('m_32378523fc55')"
                   autocomplete="current-password"
                 />
               </div>
               <button class="btn btn-primary" type="submit" :disabled="passkeyBusy || !passkeyPassword">
-                {{ passkeyBusy ? '等待验证...' : '添加通行密钥' }}
+                {{ passkeyBusy ? tr('m_7c93e5eb917e') : tr('m_a24e4cc96fdc') }}
               </button>
             </form>
 
             <div class="passkey-switch">
               <div>
-                <strong>禁用密码登录</strong>
-                <p>开启后本账户只能用通行密钥登录，请至少保留一个可用的通行密钥。</p>
-                <p v-if="passkeys.password_login_disabled_globally">面板已全局禁用密码登录，所有账户都必须使用通行密钥。</p>
+                <strong>{{ tr('m_3a027241650b') }}</strong>
+                <p>{{ tr('m_315aff09e8b3') }}</p>
+                <p v-if="passkeys.password_login_disabled_globally">{{ tr('m_9b7d052ac30d') }}</p>
               </div>
               <button
                 class="btn btn-secondary"
@@ -326,7 +326,7 @@
                 :disabled="passkeyBusy || !passkeyPassword"
                 @click="togglePasswordLogin"
               >
-                {{ passkeys.password_login_disabled ? '恢复密码登录' : '禁用密码登录' }}
+                {{ passkeys.password_login_disabled ? tr('m_466c8603a96a') : tr('m_3a027241650b') }}
               </button>
             </div>
           </template>
@@ -337,33 +337,33 @@
         <div class="cloudflare-heading">
           <div>
             <p class="security-kicker">Account connection</p>
-            <h3 id="cloudflare-title" class="settings-card-title">Cloudflare 账户连接</h3>
-            <p class="settings-card-desc">通过 OAuth 管理 Cloudflare 账户凭据。OAuth 连接存在时始终优先用于账户、隧道与 Zone 请求。</p>
+            <h3 id="cloudflare-title" class="settings-card-title">{{ tr('m_c3ee7f86565f') }}</h3>
+            <p class="settings-card-desc">{{ tr('m_d5db29a9a5de') }}</p>
           </div>
           <span class="connection-badge" :class="cloudflare.connected ? 'connected' : 'disconnected'">
-            {{ loadingCloudflare ? '读取中' : cloudflare.connected ? '已连接' : '未连接' }}
+            {{ loadingCloudflare ? tr('m_465c03b272ea') : cloudflare.connected ? tr('m_5be0323e8adc') : tr('m_3d52574ce150') }}
           </span>
         </div>
 
         <div v-if="loadingCloudflare" class="cloudflare-loading" role="status">
           <span class="state-pulse" aria-hidden="true"></span>
-          <span>正在读取 Cloudflare 连接状态</span>
+          <span>{{ tr('m_4b8405e94d1a') }}</span>
         </div>
 
         <div v-else class="cloudflare-panel">
           <div class="cloudflare-status">
             <div>
-              <span class="cloudflare-label">凭据来源</span>
+              <span class="cloudflare-label">{{ tr('m_46cab3bd6fb3') }}</span>
               <strong>{{ cloudflareSourceLabel }}</strong>
             </div>
             <div>
-              <span class="cloudflare-label">当前账户</span>
-              <strong>{{ cloudflare.account_name || '尚未选择' }}</strong>
+              <span class="cloudflare-label">{{ tr('m_2997f476d9bc') }}</span>
+              <strong>{{ cloudflare.account_name || tr('m_c5768ca9726c') }}</strong>
               <code v-if="cloudflare.account_id">{{ cloudflare.account_id }}</code>
             </div>
             <div>
-              <span class="cloudflare-label">OAuth 有效期</span>
-              <strong>{{ cloudflare.expires_at ? formatOAuthExpiry(cloudflare.expires_at) : '不适用' }}</strong>
+              <span class="cloudflare-label">{{ tr('m_a2eea8c8f84b') }}</span>
+              <strong>{{ cloudflare.expires_at ? formatOAuthExpiry(cloudflare.expires_at) : tr('m_2746d995801b') }}</strong>
             </div>
           </div>
 
@@ -372,16 +372,16 @@
               <div class="connection-info">
                 <strong>{{ conn.account_name || conn.label }}</strong>
                 <code v-if="conn.account_id">{{ conn.account_id }}</code>
-                <span v-if="conn.active" class="conn-badge">使用中</span>
+                <span v-if="conn.active" class="conn-badge">{{ tr('m_fa48e8938940') }}</span>
               </div>
               <div class="connection-actions">
-                <button v-if="!conn.active" class="btn btn-ghost" type="button" :disabled="busyConnection === conn.id" @click="activateConnection(conn.id)">设为当前</button>
-                <button class="btn btn-ghost danger-outline" type="button" :disabled="busyConnection === conn.id" @click="removeConnection(conn)">删除</button>
+                <button v-if="!conn.active" class="btn btn-ghost" type="button" :disabled="busyConnection === conn.id" @click="activateConnection(conn.id)">{{ tr('m_21c86745003a') }}</button>
+                <button class="btn btn-ghost danger-outline" type="button" :disabled="busyConnection === conn.id" @click="removeConnection(conn)">{{ tr('m_2f9daa828907') }}</button>
               </div>
             </div>
           </div>
           <label v-if="cloudflare.source === 'oauth' && cloudflare.accounts?.length" class="account-selector">
-            <span class="field-label">切换 Cloudflare 账户</span>
+            <span class="field-label">{{ tr('m_87dfec587589') }}</span>
             <select class="vercel-input" :value="cloudflare.account_id" :disabled="selectingAccount" @change="changeCloudflareAccount">
               <option v-for="account in cloudflare.accounts" :key="account.id" :value="account.id">
                 {{ account.name }} · {{ account.id }}
@@ -394,40 +394,40 @@
           </p>
 
           <div v-if="!cloudflare.configured" class="oauth-setup-hint">
-            <strong>服务器尚未配置 OAuth 客户端</strong>
-            <span>请设置 <code>CF_OAUTH_CLIENT_ID</code>、<code>CF_OAUTH_CLIENT_SECRET</code> 与有效的 <code>APP_ENCRYPTION_KEY</code>。</span>
+            <strong>{{ tr('m_53955d61e968') }}</strong>
+            <span>{{ tr('m_402329d011fb') }} <code>CF_OAUTH_CLIENT_ID</code>、<code>CF_OAUTH_CLIENT_SECRET</code> {{ tr('m_4418fae73b15') }} <code>APP_ENCRYPTION_KEY</code>。</span>
           </div>
 
           <div class="cloudflare-actions">
             <button v-if="cloudflare.configured" class="btn btn-primary" type="button" :disabled="startingOAuth" @click="connectCloudflare">
-              {{ startingOAuth ? '正在跳转...' : cloudflare.source === 'oauth' ? '新增账户授权' : '连接 Cloudflare' }}
+              {{ startingOAuth ? tr('m_aec824ac0086') : cloudflare.source === 'oauth' ? tr('m_978fa225040c') : tr('m_70c33ec4f5aa') }}
             </button>
             <button v-if="cloudflare.source === 'oauth'" class="btn btn-secondary danger-outline" type="button" :disabled="disconnectingOAuth" @click="confirmDisconnectCloudflare">
-              {{ disconnectingOAuth ? '断开中...' : '断开授权' }}
+              {{ disconnectingOAuth ? tr('m_68f43f735935') : tr('m_6d5e6ecdaf60') }}
             </button>
-            <button v-if="cloudflareStatusError" class="btn btn-secondary" type="button" @click="loadCloudflareStatus">重试</button>
-            <span v-if="cloudflare.source === 'api_token'" class="legacy-note">当前使用环境变量 API Token；完成 OAuth 授权后会自动优先使用 OAuth。</span>
+            <button v-if="cloudflareStatusError" class="btn btn-secondary" type="button" @click="loadCloudflareStatus">{{ tr('m_b8784c8dd563') }}</button>
+            <span v-if="cloudflare.source === 'api_token'" class="legacy-note">{{ tr('m_822047b561c5') }}</span>
           </div>
         </div>
       </section>
 
       <div class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.12s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">修改用户名</div>
-          <div class="settings-card-desc">当前用户名: <strong>{{ store.username }}</strong></div>
+          <div class="settings-card-title">{{ tr('m_2309fd06dbb1') }}</div>
+          <div class="settings-card-desc">{{ tr('m_10b1d198de1b') }} <strong>{{ store.username }}</strong></div>
         </div>
         <div class="form-stack">
           <label class="field">
-            <span class="field-label">新用户名</span>
-            <input v-model="newUsername" placeholder="输入新用户名" class="vercel-input" />
+            <span class="field-label">{{ tr('m_0ccf18acc1c8') }}</span>
+            <input v-model="newUsername" :placeholder="tr('m_87de734107bf')" class="vercel-input" />
           </label>
           <label class="field">
-            <span class="field-label">当前密码确认</span>
-            <input v-model="usernamePassword" type="password" placeholder="输入当前密码确认" class="vercel-input" />
+            <span class="field-label">{{ tr('m_ab48ee83149b') }}</span>
+            <input v-model="usernamePassword" type="password" :placeholder="tr('m_632da57acf53')" class="vercel-input" />
           </label>
           <div class="form-actions">
             <button class="btn btn-secondary" :disabled="savingUsername" @click="saveUsername">
-              {{ savingUsername ? '保存中...' : '更新用户名' }}
+              {{ savingUsername ? tr('m_917b1c1f18d0') : tr('m_dbf86ad13caf') }}
             </button>
           </div>
         </div>
@@ -435,21 +435,21 @@
 
       <div v-if="hasLocalPassword !== false" class="settings-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.16s' }">
         <div class="settings-card-header">
-          <div class="settings-card-title">修改密码</div>
-          <div class="settings-card-desc">密码长度不少于 6 位</div>
+          <div class="settings-card-title">{{ tr('m_08d008062411') }}</div>
+          <div class="settings-card-desc">{{ tr('m_33059d066a95') }}</div>
         </div>
         <div class="form-stack">
           <label class="field">
-            <span class="field-label">当前密码</span>
-            <input v-model="currentPassword" type="password" placeholder="当前密码" class="vercel-input" />
+            <span class="field-label">{{ tr('m_a114cfb687e6') }}</span>
+            <input v-model="currentPassword" type="password" :placeholder="tr('m_a114cfb687e6')" class="vercel-input" />
           </label>
           <label class="field">
-            <span class="field-label">新密码</span>
-            <input v-model="newPassword" type="password" placeholder="新密码" class="vercel-input" />
+            <span class="field-label">{{ tr('m_515e9c7cf7b2') }}</span>
+            <input v-model="newPassword" type="password" :placeholder="tr('m_515e9c7cf7b2')" class="vercel-input" />
           </label>
           <div class="form-actions">
             <button class="btn btn-primary" :disabled="savingPassword" @click="savePassword">
-              {{ savingPassword ? '保存中...' : '更新密码' }}
+              {{ savingPassword ? tr('m_917b1c1f18d0') : tr('m_828170843089') }}
             </button>
           </div>
         </div>
@@ -459,6 +459,10 @@
 </template>
 
 <script setup lang="ts">
+import { usePanelDialogs } from '../composables/usePanelDialogs'
+const panel = usePanelDialogs()
+import { locale, t as tr } from '../i18n'
+
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useDialog, useMessage } from 'naive-ui'
@@ -574,20 +578,20 @@ const countdownLabel = computed(() => {
 const avatarInitial = computed(() => (store.displayName || store.username || '?').trim().charAt(0).toUpperCase())
 
 const statusStamp = computed(() => {
-  if (statusLoading.value) return { label: '读取中', tone: 'neutral' }
-  if (statusError.value) return { label: '状态错误', tone: 'error' }
-  if (recoveryCodes.value.length) return { label: '恢复代码待保存', tone: 'warning' }
-  if (setupSession.value) return { label: setupExpired.value ? '设置已过期' : '设置进行中', tone: setupExpired.value ? 'error' : 'warning' }
-  if (disableOpen.value) return { label: '停用确认中', tone: 'error' }
-  if (twoFactorStatus.value?.enabled) return { label: '已启用', tone: 'success' }
-  if (twoFactorStatus.value && !twoFactorStatus.value.setup_available) return { label: '设置不可用', tone: 'neutral' }
-  return { label: '未启用', tone: 'neutral' }
+  if (statusLoading.value) return { label: tr('m_465c03b272ea'), tone: 'neutral' }
+  if (statusError.value) return { label: tr('m_78c70751f7a5'), tone: 'error' }
+  if (recoveryCodes.value.length) return { label: tr('m_a10cd63fe4f1'), tone: 'warning' }
+  if (setupSession.value) return { label: setupExpired.value ? tr('m_7b1f68536f70') : tr('m_6be8ede5322b'), tone: setupExpired.value ? 'error' : 'warning' }
+  if (disableOpen.value) return { label: tr('m_24ea84bdd9a3'), tone: 'error' }
+  if (twoFactorStatus.value?.enabled) return { label: tr('m_dfb802238b38'), tone: 'success' }
+  if (twoFactorStatus.value && !twoFactorStatus.value.setup_available) return { label: tr('m_474ed5cb87f5'), tone: 'neutral' }
+  return { label: tr('m_f95ea7f4c063'), tone: 'neutral' }
 })
 
 const cloudflareSourceLabel = computed(() => {
   if (cloudflare.source === 'oauth') return 'Cloudflare OAuth 2.0'
-  if (cloudflare.source === 'api_token') return '环境变量 API Token'
-  return '未配置'
+  if (cloudflare.source === 'api_token') return tr('m_c57b367a8b76')
+  return tr('m_80a57e03f071')
 })
 
 function apiError(error: any, fallback: string) {
@@ -614,8 +618,8 @@ async function loadCloudflareStatus() {
     }, data, { accounts: data.accounts || [] })
   } catch (error: any) {
     if (disposed || generation !== oauthRequestGeneration) return
-    cloudflareStatusError.value = apiError(error, '请稍后重试')
-    message.error('读取 Cloudflare 状态失败: ' + cloudflareStatusError.value)
+    cloudflareStatusError.value = apiError(error, tr('m_9ba4b48c2d18'))
+    message.error(tr('m_d47d2b0631d0') + cloudflareStatusError.value)
   } finally {
     if (!disposed && generation === oauthRequestGeneration) loadingCloudflare.value = false
   }
@@ -629,7 +633,7 @@ async function connectCloudflare() {
     window.location.assign(data.authorization_url)
   } catch (error: any) {
     startingOAuth.value = false
-    message.error('启动 OAuth 失败: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_0cd9d6808d2b') + apiError(error, tr('m_9ba4b48c2d18')))
   }
 }
 
@@ -639,10 +643,10 @@ async function disconnectCloudflare() {
   try {
     const { data } = await disconnectCloudflareOAuth()
     if (data.warning) message.warning(data.warning)
-    else message.success('Cloudflare OAuth 已断开')
+    else message.success(tr('m_c276889cfaa8'))
     await loadCloudflareStatus()
   } catch (error: any) {
-    message.error('断开失败: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_a0c2de63babc') + apiError(error, tr('m_9ba4b48c2d18')))
   } finally {
     disconnectingOAuth.value = false
   }
@@ -656,11 +660,11 @@ async function activateConnection(connectionID: string) {
   busyConnection.value = connectionID
   try {
     const { data } = await activateCloudflareConnection(connectionID)
-    message.success('已切换到 ' + (data.account_name || data.account_id))
+    message.success(tr('m_543b8d1935f0') + (data.account_name || data.account_id))
     await loadCloudflareStatus()
     await store.fetchConfig()
   } catch (error: any) {
-    message.error('切换失败: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_59f11fdc3a28') + apiError(error, tr('m_9ba4b48c2d18')))
   } finally {
     busyConnection.value = ''
   }
@@ -668,15 +672,15 @@ async function activateConnection(connectionID: string) {
 
 async function removeConnection(conn: CFConnectionView) {
   if (busyConnection.value) return
-  if (!window.confirm('确定删除连接「' + (conn.account_name || conn.label) + '」？对应的 Cloudflare 授权将被撤销。')) return
+  if (!await panel.confirm(tr('m_9a0ac433a9be') + (conn.account_name || conn.label) + tr('m_14f4ceb14005'))) return
   busyConnection.value = conn.id
   try {
     const { data } = await disconnectCloudflareOAuth(conn.id)
     if (data.warning) message.warning(data.warning)
-    else message.success('连接已删除')
+    else message.success(tr('m_bcb4b0b8810c'))
     await loadCloudflareStatus()
   } catch (error: any) {
-    message.error('删除失败: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_48477dd59e05') + apiError(error, tr('m_9ba4b48c2d18')))
   } finally {
     busyConnection.value = ''
   }
@@ -685,10 +689,10 @@ async function removeConnection(conn: CFConnectionView) {
 function confirmDisconnectCloudflare() {
   if (disconnectingOAuth.value) return
   dialog.warning({
-    title: '断开 Cloudflare OAuth',
-    content: '断开后将撤销并删除当前 OAuth 凭据，已选择的 Cloudflare 账户与隧道也会被清除。',
-    positiveText: '确认断开',
-    negativeText: '取消',
+    title: tr('m_d20e59ee1db3'),
+    content: tr('m_5d19a4dcd36f'),
+    positiveText: tr('m_c642f3322039'),
+    negativeText: tr('m_2cd0f3be8738'),
     positiveButtonProps: { type: 'error' },
     onPositiveClick: disconnectCloudflare,
   })
@@ -702,9 +706,9 @@ async function changeCloudflareAccount(event: Event) {
     const { data } = await selectCloudflareAccount(accountID)
     cloudflare.account_id = data.id
     cloudflare.account_name = data.name
-    message.success(`已切换到 ${data.name}`)
+    message.success(tr('m_a1b61d14e015', { p0: data.name }))
   } catch (error: any) {
-    message.error('切换账户失败: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_d4418cde2035') + apiError(error, tr('m_9ba4b48c2d18')))
     await loadCloudflareStatus()
   } finally {
     selectingAccount.value = false
@@ -714,12 +718,12 @@ async function changeCloudflareAccount(event: Event) {
 // 通行密钥时间戳为 Unix 秒。
 function formatPasskeyDate(seconds: number) {
   if (!seconds) return '—'
-  return new Date(seconds * 1000).toLocaleString()
+  return new Date(seconds * 1000).toLocaleString(locale.value)
 }
 
 function formatOAuthExpiry(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '自动刷新' : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? tr('m_98073e15fa03') : date.toLocaleString(locale.value)
 }
 
 async function handleCloudflareOAuthResult() {
@@ -730,8 +734,8 @@ async function handleCloudflareOAuthResult() {
   delete query.cloudflare_oauth
   delete query.message
   await router.replace({ path: route.path, query })
-  if (result === 'success') message.success('Cloudflare OAuth 授权成功')
-  if (result === 'error') message.error('Cloudflare OAuth 授权失败: ' + (oauthMessage || '未知错误'))
+  if (result === 'success') message.success(tr('m_28cf30fefcd2'))
+  if (result === 'error') message.error(tr('m_9eb2c713323f') + (oauthMessage || tr('m_13a46616e16f')))
 }
 
 async function loadTwoFactorStatus() {
@@ -744,7 +748,7 @@ async function loadTwoFactorStatus() {
     twoFactorStatus.value = data
   } catch (error: any) {
     if (disposed || generation !== statusRequestGeneration) return
-    statusError.value = apiError(error, '请稍后重试')
+    statusError.value = apiError(error, tr('m_9ba4b48c2d18'))
   } finally {
     if (!disposed && generation === statusRequestGeneration) statusLoading.value = false
   }
@@ -769,7 +773,7 @@ function beginCountdown(expiresAt: number) {
 function expireSetup() {
   ++setupRequestGeneration
   clearSetup()
-  setupNotice.value = '设置会话已过期，密钥已清除。请重新开始设置。'
+  setupNotice.value = tr('m_1286f11f6137')
 }
 
 async function renderQr(generation: number) {
@@ -798,7 +802,7 @@ async function startSetup() {
     const expiresAt = Date.parse(data.expires_at)
     if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
       clearSetup()
-      setupNotice.value = '服务器返回的设置会话无效或已过期，请重试。'
+      setupNotice.value = tr('m_7170801d9d8a')
       message.error(setupNotice.value)
       return
     }
@@ -810,7 +814,7 @@ async function startSetup() {
     if (!disposed && generation === setupRequestGeneration) confirmCodeInput.value?.focus()
   } catch (error: any) {
     if (disposed || generation !== setupRequestGeneration) return
-    message.error('无法开始设置: ' + apiError(error, '请稍后重试'))
+    message.error(tr('m_c449c4aca730') + apiError(error, tr('m_9ba4b48c2d18')))
     await loadTwoFactorStatus()
   } finally {
     if (!disposed && generation === setupRequestGeneration) startingSetup.value = false
@@ -856,10 +860,10 @@ async function confirmSetup() {
     await nextTick()
     if (disposed || generation !== confirmRequestGeneration) return
     recoveryPanel.value?.focus()
-    message.success('双重身份验证已启用，请先保存恢复代码')
+    message.success(tr('m_98169c468a21'))
   } catch (error: any) {
     if (disposed || generation !== confirmRequestGeneration) return
-    message.error('验证失败: ' + apiError(error, '请检查动态口令'))
+    message.error(tr('m_1f752a49011b') + apiError(error, tr('m_4331e04edb46')))
     confirmCodeInput.value?.focus()
     confirmCodeInput.value?.select()
   } finally {
@@ -872,16 +876,16 @@ async function copyText(value: string, successText: string) {
     await navigator.clipboard.writeText(value)
     message.success(successText)
   } catch {
-    message.error('复制失败，请手动选择并复制')
+    message.error(tr('m_dfaefbdef784'))
   }
 }
 
 function copySecret() {
-  if (setupSession.value) void copyText(setupSession.value.secret, '设置密钥已复制')
+  if (setupSession.value) void copyText(setupSession.value.secret, tr('m_d6f84f446290'))
 }
 
 function copyRecoveryCodes() {
-  void copyText(recoveryCodes.value.join('\n'), '恢复代码已复制')
+  void copyText(recoveryCodes.value.join('\n'), tr('m_6f47d1a74036'))
 }
 
 function downloadRecoveryCodes() {
@@ -921,10 +925,10 @@ async function submitDisable() {
     await disableTwoFactor(disablePassword.value, disableCode.value.trim())
     cancelDisable()
     store.clearAuth()
-    message.success('双重身份验证已停用，请重新登录')
+    message.success(tr('m_f0ac006c0d44'))
     await router.replace('/')
   } catch (error: any) {
-    message.error('停用失败: ' + apiError(error, '请检查密码与验证代码'))
+    message.error(tr('m_f800c50b531d') + apiError(error, tr('m_72590600175c')))
     if (error.response?.status === 401) {
       disableCode.value = ''
       await nextTick()
@@ -948,16 +952,16 @@ onBeforeRouteLeave(() => {
 async function saveProfile() {
   const value = nickname.value.trim()
   if (value.length > 64) {
-    message.error('自定义名称不能超过 64 个字符')
+    message.error(tr('m_dae4662865e0'))
     return
   }
   savingProfile.value = true
   try {
     await changeProfile(value, store.avatar)
     await store.fetchMe()
-    message.success('个人资料已更新')
+    message.success(tr('m_b844ea2e13f3'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingProfile.value = false
   }
@@ -974,21 +978,21 @@ function handleAvatarFile(event: Event) {
   if (!file) return
   const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
   if (!allowed.includes(file.type)) {
-    message.error('仅支持 PNG / JPG / GIF / WebP 格式')
+    message.error(tr('m_24a3b2d5136c'))
     return
   }
   if (file.size > 4 * 1024 * 1024) {
-    message.error('图片不能超过 4 MiB')
+    message.error(tr('m_9d0b8bbb7900'))
     return
   }
   uploadingAvatar.value = true
   uploadAvatar(file)
     .then(async ({ data }) => {
       await store.fetchMe()
-      message.success('头像已更新')
+      message.success(tr('m_a938ed15b3e5'))
     })
     .catch((e: any) => {
-      message.error('上传失败: ' + (e.response?.data?.error || e.message))
+      message.error(tr('m_69167075edb5') + (e.response?.data?.error || e.message))
     })
     .finally(() => {
       uploadingAvatar.value = false
@@ -1000,9 +1004,9 @@ async function removeAvatar() {
   try {
     await changeProfile(nickname.value.trim(), '')
     await store.fetchMe()
-    message.success('头像已移除')
+    message.success(tr('m_eca726423f04'))
   } catch (e: any) {
-    message.error('移除失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_d5711a729a98') + (e.response?.data?.error || e.message))
   } finally {
     savingProfile.value = false
   }
@@ -1011,7 +1015,7 @@ async function removeAvatar() {
 async function saveEmail() {
   const email = newEmail.value.trim()
   if (!email || !emailPassword.value) {
-    message.error('请填写邮箱和当前密码')
+    message.error(tr('m_bdb626f8b359'))
     return
   }
   savingEmail.value = true
@@ -1020,9 +1024,9 @@ async function saveEmail() {
     newEmail.value = ''
     emailPassword.value = ''
     await store.fetchMe()
-    message.success(store.email ? '邮箱已更新' : '邮箱已绑定')
+    message.success(store.email ? tr('m_0870a627daa8') : tr('m_bb71c4d5fc40'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingEmail.value = false
   }
@@ -1030,17 +1034,17 @@ async function saveEmail() {
 
 async function saveUsername() {
   if (!newUsername.value || !usernamePassword.value) {
-    message.error('请填写新用户名和当前密码')
+    message.error(tr('m_18de25f0d593'))
     return
   }
   savingUsername.value = true
   try {
     await changeUsername(usernamePassword.value, newUsername.value)
     store.clearAuth()
-    message.success('用户名已更新，请重新登录')
+    message.success(tr('m_dc6cae76cd7a'))
     await router.replace('/')
   } catch (e: any) {
-    message.error('更新失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_00eb7b374633') + (e.response?.data?.error || e.message))
   } finally {
     savingUsername.value = false
   }
@@ -1048,21 +1052,21 @@ async function saveUsername() {
 
 async function savePassword() {
   if (!currentPassword.value || !newPassword.value) {
-    message.error('请填写当前密码和新密码')
+    message.error(tr('m_824cc55354e0'))
     return
   }
   if (newPassword.value.length < 6) {
-    message.error('新密码长度不能少于 6 位')
+    message.error(tr('m_56e015fc995a'))
     return
   }
   savingPassword.value = true
   try {
     await changePassword(currentPassword.value, newPassword.value)
     store.clearAuth()
-    message.success('密码已更新，请重新登录')
+    message.success(tr('m_e559ccc5f437'))
     await router.replace('/')
   } catch (e: any) {
-    message.error('更新失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_00eb7b374633') + (e.response?.data?.error || e.message))
   } finally {
     savingPassword.value = false
   }
@@ -1086,9 +1090,9 @@ const passkeyName = ref('')
 const passkeyPassword = ref('')
 
 const passkeyStamp = computed(() => {
-  if (!passkeys.value.available) return { label: '不可用', tone: 'neutral' }
-  if (!passkeys.value.passkeys.length) return { label: '未绑定', tone: 'neutral' }
-  return { label: '已绑定 ' + passkeys.value.passkeys.length + ' 个', tone: 'success' }
+  if (!passkeys.value.available) return { label: tr('m_460b3574e4bd'), tone: 'neutral' }
+  if (!passkeys.value.passkeys.length) return { label: tr('m_e026c6693dc5'), tone: 'neutral' }
+  return { label: tr('m_2937a5ea1250') + passkeys.value.passkeys.length + tr('m_7aaf96ad52e0'), tone: 'success' }
 })
 
 async function loadPasskeys() {
@@ -1098,7 +1102,7 @@ async function loadPasskeys() {
     if (disposed) return
     passkeys.value = data
   } catch (error: any) {
-    if (!disposed) message.error(apiError(error, '读取通行密钥失败'))
+    if (!disposed) message.error(apiError(error, tr('m_9ee2f030db41')))
   } finally {
     if (!disposed) passkeyLoading.value = false
   }
@@ -1107,7 +1111,7 @@ async function loadPasskeys() {
 async function addPasskey() {
   if (passkeyBusy.value) return
   if (!browserSupportsWebAuthn()) {
-    message.error('当前浏览器不支持通行密钥')
+    message.error(tr('m_73253680f9f3'))
     return
   }
   passkeyBusy.value = true
@@ -1120,47 +1124,47 @@ async function addPasskey() {
       credential,
     })
     passkeyName.value = ''
-    message.success('通行密钥已绑定')
+    message.success(tr('m_716a1862dd06'))
     await loadPasskeys()
   } catch (error: any) {
-    if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') message.warning('已取消通行密钥绑定')
-    else message.error(apiError(error, '绑定通行密钥失败'))
+    if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') message.warning(tr('m_f951ae00348b'))
+    else message.error(apiError(error, tr('m_21221a0f26a9')))
   } finally {
     passkeyBusy.value = false
   }
 }
 
-function renamePasskeyEntry(item: PasskeyView) {
-  const name = window.prompt('通行密钥名称', item.name)
+async function renamePasskeyEntry(item: PasskeyView) {
+  const name = await panel.prompt(tr('m_e8e46cb47287'), item.name)
   if (!name || name.trim() === item.name) return
   void (async () => {
     try {
       await renamePasskey(item.id, name.trim())
-      message.success('名称已更新')
+      message.success(tr('m_06afd1f0352e'))
       await loadPasskeys()
     } catch (error: any) {
-      message.error(apiError(error, '重命名失败'))
+      message.error(apiError(error, tr('m_e367f53aeadf')))
     }
   })()
 }
 
 function removePasskeyEntry(item: PasskeyView) {
   if (!passkeyPassword.value) {
-    message.warning('请先填写当前密码')
+    message.warning(tr('m_05b1298143b6'))
     return
   }
   dialog.warning({
-    title: '删除通行密钥',
-    content: '确定删除「' + item.name + '」？删除后该设备将无法再用于登录。',
-    positiveText: '删除',
-    negativeText: '取消',
+    title: tr('m_fc3f78b499e1'),
+    content: tr('m_72f49a525798') + item.name + tr('m_139f37a3ae7c'),
+    positiveText: tr('m_2f9daa828907'),
+    negativeText: tr('m_2cd0f3be8738'),
     onPositiveClick: async () => {
       try {
         await deletePasskey(item.id, passkeyPassword.value)
-        message.success('通行密钥已删除')
+        message.success(tr('m_dbef251d5058'))
         await loadPasskeys()
       } catch (error: any) {
-        message.error(apiError(error, '删除失败'))
+        message.error(apiError(error, tr('m_c228558cf257')))
       }
     },
   })
@@ -1168,7 +1172,7 @@ function removePasskeyEntry(item: PasskeyView) {
 
 async function togglePasswordLogin() {
   if (!passkeyPassword.value) {
-    message.warning('请先填写当前密码')
+    message.warning(tr('m_05b1298143b6'))
     return
   }
   const disabled = !passkeys.value.password_login_disabled
@@ -1176,9 +1180,9 @@ async function togglePasswordLogin() {
   try {
     const { data } = await setPasswordLoginDisabled(disabled, passkeyPassword.value)
     passkeys.value = data
-    message.success(disabled ? '已禁用密码登录，请使用通行密钥登录' : '已恢复密码登录')
+    message.success(disabled ? tr('m_7cda7e6a2511') : tr('m_40ea52edefce'))
   } catch (error: any) {
-    message.error(apiError(error, '操作失败'))
+    message.error(apiError(error, tr('m_0c3b4cf7aa25')))
   } finally {
     passkeyBusy.value = false
   }

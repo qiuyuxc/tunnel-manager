@@ -16,8 +16,8 @@ final class OperationProgress extends LinearLayout {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             long seconds = Math.max(0, (SystemClock.elapsedRealtime() - startedAt) / 1000);
-            elapsed.setText("已等待 " + seconds + " 秒");
-            detail.setText(seconds >= 15 ? "仍未收到服务端结果，请继续等待，不要重复提交。" : "请求已发出，正在等待服务端返回结果。");
+            elapsed.setText(I18n.text("m_c70ec71d5131") + seconds + I18n.text("m_00fe8dda1fd7"));
+            detail.setText(seconds >= 15 ? I18n.text("m_c9f6342f69c9") : I18n.text("m_7da301b2426c"));
             postDelayed(this, 1000);
         }
     };
@@ -41,10 +41,10 @@ final class OperationProgress extends LinearLayout {
         heading.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         row.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         card.addView(row);
-        detail = UI.muted(context, "请求已发出，正在等待服务端返回结果。");
+        detail = UI.muted(context, I18n.text("m_7da301b2426c"));
         UI.margin(detail, 0, UI.SM, 0, UI.XS);
         card.addView(detail);
-        elapsed = UI.mono(context, "已等待 0 秒", Theme.p().mute);
+        elapsed = UI.mono(context, I18n.text("m_f299188df20b"), Theme.p().mute);
         elapsed.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         card.addView(elapsed);
         addView(card, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

@@ -1,51 +1,53 @@
 <template>
   <div class="page-container assistant-page" :class="{ 'is-composing': composing }" :style="{ '--assistant-viewport-height': `${viewportHeight}px` }">
     <header class="assistant-header">
-      <div class="identity"><span class="assistant-mark" v-html="icons.assistant" /><div><h1>AI 助手</h1><p>{{ store.settings?.shared_enabled ? '管理员共享连接' : '个人独立连接' }} · 确认后执行</p></div></div>
-      <div class="header-actions"><button type="button" @click="historyOpen = true">会话</button><button type="button" class="icon-button" aria-label="AI 连接配置" @click="settingsOpen = true" v-html="icons.settings" /></div>
+      <div class="identity"><span class="assistant-mark" v-html="icons.assistant" /><div><h1>{{ tr('m_1b0049fcfd41') }}</h1><p>{{ store.settings?.shared_enabled ? tr('m_cb87e5beac35') : tr('m_07240a74e246') }} {{ tr('m_072c5cf8dc67') }}</p></div></div>
+      <div class="header-actions"><button type="button" @click="historyOpen = true">{{ tr('m_a63280253f17') }}</button><button type="button" class="icon-button" :aria-label="tr('m_036413404922')" @click="settingsOpen = true" v-html="icons.settings" /></div>
     </header>
-    <div v-if="store.error" class="error-banner" role="alert">{{ store.error }}<button type="button" aria-label="关闭错误提示" @click="store.error = ''">×</button></div>
-    <div v-if="store.loading" role="status" class="loading">正在读取会话与连接状态…</div>
+    <div v-if="store.error" class="error-banner" role="alert">{{ store.error }}<button type="button" :aria-label="tr('m_ee618f2d7968')" @click="store.error = ''">×</button></div>
+    <div v-if="store.loading" role="status" class="loading">{{ tr('m_8ad81dd8a671') }}</div>
     <div class="workspace">
-      <section class="conversation" aria-label="助手对话">
-        <div class="conversation-top"><span>{{ store.current?.title || '新的配置计划' }}</span><button class="mobile-tasks" :class="{ 'has-pending': pendingTasks > 0 }" :disabled="!store.current?.tasks.length" @click="revealTasks">{{ pendingTasks ? `待确认 ${pendingTasks}` : `任务 ${store.current?.tasks.length || 0}` }}</button></div>
-        <div ref="messagesElement" class="messages" role="log" aria-label="对话记录" aria-live="polite">
+      <section class="conversation" :aria-label="tr('m_d36acace9f24')">
+        <div class="conversation-top"><span>{{ store.current?.title || tr('m_a114a8c281a2') }}</span><button class="mobile-tasks" :class="{ 'has-pending': pendingTasks > 0 }" :disabled="!store.current?.tasks.length" @click="revealTasks">{{ pendingTasks ? tr('m_fc2be1f048ed', { p0: pendingTasks }) : tr('m_20ab56cbff75', { p0: store.current?.tasks.length || 0 }) }}</button></div>
+        <div ref="messagesElement" class="messages" role="log" :aria-label="tr('m_b53654e6b37c')" aria-live="polite">
           <div v-if="!store.current?.messages.length && !currentTurns.length" class="welcome">
-            <span class="eyebrow">TUNNEL MANAGER / ASSISTANT</span><h2><span class="desktop-copy">描述目标，<br />一起核对每一步。</span><span class="mobile-copy">今天想配置什么？</span></h2>
-            <p><span class="desktop-copy">查询资源、准备隧道与 DNS 配置，或安排多个监控任务。所有变更都需要你确认。</span><span class="mobile-copy">从隧道、DNS 或监控开始，执行前由你确认。</span></p>
+            <span class="eyebrow">TUNNEL MANAGER / ASSISTANT</span><h2><span class="desktop-copy">{{ tr('m_2a0b54d5c2bf') }}<br />{{ tr('m_20ed1d0a4bd3') }}</span><span class="mobile-copy">{{ tr('m_ceb885e52275') }}</span></h2>
+            <p><span class="desktop-copy">{{ tr('m_f32f485ea316') }}</span><span class="mobile-copy">{{ tr('m_1d096551d401') }}</span></p>
             <button v-for="prompt in prompts" :key="prompt" type="button" class="suggestion" @click="draft = prompt">{{ prompt }}<span aria-hidden="true">↗</span></button>
           </div>
-          <article v-for="(message, index) in store.current?.messages || []" :key="index" class="message" :class="message.role"><span class="speaker">{{ message.role === 'user' ? '你' : 'AI 助手' }}</span><AssistantThinking v-if="message.role === 'assistant'" :reasoning="message.reasoning" /><div>{{ message.content }}</div></article>
+          <article v-for="(message, index) in store.current?.messages || []" :key="index" class="message" :class="message.role"><span class="speaker">{{ message.role === 'user' ? tr('m_a0c7716669b5') : tr('m_1b0049fcfd41') }}</span><AssistantThinking v-if="message.role === 'assistant'" :reasoning="message.reasoning" /><div>{{ message.content }}</div></article>
           <template v-for="turn in currentTurns" :key="turn.id">
-            <article class="message user"><span class="speaker">你</span><div>{{ turn.message }}</div></article>
-            <article class="message assistant live-reply"><span class="speaker">AI 助手</span><AssistantThinking :active="turn.active" :reasoning="turn.reasoning" :status="turn.status" :replying="!!turn.content" /><div>{{ turn.content }}</div><p v-if="turn.error" class="error" role="alert">{{ turn.error }}<button :disabled="store.sending" @click="store.send(turn.includeResources, turn.id)">重试这条消息</button></p></article>
+            <article class="message user"><span class="speaker">{{ tr('m_a0c7716669b5') }}</span><div>{{ turn.message }}</div></article>
+            <article class="message assistant live-reply"><span class="speaker">{{ tr('m_1b0049fcfd41') }}</span><AssistantThinking :active="turn.active" :reasoning="turn.reasoning" :status="turn.status" :replying="!!turn.content" /><div>{{ turn.content }}</div><p v-if="turn.error" class="error" role="alert">{{ turn.error }}<button :disabled="store.sending" @click="store.send(turn.includeResources, turn.id)">{{ tr('m_723588bf300c') }}</button></p></article>
           </template>
           <div v-if="stacked && store.current?.tasks.length" ref="inlineTasksElement" class="inline-tasks">
             <AssistantTasks :key="store.currentID" :tasks="store.current.tasks" :busy="store.busyTasks" :save-task="saveTask" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" />
           </div>
-          <p v-if="store.sending" class="thinking" role="status">正在接收回复，尚未执行任何操作…</p>
+          <p v-if="store.sending" class="thinking" role="status">{{ tr('m_ca264d6e420d') }}</p>
         </div>
         <div class="composer" @focusout="onComposerBlur">
-          <div v-if="store.settings && !store.settings.configured" class="setup-note">{{ store.settings.shared_enabled ? '共享连接未就绪，请联系管理员。' : '先配置 API 端点、模型和密钥。' }}<button @click="settingsOpen = true">连接配置</button></div>
+          <div v-if="store.settings && !store.settings.configured" class="setup-note">{{ store.settings.shared_enabled ? tr('m_1a5fef6d88bd') : tr('m_304f23f8d7c9') }}<button @click="settingsOpen = true">{{ tr('m_e38ab48681dd') }}</button></div>
           <div class="composer-options">
-            <label class="resource-check"><input v-model="includeResources" type="checkbox" /><span class="desktop-copy">允许发送我的资源名称与 ID 给配置的 AI 服务</span><span class="mobile-copy">允许发送资源名称与 ID</span></label>
+            <label class="resource-check"><input v-model="includeResources" type="checkbox" /><span class="desktop-copy">{{ tr('m_750d0884694f') }}</span><span class="mobile-copy">{{ tr('m_03e9099ca5f2') }}</span></label>
             <n-popover trigger="click" placement="top-end" :width="260">
-              <template #trigger><button class="privacy-toggle" type="button">隐私说明</button></template>
-              会话仅对你可见。消息会发送给所配置的 AI 服务，请勿填写密码或连接令牌。勾选后还会附带你有权限访问的资源名称与 ID，不包含 Cloudflare 凭据。
+              <template #trigger><button class="privacy-toggle" type="button">{{ tr('m_9d06d61ee41f') }}</button></template>
+              {{ tr('m_6a78a7d91819') }}
             </n-popover>
           </div>
-          <form @submit.prevent="store.send(includeResources)"><textarea ref="composerElement" v-model="draft" aria-label="发送给 AI 助手的消息" :placeholder="compact ? '描述你想完成的配置…' : '例如：创建一个私有监控项目，每 60 秒检查一次…'" :rows="compact ? 1 : 3" maxlength="8000" @focus="composing = true" @keydown="onComposerKey" /><button class="send" :disabled="!draft.trim() || store.sending || !store.settings?.configured" type="submit">{{ store.sending ? '思考中' : '发送' }}</button></form>
-          <p class="privacy">会话仅对你可见。输入内容将发送给所配置的 AI 服务，请勿填写密码或连接令牌。<span class="desktop-copy">Enter 发送，Shift + Enter 换行。</span></p>
+          <form @submit.prevent="store.send(includeResources)"><textarea ref="composerElement" v-model="draft" :aria-label="tr('m_edcac8607f16')" :placeholder="compact ? tr('m_c3a37f287970') : tr('m_0dbfd9f6646b')" :rows="compact ? 1 : 3" maxlength="8000" @focus="composing = true" @keydown="onComposerKey" /><button class="send" :disabled="!draft.trim() || store.sending || !store.settings?.configured" type="submit">{{ store.sending ? tr('m_43ce458cae49') : tr('m_edecf0ae6e51') }}</button></form>
+          <p class="privacy">{{ tr('m_e0c22e375b03') }}<span class="desktop-copy">{{ tr('m_81e12d17abce') }}</span></p>
         </div>
       </section>
       <aside v-if="!stacked" class="desktop-tasks"><AssistantTasks :key="store.currentID" :tasks="store.current?.tasks || []" :busy="store.busyTasks" :save-task="saveTask" @action="taskAction" @execute="confirmExecute" @retry="retry" @refresh="store.load(true)" /></aside>
     </div>
-    <n-drawer v-model:show="historyOpen" :width="320" placement="left"><n-drawer-content title="我的会话" closable><button class="history-new" :disabled="store.sending" @click="createConversation">新建会话</button><div v-for="conversation in store.conversations" :key="conversation.id" class="history-row"><button @click="store.currentID = conversation.id; historyOpen = false">{{ conversation.title }}</button><button :disabled="store.sending" :aria-label="`删除会话：${conversation.title}`" @click="removeConversation(conversation.id)">×</button></div></n-drawer-content></n-drawer>
+    <n-drawer v-model:show="historyOpen" :width="320" placement="left"><n-drawer-content :title="tr('m_ed008a400d30')" closable><button class="history-new" :disabled="store.sending" @click="createConversation">{{ tr('m_58e21b8737cc') }}</button><div v-for="conversation in store.conversations" :key="conversation.id" class="history-row"><button @click="store.currentID = conversation.id; historyOpen = false">{{ conversation.title }}</button><button :disabled="store.sending" :aria-label="tr('m_7b85126d4a6b', { p0: conversation.title })" @click="removeConversation(conversation.id)">×</button></div></n-drawer-content></n-drawer>
     <AssistantSettings :open="settingsOpen" :settings="store.settings" @close="settingsOpen = false" @saved="store.settings = $event" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { t as tr, localized } from '../i18n'
+
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NDrawer, NDrawerContent, NPopover, useDialog } from 'naive-ui'
 import { icons } from '../navigation'
@@ -71,7 +73,7 @@ const currentTurns = computed(() => store.liveTurns.filter(turn => turn.conversa
 const pendingTasks = computed(() => store.current?.tasks.filter(task => task.status === 'pending').length || 0)
 const viewportHeight = ref(window.visualViewport?.height ?? window.innerHeight)
 const draft = computed({ get: () => store.drafts[store.currentID || 'new'] || '', set: value => { store.drafts[store.currentID || 'new'] = value } })
-const prompts = ['查看我现有的隧道与监控项目', '把 NAS 和相册接入域名，先生成可调整的配置计划', '创建一个名为「站点可用性」的私有监控项目']
+const prompts = localized(() => ([tr('m_b1eeed66e829'), tr('m_bf45ef04554a'), tr('m_71f37711ac86')]))
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   void store.load()
@@ -125,7 +127,7 @@ watch([() => store.currentID, () => store.current?.messages.length, () => store.
 })
 function onComposerKey(event: KeyboardEvent) { if (!compact.value && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (store.settings?.configured) void store.send(includeResources.value) } }
 async function createConversation() { await store.create(); historyOpen.value = false }
-function removeConversation(id: string) { dialog.warning({ title: '删除这个会话？', content: '删除会话和任务记录，不会删除已创建的业务资源。', positiveText: '删除会话', negativeText: '保留', onPositiveClick: () => store.remove(id) }) }
+function removeConversation(id: string) { dialog.warning({ title: tr('m_aea0944d46f2'), content: tr('m_b146d13ba283'), positiveText: tr('m_d51250d14a51'), negativeText: tr('m_670ec25af841'), onPositiveClick: () => store.remove(id) }) }
 function taskAction(id: string, action: string) { if (store.currentID) void store.taskAction(store.currentID, id, action) }
 async function saveTask(id: string, args: Record<string, unknown>, revision: number) {
   const conversationID = store.currentID
@@ -136,7 +138,7 @@ function confirmExecute(ids: string[]) {
   const conversationID = store.currentID
   if (!conversationID) return
   const approved = ids.map(id => ({ id, revision: store.current?.tasks.find(task => task.id === id)?.revision || 0 }))
-  dialog.warning({ title: `确认执行 ${ids.length} 项变更？`, content: '仅执行已勾选任务。修改或删除可能中断服务，删除不会自动恢复。域名绑定将把服务公开到互联网，任务可能创建收费资源，监控目标会开始周期探测。执行中的请求不能撤回。', positiveText: '确认执行', negativeText: '继续核对', onPositiveClick: () => {
+  dialog.warning({ title: tr('m_7524f24a3a86', { p0: ids.length }), content: tr('m_ddc6ab71df20'), positiveText: tr('m_68a35e224268'), negativeText: tr('m_24c716c56cdc'), onPositiveClick: () => {
     const queue = [...approved]
     async function worker() { while (queue.length) { const { id, revision } = queue.shift()!; const task = store.conversations.find(item => item.id === conversationID)?.tasks.find(item => item.id === id); if (task?.status === 'pending') await store.taskAction(conversationID, id, 'execute', true, false, { expected_revision: revision }) } }
     void Promise.all([worker(), worker()])
@@ -145,7 +147,7 @@ function confirmExecute(ids: string[]) {
 function retry(id: string) {
   const conversationID = store.currentID
   const revision = store.current?.tasks.find(task => task.id === id)?.revision || 0
-  dialog.warning({ title: '已核对实际资源，确认仍需执行？', content: '超时或失败不代表没有生效。请先到业务页面核对，只有确认变更尚未生效且仍需执行时才重试；原值变化需重新生成任务。', positiveText: '已核对，重新执行', negativeText: '先去核对', onPositiveClick: () => store.taskAction(conversationID, id, 'retry', true, true, { expected_revision: revision }) })
+  dialog.warning({ title: tr('m_61073c947ab2'), content: tr('m_6fe3c5ced59d'), positiveText: tr('m_d71a011288f0'), negativeText: tr('m_a3e39298c440'), onPositiveClick: () => store.taskAction(conversationID, id, 'retry', true, true, { expected_revision: revision }) })
 }
 </script>
 

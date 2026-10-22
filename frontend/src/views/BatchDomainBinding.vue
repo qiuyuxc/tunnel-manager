@@ -1,53 +1,53 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-            <h2>批量绑定</h2>
-      <p>每组独立设置转发地址，按顺序绑定主域名和辅助域名。</p>
+            <h2>{{ tr('m_6f7ce20a6c76') }}</h2>
+      <p>{{ tr('m_df37ef8cbb2e') }}</p>
     </div>
     <div v-if="!config.tunnel_id" class="prereq-banner section">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-banner-warning-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
-        <div class="prereq-title">前置条件未满足</div>
-        <div class="prereq-desc">请先在「隧道管理」选择隧道。</div>
+        <div class="prereq-title">{{ tr('m_5141efda7b2c') }}</div>
+        <div class="prereq-desc">{{ tr('m_30c7f125bf8d') }}</div>
       </div>
     </div>
     <div v-else class="tunnel-context section">
-      <span class="caption-mono">当前隧道</span>
+      <span class="caption-mono">{{ tr('m_b903d203f70a') }}</span>
       <div>
-        <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+        <strong>{{ config.tunnel_name || tr('m_8ce5320404d5') }}</strong>
       </div>
     </div>
     <div v-for="(group, index) in groups" :key="group.id" class="binding-group section">
       <div class="group-header">
         <div>
-          <span class="caption-mono">绑定组 {{ index + 1 }}</span>
-          <p>该组的两个域名将转发到同一地址。</p>
+          <span class="caption-mono">{{ tr('m_e9e60eacb48a') }} {{ index + 1 }}</span>
+          <p>{{ tr('m_2ec4de3cf7b9') }}</p>
         </div>
         <div class="group-actions">
-          <button class="icon-button" type="button" :disabled="submitting" aria-label="添加绑定组" title="添加一组" @click="addGroup">
+          <button class="icon-button" type="button" :disabled="submitting" :aria-label="tr('m_e293251015c7')" :title="tr('m_80c99aca45cb')" @click="addGroup">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           </button>
-          <button v-if="groups.length > 1" class="icon-button danger" type="button" :disabled="submitting" :aria-label="`删除绑定组 ${index + 1}`" title="删除此组" @click="removeGroup(index)">
+          <button v-if="groups.length > 1" class="icon-button danger" type="button" :disabled="submitting" :aria-label="tr('m_d7a64ce1a859', { p0: index + 1 })" :title="tr('m_35bf8246a7bb')" @click="removeGroup(index)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
           </button>
         </div>
       </div>
-      <div class="mode-selector" role="radiogroup" :aria-label="`绑定组 ${index + 1} 模式`">
+      <div class="mode-selector" role="radiogroup" :aria-label="tr('m_a8b3f6be920e', { p0: index + 1 })">
         <button type="button" class="mode-option" :class="{ active: group.mode === 'simple' }" role="radio" :aria-checked="group.mode === 'simple'" :disabled="submitting" @click="group.mode = 'simple'">
-          <strong>简单模式</strong><span>主域名直连服务</span>
+          <strong>{{ tr('m_fa521927b78a') }}</strong><span>{{ tr('m_7609b1e04ffb') }}</span>
         </button>
         <button type="button" class="mode-option" :class="{ active: group.mode === 'preferred' }" role="radio" :aria-checked="group.mode === 'preferred'" :disabled="submitting" @click="group.mode = 'preferred'">
-          <strong>优选模式</strong><span>使用优选线路和辅助回源</span>
+          <strong>{{ tr('m_a7974623c82b') }}</strong><span>{{ tr('m_9940c95e2111') }}</span>
         </button>
       </div>
       <div class="form-fields" :class="{ 'simple-fields': group.mode === 'simple' }">
         <div class="field">
-          <label class="field-label" :for="`service-${group.id}`">转发地址</label>
+          <label class="field-label" :for="`service-${group.id}`">{{ tr('m_c762fbaaad6f') }}</label>
           <input :id="`service-${group.id}`" v-model="group.service_url" class="vercel-input" placeholder="http://localhost:3000" :class="{ 'input-error': group.errors.service_url }" :disabled="submitting" @blur="validateGroup(group, 'service_url')" />
           <span v-if="group.errors.service_url" class="field-error">{{ group.errors.service_url }}</span>
         </div>
         <div v-if="group.mode === 'preferred'" class="field">
-          <label class="field-label" :for="`cname-${group.id}`">优选 CNAME <span class="field-note">选填，留空使用全局配置</span></label>
+          <label class="field-label" :for="`cname-${group.id}`">{{ tr('m_ff425d8a519d') }} <span class="field-note">{{ tr('m_e864583adc16') }}</span></label>
           <cname-picker
             v-model="group.preferred_cname"
             :input-id="`cname-${group.id}`"
@@ -58,34 +58,36 @@
           />
         </div>
         <div class="field">
-          <label class="field-label" :for="`main-${group.id}`">主域名 <span class="field-note">对外访问域名</span></label>
-          <input :id="`main-${group.id}`" v-model="group.main_domain" class="vercel-input" placeholder="例如: kukie.cn" :class="{ 'input-error': group.errors.main_domain }" :disabled="submitting" @blur="validateGroup(group, 'main_domain')" />
+          <label class="field-label" :for="`main-${group.id}`">{{ tr('m_13cfe9660cdf') }} <span class="field-note">{{ tr('m_90845d8dacde') }}</span></label>
+          <input :id="`main-${group.id}`" v-model="group.main_domain" class="vercel-input" :placeholder="tr('m_fc3c7f8bc7aa')" :class="{ 'input-error': group.errors.main_domain }" :disabled="submitting" @blur="validateGroup(group, 'main_domain')" />
           <span v-if="group.errors.main_domain" class="field-error">{{ group.errors.main_domain }}</span>
         </div>
         <div v-if="group.mode === 'preferred'" class="field">
-          <label class="field-label" :for="`aux-${group.id}`">辅助域名 <span class="field-note">用作回源</span></label>
-          <input :id="`aux-${group.id}`" v-model="group.aux_domain" class="vercel-input" placeholder="例如: fallback.169977.xyz" :class="{ 'input-error': group.errors.aux_domain }" :disabled="submitting" @blur="validateGroup(group, 'aux_domain')" />
+          <label class="field-label" :for="`aux-${group.id}`">{{ tr('m_0135beb32bd5') }} <span class="field-note">{{ tr('m_320f1773293f') }}</span></label>
+          <input :id="`aux-${group.id}`" v-model="group.aux_domain" class="vercel-input" :placeholder="tr('m_8aa71f623840')" :class="{ 'input-error': group.errors.aux_domain }" :disabled="submitting" @blur="validateGroup(group, 'aux_domain')" />
           <span v-if="group.errors.aux_domain" class="field-error">{{ group.errors.aux_domain }}</span>
         </div>
       </div>
       <div v-if="group.result" class="group-result" :class="group.result.success ? 'success' : 'error'">
-        <strong>{{ group.result.success ? '绑定成功' : '绑定失败' }}</strong>
+        <strong>{{ group.result.success ? tr('m_67076a58977b') : tr('m_cdc8411c0d72') }}</strong>
         <span>{{ group.result.message }}</span>
-        <span v-if="group.result.success && group.result.mode === 'preferred'">优选 CNAME：{{ group.result.preferred_cname }}</span>
+        <span v-if="group.result.success && group.result.mode === 'preferred'">{{ tr('m_cecc67ab64a2') }}{{ group.result.preferred_cname }}</span>
       </div>
     </div>
-    <OperationStatus v-if="submitting" :title="`正在绑定 ${groups.length} 组域名`" />
+    <OperationStatus v-if="submitting" :title="tr('m_665ce00ce6d8', { p0: groups.length })" />
     <div class="form-action">
       <button class="btn btn-primary" :disabled="submitting || !config.tunnel_id" @click="handleBatchBind">
         <svg v-if="submitting" class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        {{ submitting ? '批量绑定中...' : `绑定 ${groups.length} 组域名` }}
+        {{ submitting ? tr('m_f81d26c1ec21') : tr('m_6c05d2aee66e', { p0: groups.length }) }}
       </button>
-      <span v-if="summary" class="summary" :class="summary.success === summary.total ? 'summary-success' : 'summary-error'">{{ summary.success }}/{{ summary.total }} 组绑定成功</span>
+      <span v-if="summary" class="summary" :class="summary.success === summary.total ? 'summary-success' : 'summary-error'">{{ summary.success }}/{{ summary.total }} {{ tr('m_d575ff14a1b5') }}</span>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { bindDomainsBatch, type BatchBindItem, type BatchBindResult } from '../api'
@@ -128,7 +130,7 @@ function removeGroup(index: number) {
   groups.value.splice(index, 1)
 }
 function validateGroup(group: BindingGroup, field: Field) {
-  group.errors[field] = group[field].trim() ? '' : '此字段不能为空'
+  group.errors[field] = group[field].trim() ? '' : tr('m_7541de4d1a3f')
 }
 function validateGroups() {
   let valid = true
@@ -146,7 +148,7 @@ function validateGroups() {
 async function handleBatchBind() {
   if (submitting.value) return
   if (!validateGroups()) {
-    message.error('请补全每组的转发地址和域名')
+    message.error(tr('m_8a67c4b01df0'))
     return
   }
   submitting.value = true
@@ -154,12 +156,12 @@ async function handleBatchBind() {
     const items = groups.value.map(({ mode, service_url, preferred_cname, main_domain, aux_domain }) => ({ mode, service_url: service_url.trim(), preferred_cname: preferred_cname.trim(), main_domain: main_domain.trim(), aux_domain: aux_domain.trim() }))
     const { data } = await bindDomainsBatch(items)
     groups.value.forEach((group, index) => {
-      group.result = data.results[index] || { ...items[index], success: false, message: '未收到该组的执行结果' }
+      group.result = data.results[index] || { ...items[index], success: false, message: tr('m_10250dd969a2') }
     })
     const successCount = data.results.filter((item) => item.success).length
-    message[successCount === data.results.length ? 'success' : 'warning'](`批量绑定完成：${successCount}/${data.results.length} 成功`)
+    message[successCount === data.results.length ? 'success' : 'warning'](tr('m_acc8acc23d83', { p0: successCount, p1: data.results.length }))
   } catch (e: any) {
-    message.error('批量绑定失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_b460c19e6551') + (e.response?.data?.error || e.message))
   } finally {
     submitting.value = false
   }

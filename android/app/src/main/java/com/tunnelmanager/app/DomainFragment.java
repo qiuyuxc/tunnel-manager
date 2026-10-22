@@ -77,7 +77,7 @@ public class DomainFragment extends PageFragment {
         scroll.addView(body);
         refresh.addView(scroll);
 
-        body.addView(UI.muted(requireContext(), "加载中…"));
+        body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
         load();
         return refresh;
     }
@@ -105,30 +105,30 @@ public class DomainFragment extends PageFragment {
     private void renderFailure(String message) {
         if (body == null || !alive()) return;
         body.removeAllViews();
-        body.addView(UI.banner(requireContext(), message == null ? "加载失败" : message, true));
+        body.addView(UI.banner(requireContext(), message == null ? I18n.text("m_d1d044826a45") : message, true));
     }
 
     private void render() {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "域名绑定"));
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_4bf8b66d7390")));
 
-        TextView subtitle = UI.muted(requireContext(), "将域名绑定到已配置的隧道，自动配置 DNS 和 SaaS 回源");
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_de782b9792c7"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         String tunnelId = config.optString("tunnel_id", "");
         String serviceUrlValue = draftService == null ? config.optString("service_url", "") : draftService;
         if (tunnelId.isEmpty() || serviceUrlValue.isEmpty()) {
-            body.addView(UI.banner(requireContext(), "前置条件未满足：请先在「隧道管理」锁定隧道，并配置转发地址。", true));
+            body.addView(UI.banner(requireContext(), I18n.text("m_87d788a3e1be"), true));
             body.addView(UI.spacer(requireContext(), UI.LG));
         }
 
         body.addView(summaryCard(tunnelId, serviceUrlValue));
 
         body.addView(UI.spacer(requireContext(), UI.XL));
-        body.addView(UI.label(requireContext(), "绑定新域名"));
+        body.addView(UI.label(requireContext(), I18n.text("m_bce4481a7278")));
         body.addView(UI.spacer(requireContext(), UI.SM));
         body.addView(bindCard());
         refresh.setEnabled(!pending);
@@ -147,29 +147,29 @@ public class DomainFragment extends PageFragment {
         Palette p = Theme.p();
         LinearLayout card = UI.card(requireContext());
 
-        TextView tunnelLabel = UI.label(requireContext(), "当前隧道");
+        TextView tunnelLabel = UI.label(requireContext(), I18n.text("m_b903d203f70a"));
         card.addView(tunnelLabel);
         TextView tunnel = tunnelId.isEmpty()
-                ? UI.muted(requireContext(), "未配置")
-                : UI.text(requireContext(), config.optString("tunnel_name", "已选隧道"), 14, p.ink, Typeface.BOLD);
+                ? UI.muted(requireContext(), I18n.text("m_80a57e03f071"))
+                : UI.text(requireContext(), config.optString("tunnel_name", I18n.text("m_8ce5320404d5")), 14, p.ink, Typeface.BOLD);
         UI.margin(tunnel, 0, UI.XS, 0, UI.MD);
         card.addView(tunnel);
 
-        card.addView(UI.label(requireContext(), "转发地址"));
+        card.addView(UI.label(requireContext(), I18n.text("m_c762fbaaad6f")));
         serviceUrl = UI.input(requireContext(), "http://localhost:3000");
         serviceUrl.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         serviceUrl.setText(serviceUrlValue);
         UI.margin(serviceUrl, 0, UI.XS, 0, 0);
         card.addView(serviceUrl);
 
-        if (pending && pendingTitle.equals("正在保存转发地址")) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
-        TextView save = UI.button(requireContext(), pending ? "正在处理…" : "保存转发地址", UI.BTN_SECONDARY);
+        if (pending && pendingTitle.equals(I18n.text("m_f0556b822864"))) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
+        TextView save = UI.button(requireContext(), pending ? I18n.text("m_574ec7517de1") : I18n.text("m_ec7be3f5d41f"), UI.BTN_SECONDARY);
         UI.fill(save);
         UI.margin(save, 0, UI.SM, 0, UI.MD);
         save.setOnClickListener(v -> saveServiceUrl());
         card.addView(save);
 
-        card.addView(UI.label(requireContext(), "默认 CNAME"));
+        card.addView(UI.label(requireContext(), I18n.text("m_54125d36ad63")));
         TextView preferred = UI.mono(requireContext(), config.optString("preferred_cname", "—"), p.body);
         preferred.setSingleLine(true);
         preferred.setEllipsize(TextUtils.TruncateAt.MIDDLE);
@@ -181,15 +181,15 @@ public class DomainFragment extends PageFragment {
     private View bindCard() {
         LinearLayout card = UI.card(requireContext());
 
-        card.addView(UI.segmented(requireContext(), new String[]{"简单模式", "优选模式"}, mode, selected -> {
+        card.addView(UI.segmented(requireContext(), new String[]{I18n.text("m_fa521927b78a"), I18n.text("m_a7974623c82b")}, mode, selected -> {
             mode = selected;
             cnameField.setVisibility(selected == 1 ? View.VISIBLE : View.GONE);
             auxField.setVisibility(selected == 1 ? View.VISIBLE : View.GONE);
         }));
 
-        cname = UI.input(requireContext(), "留空使用默认线路");
+        cname = UI.input(requireContext(), I18n.text("m_ecd690c9dc84"));
         cname.setText(draftCname);
-        TextView pick = UI.button(requireContext(), "常用线路", UI.BTN_SECONDARY);
+        TextView pick = UI.button(requireContext(), I18n.text("m_0bb90daa665f"), UI.BTN_SECONDARY);
         pick.setOnClickListener(v -> openCnamePicker());
 
         LinearLayout cnameRow = UI.row(requireContext());
@@ -199,31 +199,31 @@ public class DomainFragment extends PageFragment {
         pickLp.leftMargin = UI.dp(UI.SM);
         cnameRow.addView(pick, pickLp);
 
-        cnameField = UI.field(requireContext(), "本次优选 CNAME", cnameRow, UI.MD);
+        cnameField = UI.field(requireContext(), I18n.text("m_309710e63b6d"), cnameRow, UI.MD);
         card.addView(cnameField);
 
-        mainDomain = UI.input(requireContext(), "例如：kukie.cn");
+        mainDomain = UI.input(requireContext(), I18n.text("m_6aede1cf2f10"));
         mainDomain.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         mainDomain.setText(draftMain);
-        card.addView(UI.field(requireContext(), "主域名 · 对外访问域名", mainDomain, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_6aa6a4279118"), mainDomain, UI.MD));
 
-        auxDomain = UI.input(requireContext(), "例如：fallback.169977.xyz");
+        auxDomain = UI.input(requireContext(), I18n.text("m_c0c3f6dc7617"));
         auxDomain.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         auxDomain.setText(draftAux);
-        auxField = UI.field(requireContext(), "辅助域名 · 用作回源", auxDomain, UI.MD);
+        auxField = UI.field(requireContext(), I18n.text("m_c1fb6c5a78c6"), auxDomain, UI.MD);
         card.addView(auxField);
 
         cnameField.setVisibility(mode == 1 ? View.VISIBLE : View.GONE);
         auxField.setVisibility(mode == 1 ? View.VISIBLE : View.GONE);
 
-        if (pending && pendingTitle.equals("正在绑定域名")) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
-        TextView bind = UI.button(requireContext(), pending ? "正在处理…" : "绑定域名", UI.BTN_PRIMARY);
+        if (pending && pendingTitle.equals(I18n.text("m_919b869a5aef"))) card.addView(new OperationProgress(requireContext(), pendingTitle, startedAt));
+        TextView bind = UI.button(requireContext(), pending ? I18n.text("m_574ec7517de1") : I18n.text("m_dd799f925f94"), UI.BTN_PRIMARY);
         UI.fill(bind);
         UI.margin(bind, 0, UI.LG, 0, 0);
         bind.setOnClickListener(v -> bind());
         card.addView(bind);
 
-        TextView batch = UI.button(requireContext(), "批量绑定多组域名", UI.BTN_SECONDARY);
+        TextView batch = UI.button(requireContext(), I18n.text("m_911b0b0d2885"), UI.BTN_SECONDARY);
         UI.fill(batch);
         UI.margin(batch, 0, UI.SM, 0, 0);
         batch.setOnClickListener(v -> openRoute("/domain/batch"));
@@ -236,11 +236,11 @@ public class DomainFragment extends PageFragment {
     /** The console's CNAMEPicker, flattened into a sheet. */
     private void openCnamePicker() {
         String fallback = config.optString("preferred_cname", "");
-        Sheet.Builder sheet = Sheet.of(requireContext(), "本次优选 CNAME")
-                .label("常用线路");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_309710e63b6d"))
+                .label(I18n.text("m_0bb90daa665f"));
 
         sheet.item(R.drawable.ic_nav_check,
-                fallback.isEmpty() ? "使用默认配置" : "使用默认配置（" + fallback + "）",
+                fallback.isEmpty() ? I18n.text("m_dba90d12bb8a") : I18n.text("m_15aadd942734") + fallback + "）",
                 () -> cname.setText(""));
 
         JSONArray presets = config.optJSONArray("cname_presets");
@@ -261,10 +261,10 @@ public class DomainFragment extends PageFragment {
         if (pending) return;
         String value = serviceUrl.getText().toString().trim();
         if (value.isEmpty()) {
-            toast("转发地址不能为空");
+            toast(I18n.text("m_d1c4ce4fe6f4"));
             return;
         }
-        beginOperation("正在保存转发地址");
+        beginOperation(I18n.text("m_f0556b822864"));
         Api.async(() -> {
             JSONObject payload = new JSONObject();
             payload.put("value", value);
@@ -276,7 +276,7 @@ public class DomainFragment extends PageFragment {
                 config.put("service_url", value);
             } catch (Exception ignored) {
             }
-            toast("转发地址已更新");
+            toast(I18n.text("m_0aaac7dade14"));
             render();
         }, failure -> {
             pending = false;
@@ -296,14 +296,14 @@ public class DomainFragment extends PageFragment {
 
         if (service.isEmpty() || main.isEmpty() || (mode == 1 && aux.isEmpty())) {
             setResult(false, mode == 1
-                    ? "转发地址、主域名、辅助域名都要填"
-                    : "转发地址和主域名都要填");
+                    ? I18n.text("m_72586c7b53ca")
+                    : I18n.text("m_cc6561d5be5e"));
             return;
         }
 
         final String previous = config.optString("service_url", "").trim();
         final int requestedMode = mode;
-        beginOperation("正在绑定域名");
+        beginOperation(I18n.text("m_919b869a5aef"));
         Api.async(() -> {
             // The web console saves a changed forwarding address as part of the
             // same click, so the two never disagree about what was bound.
@@ -324,7 +324,7 @@ public class DomainFragment extends PageFragment {
                 config.put("service_url", service);
             } catch (Exception ignored) {
             }
-            setResult(true, response.optString("message", "域名绑定成功"));
+            setResult(true, response.optString("message", I18n.text("m_27347bf9fa01")));
         }, failure -> setResult(false, failure.getMessage()));
     }
 
@@ -334,7 +334,7 @@ public class DomainFragment extends PageFragment {
         resultMessage = message == null ? "" : message;
         captureDraft();
         render();
-        toast(ok ? "绑定成功" : resultMessage);
+        toast(ok ? I18n.text("m_67076a58977b") : resultMessage);
     }
 
     private void captureDraft() {

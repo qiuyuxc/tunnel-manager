@@ -16,7 +16,7 @@ final class HealthRingView extends View {
         super(context);
         this.healthy = healthy;
         this.total = total;
-        setContentDescription(total == 0 ? "暂无监控目标" : total + " 个目标中 " + healthy + " 个正常");
+        setContentDescription(total == 0 ? I18n.text("m_fbf0217162ed") : total + I18n.text("m_e57377d3be5c") + healthy + I18n.text("m_f2c8d6d9764a"));
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 
@@ -37,7 +37,7 @@ final class HealthRingView extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(UI.dp(22));
-        String value = total == 0 ? "待检测" : String.valueOf(healthy);
+        String value = total == 0 ? I18n.text("m_d80109d7decd") : String.valueOf(healthy);
         if (total == 0) paint.setTextSize(UI.dp(12));
         canvas.drawText(value, getWidth() / 2f, getHeight() / 2f - (paint.ascent() + paint.descent()) / 2f, paint);
     }

@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.ts'
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useConfigStore } from './config'
@@ -6,7 +7,7 @@ import { actOnAITask, deleteAIConversation, getAIConversations, getAISettings, n
 
 export function aiError(error: unknown): string {
   const failure = error as { response?: { data?: { error?: string } }; message?: string }
-  return failure.response?.data?.error || failure.message || '请求失败，请检查网络后重试；执行请求失败时请先核对实际资源。'
+  return failure.response?.data?.error || failure.message || tr('m_a9ea5a1037d7')
 }
 
 export const useAssistantStore = defineStore('assistant', () => {
@@ -92,7 +93,7 @@ export const useAssistantStore = defineStore('assistant', () => {
     const message = turn?.message || (drafts.value[draftKey] || '').trim()
     if (!message) return
     if (!turn) {
-      liveTurns.value.push({ id: `turn-${Date.now()}-${++turnSequence}`, conversationID: draftKey, message, content: '', reasoning: '', status: '正在发送…', error: '', active: true, includeResources })
+      liveTurns.value.push({ id: `turn-${Date.now()}-${++turnSequence}`, conversationID: draftKey, message, content: '', reasoning: '', status: tr('m_22eb0f8779ab'), error: '', active: true, includeResources })
       turn = liveTurns.value[liveTurns.value.length - 1]!
       drafts.value[draftKey] = ''
     } else { turn.content = ''; turn.reasoning = ''; turn.error = ''; turn.active = true; includeResources = turn.includeResources }
@@ -103,12 +104,12 @@ export const useAssistantStore = defineStore('assistant', () => {
     const timer = setTimeout(() => controller.abort(), 180000)
     try {
       const id = turn.conversationID !== 'new' ? turn.conversationID : await create()
-      if (!id || started !== generation) throw new Error('会话创建失败，请重试')
+      if (!id || started !== generation) throw new Error(tr('m_a7a64137bd2b'))
       turn.conversationID = id
       if (draftKey === 'new' && drafts.value.new) { drafts.value[id] = drafts.value.new; delete drafts.value.new }
       await sendAIStream(id, message, includeResources, controller.signal, event => {
         if (started !== generation) return
-        if (event.type === 'text') { turn!.content += String(event.data.delta || ''); turn!.status = '正在回复…' }
+        if (event.type === 'text') { turn!.content += String(event.data.delta || ''); turn!.status = tr('m_13f41d1066f6') }
         if (event.type === 'reasoning') turn!.reasoning += String(event.data.delta || '')
         if (event.type === 'status') turn!.status = String(event.data.message || '')
         if (event.type === 'done') {
@@ -117,7 +118,7 @@ export const useAssistantStore = defineStore('assistant', () => {
         }
       })
     } catch (failure) {
-      if (started === generation) { turn.error = controller.signal.aborted ? '回复超时或已中止，请重试' : aiError(failure); turn.status = '回复未完成'; turn.active = false }
+      if (started === generation) { turn.error = controller.signal.aborted ? tr('m_cd9aefaf2b72') : aiError(failure); turn.status = tr('m_a903ba39af8f'); turn.active = false }
     } finally { clearTimeout(timer); if (started === generation) { sending.value = false; streamController = undefined } }
   }
 

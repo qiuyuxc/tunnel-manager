@@ -1,3 +1,4 @@
+import { t as tr, localized } from './i18n.ts'
 import { computed } from 'vue'
 import { useConfigStore } from './stores/config'
 
@@ -52,28 +53,28 @@ export interface NavItem {
   badge?: string
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', label: '控制面板', tabLabel: '概览', icon: icons.dashboard, group: 'workspace' },
-  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'workspace', perm: 'tunnels' },
-  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'workspace', perm: 'monitors' },
-  { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network', perm: 'domain_bind' },
-  { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network', perm: 'dns' },
-  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'management', admin: true },
-  { path: '/assistant', label: 'AI 助手', icon: icons.assistant, group: 'workspace' },
-  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.tunnels, group: 'network', admin: true, experimental: true },
-  { path: '/telegram', label: 'TG 机器人', icon: icons.telegram, group: 'management' },
-  { path: '/notifications', label: '通知设置', tabLabel: '通知', icon: icons.bell, group: 'management' },
-  { path: '/admin', label: '管理后台', icon: icons.admin, group: 'management', admin: true },
-  { path: '/account', label: '账户设置', tabLabel: '账户', icon: icons.account, group: 'personal' },
-  { path: '/about', label: '关于与更新', tabLabel: '关于', icon: icons.about, group: 'personal' },
-]
+export const NAV_ITEMS: NavItem[] = localized(() => ([
+  { path: '/dashboard', label: tr('m_69e7a943ab4e'), tabLabel: tr('m_fea405f9b01d'), icon: icons.dashboard, group: 'workspace' },
+  { path: '/tunnels', label: tr('m_e920f47d0c05'), icon: icons.tunnels, group: 'workspace', perm: 'tunnels' },
+  { path: '/monitors', label: tr('m_7fab82054a8f'), tabLabel: tr('m_fdc390061698'), icon: icons.monitor, group: 'workspace', perm: 'monitors' },
+  { path: '/domain', label: tr('m_4bf8b66d7390'), icon: icons.domain, group: 'network', perm: 'domain_bind' },
+  { path: '/dns', label: tr('m_474fb6002594'), tabLabel: tr('m_474fb6002594'), icon: icons.dns, group: 'network', perm: 'dns' },
+  { path: '/settings', label: tr('m_3f754f38a654'), icon: icons.settings, group: 'management', admin: true },
+  { path: '/assistant', label: tr('m_1b0049fcfd41'), icon: icons.assistant, group: 'workspace' },
+  { path: '/lab/ip-selector', label: tr('m_3db29474a184'), icon: icons.tunnels, group: 'network', admin: true, experimental: true },
+  { path: '/telegram', label: tr('m_805dcced3f07'), icon: icons.telegram, group: 'management' },
+  { path: '/notifications', label: tr('m_247ca01ae280'), tabLabel: tr('m_4b6ded8a7f18'), icon: icons.bell, group: 'management' },
+  { path: '/admin', label: tr('m_87354adb1c31'), icon: icons.admin, group: 'management', admin: true },
+  { path: '/account', label: tr('m_a720b4000be6'), tabLabel: tr('m_061246bd31e0'), icon: icons.account, group: 'personal' },
+  { path: '/about', label: tr('m_12e4ccda58d8'), tabLabel: tr('m_52d25a9e30ba'), icon: icons.about, group: 'personal' },
+]))
 
-export const GROUP_LABELS: Record<NavGroup, string> = {
-  workspace: '工作空间',
-  network: '网络',
-  management: '管理',
-  personal: '个人',
-}
+export const GROUP_LABELS: Record<NavGroup, string> = localized(() => ({
+  workspace: tr('m_6fed7e860168'),
+  network: tr('m_97b31b5d63f5'),
+  management: tr('m_bb6d995724f4'),
+  personal: tr('m_15dec507959e'),
+}))
 
 /** Sidebar section order. `personal` is pinned to the sidebar footer, so it is
  *  intentionally absent here and rendered separately. */
@@ -81,11 +82,11 @@ export const SIDEBAR_GROUPS: readonly NavGroup[] = ['workspace', 'network', 'man
 
 /** Detail / nested pages that never appear in the nav but still need a
  *  breadcrumb trail. Maps a route path prefix to its parent nav path + title. */
-export const DETAIL_PAGES: { match: (path: string) => boolean; parent: string; title: string }[] = [
-  { match: (p) => /^\/tunnels\/[^/]+$/.test(p), parent: '/tunnels', title: '隧道详情' },
-  { match: (p) => /^\/monitors\/[^/]+$/.test(p), parent: '/monitors', title: '监控详情' },
-  { match: (p) => p === '/domain/batch', parent: '/domain', title: '批量绑定' },
-]
+export const DETAIL_PAGES: { match: (path: string) => boolean; parent: string; title: string }[] = localized(() => ([
+  { match: (p) => /^\/tunnels\/[^/]+$/.test(p), parent: '/tunnels', title: tr('m_094f104f556a') },
+  { match: (p) => /^\/monitors\/[^/]+$/.test(p), parent: '/monitors', title: tr('m_50b9709ba538') },
+  { match: (p) => p === '/domain/batch', parent: '/domain', title: tr('m_6f7ce20a6c76') },
+]))
 
 export interface Crumb {
   label: string
@@ -111,21 +112,21 @@ export function breadcrumbFor(currentPath: string): Crumb[] {
 export const TAB_PATHS: readonly string[] = ['/dashboard', '/monitors', '/dns']
 
 /** Paths offered by the "+" button. */
-export const CREATE_ACTIONS = [
+export const CREATE_ACTIONS = localized(() => ([
   {
     path: '/tunnels',
-    title: '新建隧道',
-    desc: '创建 Cloudflare Tunnel 并接入主机',
+    title: tr('m_ee6527b22aaf'),
+    desc: tr('m_4412aa6b4937'),
     icon: icons.tunnels,
   },
   {
     path: '/domain',
-    title: '绑定域名',
-    desc: '将域名指向已配置的隧道',
+    title: tr('m_dd799f925f94'),
+    desc: tr('m_c421b425bbab'),
     icon: icons.domain,
   },
-  { path: '/assistant', title: 'AI 助手', desc: '描述目标，核对并执行配置任务', icon: icons.assistant },
-] as const
+  { path: '/assistant', title: tr('m_1b0049fcfd41'), desc: tr('m_6eeb9aae30ef'), icon: icons.assistant },
+] as const))
 
 export function useNavItems() {
   const configStore = useConfigStore()

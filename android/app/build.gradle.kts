@@ -10,8 +10,8 @@ android {
         applicationId = "com.tunnelmanager.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 290
-        versionName = "2.9.0"
+        versionCode = 300
+        versionName = "3.0.0"
     }
 
     // The debug key is the one build.sh already generated, so `adb install -r`
@@ -62,6 +62,12 @@ val verifyNativePalette = tasks.register<Exec>("verifyNativePalette") {
     commandLine("node", "android/tools/gen-tokens.mjs", "--check")
 }
 
+val verifyTranslations = tasks.register<Exec>("verifyTranslations") {
+    workingDir(rootProject.projectDir.parentFile)
+    commandLine("node", "tools/i18n/generate.mjs", "--check")
+}
+
 tasks.named("preBuild") {
     dependsOn(verifyNativePalette)
+    dependsOn(verifyTranslations)
 }

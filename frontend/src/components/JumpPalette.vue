@@ -4,15 +4,15 @@
        account is already allowed to go — it never invents a route. -->
   <Transition name="jump-fade">
     <div v-if="open" class="jump-scrim" @click="close">
-      <div class="jump-panel" role="dialog" aria-modal="true" aria-label="快速前往" @click.stop>
+      <div class="jump-panel" role="dialog" aria-modal="true" :aria-label="tr('m_27268090a840')" @click.stop>
         <div class="jump-search">
           <span class="nav-icon" aria-hidden="true" v-html="icons.search" />
           <input
             ref="inputEl"
             v-model="query"
             type="text"
-            placeholder="搜索页面…"
-            aria-label="搜索页面"
+            :placeholder="tr('m_100136383c77')"
+            :aria-label="tr('m_5d5b3fad865d')"
             @keydown.down.prevent="move(1)"
             @keydown.up.prevent="move(-1)"
             @keydown.enter.prevent="choose(results[active])"
@@ -34,7 +34,7 @@
             <span class="jump-label">{{ item.label }}</span>
             <span class="jump-group">{{ groupLabel(item.group) }}</span>
           </button>
-          <p v-if="!results.length" class="jump-empty">没有匹配的页面</p>
+          <p v-if="!results.length" class="jump-empty">{{ tr('m_68569a7aea38') }}</p>
         </div>
       </div>
     </div>
@@ -42,6 +42,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { GROUP_LABELS, icons, useNavItems, type NavGroup, type NavItem } from '../navigation'

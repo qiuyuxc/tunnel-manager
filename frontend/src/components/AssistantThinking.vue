@@ -1,11 +1,13 @@
 <template>
   <details v-if="active || reasoning" class="thinking-details">
-    <summary><span v-if="active" class="pulse" aria-hidden="true"></span>{{ active ? (replying ? '正在回复' : 'AI 思考中') : '思考摘要' }}<span class="chevron" aria-hidden="true">⌄</span></summary>
+    <summary><span v-if="active" class="pulse" aria-hidden="true"></span>{{ active ? (replying ? tr('m_85fd04d0c89c') : tr('m_dfd317d5828c')) : tr('m_c71d5942ebbc') }}<span class="chevron" aria-hidden="true">⌄</span></summary>
     <p v-if="reasoning">{{ reasoning }}</p>
-    <p v-else>{{ status || '正在等待模型输出；有思考摘要时会在这里显示。' }}</p>
+    <p v-else>{{ status || tr('m_ea67d9f548d5') }}</p>
   </details>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 defineProps<{ active?: boolean; reasoning?: string; status?: string; replying?: boolean }>()
 </script>
 <style scoped>

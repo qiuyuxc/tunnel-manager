@@ -16,9 +16,11 @@ final class Nav {
 
     static final class Item {
         final String path;
-        final String label;
+        final String labelKey;
+        String label() { return I18n.text(labelKey); }
         /** Shorter phone wording, when the sidebar label does not fit a tab. */
-        final String tabLabel;
+        final String tabLabelKey;
+        String tabLabel() { return I18n.text(tabLabelKey); }
         final int icon;
         final Group group;
         final String perm;
@@ -29,8 +31,8 @@ final class Nav {
         Item(String path, String label, String tabLabel, int icon, Group group,
              String perm, boolean admin, boolean nativePage) {
             this.path = path;
-            this.label = label;
-            this.tabLabel = tabLabel == null ? label : tabLabel;
+            this.labelKey = label;
+            this.tabLabelKey = tabLabel == null ? label : tabLabel;
             this.icon = icon;
             this.group = group;
             this.perm = perm;
@@ -45,19 +47,19 @@ final class Nav {
         // `nativePage` is the porting switchboard: flip one to true as its
         // native page lands, and everything still false keeps opening the web
         // console, so the app is never half-broken.
-        ALL.add(new Item("/dashboard", "控制面板", "概览", R.drawable.ic_nav_dashboard, Group.NETWORK, null, false, true));
-        ALL.add(new Item("/tunnels", "隧道管理", null, R.drawable.ic_nav_tunnels, Group.NETWORK, "tunnels", false, true));
-        ALL.add(new Item("/monitors", "服务监控", "监控", R.drawable.ic_nav_monitor, Group.NETWORK, "monitors", false, true));
-        ALL.add(new Item("/domain", "域名绑定", null, R.drawable.ic_nav_domain, Group.NETWORK, "domain_bind", false, true));
-        ALL.add(new Item("/dns", "DNS 管理", null, R.drawable.ic_nav_dns, Group.NETWORK, "dns", false, true));
-        ALL.add(new Item("/settings", "全局设置", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, true));
-        ALL.add(new Item("/telegram", "TG 机器人", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, true));
-        ALL.add(new Item("/assistant", "AI 助手", null, R.drawable.ic_nav_assistant, Group.SYSTEM, null, false, true));
-        ALL.add(new Item("/lab/ip-selector", "IP 优选实验室", null, R.drawable.ic_nav_lab, Group.SYSTEM, null, true, true));
-        ALL.add(new Item("/admin", "管理后台", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, true));
-        ALL.add(new Item("/notifications", "通知", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, true));
-        ALL.add(new Item("/account", "账户", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, true));
-        ALL.add(new Item("/about", "关于", null, R.drawable.ic_nav_about, Group.PERSONAL, null, false, true));
+        ALL.add(new Item("/dashboard", "m_69e7a943ab4e", "m_fea405f9b01d", R.drawable.ic_nav_dashboard, Group.NETWORK, null, false, true));
+        ALL.add(new Item("/tunnels", "m_e920f47d0c05", null, R.drawable.ic_nav_tunnels, Group.NETWORK, "tunnels", false, true));
+        ALL.add(new Item("/monitors", "m_7fab82054a8f", "m_fdc390061698", R.drawable.ic_nav_monitor, Group.NETWORK, "monitors", false, true));
+        ALL.add(new Item("/domain", "m_4bf8b66d7390", null, R.drawable.ic_nav_domain, Group.NETWORK, "domain_bind", false, true));
+        ALL.add(new Item("/dns", "m_474fb6002594", null, R.drawable.ic_nav_dns, Group.NETWORK, "dns", false, true));
+        ALL.add(new Item("/settings", "m_3f754f38a654", null, R.drawable.ic_nav_settings, Group.SYSTEM, null, true, true));
+        ALL.add(new Item("/telegram", "m_805dcced3f07", null, R.drawable.ic_nav_telegram, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/assistant", "m_1b0049fcfd41", null, R.drawable.ic_nav_assistant, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/lab/ip-selector", "m_3db29474a184", null, R.drawable.ic_nav_lab, Group.SYSTEM, null, true, true));
+        ALL.add(new Item("/admin", "m_87354adb1c31", null, R.drawable.ic_nav_admin, Group.SYSTEM, null, true, true));
+        ALL.add(new Item("/notifications", "m_4b6ded8a7f18", null, R.drawable.ic_nav_bell, Group.SYSTEM, null, false, true));
+        ALL.add(new Item("/account", "m_061246bd31e0", null, R.drawable.ic_nav_account, Group.PERSONAL, null, false, true));
+        ALL.add(new Item("/about", "m_52d25a9e30ba", null, R.drawable.ic_nav_about, Group.PERSONAL, null, false, true));
     }
 
     /** Phone tab bar order; the create button sits between the second and third. */

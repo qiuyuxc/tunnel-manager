@@ -391,22 +391,22 @@ final class UI {
             fill = p.statusHealthyBg;
             stroke = p.statusHealthyBorder;
             ink = p.statusHealthyText;
-            text = "正常";
+            text = I18n.text("m_296de0e31f8c");
         } else if ("warn".equals(state)) {
             fill = p.statusDegradedBg;
             stroke = p.statusDegradedBorder;
             ink = p.statusDegradedText;
-            text = "降级";
+            text = I18n.text("m_9f22b41cf5d7");
         } else if ("down".equals(state)) {
             fill = p.statusDownBg;
             stroke = p.statusDownBorder;
             ink = p.statusDownText;
-            text = "异常";
+            text = I18n.text("m_428fb8bfeecf");
         } else {
             fill = p.canvasSoft;
             stroke = p.hairlineStrong;
             ink = p.mute;
-            text = "未知";
+            text = I18n.text("m_4d8c1c5b4283");
         }
         TextView v = text(ctx, text, 11, ink, Typeface.BOLD);
         v.setPadding(dp(9), dp(3), dp(9), dp(3));
@@ -417,7 +417,7 @@ final class UI {
     static TextView tunnelStatusPill(Context ctx, String status) {
         TunnelFilter.State state = TunnelFilter.state(status);
         TextView pill = statusPill(ctx, state.style);
-        pill.setText(state.label);
+        pill.setText(state.label());
         return pill;
     }
 

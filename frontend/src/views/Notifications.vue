@@ -1,48 +1,48 @@
 <template>
   <div class="page-container notify-page">
     <div class="page-header">
-      <h2>通知设置</h2>
-      <p>选择通知渠道与事件，登录成功等事件会按你的配置发送提醒</p>
+      <h2>{{ tr('m_247ca01ae280') }}</h2>
+      <p>{{ tr('m_3767e83d1c67') }}</p>
     </div>
 
     <div class="settings-list">
       <section v-if="appShell" class="settings-card">
         <div class="settings-card-header">
-          <div class="settings-card-title">本机通知</div>
+          <div class="settings-card-title">{{ tr('m_5de89cb69dab') }}</div>
           <div class="settings-card-desc">
-            由 App 自己在后台轮询服务器，不用开着浏览器也能收到告警；只在这台设备生效，需要手动开启。
+            {{ tr('m_6a7a66616ad4') }}
           </div>
         </div>
         <div class="event-rows">
           <div class="event-row">
             <div>
-              <strong>后台告警推送</strong>
+              <strong>{{ tr('m_9f98f9238b0b') }}</strong>
               <p>{{ hostHint }}</p>
             </div>
             <n-switch :value="host.enabled" size="small" :loading="hostBusy" @update:value="toggleHost" />
           </div>
           <div class="event-row">
             <div>
-              <strong>忽略电池优化</strong>
-              <p>系统在息屏后可能限制后台轮询，允许后告警更及时。</p>
+              <strong>{{ tr('m_b360487b1126') }}</strong>
+              <p>{{ tr('m_0c7582ec3d7d') }}</p>
             </div>
             <button class="btn btn-secondary btn-sm" @click="openBatterySettings">
-              {{ host.battery ? '已允许' : '去允许' }}
+              {{ host.battery ? tr('m_75d889ac43a2') : tr('m_beea4ffde7bf') }}
             </button>
           </div>
         </div>
         <p class="field-hint host-note">
-          推送与邮件告警同源：需要在具体监控项目里开启「告警」，且只在状态发生变化时触发。
+          {{ tr('m_55682d4cb56d') }}
         </p>
         <div class="actions-row host-actions">
-          <button class="btn btn-secondary" @click="sendHostTestNotify">发送本机测试通知</button>
+          <button class="btn btn-secondary" @click="sendHostTestNotify">{{ tr('m_aba258defcc1') }}</button>
         </div>
       </section>
 
       <section class="settings-card">
         <div class="settings-card-header">
-          <div class="settings-card-title">通知渠道</div>
-          <div class="settings-card-desc">可选邮箱、Telegram，或两者同时发送；选择「关闭通知」则不会发送任何提醒。</div>
+          <div class="settings-card-title">{{ tr('m_b2354cebb5bc') }}</div>
+          <div class="settings-card-desc">{{ tr('m_3c8e6a869915') }}</div>
         </div>
         <div class="channel-options">
           <label v-for="opt in channelOptions" :key="opt.value" class="channel-option" :class="{ active: channelMatches(opt.value) }">
@@ -54,14 +54,14 @@
 
       <section class="settings-card">
         <div class="settings-card-header">
-          <div class="settings-card-title">通知事件</div>
-          <div class="settings-card-desc">开启的事件才会发送提醒。</div>
+          <div class="settings-card-title">{{ tr('m_e2ecbfe6774d') }}</div>
+          <div class="settings-card-desc">{{ tr('m_d216483c416a') }}</div>
         </div>
         <div class="event-rows">
           <div class="event-row">
             <div>
-              <strong>登录通知</strong>
-              <p>每次账户登录成功后发送提醒（含时间与 IP）。</p>
+              <strong>{{ tr('m_f7141ed88f5b') }}</strong>
+              <p>{{ tr('m_2c35d196666e') }}</p>
             </div>
             <n-switch v-model:value="events.login" size="small" />
           </div>
@@ -70,48 +70,50 @@
 
       <section class="settings-card">
         <div class="settings-card-header">
-          <div class="settings-card-title">邮箱收件人</div>
-          <div class="settings-card-desc">每行一个邮箱，支持多个收件人；仅在启用邮箱渠道时生效。</div>
+          <div class="settings-card-title">{{ tr('m_b925241c3e99') }}</div>
+          <div class="settings-card-desc">{{ tr('m_a18a8b2ffdbe') }}</div>
         </div>
         <textarea v-model="emails" rows="4" class="vercel-input emails-input" placeholder="you@example.com&#10;ops@example.com"></textarea>
       </section>
 
       <section class="settings-card">
         <div class="settings-card-header">
-          <div class="settings-card-title">Telegram 机器人</div>
-          <div class="settings-card-desc">使用你自己的 Bot（由 @BotFather 创建），与面板管理员无关；仅在启用 Telegram 渠道时生效。</div>
+          <div class="settings-card-title">{{ tr('m_b0edcbcc7bba') }}</div>
+          <div class="settings-card-desc">{{ tr('m_2b6aee03cf2d') }}</div>
         </div>
         <div class="form-stack">
           <label class="field">
             <span class="field-label">Bot Token</span>
-            <input v-model="tgBotToken" type="password" class="vercel-input" :placeholder="tgBotTokenSet ? '留空保持不变' : '123456:ABC…'" autocomplete="off" />
-            <span class="tag" :class="tgBotTokenSet ? 'tag-ok' : 'tag-down'">{{ tgBotTokenSet ? '已设置' : '未设置' }}</span>
+            <input v-model="tgBotToken" type="password" class="vercel-input" :placeholder="tgBotTokenSet ? tr('m_3260348163d0') : '123456:ABC…'" autocomplete="off" />
+            <span class="tag" :class="tgBotTokenSet ? 'tag-ok' : 'tag-down'">{{ tgBotTokenSet ? tr('m_e025f1ff7199') : tr('m_2f5f1d6fbfb0') }}</span>
           </label>
           <label class="field">
-            <span class="field-label">接收 Chat ID</span>
+            <span class="field-label">{{ tr('m_6da43c19f64c') }}</span>
             <input v-model="tgChatID" type="text" class="vercel-input" placeholder="123456789" />
           </label>
-          <p class="field-hint">获取方式：先向自己的 Bot 发送任意消息，再打开 https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates，取返回结果中的 chat.id。</p>
+          <p class="field-hint">{{ tr('m_caa14e0e6f80') }}</p>
           <button
             v-if="!tgBotTokenSet && tgRemoteBotSet"
             class="btn btn-secondary btn-sm"
             :disabled="reusing"
             @click="reuseFromTelegram"
           >
-            {{ reusing ? '复用中...' : '一键复用远程控制的 Bot' }}
+            {{ reusing ? tr('m_7b2d8b6a9ebf') : tr('m_77765ef7d0e2') }}
           </button>
         </div>
       </section>
 
       <div class="actions-row">
-        <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? '保存中...' : '保存设置' }}</button>
-        <button class="btn btn-secondary" :disabled="testing" @click="sendTest">{{ testing ? '发送中...' : '发送测试通知' }}</button>
+        <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? tr('m_917b1c1f18d0') : tr('m_c8550237ba70') }}</button>
+        <button class="btn btn-secondary" :disabled="testing" @click="sendTest">{{ testing ? tr('m_9d2ee1e4d8c3') : tr('m_5e0022a1e907') }}</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { t as tr, localized } from '../i18n'
+
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { getNotifySettings, updateNotifySettings, testNotify, reuseNotifyFromTelegram, type SaveNotifyPayload } from '../api/notify'
@@ -143,10 +145,10 @@ const host = ref<HostNotifyState>({ enabled: false, permission: true, battery: f
 const hostBusy = ref(false)
 
 const hostHint = computed(() => {
-  if (!host.value.permission) return '系统还没允许本机发送通知，打开开关时会弹出授权。'
-  if (!host.value.enabled) return '已关闭。开启后 App 会常驻一条低调通知来维持轮询。'
-  if (!host.value.battery) return '运行中；建议同时允许忽略电池优化，避免息屏后被系统掐掉。'
-  return '运行中，服务端一有状态变化就会推送到这里。'
+  if (!host.value.permission) return tr('m_d2df17878e54')
+  if (!host.value.enabled) return tr('m_f5f1e934f984')
+  if (!host.value.battery) return tr('m_f565e5e601f9')
+  return tr('m_bc67ea42aa7f')
 })
 
 function refreshHost() {
@@ -167,12 +169,12 @@ function toggleHost(value: boolean) {
   window.setTimeout(onHostChange, 350)
 }
 
-const channelOptions = [
-  { value: '', label: '关闭通知' },
-  { value: 'email', label: '仅邮箱' },
-  { value: 'telegram', label: '仅 Telegram' },
-  { value: 'both', label: '邮箱 + Telegram' },
-]
+const channelOptions = localized(() => ([
+  { value: '', label: tr('m_27413c315695') },
+  { value: 'email', label: tr('m_128003be2c2c') },
+  { value: 'telegram', label: tr('m_e7d8fb7fa65f') },
+  { value: 'both', label: tr('m_2b36843d5a74') },
+]))
 
 function channelMatches(value: string) {
   if (value === '') return channels.value.length === 0
@@ -198,7 +200,7 @@ onMounted(async () => {
     tgChatID.value = data.tg_notify_chat_id || ''
     tgRemoteBotSet.value = !!data.tg_remote_bot_set
   } catch (e: any) {
-    message.error('加载失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_08417baa06d4') + (e.response?.data?.error || e.message))
   }
 })
 
@@ -211,9 +213,9 @@ async function reuseFromTelegram() {
     tgBotToken.value = ''
     tgBotTokenSet.value = data.tg_bot_token_set
     tgRemoteBotSet.value = !!data.tg_remote_bot_set
-    message.success('已复用远程控制的 Bot Token')
+    message.success(tr('m_63f4b00fe00c'))
   } catch (e: any) {
-    message.error('复用失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_c3b5ab812dfe') + (e.response?.data?.error || e.message))
   } finally {
     reusing.value = false
   }
@@ -232,9 +234,9 @@ async function save() {
     const { data } = await updateNotifySettings(payload)
     tgBotToken.value = ''
     tgBotTokenSet.value = data.tg_bot_token_set
-    message.success('通知设置已保存')
+    message.success(tr('m_07a20770f7aa'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     saving.value = false
   }
@@ -244,9 +246,9 @@ async function sendTest() {
   testing.value = true
   try {
     await testNotify()
-    message.success('测试通知已发送')
+    message.success(tr('m_33c45f088ec9'))
   } catch (e: any) {
-    message.error('发送失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_df54bb0e45fb') + (e.response?.data?.error || e.message))
   } finally {
     testing.value = false
   }

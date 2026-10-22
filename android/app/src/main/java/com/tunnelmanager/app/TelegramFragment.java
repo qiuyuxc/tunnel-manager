@@ -113,7 +113,7 @@ public class TelegramFragment extends PageFragment {
             render();
         }, failure -> {
             loading = false;
-            banner = "加载失败：" + failure.getMessage();
+            banner = I18n.text("m_01de8216e0d0") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -160,14 +160,14 @@ public class TelegramFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "TG 机器人设置"));
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3ba721cb5dd3")));
         TextView subtitle = UI.muted(requireContext(),
-                "每人一个独立 Bot，远程管理自己的隧道、DNS 与域名，账户之间互相隔离");
+                I18n.text("m_d4463e3d9fb2"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -217,9 +217,9 @@ public class TelegramFragment extends PageFragment {
     private View statusCard() {
         LinearLayout card = UI.card(requireContext());
         LinearLayout head = UI.row(requireContext());
-        head.addView(UI.cardTitle(requireContext(), "Bot 状态"),
+        head.addView(UI.cardTitle(requireContext(), I18n.text("m_6888e1669b1b")),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView refresh = UI.button(requireContext(), "刷新", UI.BTN_GHOST);
+        TextView refresh = UI.button(requireContext(), I18n.text("m_aee887434131"), UI.BTN_GHOST);
         refresh.setOnClickListener(v -> loadStatus());
         head.addView(refresh);
         card.addView(head);
@@ -232,8 +232,8 @@ public class TelegramFragment extends PageFragment {
         line.addView(dot, new LinearLayout.LayoutParams(UI.dp(9), UI.dp(9)));
         String username = status.optString("bot_username", "");
         String text = running
-                ? "运行中" + (username.isEmpty() ? "" : " @" + username) + " · " + modeLabel()
-                : "已停止";
+                ? I18n.text("m_1f0eb99b7ed0") + (username.isEmpty() ? "" : " @" + username) + " · " + modeLabel()
+                : I18n.text("m_f006455e3baf");
         TextView label = UI.body(requireContext(), text);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp.leftMargin = UI.dp(UI.SM);
@@ -250,7 +250,7 @@ public class TelegramFragment extends PageFragment {
         }
         String lastUpdate = status.optString("last_update_at", "");
         if (!lastUpdate.isEmpty()) {
-            TextView meta = UI.muted(requireContext(), "最近更新：" + lastUpdate);
+            TextView meta = UI.muted(requireContext(), I18n.text("m_b6eb0a561692") + lastUpdate);
             UI.margin(meta, 0, UI.SM, 0, 0);
             card.addView(meta);
         }
@@ -258,11 +258,11 @@ public class TelegramFragment extends PageFragment {
     }
 
     private String modeLabel() {
-        return status.optString("mode", MODES[mode]).equals("webhook") ? "Webhook 模式" : "长轮询模式";
+        return status.optString("mode", MODES[mode]).equals("webhook") ? I18n.text("m_96011210ccb6") : I18n.text("m_d1d1fb7d3129");
     }
 
     private View enableCard() {
-        LinearLayout card = card("启用 Bot", "开启后 Bot 将在后台运行（长轮询模式），或注册 Webhook 接收消息。");
+        LinearLayout card = card(I18n.text("m_13df38f938ce"), I18n.text("m_80de49d10357"));
         LinearLayout row = UI.row(requireContext());
         UI.Toggle toggle = new UI.Toggle(requireContext(), enabled);
         toggle.setOnClickListener(v -> {
@@ -272,7 +272,7 @@ public class TelegramFragment extends PageFragment {
             render();
         });
         row.addView(toggle, new LinearLayout.LayoutParams(UI.dp(34), UI.dp(20)));
-        TextView label = UI.body(requireContext(), enabled ? "已启用" : "已禁用");
+        TextView label = UI.body(requireContext(), enabled ? I18n.text("m_dfb802238b38") : I18n.text("m_bc5a87a757a5"));
         UI.margin(label, UI.MD, 0, 0, 0);
         row.addView(label);
         card.addView(row);
@@ -280,8 +280,8 @@ public class TelegramFragment extends PageFragment {
     }
 
     private View modeCard() {
-        LinearLayout card = card("运行模式",
-                "长轮询无需公网入口；Webhook 需要面板有可公网访问的 HTTPS 地址，消息推送更及时。");
+        LinearLayout card = card(I18n.text("m_87ed126f7bd1"),
+                I18n.text("m_1c9d99d7be2c"));
         for (int i = 0; i < MODES.length; i++) {
             final int index = i;
             boolean active = mode == index;
@@ -296,7 +296,7 @@ public class TelegramFragment extends PageFragment {
             View dot = new View(requireContext());
             dot.setBackground(UI.circle(active ? p.ink : 0, active ? p.ink : p.hairlineStrong, 1.5f));
             row.addView(dot, new LinearLayout.LayoutParams(UI.dp(16), UI.dp(16)));
-            TextView text = UI.text(requireContext(), index == 0 ? "长轮询（Polling）" : "Webhook",
+            TextView text = UI.text(requireContext(), index == 0 ? I18n.text("m_be8c427c4c2c") : "Webhook",
                     14, active ? p.ink : p.body, active ? Typeface.BOLD : Typeface.NORMAL);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             tlp.leftMargin = UI.dp(UI.MD);
@@ -314,9 +314,9 @@ public class TelegramFragment extends PageFragment {
             webhookInput = UI.input(requireContext(), "https://panel.example.com");
             webhookInput.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
             webhookInput.setText(webhookUrl);
-            card.addView(UI.field(requireContext(), "面板公网地址", webhookInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_e834781833a0"), webhookInput, UI.MD));
             TextView note = UI.muted(requireContext(),
-                    "系统会自动追加 /api/telegram/webhook/{userID}，这里只需填写面板公网 HTTPS 基础地址。");
+                    I18n.text("m_eb874100aae4"));
             UI.margin(note, 0, UI.SM, 0, 0);
             card.addView(note);
         }
@@ -328,17 +328,17 @@ public class TelegramFragment extends PageFragment {
         card.addView(UI.cardTitle(requireContext(), "Bot Token"));
         String hint = settings.optString("bot_token_hint", "");
         TextView desc = UI.muted(requireContext(),
-                "在 Telegram 中与 @BotFather 对话创建机器人并获取 Token。"
-                        + (settings.optBoolean("bot_token_set", false) && !hint.isEmpty() ? "已保存：" + hint : ""));
+                I18n.text("m_4b81c912b6aa")
+                        + (settings.optBoolean("bot_token_set", false) && !hint.isEmpty() ? I18n.text("m_cfe6f505c0b2") + hint : ""));
         UI.margin(desc, 0, UI.XS, 0, UI.MD);
         card.addView(desc);
 
-        tokenInput = passwordInput(settings.optBoolean("bot_token_set", false) ? "留空则保留当前 Token" : "输入 Bot Token");
+        tokenInput = passwordInput(settings.optBoolean("bot_token_set", false) ? I18n.text("m_607873e79fce") : I18n.text("m_5e76895396d6"));
         tokenInput.setText(tokenDraft);
         card.addView(tokenInput);
 
         if (!settings.optBoolean("bot_token_set", false) && notifyBotSet) {
-            TextView reuse = UI.button(requireContext(), "一键复用通知的 Bot", UI.BTN_SECONDARY);
+            TextView reuse = UI.button(requireContext(), I18n.text("m_888c2f8b0daf"), UI.BTN_SECONDARY);
             reuse.setOnClickListener(v -> reuseFromNotify());
             UI.margin(reuse, 0, UI.MD, 0, 0);
             card.addView(reuse);
@@ -347,18 +347,18 @@ public class TelegramFragment extends PageFragment {
     }
 
     private View idsCard() {
-        LinearLayout card = card("授权 TG ID",
-                "逗号分隔的数字 ID。与 @userinfobot 对话可获取你的 ID。只有这些 TG 账号能向你的 Bot 发指令，可填多个，用英文逗号隔开。");
-        idsInput = UI.input(requireContext(), "例如: 123456789,987654321");
+        LinearLayout card = card(I18n.text("m_fa8620c6138e"),
+                I18n.text("m_90ffb63a8969"));
+        idsInput = UI.input(requireContext(), I18n.text("m_05e89e31b863"));
         idsInput.setText(chatIds);
         card.addView(idsInput);
         return card;
     }
 
     private View endpointCard() {
-        LinearLayout card = card("API 端点",
-                "面板级配置，所有用户的 Bot 都走该端点。国内网络建议使用自建反代（如 https://tele.example.com），"
-                        + "默认官方 api.telegram.org 在国内无法直连。");
+        LinearLayout card = card(I18n.text("m_3d1ab62be024"),
+                I18n.text("m_dcd7389c5f5e")
+                        + I18n.text("m_861c1f4a7642"));
         endpointInput = UI.input(requireContext(), "https://api.telegram.org");
         endpointInput.setText(apiEndpoint);
         if (!Session.isAdmin()) {
@@ -367,13 +367,13 @@ public class TelegramFragment extends PageFragment {
         card.addView(endpointInput);
 
         if (Session.isAdmin()) {
-            TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存端点", UI.BTN_PRIMARY);
+            TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_459cf7f8c7e9"), UI.BTN_PRIMARY);
             save.setEnabled(!busy);
             save.setOnClickListener(v -> saveEndpoint(endpointInput.getText().toString().trim()));
             UI.margin(save, 0, UI.MD, 0, 0);
             card.addView(save);
         } else {
-            TextView hint = UI.muted(requireContext(), "端点由管理员统一配置，所有用户自动生效。");
+            TextView hint = UI.muted(requireContext(), I18n.text("m_4ce7ea1d6b95"));
             UI.margin(hint, 0, UI.SM, 0, 0);
             card.addView(hint);
         }
@@ -383,12 +383,12 @@ public class TelegramFragment extends PageFragment {
     private View actionsCard() {
         LinearLayout card = UI.card(requireContext());
         LinearLayout row = UI.row(requireContext());
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存并应用", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a7ec01a65f09"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> save());
         UI.weight(save, 1f);
         row.addView(save);
-        TextView test = UI.button(requireContext(), "发送测试消息", UI.BTN_SECONDARY);
+        TextView test = UI.button(requireContext(), I18n.text("m_15041725283e"), UI.BTN_SECONDARY);
         test.setOnClickListener(v -> test());
         UI.weight(test, 1f);
         UI.margin(test, UI.SM, 0, 0, 0);
@@ -398,12 +398,12 @@ public class TelegramFragment extends PageFragment {
     }
 
     private View guideCard() {
-        LinearLayout card = card("设置教程", null);
+        LinearLayout card = card(I18n.text("m_1a1b001776ed"), null);
         String[] steps = {
-                "在 Telegram 中与 @BotFather 对话，发送 /newbot 创建机器人并复制 Token。",
-                "与 @userinfobot 对话获取自己的数字 TG ID。",
-                "在此页面填入 Token 和 ID，启用并保存。",
-                "向你的 Bot 发送 /help 查看可用指令。",
+                I18n.text("m_f965f7e99876"),
+                I18n.text("m_79e830fdd808"),
+                I18n.text("m_5e8f0e26ee1b"),
+                I18n.text("m_6bf58dc48018"),
         };
         for (int i = 0; i < steps.length; i++) {
             LinearLayout row = UI.row(requireContext());
@@ -415,7 +415,7 @@ public class TelegramFragment extends PageFragment {
             UI.addRow(card, row, i == 0 ? 0 : UI.SM);
         }
 
-        TextView label = UI.label(requireContext(), "可用指令");
+        TextView label = UI.label(requireContext(), I18n.text("m_185fee4ba4d3"));
         UI.margin(label, 0, UI.LG, 0, UI.SM);
         card.addView(label);
         StringBuilder commands = new StringBuilder();
@@ -428,7 +428,7 @@ public class TelegramFragment extends PageFragment {
         card.addView(list);
 
         TextView note = UI.muted(requireContext(),
-                "每个用户的 Bot 只操作自己的账户资源（隧道、DNS、域名绑定），互不影响。");
+                I18n.text("m_0c09f6b0b1b0"));
         UI.margin(note, 0, UI.MD, 0, 0);
         card.addView(note);
         return card;
@@ -452,13 +452,13 @@ public class TelegramFragment extends PageFragment {
         }, result -> {
             busy = false;
             String error = result.optString("error", "");
-            banner = error.isEmpty() ? "设置已保存" : "已保存，但启动失败：" + error;
+            banner = error.isEmpty() ? I18n.text("m_bd03c0aad701") : I18n.text("m_ca7aef8d16bd") + error;
             bannerError = !error.isEmpty();
             tokenDraft = "";
             load();
         }, failure -> {
             busy = false;
-            banner = "保存失败：" + failure.getMessage();
+            banner = I18n.text("m_6ade7baf8737") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -466,7 +466,7 @@ public class TelegramFragment extends PageFragment {
 
     private void saveEndpoint(String endpoint) {
         if (endpoint.isEmpty()) {
-            banner = "API 端点不能为空";
+            banner = I18n.text("m_bcd372c0a699");
             bannerError = true;
             render();
             return;
@@ -480,12 +480,12 @@ public class TelegramFragment extends PageFragment {
         }, result -> {
             busy = false;
             apiEndpoint = result.optString("api_endpoint", endpoint);
-            banner = "API 端点已保存，所有 Bot 已重启生效";
+            banner = I18n.text("m_f07cfdf5580f");
             bannerError = false;
             render();
         }, failure -> {
             busy = false;
-            banner = "保存失败：" + failure.getMessage();
+            banner = I18n.text("m_6ade7baf8737") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -497,12 +497,12 @@ public class TelegramFragment extends PageFragment {
         render();
         Api.async(() -> Api.post("/api/telegram/reuse", null), result -> {
             busy = false;
-            banner = "已复用通知的 Bot Token，请填写授权 TG ID 并保存启用";
+            banner = I18n.text("m_8f2a14658df1");
             bannerError = false;
             load();
         }, failure -> {
             busy = false;
-            banner = "复用失败：" + failure.getMessage();
+            banner = I18n.text("m_57ef54e7a666") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -510,11 +510,11 @@ public class TelegramFragment extends PageFragment {
 
     private void test() {
         Api.async(() -> Api.post("/api/telegram/test", null), result -> {
-            banner = result.optString("message", "测试消息已发送");
+            banner = result.optString("message", I18n.text("m_a422e5f7f4c4"));
             bannerError = false;
             render();
         }, failure -> {
-            banner = "发送失败：" + failure.getMessage();
+            banner = I18n.text("m_e44775371d6b") + failure.getMessage();
             bannerError = true;
             render();
         });

@@ -23,8 +23,9 @@ Cloudflare Tunnel 可视化管理面板，附带原生 Android 客户端。通�
 | 公开状态页 | 免登录分享，支持短路径、自定义域名、直连 Tunnel 与优选 CNAME，自定义域名仅开放对应状态页 | [公开状态页](https://docs.kukie.cn/guide/monitors-status#公开状态页) |
 | Cloudflare 连接 | OAuth 2.0（PKCE）自动刷新令牌，多账户切换；兼容静态 Token | [OAuth 连接](https://docs.kukie.cn/guide/cloudflare-oauth) |
 | Telegram Bot | 远程管理隧道、绑定与 DNS 记录，删除二次确认 | [Telegram Bot](https://docs.kukie.cn/guide/telegram-bot) |
-| AI 助手 | 个人 / 全站共享模型连接，先确认再创建隧道、直连绑定、DNS 与监控任务 | [AI 助手](docs/guide/ai-assistant.md) |
+| AI 助手 | 个人 / 全站共享模型连接，先确认再创建隧道、直连绑定、DNS 与监控任务 | [AI 助手](https://docs.kukie.cn/guide/ai-assistant) |
 | Android App | 同一套 API 的原生客户端：概览、监控、隧道绑定、DNS 与通知，底部标签导航 + 系统通知 | [Android App](https://docs.kukie.cn/guide/android-app) |
+| 中英文支持 | Web 与 App 默认跟随系统语言，可保存中文或英文偏好，共用本地翻译资源 | [语言与翻译维护](https://docs.kukie.cn/guide/language) |
 | 安全 | Argon2id 密码哈希、TOTP 双因素验证与一次性恢复码 | [安全与管理员认证](https://docs.kukie.cn/guide/security) |
 
 ## 架构

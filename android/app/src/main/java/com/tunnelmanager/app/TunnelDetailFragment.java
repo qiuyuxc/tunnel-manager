@@ -69,7 +69,7 @@ public class TunnelDetailFragment extends PageFragment {
         scroll.addView(body);
         refresh.addView(scroll);
 
-        body.addView(UI.muted(requireContext(), "加载中…"));
+        body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
         load();
         return refresh;
     }
@@ -96,20 +96,20 @@ public class TunnelDetailFragment extends PageFragment {
     private void renderFailure(String message) {
         if (body == null || !alive()) return;
         body.removeAllViews();
-        body.addView(UI.banner(requireContext(), message == null ? "加载失败" : message, true));
+        body.addView(UI.banner(requireContext(), message == null ? I18n.text("m_d1d044826a45") : message, true));
     }
 
     private void render(JSONObject detail) {
         if (body == null || !alive()) return;
         body.removeAllViews();
         if (detail == null) {
-            renderFailure("无法加载隧道详情");
+            renderFailure(I18n.text("m_70dbcc69a01d"));
             return;
         }
 
         Palette p = Theme.p();
         String name = detail.optString("name", "");
-        if (name.isEmpty()) name = "(未命名)";
+        if (name.isEmpty()) name = I18n.text("m_91315b982b04");
         final String label = name;
         String status = detail.optString("status");
         boolean locked = tunnelId.equals(currentId);
@@ -119,7 +119,7 @@ public class TunnelDetailFragment extends PageFragment {
         LinearLayout meta = UI.row(requireContext());
         meta.setGravity(Gravity.CENTER_VERTICAL);
         UI.margin(meta, 0, UI.XS, 0, UI.MD);
-        meta.addView(UI.muted(requireContext(), "隧道详情"));
+        meta.addView(UI.muted(requireContext(), I18n.text("m_094f104f556a")));
         TextView pill = UI.tunnelStatusPill(requireContext(), status);
         UI.margin(pill, UI.SM, 0, 0, 0);
         meta.addView(pill);
@@ -130,12 +130,12 @@ public class TunnelDetailFragment extends PageFragment {
         body.addView(UI.spacer(requireContext(), UI.LG));
         LinearLayout actions = UI.row(requireContext());
         if (locked) {
-            TextView unlock = UI.button(requireContext(), "取消锁定", UI.BTN_SECONDARY);
+            TextView unlock = UI.button(requireContext(), I18n.text("m_2446e5438f16"), UI.BTN_SECONDARY);
             unlock.setOnClickListener(v -> select("", ""));
             UI.weight(unlock, 1f);
             actions.addView(unlock);
         } else {
-            TextView lock = UI.button(requireContext(), "锁定这条隧道", UI.BTN_PRIMARY);
+            TextView lock = UI.button(requireContext(), I18n.text("m_017c754f6e8b"), UI.BTN_PRIMARY);
             lock.setOnClickListener(v -> select(tunnelId, label));
             UI.weight(lock, 1f);
             actions.addView(lock);
@@ -147,10 +147,10 @@ public class TunnelDetailFragment extends PageFragment {
         body.addView(UI.spacer(requireContext(), UI.SM));
         body.addView(routesList(detail.optJSONArray("ingress")));
         body.addView(UI.spacer(requireContext(), UI.XL));
-        body.addView(UI.label(requireContext(), "危险操作"));
-        TextView warning = UI.muted(requireContext(), "删除后无法恢复。请确认这条隧道已不再被服务使用。");
+        body.addView(UI.label(requireContext(), I18n.text("m_cd84121acb17")));
+        TextView warning = UI.muted(requireContext(), I18n.text("m_09fabe1bd838"));
         UI.addRow(body, warning, UI.SM);
-        TextView remove = UI.button(requireContext(), "删除隧道", UI.BTN_DANGER);
+        TextView remove = UI.button(requireContext(), I18n.text("m_cf5e530b1ad3"), UI.BTN_DANGER);
         remove.setOnClickListener(view -> askDelete(label));
         UI.fill(remove);
         UI.addRow(body, remove, UI.MD);
@@ -159,9 +159,9 @@ public class TunnelDetailFragment extends PageFragment {
     private View infoCard(JSONObject detail, boolean locked) {
         Palette p = Theme.p();
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.label(requireContext(), "隧道信息"));
+        card.addView(UI.label(requireContext(), I18n.text("m_2a8dc33c7749")));
 
-        TextView idLabel = UI.label(requireContext(), "隧道 ID");
+        TextView idLabel = UI.label(requireContext(), I18n.text("m_17f261a9385c"));
         UI.margin(idLabel, 0, UI.MD, 0, 0);
         card.addView(idLabel);
 
@@ -173,7 +173,7 @@ public class TunnelDetailFragment extends PageFragment {
         LinearLayout lockRow = UI.row(requireContext());
         lockRow.setGravity(Gravity.CENTER_VERTICAL);
         UI.margin(lockRow, 0, UI.MD, 0, 0);
-        lockRow.addView(UI.tag(requireContext(), locked ? "当前使用" : "未锁定", locked));
+        lockRow.addView(UI.tag(requireContext(), locked ? I18n.text("m_5ddff4afab27") : I18n.text("m_8436399d1ec2"), locked));
         card.addView(lockRow);
         return card;
     }
@@ -182,10 +182,10 @@ public class TunnelDetailFragment extends PageFragment {
         int count = ingress == null ? 0 : ingress.length();
         LinearLayout head = UI.row(requireContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(UI.label(requireContext(), "已发布应用程序路由 · " + count),
+        head.addView(UI.label(requireContext(), I18n.text("m_27d793992500") + count),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView add = UI.button(requireContext(), "添加路由", UI.BTN_SECONDARY);
+        TextView add = UI.button(requireContext(), I18n.text("m_a9ea26f64358"), UI.BTN_SECONDARY);
         add.setOnClickListener(v -> openForm(null));
         head.addView(add);
         return head;
@@ -200,7 +200,7 @@ public class TunnelDetailFragment extends PageFragment {
             icon.setImageResource(R.drawable.ic_nav_domain);
             UI.tint(icon, p.mute);
             card.addView(icon, new LinearLayout.LayoutParams(UI.dp(28), UI.dp(28)));
-            TextView empty = UI.muted(requireContext(), "这条隧道还没有路由规则");
+            TextView empty = UI.muted(requireContext(), I18n.text("m_e26984ddf5b0"));
             UI.margin(empty, 0, UI.SM, 0, 0);
             card.addView(empty);
             return card;
@@ -224,7 +224,7 @@ public class TunnelDetailFragment extends PageFragment {
         LinearLayout head = UI.row(requireContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView host = UI.text(requireContext(), hostname.isEmpty() ? "Catch-all 兜底规则" : hostname,
+        TextView host = UI.text(requireContext(), hostname.isEmpty() ? I18n.text("m_44e8472cf913") : hostname,
                 14, p.ink, Typeface.BOLD);
         host.setTextIsSelectable(true);
         if (hostname.isEmpty()) host.setTextColor(p.mute);
@@ -255,7 +255,7 @@ public class TunnelDetailFragment extends PageFragment {
             return Api.post("/api/config/tunnel", payload);
         }, ok -> {
             currentId = id;
-            toast(id.isEmpty() ? "已取消锁定" : "已锁定「" + name + "」");
+            toast(id.isEmpty() ? I18n.text("m_af906a2476a2") : I18n.text("m_a9ca30fdc300") + name + "」");
             load();
         }, failure -> toast(failure.getMessage()));
     }
@@ -273,22 +273,22 @@ public class TunnelDetailFragment extends PageFragment {
         }
 
         LinearLayout form = UI.column(requireContext());
-        form.addView(UI.field(requireContext(), "主机名", hostname));
-        form.addView(UI.field(requireContext(), "服务地址", service, UI.MD));
+        form.addView(UI.field(requireContext(), I18n.text("m_0224c3f6672e"), hostname));
+        form.addView(UI.field(requireContext(), I18n.text("m_02739d1bae8b"), service, UI.MD));
 
-        TextView save = UI.button(requireContext(), editing ? "保存修改" : "添加路由", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), editing ? I18n.text("m_991bb7cfe5a8") : I18n.text("m_a9ea26f64358"), UI.BTN_PRIMARY);
         UI.fill(save);
         UI.margin(save, 0, UI.MD, 0, 0);
         save.setOnClickListener(v -> submitForm(editing, rule,
                 hostname.getText().toString().trim(), service.getText().toString().trim()));
         form.addView(save);
 
-        Sheet.of(requireContext(), editing ? "编辑路由" : "添加路由").content(form).show();
+        Sheet.of(requireContext(), editing ? I18n.text("m_daa951cf34e2") : I18n.text("m_a9ea26f64358")).content(form).show();
     }
 
     private void submitForm(boolean editing, @Nullable JSONObject rule, String hostname, String service) {
         if (service.isEmpty()) {
-            toast("服务地址要填");
+            toast(I18n.text("m_45cffd20e889"));
             return;
         }
         Api.async(() -> {
@@ -302,7 +302,7 @@ public class TunnelDetailFragment extends PageFragment {
             return Api.post("/api/tunnels/" + tunnelId + "/ingress", payload);
         }, ok -> {
             Sheet.dismissVisible();
-            toast(editing ? "路由已更新" : "路由已添加");
+            toast(editing ? I18n.text("m_f8f23707c6e5") : I18n.text("m_3612a0b57866"));
             load();
         }, failure -> toast(failure.getMessage()));
     }
@@ -314,8 +314,8 @@ public class TunnelDetailFragment extends PageFragment {
         LinearLayout option = UI.row(requireContext());
         option.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout text = UI.column(requireContext());
-        text.addView(UI.strong(requireContext(), "同时删除 DNS 记录"));
-        TextView hint = UI.muted(requireContext(), "清理指向该主机名的解析，避免留下悬空记录");
+        text.addView(UI.strong(requireContext(), I18n.text("m_ccd191ba0044")));
+        TextView hint = UI.muted(requireContext(), I18n.text("m_0b3577e4baaf"));
         UI.margin(hint, 0, UI.XS, 0, 0);
         text.addView(hint);
         option.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -325,11 +325,11 @@ public class TunnelDetailFragment extends PageFragment {
         option.setClickable(true);
         option.setOnClickListener(v -> toggle.setOn(!toggle.isOn()));
 
-        Modal.of(requireContext(), "删除路由")
-                .message("确定删除路由 " + hostname + " 吗？此操作无法撤销。")
+        Modal.of(requireContext(), I18n.text("m_81a8aceaea20"))
+                .message(I18n.text("m_371298053c5f") + hostname + I18n.text("m_a79a0def3e5e"))
                 .content(option)
-                .cancel("取消")
-                .confirm("确认删除", true, () -> deleteRoute(hostname, toggle.isOn()))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3ea3c17b401"), true, () -> deleteRoute(hostname, toggle.isOn()))
                 .show();
     }
 
@@ -342,24 +342,24 @@ public class TunnelDetailFragment extends PageFragment {
         }, result -> {
             String warning = result.optString("dns_warning", "");
             if (!warning.isEmpty()) {
-                toast("路由已删除，但 DNS 未清理：" + warning);
+                toast(I18n.text("m_14588e04342a") + warning);
             } else if (deleteDns) {
-                toast("路由已删除，同时清理了 " + result.optInt("dns_deleted") + " 条 DNS 记录");
+                toast(I18n.text("m_37de6204815f") + result.optInt("dns_deleted") + I18n.text("m_cc53a1da4656"));
             } else {
-                toast("路由已删除");
+                toast(I18n.text("m_0265de89db75"));
             }
             load();
         }, failure -> toast(failure.getMessage()));
     }
 
     private void askDelete(String name) {
-        Modal.of(requireContext(), "删除隧道")
-                .message("确定删除「" + name + "」吗？此操作无法撤销，隧道仍有活动连接时 Cloudflare 会拒绝删除。")
-                .cancel("取消")
-                .confirm("确认删除", true, () -> Api.async(
+        Modal.of(requireContext(), I18n.text("m_cf5e530b1ad3"))
+                .message(I18n.text("m_72f49a525798") + name + I18n.text("m_a17e8f4371a0"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3ea3c17b401"), true, () -> Api.async(
                         () -> Api.delete("/api/tunnels/" + tunnelId),
                         ok -> {
-                            toast("隧道已删除");
+                            toast(I18n.text("m_72d83d119709"));
                             openRoute("/tunnels");
                         },
                         failure -> toast(failure.getMessage())))

@@ -18,6 +18,12 @@
             android:gravity="center_horizontal"
             android:padding="20dp">
 
+            <Button
+                android:id="@+id/language_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/language_label" />
+
             <!-- ==== sign-in step ==== -->
             <LinearLayout
                 android:id="@+id/step_login"
@@ -51,7 +57,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:layout_marginBottom="28dp"
-                    android:text="你的服务，与世界保持连接。"
+                    android:text="@string/m_1ccc64513061"
                     android:textColor="?attr/tm_muted"
                     android:textSize="14sp" />
 
@@ -64,7 +70,7 @@
                     android:layout_marginBottom="16dp">
                 <TextView
                     style="@style/FieldLabel"
-                    android:text="服务器地址" />
+                    android:text="@string/m_d3716cc5a2f5" />
                 <EditText
                     android:id="@+id/input_server"
                     style="@style/FieldInput"
@@ -76,7 +82,7 @@
 
                 <TextView
                     style="@style/FieldLabel"
-                    android:text="用户名或邮箱" />
+                    android:text="@string/m_70eadbef1274" />
                 <EditText
                     android:id="@+id/input_account"
                     style="@style/FieldInput"
@@ -88,7 +94,7 @@
 
                 <TextView
                     style="@style/FieldLabel"
-                    android:text="密码" />
+                    android:text="@string/m_a621ab606db2" />
                 <EditText
                     android:id="@+id/input_password"
                     style="@style/FieldInput"
@@ -138,7 +144,7 @@
                 <Button
                     android:id="@+id/btn_login"
                     style="@style/PrimaryButton"
-                    android:text="登录工作空间" />
+                    android:text="@string/m_27635321131e" />
 
                 <Button
                     android:id="@+id/btn_passkey_login"
@@ -146,14 +152,14 @@
                     android:layout_marginTop="12dp"
                     android:background="@drawable/input_bg"
                     android:textColor="?attr/tm_accent"
-                    android:text="使用通行密钥登录"
+                    android:text="@string/m_e984682db258"
                     android:visibility="gone" />
 
                 <Button
                     android:id="@+id/btn_use_web_login"
                     style="@style/GhostButton"
                     android:layout_marginTop="4dp"
-                    android:text="改用网页版登录" />
+                    android:text="@string/m_28a3e9056f79" />
             </LinearLayout>
 
             <!-- ==== two-factor step ==== -->
@@ -176,7 +182,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="两步验证"
+                    android:text="@string/m_0e219bca12c0"
                     android:textColor="?attr/tm_text"
                     android:textSize="22sp"
                     android:textStyle="bold" />
@@ -188,13 +194,13 @@
                     android:layout_marginTop="6dp"
                     android:layout_marginBottom="28dp"
                     android:gravity="center"
-                    android:text="请输入验证器中的 6 位验证码"
+                    android:text="@string/m_235f957608aa"
                     android:textColor="?attr/tm_muted"
                     android:textSize="14sp" />
 
                 <TextView
                     style="@style/FieldLabel"
-                    android:text="验证码" />
+                    android:text="@string/m_bb015c60bafc" />
                 <EditText
                     android:id="@+id/input_code"
                     style="@style/FieldInput"
@@ -216,20 +222,20 @@
                 <Button
                     android:id="@+id/btn_verify"
                     style="@style/PrimaryButton"
-                    android:text="验证" />
+                    android:text="@string/m_154723a1aa0a" />
 
                 <Button
                     android:id="@+id/btn_passkey_verify"
                     style="@style/GhostButton"
                     android:layout_marginTop="4dp"
-                    android:text="使用通行密钥验证"
+                    android:text="@string/m_28c3158cdf27"
                     android:visibility="gone" />
 
                 <Button
                     android:id="@+id/btn_back_to_login"
                     style="@style/GhostButton"
                     android:layout_marginTop="4dp"
-                    android:text="返回" />
+                    android:text="@string/m_572cf45ba436" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

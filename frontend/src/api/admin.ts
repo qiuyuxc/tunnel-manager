@@ -1,3 +1,4 @@
+import { t as tr, localized } from '../i18n.ts'
 // Registration, session identity and admin backend APIs.
 import { api } from './index'
 import type { LoginResponse } from './index'
@@ -140,13 +141,13 @@ export interface SMTPStatus {
 
 export const ALL_PERMISSIONS = ['tunnels', 'domain_bind', 'dns', 'monitors', 'oauth_connect'] as const
 
-export const PERMISSION_LABELS: Record<string, string> = {
-  tunnels: '隧道管理',
-  domain_bind: '域名绑定',
-  dns: 'DNS 记录',
-  monitors: '服务监控',
-  oauth_connect: 'Cloudflare 授权',
-}
+export const PERMISSION_LABELS: Record<string, string> = localized(() => ({
+  tunnels: tr('m_e920f47d0c05'),
+  domain_bind: tr('m_4bf8b66d7390'),
+  dns: tr('m_72af91239cad'),
+  monitors: tr('m_7fab82054a8f'),
+  oauth_connect: tr('m_1d81613aa5b5'),
+}))
 
 export const listUsers = () => api.get<{ users: UserView[] }>('/admin/users')
 export const createUser = (payload: { username: string; email?: string; password: string; role?: string; group_id?: string }) =>
@@ -224,82 +225,82 @@ export interface AuditQuery {
   page_size?: number
 }
 
-export const AUDIT_CATEGORY_LABELS: Record<string, string> = {
-  auth: '登录认证',
-  user: '用户管理',
-  group: '用户组',
-  invite: '邀请码',
-  settings: '系统设置',
-  tunnel: '隧道管理',
-  domain: '域名绑定',
-  dns: 'DNS 记录',
-  monitor: '服务监控',
-  lab: 'IP 优选实验室',
-  telegram: 'TG 机器人',
-  passkey: '通行密钥',
-}
+export const AUDIT_CATEGORY_LABELS: Record<string, string> = localized(() => ({
+  auth: tr('m_bbf58983ccf5'),
+  user: tr('m_fbf413d429bd'),
+  group: tr('m_963ead08d78d'),
+  invite: tr('m_c8b56dca7aed'),
+  settings: tr('m_68ea5dd4d7af'),
+  tunnel: tr('m_e920f47d0c05'),
+  domain: tr('m_4bf8b66d7390'),
+  dns: tr('m_72af91239cad'),
+  monitor: tr('m_7fab82054a8f'),
+  lab: tr('m_3db29474a184'),
+  telegram: tr('m_805dcced3f07'),
+  passkey: tr('m_102824e51a9d'),
+}))
 
 /** 操作类型选项，按分类分组，供审计日志筛选使用。 */
-export const AUDIT_ACTIONS: { category: string; action: string; label: string }[] = [
-  { category: 'auth', action: 'login', label: '登录成功' },
-  { category: 'auth', action: 'login_failed', label: '登录失败' },
-  { category: 'auth', action: 'logout', label: '退出登录' },
-  { category: 'user', action: 'user_create', label: '创建用户' },
-  { category: 'user', action: 'user_status', label: '启用 / 禁用用户' },
-  { category: 'user', action: 'user_group', label: '调整用户组' },
-  { category: 'user', action: 'user_password', label: '重置用户密码' },
-  { category: 'user', action: 'user_delete', label: '删除用户' },
-  { category: 'group', action: 'group_create', label: '创建用户组' },
-  { category: 'group', action: 'group_update', label: '修改用户组' },
-  { category: 'group', action: 'group_delete', label: '删除用户组' },
-  { category: 'invite', action: 'invite_create', label: '生成邀请码' },
-  { category: 'invite', action: 'invite_update', label: '启用 / 停用邀请码' },
-  { category: 'invite', action: 'invite_delete', label: '删除邀请码' },
-  { category: 'settings', action: 'settings_update', label: '修改注册策略' },
-  { category: 'settings', action: 'site_update', label: '修改站点设置' },
-  { category: 'settings', action: 'cname_presets_update', label: '修改 CNAME 预设' },
-  { category: 'settings', action: 'preferred_cname_update', label: '修改优选 CNAME' },
-  { category: 'settings', action: 'smtp_update', label: '修改邮件服务' },
-  { category: 'settings', action: 'smtp_test', label: '发送测试邮件' },
-  { category: 'settings', action: 'oauth_update', label: '修改 OAuth 客户端' },
-  { category: 'settings', action: 'encryption_key_update', label: '修改加密密钥' },
-  { category: 'tunnel', action: 'tunnel_create', label: '创建隧道' },
-  { category: 'tunnel', action: 'tunnel_delete', label: '删除隧道' },
-  { category: 'tunnel', action: 'ingress_add', label: '新增隧道规则' },
-  { category: 'tunnel', action: 'ingress_update', label: '修改隧道规则' },
-  { category: 'tunnel', action: 'ingress_delete', label: '删除隧道规则' },
-  { category: 'domain', action: 'domain_bind', label: '绑定域名' },
-  { category: 'domain', action: 'domain_bind_batch', label: '批量绑定域名' },
-  { category: 'domain', action: 'domain_fallback', label: '设置回退源' },
-  { category: 'dns', action: 'dns_create', label: '新增 DNS 记录' },
-  { category: 'dns', action: 'dns_update', label: '修改 DNS 记录' },
-  { category: 'dns', action: 'dns_delete', label: '删除 DNS 记录' },
-  { category: 'monitor', action: 'monitor_create', label: '创建监控项目' },
-  { category: 'monitor', action: 'monitor_update', label: '修改监控项目' },
-  { category: 'monitor', action: 'monitor_delete', label: '删除监控项目' },
-  { category: 'monitor', action: 'monitor_check', label: '手动检测监控' },
-  { category: 'monitor', action: 'target_add', label: '新增监控目标' },
-  { category: 'monitor', action: 'target_update', label: '修改监控目标' },
-  { category: 'monitor', action: 'target_delete', label: '删除监控目标' },
-  { category: 'lab', action: 'lab_settings_update', label: '修改实验室设置' },
-  { category: 'lab', action: 'lab_run', label: '执行 IP 优选' },
-  { category: 'lab', action: 'lab_stop', label: '停止 IP 优选' },
-  { category: 'lab', action: 'lab_ownership_challenge', label: '生成域名验证记录' },
-  { category: 'lab', action: 'lab_ownership_verify', label: '验证优选域名' },
-  { category: 'lab', action: 'lab_ownership_dns', label: '自动填写域名验证 TXT' },
-  { category: 'telegram', action: 'telegram_endpoint_update', label: '修改 TG API 端点' },
-  { category: 'passkey', action: 'passkey_add', label: '绑定通行密钥' },
-  { category: 'passkey', action: 'passkey_remove', label: '删除通行密钥' },
-  { category: 'passkey', action: 'passkey_rename', label: '重命名通行密钥' },
-  { category: 'passkey', action: 'passkey_login', label: '通行密钥登录' },
-  { category: 'passkey', action: 'passkey_login_failed', label: '通行密钥登录失败' },
-  { category: 'passkey', action: 'password_login_disable', label: '禁用密码登录' },
-  { category: 'passkey', action: 'password_login_enable', label: '恢复密码登录' },
-  { category: 'passkey', action: 'password_login_global_disable', label: '全局禁用密码登录' },
-  { category: 'passkey', action: 'password_login_global_enable', label: '全局恢复密码登录' },
-]
+export const AUDIT_ACTIONS: { category: string; action: string; label: string }[] = localized(() => ([
+  { category: 'auth', action: 'login', label: tr('m_645b934deb86') },
+  { category: 'auth', action: 'login_failed', label: tr('m_e4343921c928') },
+  { category: 'auth', action: 'logout', label: tr('m_3ab8cc15939f') },
+  { category: 'user', action: 'user_create', label: tr('m_37c825ff40e7') },
+  { category: 'user', action: 'user_status', label: tr('m_088829f635e5') },
+  { category: 'user', action: 'user_group', label: tr('m_3f18c306c522') },
+  { category: 'user', action: 'user_password', label: tr('m_69d844482cde') },
+  { category: 'user', action: 'user_delete', label: tr('m_b75872bba6f1') },
+  { category: 'group', action: 'group_create', label: tr('m_f5c0c8360a8a') },
+  { category: 'group', action: 'group_update', label: tr('m_880dc01d1427') },
+  { category: 'group', action: 'group_delete', label: tr('m_2aacf3a5dbf0') },
+  { category: 'invite', action: 'invite_create', label: tr('m_5f6a55e484cc') },
+  { category: 'invite', action: 'invite_update', label: tr('m_0f69f3cff13d') },
+  { category: 'invite', action: 'invite_delete', label: tr('m_6f2555f607af') },
+  { category: 'settings', action: 'settings_update', label: tr('m_e04f5a9c92cb') },
+  { category: 'settings', action: 'site_update', label: tr('m_9c4e82ea3a5e') },
+  { category: 'settings', action: 'cname_presets_update', label: tr('m_e3a19ed99df8') },
+  { category: 'settings', action: 'preferred_cname_update', label: tr('m_33a47993a6eb') },
+  { category: 'settings', action: 'smtp_update', label: tr('m_b6d496d548f8') },
+  { category: 'settings', action: 'smtp_test', label: tr('m_f9ae1a31638d') },
+  { category: 'settings', action: 'oauth_update', label: tr('m_30ebe9296b01') },
+  { category: 'settings', action: 'encryption_key_update', label: tr('m_026bad67a38d') },
+  { category: 'tunnel', action: 'tunnel_create', label: tr('m_e33080d615cb') },
+  { category: 'tunnel', action: 'tunnel_delete', label: tr('m_cf5e530b1ad3') },
+  { category: 'tunnel', action: 'ingress_add', label: tr('m_b6c70706eb7d') },
+  { category: 'tunnel', action: 'ingress_update', label: tr('m_9c66533b5540') },
+  { category: 'tunnel', action: 'ingress_delete', label: tr('m_7d67e8e89593') },
+  { category: 'domain', action: 'domain_bind', label: tr('m_dd799f925f94') },
+  { category: 'domain', action: 'domain_bind_batch', label: tr('m_d7220322e884') },
+  { category: 'domain', action: 'domain_fallback', label: tr('m_0bb58707f90c') },
+  { category: 'dns', action: 'dns_create', label: tr('m_d9099a5e05d2') },
+  { category: 'dns', action: 'dns_update', label: tr('m_ce46f070601d') },
+  { category: 'dns', action: 'dns_delete', label: tr('m_ab190f1faa64') },
+  { category: 'monitor', action: 'monitor_create', label: tr('m_f9313095ee64') },
+  { category: 'monitor', action: 'monitor_update', label: tr('m_40b947bb3c5e') },
+  { category: 'monitor', action: 'monitor_delete', label: tr('m_b2fc749edfa3') },
+  { category: 'monitor', action: 'monitor_check', label: tr('m_579e2b6a5204') },
+  { category: 'monitor', action: 'target_add', label: tr('m_b8c4303aff45') },
+  { category: 'monitor', action: 'target_update', label: tr('m_c21bd0ef300e') },
+  { category: 'monitor', action: 'target_delete', label: tr('m_bf7241072328') },
+  { category: 'lab', action: 'lab_settings_update', label: tr('m_247f5a5d0147') },
+  { category: 'lab', action: 'lab_run', label: tr('m_15cce67fe3ee') },
+  { category: 'lab', action: 'lab_stop', label: tr('m_5dc85ec6744a') },
+  { category: 'lab', action: 'lab_ownership_challenge', label: tr('m_b824edacb9d7') },
+  { category: 'lab', action: 'lab_ownership_verify', label: tr('m_9ee6089139dd') },
+  { category: 'lab', action: 'lab_ownership_dns', label: tr('m_eb83a1ede9ac') },
+  { category: 'telegram', action: 'telegram_endpoint_update', label: tr('m_68dc91ef78e7') },
+  { category: 'passkey', action: 'passkey_add', label: tr('m_54255856f81f') },
+  { category: 'passkey', action: 'passkey_remove', label: tr('m_fc3f78b499e1') },
+  { category: 'passkey', action: 'passkey_rename', label: tr('m_c384f03c2393') },
+  { category: 'passkey', action: 'passkey_login', label: tr('m_5903fbc149e8') },
+  { category: 'passkey', action: 'passkey_login_failed', label: tr('m_9b4340ac3382') },
+  { category: 'passkey', action: 'password_login_disable', label: tr('m_3a027241650b') },
+  { category: 'passkey', action: 'password_login_enable', label: tr('m_466c8603a96a') },
+  { category: 'passkey', action: 'password_login_global_disable', label: tr('m_aa2fb06da444') },
+  { category: 'passkey', action: 'password_login_global_enable', label: tr('m_7022fc61d84f') },
+]))
 
-const AUDIT_ACTION_LABELS: Record<string, string> = Object.fromEntries(AUDIT_ACTIONS.map((item) => [item.action, item.label]))
+const AUDIT_ACTION_LABELS: Record<string, string> = localized(() => (Object.fromEntries(AUDIT_ACTIONS.map((item) => [item.action, item.label]))))
 
 /** 操作类型的中文名；未知操作回退到分类名 + 原始键值。 */
 export function auditActionLabel(log: AuditLog) {

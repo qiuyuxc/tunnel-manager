@@ -2,10 +2,10 @@
   <fieldset v-if="Array.isArray(modelValue)">
     <legend>{{ label }}</legend>
     <div v-for="(item, index) in modelValue" :key="index" class="array-item">
-      <AssistantArgumentField :label="`第 ${index + 1} 项`" :model-value="item" @update:model-value="setItem(index, $event)" />
-      <button type="button" @click="removeItem(index)">移除这项</button>
+      <AssistantArgumentField :label="tr('m_ad9950fb4a2c', { p0: index + 1 })" :model-value="item" @update:model-value="setItem(index, $event)" />
+      <button type="button" @click="removeItem(index)">{{ tr('m_b80f8ec9d893') }}</button>
     </div>
-    <button v-if="field === 'items'" type="button" @click="emit('update:modelValue', [...modelValue, { name: '', value: '' }])">添加预设</button>
+    <button v-if="field === 'items'" type="button" @click="emit('update:modelValue', [...modelValue, { name: '', value: '' }])">{{ tr('m_1073a088d1a0') }}</button>
   </fieldset>
   <fieldset v-else-if="modelValue !== null && typeof modelValue === 'object'">
     <legend>{{ label }}</legend>
@@ -13,8 +13,8 @@
   </fieldset>
   <label v-else>
     <span>{{ label }}</span>
-    <select v-if="typeof modelValue === 'boolean'" :value="String(modelValue)" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value === 'true')"><option value="true">开启</option><option value="false">关闭</option></select>
-    <select v-else-if="field === 'invite_mode'" :value="modelValue" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"><option value="off">不使用邀请码</option><option value="optional">邀请码可选</option><option value="required">必须有邀请码</option></select>
+    <select v-if="typeof modelValue === 'boolean'" :value="String(modelValue)" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value === 'true')"><option value="true">{{ tr('m_8da97ddda990') }}</option><option value="false">{{ tr('m_3fd47edce45b') }}</option></select>
+    <select v-else-if="field === 'invite_mode'" :value="modelValue" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"><option value="off">{{ tr('m_aeec6e7aa8ee') }}</option><option value="optional">{{ tr('m_0345fc011359') }}</option><option value="required">{{ tr('m_478c37677b78') }}</option></select>
     <input v-else-if="typeof modelValue === 'number' || ['ttl', 'interval_sec', 'priority', 'weight', 'port', 'flags'].includes(field || '')" type="number" step="1" required :value="modelValue" @input="emit('update:modelValue', ($event.target as HTMLInputElement).value === '' ? '' : Number(($event.target as HTMLInputElement).value))" />
     <textarea v-else-if="field === 'content' || field === 'description'" rows="2" :value="String(modelValue ?? '')" @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)" />
     <input v-else type="text" :value="String(modelValue ?? '')" @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)" />
@@ -22,6 +22,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { assistantArgumentLabels as labels } from '../utils/assistantTaskEdits'
 const props = defineProps<{ label: string; field?: string; modelValue: unknown }>()
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>()

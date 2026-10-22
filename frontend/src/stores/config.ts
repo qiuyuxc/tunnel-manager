@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.ts'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { getConfig, getSiteSettings, listTunnels, setTunnelSelection, type Config } from '../api'
@@ -11,9 +12,9 @@ export const useConfigStore = defineStore('config', () => {
     tunnel_name: '',
     service_url: '',
     preferred_cname: 'cf.090227.xyz',
-    cname_presets: [{ name: '默认优选', value: 'cf.090227.xyz' }],
+    cname_presets: [{ name: tr('m_a45d83b644b9'), value: 'cf.090227.xyz' }],
     site_name: 'Tunnel Manager',
-    site_description: 'Cloudflare 隧道管理中心',
+    site_description: tr('m_c2c8982623de'),
     site_icon: '',
     landing_enabled: false,
     experimental_features_enabled: false,

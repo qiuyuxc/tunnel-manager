@@ -133,7 +133,7 @@ final class Sheet {
             close.setBackground(UI.pressable(UI.rounded(p.canvasSoft2, UI.RADIUS_PILL), p.btnGhostHover));
             close.setClickable(true);
             close.setFocusable(true);
-            close.setContentDescription("关闭面板");
+            close.setContentDescription(I18n.text("m_e453bb7ac8e1"));
             UI.pressFeedback(close);
             close.setOnClickListener(v -> {
                 if (allowDismiss) dismiss();

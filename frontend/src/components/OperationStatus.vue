@@ -1,11 +1,13 @@
 <template>
   <section class="operation-status" role="status" aria-live="polite" aria-busy="true">
     <span class="operation-spinner spin" aria-hidden="true"></span>
-    <div><strong>{{ title }}</strong><p>{{ elapsed >= 15 ? '仍未收到服务端结果，请继续等待，不要重复提交。' : '请求已发出，正在等待服务端返回结果。' }}</p><span aria-hidden="true">已等待 {{ elapsed }} 秒</span></div>
+    <div><strong>{{ title }}</strong><p>{{ elapsed >= 15 ? tr('m_c9f6342f69c9') : tr('m_7da301b2426c') }}</p><span aria-hidden="true">{{ tr('m_58ec6db7697b') }} {{ elapsed }} {{ tr('m_9dcdc2b289b9') }}</span></div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onBeforeUnmount, ref } from 'vue'
 defineProps<{ title: string }>()
 const startedAt = Date.now()

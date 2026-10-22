@@ -54,7 +54,7 @@ final class DNSBatchCreate {
         lifecycle = ((LifecycleOwner) owner).getLifecycle();
         if (lifecycle.getCurrentState() == Lifecycle.State.DESTROYED) { dispose(); return; }
         LinearLayout form = UI.column(context);
-        form.addView(UI.muted(context, "区域：" + zoneName + "\n每批最多 100 条非空行，逐条串行新增。支持 A / AAAA / TXT / MX / NS / PTR。CNAME、SRV、CAA 请单条添加。"));
+        form.addView(UI.muted(context, I18n.text("m_cfad1e9ab75f") + zoneName + I18n.text("m_c08cc2a469e8")));
         type = UI.button(context, draft.type, UI.BTN_SECONDARY);
         type.setOnClickListener(view -> {
             PopupMenu menu = new PopupMenu(context, type);
@@ -64,37 +64,37 @@ final class DNSBatchCreate {
             });
             menu.show();
         });
-        form.addView(UI.field(context, "记录类型", type, UI.MD));
-        name = UI.input(context, "www 或 example.com"); form.addView(UI.field(context, "名称", name, UI.MD));
+        form.addView(UI.field(context, I18n.text("m_8f6363220575"), type, UI.MD));
+        name = UI.input(context, I18n.text("m_8be91866ed29")); form.addView(UI.field(context, I18n.text("m_d44e9b3d3b31"), name, UI.MD));
         ttl = UI.input(context, "1"); ttl.setInputType(InputType.TYPE_CLASS_NUMBER); ttl.setText("1");
-        form.addView(UI.field(context, "TTL（1 为自动）", ttl, UI.MD));
+        form.addView(UI.field(context, I18n.text("m_5fada8da5e20"), ttl, UI.MD));
         priority = UI.input(context, "0–65535"); priority.setInputType(InputType.TYPE_CLASS_NUMBER); priority.setText("0");
-        priorityField = UI.field(context, "MX 优先级（共用）", priority, UI.MD); form.addView(priorityField);
-        proxy = UI.button(context, "仅 DNS", UI.BTN_SECONDARY);
+        priorityField = UI.field(context, I18n.text("m_774642733b2d"), priority, UI.MD); form.addView(priorityField);
+        proxy = UI.button(context, I18n.text("m_80848ec9f9a4"), UI.BTN_SECONDARY);
         proxy.setOnClickListener(view -> { draft.proxied = !draft.proxied; sync(); });
-        proxyField = UI.field(context, "代理状态", proxy, UI.MD); form.addView(proxyField);
-        values = UI.textArea(context, "每行一个解析值"); values.setMinLines(4);
-        form.addView(UI.field(context, "解析值，每行一条", values, UI.MD));
-        form.addView(UI.muted(context, "空行忽略，重复和已加载的同名同类型值跳过。TXT 保留空格，不按逗号拆分；跨行 TXT 请单条添加。"));
+        proxyField = UI.field(context, I18n.text("m_b90665e74c01"), proxy, UI.MD); form.addView(proxyField);
+        values = UI.textArea(context, I18n.text("m_6fe95d8ef87e")); values.setMinLines(4);
+        form.addView(UI.field(context, I18n.text("m_c72c82545f49"), values, UI.MD));
+        form.addView(UI.muted(context, I18n.text("m_3cb05bcf2956")));
         previewText = UI.mono(context, "", Theme.p().body); form.addView(previewText);
         error = UI.muted(context, ""); error.setTextColor(Theme.p().error); form.addView(error);
         resultsText = UI.mono(context, "", Theme.p().body); form.addView(resultsText);
-        acknowledge = UI.button(context, "核对后点击：我已移除实际创建的行", UI.BTN_SECONDARY);
+        acknowledge = UI.button(context, I18n.text("m_f6c8a825999f"), UI.BTN_SECONDARY);
         acknowledge.setVisibility(View.GONE); UI.fill(acknowledge);
         acknowledge.setOnClickListener(view -> {
             reviewed = !reviewed;
-            acknowledge.setText(reviewed ? "已核对并移除实际创建的行 ✓" : "核对后点击：我已移除实际创建的行");
+            acknowledge.setText(reviewed ? I18n.text("m_e4652b6acbd7") : I18n.text("m_f6c8a825999f"));
             refreshPreview();
         });
         form.addView(acknowledge);
-        submit = UI.button(context, "批量新增", UI.BTN_PRIMARY); UI.fill(submit); UI.margin(submit, 0, UI.MD, 0, 0);
+        submit = UI.button(context, I18n.text("m_8cb8203cbf30"), UI.BTN_PRIMARY); UI.fill(submit); UI.margin(submit, 0, UI.MD, 0, 0);
         submit.setOnClickListener(view -> send()); form.addView(submit);
         for (EditText input : new EditText[]{name, values, ttl, priority}) input.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence text, int start, int count, int after) {}
             public void onTextChanged(CharSequence text, int start, int before, int count) {}
             public void afterTextChanged(Editable text) { if (!running) refreshPreview(); }
         });
-        sheet = Sheet.of(context, "批量新增 DNS 记录").content(form).onDismiss(this::dispose);
+        sheet = Sheet.of(context, I18n.text("m_8c63234bfc31")).content(form).onDismiss(this::dispose);
         observer = (source, event) -> { if (event == Lifecycle.Event.ON_DESTROY) dispose(); };
         lifecycle.addObserver(observer);
         sync(); sheet.show();
@@ -103,7 +103,7 @@ final class DNSBatchCreate {
     private void dispose() {
         if (disposed) return;
         disposed = true;
-        scope.stop("窗口已关闭或宿主已销毁，队列已停止");
+        scope.stop(I18n.text("m_5f04af2706a0"));
         if (lifecycle != null && observer != null) lifecycle.removeObserver(observer);
         if (sheet != null && sheet.isShowing()) sheet.dismiss();
     }
@@ -111,7 +111,7 @@ final class DNSBatchCreate {
     private void sync() {
         priorityField.setVisibility(draft.type.equals("MX") ? View.VISIBLE : View.GONE);
         proxyField.setVisibility(DNSValues.proxy(draft.type) ? View.VISIBLE : View.GONE);
-        proxy.setText(draft.proxied ? "已代理" : "仅 DNS"); refreshPreview();
+        proxy.setText(draft.proxied ? I18n.text("m_5c7bbf98286f") : I18n.text("m_80848ec9f9a4")); refreshPreview();
     }
 
     private DNSValues.Preview preview() {
@@ -133,7 +133,7 @@ final class DNSBatchCreate {
             String problem = draft.validate();
             if (problem != null) {
                 result.rows.set(index, new DNSValues.Row(row.line, row.content, problem, row.skipped));
-                result.error = "请先修正标注行，整个批次尚未提交";
+                result.error = I18n.text("m_f32916472225");
             }
         }
         return result;
@@ -141,15 +141,15 @@ final class DNSBatchCreate {
 
     private void refreshPreview() {
         DNSValues.Preview result = preview();
-        StringBuilder text = new StringBuilder("预览：" + result.pending().size() + " 条待新增\n");
+        StringBuilder text = new StringBuilder(I18n.text("m_e628f1c80e48") + result.pending().size() + I18n.text("m_f3de3deef786"));
         for (DNSValues.Row row : result.rows.subList(0, Math.min(result.rows.size(), DNSValues.LIMIT))) {
-            text.append("第 ").append(row.line).append(" 行 · ").append(row.content).append("\n")
-                    .append(row.error != null ? row.error : row.skipped != null ? row.skipped : "待新增").append("\n");
+            text.append(I18n.text("m_9552fe3bd366")).append(row.line).append(I18n.text("m_37f5cb1de68e")).append(row.content).append("\n")
+                    .append(row.error != null ? row.error : row.skipped != null ? row.skipped : I18n.text("m_b2d9abb23920")).append("\n");
         }
         String stopped = scope.reason();
         previewText.setText(text); error.setText(stopped != null ? stopped : result.error == null ? "" : result.error);
         submit.setEnabled(!disposed && stopped == null && !running && result.error == null && !result.pending().isEmpty() && (!reviewRequired || reviewed));
-        submit.setText(locked ? "重试剩余项" : "新增 " + result.pending().size() + " 条记录");
+        submit.setText(locked ? I18n.text("m_a055dcc4abd8") : I18n.text("m_d763c8f36471") + result.pending().size() + I18n.text("m_53aa7f3019bb"));
     }
 
     private void send() {
@@ -159,14 +159,14 @@ final class DNSBatchCreate {
         if (parsed.error != null || parsed.pending().isEmpty()) { refreshPreview(); return; }
         List<DNSValues.Row> rows = parsed.pending();
         running = true; locked = true; reviewRequired = false; reviewed = false;
-        acknowledge.setText("核对后点击：我已移除实际创建的行"); acknowledge.setVisibility(View.GONE); setControls(); resultsText.setText("");
+        acknowledge.setText(I18n.text("m_f6c8a825999f")); acknowledge.setVisibility(View.GONE); setControls(); resultsText.setText("");
         StringBuilder report = new StringBuilder();
         Api.async(() -> DNSValues.send(rows, row -> {
             scope.check();
             draft.content = row.content;
             try {
                 JSONObject created = Api.post(scope, "/api/zones/" + zone + "/dns-records", DNSJson.payload(draft, null));
-                if (created.optString("id").isEmpty()) throw new DNSValues.SendFailure("缺少创建记录确认", true);
+                if (created.optString("id").isEmpty()) throw new DNSValues.SendFailure(I18n.text("m_accaa6dc9e86"), true);
             }
             catch (Api.Failure failure) {
                 String detail = String.valueOf(failure.getMessage());
@@ -177,7 +177,7 @@ final class DNSBatchCreate {
         }, result -> main.post(() -> {
             if (disposed) return;
             if (result.uncertain) { reviewRequired = true; acknowledge.setVisibility(View.VISIBLE); }
-            report.append("第 ").append(result.row.line).append(" 行 · ").append(result.row.content).append("\n").append(result.message).append("\n");
+            report.append(I18n.text("m_9552fe3bd366")).append(result.row.line).append(I18n.text("m_37f5cb1de68e")).append(result.row.content).append("\n").append(result.message).append("\n");
             resultsText.setText(report);
         })), completed -> {
             StringBuilder failures = new StringBuilder();
@@ -191,11 +191,11 @@ final class DNSBatchCreate {
             running = false;
             if (disposed) return;
             values.setText(failures);
-            report.append("成功 ").append(count).append("，失败 ").append(completed.size() - count - unknown - notSent)
-                    .append("，未知 ").append(unknown).append("，未发送 ").append(notSent)
-                    .append("。只保留未完成项，绝不自动重发成功行。未发送行未执行请求。");
-            if (unknown > 0) report.append("未知请求可能已写入，请核对并移除实际创建的行后再重试。");
-            report.append("关闭窗口会清空本批输入。");
+            report.append(I18n.text("m_a15ed6518c6a")).append(count).append(I18n.text("m_03ae4504a474")).append(completed.size() - count - unknown - notSent)
+                    .append(I18n.text("m_1ca01ff511c8")).append(unknown).append(I18n.text("m_8c5bd0a308a3")).append(notSent)
+                    .append(I18n.text("m_f1377c3a183c"));
+            if (unknown > 0) report.append(I18n.text("m_6974b8639998"));
+            report.append(I18n.text("m_1f789b5b234c"));
             resultsText.setText(report); setControls(); refreshPreview();
             if (scope.reason() == null) saved.run();
         }, failure -> {
@@ -210,6 +210,6 @@ final class DNSBatchCreate {
         sheet.setDismissible(!running); values.setEnabled(enabled);
         acknowledge.setEnabled(enabled);
         for (View control : new View[]{name, ttl, priority, type, proxy}) control.setEnabled(enabled && !locked);
-        submit.setEnabled(enabled); if (running) submit.setText("正在逐条新增…");
+        submit.setEnabled(enabled); if (running) submit.setText(I18n.text("m_d8fed3ba0263"));
     }
 }

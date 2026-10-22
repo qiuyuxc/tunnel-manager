@@ -1,6 +1,6 @@
 # 原生 App（Android）
 
-控制台的原生实现。后端仍是同一套 API，网页端不受影响；功能与使用说明见 [Android App 文档](../docs/guide/android-app.md)。
+控制台的原生实现。后端仍是同一套 API，网页端不受影响；功能与使用说明见 [Android App 文档](https://docs.kukie.cn/guide/android-app)。
 
 ## 构建
 

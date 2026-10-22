@@ -74,11 +74,15 @@ public class ConsoleActivity extends AppCompatActivity {
     private TunnelCreateSheet tunnelCreateSheet;
     AssistantFragment.State assistantState;
 
+    public static final class AssistantState extends androidx.lifecycle.ViewModel {
+        final AssistantFragment.State value = new AssistantFragment.State();
+    }
+
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         Session.init(this);
-        assistantState = new AssistantFragment.State();
+        assistantState = new androidx.lifecycle.ViewModelProvider(this).get(AssistantState.class).value;
         if (Session.token().isEmpty()) {
             backToLogin(null);
             return;
@@ -211,7 +215,7 @@ public class ConsoleActivity extends AppCompatActivity {
             if (isDetailRoute()) getOnBackPressedDispatcher().onBackPressed();
             else open("/dashboard");
         });
-        navigationButton.setContentDescription("控制面板");
+        navigationButton.setContentDescription(I18n.text("m_69e7a943ab4e"));
         bar.addView(navigationButton);
         TextView brand = UI.text(this, Session.siteName(), 18, p.ink, Typeface.BOLD);
         brand.setSingleLine(true);
@@ -223,7 +227,7 @@ public class ConsoleActivity extends AppCompatActivity {
         // back is the system gesture, so the bar carries no back arrow either.
         themeButton = (ImageView) iconButton(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon,
                 p.body, v -> toggleDark());
-        themeButton.setContentDescription("切换深浅主题");
+        themeButton.setContentDescription(I18n.text("m_ba09b42d4fc9"));
         bar.addView(themeButton);
         bar.addView(avatarButton());
         return bar;
@@ -267,7 +271,7 @@ public class ConsoleActivity extends AppCompatActivity {
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
 
-        row.addView(UI.text(this, item.label, 14,
+        row.addView(UI.text(this, item.label(), 14,
                 active ? p.sidebarTextActive : p.sidebarText,
                 active ? Typeface.BOLD : Typeface.NORMAL));
 
@@ -311,10 +315,10 @@ public class ConsoleActivity extends AppCompatActivity {
                     slot.addView(fabButton(), new FrameLayout.LayoutParams(UI.dp(44), UI.dp(44), Gravity.CENTER));
                     bar.addView(slot, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
                 } else if ("more".equals(path)) {
-                    bar.addView(tabButton(R.drawable.ic_nav_more, "更多", false, this::showMoreMenu));
+                    bar.addView(tabButton(R.drawable.ic_nav_more, I18n.text("m_38844b135cf7"), false, this::showMoreMenu));
                 } else {
                     Nav.Item item = Nav.byPath(path);
-                    bar.addView(tabButton(item.icon, "/dns".equals(path) ? "DNS" : item.tabLabel,
+                    bar.addView(tabButton(item.icon, "/dns".equals(path) ? "DNS" : item.tabLabel(),
                             false, view -> open(path)));
                 }
             }
@@ -409,7 +413,7 @@ public class ConsoleActivity extends AppCompatActivity {
         fab.setBackground(UI.pressable(UI.circle(p.btnPrimaryBg, 0, 0), p.btnGhostHover));
         fab.setClickable(true);
         fab.setFocusable(true);
-        fab.setContentDescription("新建隧道或绑定域名");
+        fab.setContentDescription(I18n.text("m_9e795f086eb8"));
         UI.pressFeedback(fab);
         fab.setOnClickListener(this::showCreateMenu);
         return fab;
@@ -528,14 +532,15 @@ public class ConsoleActivity extends AppCompatActivity {
 
         card.addView(identityHead());
         card.addView(menuSeparator());
-        card.addView(menuRow(R.drawable.ic_nav_account, "账户信息", false, () -> {
+        card.addView(menuRow(R.drawable.ic_nav_account, I18n.text("m_34e5636c63cc"), false, () -> {
             closeAccountMenu();
             open("/account");
         }));
         card.addView(darkModeRow());
+        card.addView(menuRow(R.drawable.ic_nav_account, I18n.text("language.label"), false, this::showLanguageMenu));
         card.addView(reducedEffectsRow());
         card.addView(menuSeparator());
-        card.addView(menuRow(R.drawable.ic_nav_logout, "退出登录", true, () -> {
+        card.addView(menuRow(R.drawable.ic_nav_logout, I18n.text("m_3ab8cc15939f"), true, () -> {
             Session.logout(this);
             backToLogin(null);
         }));
@@ -552,13 +557,25 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showCreateMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, "新建连接");
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_2cb204a57873"));
         if (Session.hasPerm("tunnels")) sheet.action(R.drawable.ic_nav_tunnels,
-                "新建隧道", "创建 Cloudflare Tunnel 并获取连接命令", this::showCreateTunnel);
+                I18n.text("m_ee6527b22aaf"), I18n.text("m_e2fc83a2fc84"), this::showCreateTunnel);
         if (Session.hasPerm("domain_bind")) sheet.action(R.drawable.ic_nav_domain,
-                "绑定域名", "为当前服务配置访问地址", () -> open("/domain"));
-        sheet.action(R.drawable.ic_nav_assistant, "AI 助手", "描述目标，核对并执行配置任务", () -> open("/assistant"));
+                I18n.text("m_dd799f925f94"), I18n.text("m_88360030ad5d"), () -> open("/domain"));
+        sheet.action(R.drawable.ic_nav_assistant, I18n.text("m_1b0049fcfd41"), I18n.text("m_6eeb9aae30ef"), () -> open("/assistant"));
         sheet.show();
+    }
+
+    private void showLanguageMenu() {
+        closeAccountMenu();
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(I18n.text("language.switch"))
+                .setSingleChoiceItems(new String[]{I18n.text("language.system"), "简体中文", "English"},
+                        "zh-CN".equals(I18n.preference()) ? 1 : "en".equals(I18n.preference()) ? 2 : 0,
+                        (dialog, index) -> {
+                            dialog.dismiss();
+                            I18n.setLanguage(new String[]{"system", "zh-CN", "en"}[index]);
+                        }).show();
     }
 
     void showCreateTunnel() {
@@ -571,7 +588,7 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showMoreMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, "你的工作空间");
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_56ca721193c9"));
         sheet.content(identityHead());
         List<Nav.Item> visible = Nav.visible();
         List<Nav.Item> network = new ArrayList<>();
@@ -581,9 +598,9 @@ public class ConsoleActivity extends AppCompatActivity {
                 if (path.equals(item.path)) network.add(item);
             }
         }
-        if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "批量绑定", null,
+        if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "m_6f7ce20a6c76", null,
                 R.drawable.ic_nav_plus, Nav.Group.NETWORK, "domain_bind", false, true));
-        if (!network.isEmpty()) sheet.label("网络与解析").content(moreGrid(sheet, network));
+        if (!network.isEmpty()) sheet.label(I18n.text("m_ee29a9f2fcb2")).content(moreGrid(sheet, network));
         for (Nav.Group group : new Nav.Group[]{Nav.Group.SYSTEM, Nav.Group.PERSONAL}) {
             boolean labelled = false;
             for (Nav.Item item : visible) {
@@ -592,7 +609,7 @@ public class ConsoleActivity extends AppCompatActivity {
                     sheet.label(groupLabel(group));
                     labelled = true;
                 }
-                sheet.action(item.icon, item.label, routeDescription(item.path), () -> open(item.path));
+                sheet.action(item.icon, item.label(), routeDescription(item.path), () -> open(item.path));
             }
         }
         sheet.show();
@@ -627,11 +644,11 @@ public class ConsoleActivity extends AppCompatActivity {
                 icon.setImageResource(item.icon);
                 UI.tint(icon, Theme.p().success);
                 tile.addView(icon, new LinearLayout.LayoutParams(UI.dp(24), UI.dp(24)));
-                TextView title = UI.text(this, item.label, 13, Theme.p().ink, Typeface.NORMAL);
+                TextView title = UI.text(this, item.label(), 13, Theme.p().ink, Typeface.NORMAL);
                 title.setGravity(Gravity.CENTER);
                 UI.margin(title, 0, UI.SM, 0, 0);
                 tile.addView(title);
-                tile.setContentDescription(item.label);
+                tile.setContentDescription(item.label());
                 tile.setClickable(true);
                 tile.setFocusable(true);
                 UI.pressFeedback(tile);
@@ -647,13 +664,13 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private static String routeDescription(String path) {
         switch (path) {
-            case "/settings": return "站点品牌、网络与全局配置";
-            case "/telegram": return "远程助手、授权会话与消息测试";
-            case "/admin": return "用户、权限、安全与审计";
-            case "/notifications": return "通知渠道、事件与设备告警";
-            case "/account": return "个人资料、通行密钥与账户授权";
-            case "/about": return "版本、更新与项目文档";
-            default: return "打开工具";
+            case "/settings": return I18n.text("m_55f414b419f9");
+            case "/telegram": return I18n.text("m_3a90edc850ae");
+            case "/admin": return I18n.text("m_6b1aa75dab8f");
+            case "/notifications": return I18n.text("m_173b8a1ecf3e");
+            case "/account": return I18n.text("m_9690e608dc37");
+            case "/about": return I18n.text("m_cf93501671a7");
+            default: return I18n.text("m_0101bc1c6e1e");
         }
     }
 
@@ -676,7 +693,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         LinearLayout ident = UI.column(this);
         ident.addView(UI.text(this, name, 14, p.ink, Typeface.BOLD));
-        ident.addView(UI.text(this, Session.isAdmin() ? "管理员" : "用户", 12, p.mute, Typeface.NORMAL));
+        ident.addView(UI.text(this, Session.isAdmin() ? I18n.text("m_e19796712f1c") : I18n.text("m_0d0e1a86b3aa"), 12, p.mute, Typeface.NORMAL));
         head.addView(ident);
         return head;
     }
@@ -732,7 +749,7 @@ public class ConsoleActivity extends AppCompatActivity {
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
 
-        row.addView(UI.text(this, "暗色模式", 14, p.ink, Typeface.NORMAL),
+        row.addView(UI.text(this, I18n.text("m_0426e084560f"), 14, p.ink, Typeface.NORMAL),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         UI.Toggle toggle = new UI.Toggle(this, Theme.isDark());
@@ -813,7 +830,7 @@ public class ConsoleActivity extends AppCompatActivity {
     private void refreshChrome() {
         if (navigationButton != null) {
             navigationButton.setImageResource(isDetailRoute() ? R.drawable.ic_nav_back : R.drawable.ic_nav_tunnels);
-            navigationButton.setContentDescription(isDetailRoute() ? "返回上一页" : "控制面板");
+            navigationButton.setContentDescription(isDetailRoute() ? I18n.text("m_b6050ccef309") : I18n.text("m_69e7a943ab4e"));
         }
         // A dozen views at most: rebuilding beats tracking which row moved.
         if (sidebar != null) {
@@ -887,12 +904,12 @@ public class ConsoleActivity extends AppCompatActivity {
     private static String groupLabel(Nav.Group group) {
         switch (group) {
             case SYSTEM:
-                return "系统";
+                return I18n.text("m_5b50d7c4b595");
             case PERSONAL:
-                return "个人";
+                return I18n.text("m_15dec507959e");
             case NETWORK:
             default:
-                return "网络与解析";
+                return I18n.text("m_ee29a9f2fcb2");
         }
     }
 
@@ -923,12 +940,12 @@ public class ConsoleActivity extends AppCompatActivity {
     private View reducedEffectsRow() {
         LinearLayout row = UI.row(this);
         row.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
-        TextView caption = UI.body(this, "轻量效果");
+        TextView caption = UI.body(this, I18n.text("m_10cfd03a12b9"));
         row.addView(caption, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         UI.Toggle toggle = new UI.Toggle(this, Theme.reducedEffects());
         toggle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         row.addView(toggle);
-        row.setContentDescription("轻量效果，关闭模糊与动效");
+        row.setContentDescription(I18n.text("m_4c29f20d005c"));
         row.setClickable(true);
         row.setFocusable(true);
         row.setOnClickListener(view -> {

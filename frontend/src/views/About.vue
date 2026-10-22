@@ -1,15 +1,15 @@
 <template>
   <div class="page-container">
     <div class="page-header about-heading">
-      <h2>关于</h2>
-      <p>版本信息、项目仓库与更新动态。</p>
+      <h2>{{ tr('m_52d25a9e30ba') }}</h2>
+      <p>{{ tr('m_5ef9a1754675') }}</p>
     </div>
     <div class="settings-grid section">
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">Tunnel Manager</div>
-            <div class="settings-card-desc">Cloudflare Tunnel 可视化管理面板</div>
+            <div class="settings-card-desc">{{ tr('m_7d603117f21f') }}</div>
           </div>
         </div>
         <div class="about-app">
@@ -20,14 +20,14 @@
             </svg>
           </span>
           <div class="about-app-text">
-            <strong>Cloudflare Tunnel 可视化管理面板</strong>
-            <p>通过 Web UI 管理隧道、绑定域名、配置 DNS 优选与回退源，支持多用户注册与管理后台、服务状态变化邮件告警、Telegram Bot 远程管理和双重身份验证。</p>
+            <strong>{{ tr('m_7d603117f21f') }}</strong>
+            <p>{{ tr('m_b8e95118d3f7') }}</p>
             <a class="about-repo" :href="REPO_URL" target="_blank" rel="noopener">
-              仓库地址：{{ REPO_URL }}
+              {{ tr('m_074aab6d6d27') }}{{ REPO_URL }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
             <a class="about-repo" href="https://docs.kukie.cn" target="_blank" rel="noopener">
-              在线文档：https://docs.kukie.cn
+              {{ tr('m_127285f0135b') }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
           </div>
@@ -36,24 +36,24 @@
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">版本与更新</div>
-            <div class="settings-card-desc">对比 GitHub 上发布的最新版本，查看是否有新内容。</div>
+            <div class="settings-card-title">{{ tr('m_cebbc1f61ca0') }}</div>
+            <div class="settings-card-desc">{{ tr('m_dfe1c1204ded') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="checking" @click="checkUpdate">
-            {{ checking ? '检查中...' : '检查更新' }}
+            {{ checking ? tr('m_2a114c7e95b7') : tr('m_7f68ebad19ba') }}
           </button>
         </div>
         <div class="version-table">
           <div class="version-row">
-            <span>服务端版本</span>
+            <span>{{ tr('m_4e87ee56bf2b') }}</span>
             <strong>{{ currentVersion }}</strong>
           </div>
           <div class="version-row">
-            <span>线上最新</span>
+            <span>{{ tr('m_7f364f52a105') }}</span>
             <strong>{{ latestVersion || '—' }}</strong>
           </div>
           <div class="version-row">
-            <span>更新状态</span>
+            <span>{{ tr('m_57106b8643ca') }}</span>
             <strong :class="statusClass">{{ statusText }}</strong>
           </div>
         </div>
@@ -61,24 +61,24 @@
       <section class="settings-card settings-card-wide changelog-card">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">本版本亮点</div>
-            <div class="settings-card-desc">v2.9.0 的重点变化：AI 流式对话、可编辑任务确认与 Web OIDC 登录。</div>
+            <div class="settings-card-title">{{ tr('m_42c169ac53c2') }}</div>
+            <div class="settings-card-desc">{{ tr('m_6808369b92b1') }}</div>
           </div>
         </div>
         <ul class="changelog-list">
-          <li>AI 助手支持原生 Responses 与 Chat Completions 协议，连接配置可选择 API 协议</li>
-          <li>Web 和 Android 支持流式对话与思考状态，配置任务仍须明确确认后执行</li>
-          <li>待确认任务支持编辑参数，并可核对 DNS、隧道路由和监控的变更内容</li>
-          <li>Web 支持多个标准 OIDC 接入方登录，可关联已有账户或按注册策略创建新用户</li>
-          <li>Web 账户页支持 OIDC 绑定、解绑与首次设置本站密码，保留至少一种登录方式</li>
-          <li>OIDC 登录继续遵循本站账号禁用、二步验证和用户组权限规则</li>
+          <li>{{ tr('m_1ae15c6bd1be') }}</li>
+          <li>{{ tr('m_251a77247045') }}</li>
+          <li>{{ tr('m_4c2f23822e3d') }}</li>
+          <li>{{ tr('m_19dff4cfa946') }}</li>
+          <li>{{ tr('m_3c816b7f18b2') }}</li>
+          <li>{{ tr('m_c046ce1f1e92') }}</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">最新发布更新内容</div>
-            <div class="settings-card-desc">来自 GitHub Release{{ latestTag ? ` · ${latestTag}` : '' }}。</div>
+            <div class="settings-card-title">{{ tr('m_25b119e0eede') }}</div>
+            <div class="settings-card-desc">{{ tr('m_f9ee97eb4887') }}{{ latestTag ? ` · ${latestTag}` : '' }}。</div>
           </div>
         </div>
         <div v-if="latestBody" class="release-body release-markdown" v-html="latestBodyHtml"></div>
@@ -87,68 +87,70 @@
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">功能特性</div>
-            <div class="settings-card-desc">主要能力一览。</div>
+            <div class="settings-card-title">{{ tr('m_9351fb06ea54') }}</div>
+            <div class="settings-card-desc">{{ tr('m_0e22df176d79') }}</div>
           </div>
         </div>
         <div class="feature-grid">
           <div class="feature-item">
-            <strong>隧道管理</strong>
-            <p>新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS</p>
+            <strong>{{ tr('m_e920f47d0c05') }}</strong>
+            <p>{{ tr('m_ff534389da66') }}</p>
           </div>
           <div class="feature-item">
-            <strong>域名绑定</strong>
-            <p>简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS</p>
+            <strong>{{ tr('m_4bf8b66d7390') }}</strong>
+            <p>{{ tr('m_b3c3831a9225') }}</p>
           </div>
           <div class="feature-item">
-            <strong>DNS 管理</strong>
-            <p>支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，提供结构化字段编辑、批量新增与逐条结果</p>
+            <strong>{{ tr('m_474fb6002594') }}</strong>
+            <p>{{ tr('m_8178ecd45796') }}</p>
           </div>
           <div class="feature-item">
-            <strong>AI 助手</strong>
-            <p>描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对</p>
+            <strong>{{ tr('m_1b0049fcfd41') }}</strong>
+            <p>{{ tr('m_23efa07a6b81') }}</p>
           </div>
           <div class="feature-item">
-            <strong>IP 优选实验室</strong>
-            <p>独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新</p>
+            <strong>{{ tr('m_3db29474a184') }}</strong>
+            <p>{{ tr('m_165170c6d7f2') }}</p>
           </div>
           <div class="feature-item">
             <strong>Telegram Bot</strong>
-            <p>在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook</p>
+            <p>{{ tr('m_d2acf85ae520') }}</p>
           </div>
           <div class="feature-item">
             <strong>Cloudflare OAuth</strong>
-            <p>授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token</p>
+            <p>{{ tr('m_20c9a5fcb58a') }}</p>
           </div>
           <div class="feature-item">
-            <strong>多用户与管理后台</strong>
-            <p>邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略</p>
+            <strong>{{ tr('m_f6a93d54ba44') }}</strong>
+            <p>{{ tr('m_4d4267727699') }}</p>
           </div>
           <div class="feature-item">
-            <strong>邮件告警</strong>
-            <p>服务状态变化时自动发送告警邮件（仅状态变化触发），SMTP 可视化配置并支持测试发送</p>
+            <strong>{{ tr('m_384a5d60f314') }}</strong>
+            <p>{{ tr('m_d33996c19397') }}</p>
           </div>
           <div class="feature-item">
-            <strong>安全认证</strong>
-            <p>Argon2id 密码哈希、TOTP 双重验证与恢复码，密钥与令牌加密存储</p>
+            <strong>{{ tr('m_53b57f1e9171') }}</strong>
+            <p>{{ tr('m_8716134bee6b') }}</p>
           </div>
         </div>
       </section>
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">技术栈</div>
-            <div class="settings-card-desc">构建本项目使用的技术。</div>
+            <div class="settings-card-title">{{ tr('m_265b45019e65') }}</div>
+            <div class="settings-card-desc">{{ tr('m_3d9b89277530') }}</div>
           </div>
         </div>
-        <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
-        <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
-        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
+        <div class="stack-row"><span>{{ tr('m_866a4fa82c25') }}</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
+        <div class="stack-row"><span>{{ tr('m_9b826346239e') }}</span><code>Go · chi · SQLite</code></div>
+        <div class="stack-row"><span>{{ tr('m_4115d63bd549') }}</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
       </section>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onMounted, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 
@@ -187,15 +189,15 @@ function compareVersion(a: number[], b: number[]): number {
   return 0
 }
 const statusText = computed(() => {
-  if (checking.value) return '检查中...'
-  if (!latestVersion.value) return checkError.value ? '检查失败' : '尚未检查'
+  if (checking.value) return tr('m_2a114c7e95b7')
+  if (!latestVersion.value) return checkError.value ? tr('m_4f6f06254d16') : tr('m_cdbc0434f568')
   const c = parseVersion(currentVersion.value)
   const l = parseVersion(latestVersion.value)
   if (c.length && l.length) {
     const diff = compareVersion(l, c)
-    if (diff > 0) return '发现新版本 ' + latestVersion.value
-    if (diff === 0) return '已是最新版本'
-    return '当前版本领先线上发布'
+    if (diff > 0) return tr('m_596dd46cfde5') + latestVersion.value
+    if (diff === 0) return tr('m_bc310480b4ce')
+    return tr('m_681395cc358f')
   }
   return '—'
 })
@@ -222,7 +224,7 @@ async function checkUpdate() {
     latestVersion.value = data.tag_name || ''
     latestBody.value = (data.body || '').slice(0, 20_000)
   } catch (_e) {
-    checkError.value = '无法连接 GitHub，请检查网络后重试。'
+    checkError.value = tr('m_ec5a2ccad49c')
   } finally {
     checking.value = false
   }

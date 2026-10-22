@@ -38,15 +38,15 @@ import java.util.function.IntConsumer;
  */
 public class AdminFragment extends PageFragment {
 
-    private static final String[] TABS = {"用户", "用户组", "邀请码", "系统设置", "邮件服务", "审计"};
+    private final String[] TABS = {I18n.text("m_0d0e1a86b3aa"), I18n.text("m_963ead08d78d"), I18n.text("m_c8b56dca7aed"), I18n.text("m_68ea5dd4d7af"), I18n.text("m_0ac53099a515"), I18n.text("m_e73d84773a07")};
     /** Audit categories, mirroring the web panel's filter list. */
     private static final String[] AUDIT_CATEGORIES = {
             "", "auth", "passkey", "user", "group", "invite", "settings",
             "tunnel", "domain", "dns", "monitor", "lab", "telegram"};
-    private static final String[] AUDIT_CATEGORY_LABELS = {
-            "全部", "登录认证", "通行密钥", "用户管理", "用户组", "邀请码", "系统设置",
-            "隧道管理", "域名绑定", "DNS 记录", "服务监控", "IP 优选实验室", "TG 机器人"};
-    private static final String[] AUDIT_RANGE_LABELS = {"全部", "今天", "近 7 天", "近 30 天"};
+    private final String[] AUDIT_CATEGORY_LABELS = {
+            I18n.text("m_5c55a67935af"), I18n.text("m_bbf58983ccf5"), I18n.text("m_102824e51a9d"), I18n.text("m_fbf413d429bd"), I18n.text("m_963ead08d78d"), I18n.text("m_c8b56dca7aed"), I18n.text("m_68ea5dd4d7af"),
+            I18n.text("m_e920f47d0c05"), I18n.text("m_4bf8b66d7390"), I18n.text("m_72af91239cad"), I18n.text("m_7fab82054a8f"), I18n.text("m_3db29474a184"), I18n.text("m_805dcced3f07")};
+    private final String[] AUDIT_RANGE_LABELS = {I18n.text("m_5c55a67935af"), I18n.text("m_d5f5a7a01073"), I18n.text("m_2261b06712a3"), I18n.text("m_f729bb3d3f7e")};
     private static final String[] AUDIT_ACTIONS = {
             "login", "login_failed", "logout",
             "passkey_add", "passkey_remove", "passkey_rename", "passkey_login", "passkey_login_failed",
@@ -63,26 +63,26 @@ public class AdminFragment extends PageFragment {
             "monitor_create", "monitor_update", "monitor_delete", "monitor_check",
             "target_add", "target_update", "target_delete",
             "lab_settings_update", "lab_run", "lab_stop", "lab_ownership_challenge", "lab_ownership_verify", "lab_ownership_dns", "telegram_endpoint_update"};
-    private static final String[] AUDIT_ACTION_LABELS = {
-            "登录成功", "登录失败", "退出登录",
-            "绑定通行密钥", "删除通行密钥", "重命名通行密钥", "通行密钥登录", "通行密钥登录失败",
-            "禁用密码登录", "恢复密码登录",
-            "全局禁用密码登录", "全局恢复密码登录",
-            "创建用户", "启用 / 禁用用户", "调整用户组", "重置用户密码", "删除用户",
-            "创建用户组", "修改用户组", "删除用户组",
-            "生成邀请码", "启用 / 停用邀请码", "删除邀请码",
-            "修改注册策略", "修改站点设置", "修改 CNAME 预设", "修改优选 CNAME",
-            "修改邮件服务", "发送测试邮件", "修改 OAuth 客户端", "修改加密密钥",
-            "创建隧道", "删除隧道", "新增隧道规则", "修改隧道规则", "删除隧道规则",
-            "绑定域名", "批量绑定域名", "设置回退源",
-            "新增 DNS 记录", "修改 DNS 记录", "删除 DNS 记录",
-            "创建监控项目", "修改监控项目", "删除监控项目", "手动检测监控",
-            "新增监控目标", "修改监控目标", "删除监控目标",
-            "修改实验室设置", "执行 IP 优选", "停止 IP 优选", "签发域名验证记录", "验证域名所有权", "自动填写域名验证 TXT", "修改 TG API 端点"};
+    private final String[] AUDIT_ACTION_LABELS = {
+            I18n.text("m_645b934deb86"), I18n.text("m_e4343921c928"), I18n.text("m_3ab8cc15939f"),
+            I18n.text("m_54255856f81f"), I18n.text("m_fc3f78b499e1"), I18n.text("m_c384f03c2393"), I18n.text("m_5903fbc149e8"), I18n.text("m_9b4340ac3382"),
+            I18n.text("m_3a027241650b"), I18n.text("m_466c8603a96a"),
+            I18n.text("m_aa2fb06da444"), I18n.text("m_7022fc61d84f"),
+            I18n.text("m_37c825ff40e7"), I18n.text("m_088829f635e5"), I18n.text("m_3f18c306c522"), I18n.text("m_69d844482cde"), I18n.text("m_b75872bba6f1"),
+            I18n.text("m_f5c0c8360a8a"), I18n.text("m_880dc01d1427"), I18n.text("m_2aacf3a5dbf0"),
+            I18n.text("m_5f6a55e484cc"), I18n.text("m_0f69f3cff13d"), I18n.text("m_6f2555f607af"),
+            I18n.text("m_e04f5a9c92cb"), I18n.text("m_9c4e82ea3a5e"), I18n.text("m_e3a19ed99df8"), I18n.text("m_33a47993a6eb"),
+            I18n.text("m_b6d496d548f8"), I18n.text("m_f9ae1a31638d"), I18n.text("m_30ebe9296b01"), I18n.text("m_026bad67a38d"),
+            I18n.text("m_e33080d615cb"), I18n.text("m_cf5e530b1ad3"), I18n.text("m_b6c70706eb7d"), I18n.text("m_9c66533b5540"), I18n.text("m_7d67e8e89593"),
+            I18n.text("m_dd799f925f94"), I18n.text("m_d7220322e884"), I18n.text("m_0bb58707f90c"),
+            I18n.text("m_d9099a5e05d2"), I18n.text("m_ce46f070601d"), I18n.text("m_ab190f1faa64"),
+            I18n.text("m_f9313095ee64"), I18n.text("m_40b947bb3c5e"), I18n.text("m_b2fc749edfa3"), I18n.text("m_579e2b6a5204"),
+            I18n.text("m_b8c4303aff45"), I18n.text("m_c21bd0ef300e"), I18n.text("m_bf7241072328"),
+            I18n.text("m_247f5a5d0147"), I18n.text("m_15cce67fe3ee"), I18n.text("m_5dc85ec6744a"), I18n.text("m_9a0ffaa81be1"), I18n.text("m_35001ceda70c"), I18n.text("m_eb83a1ede9ac"), I18n.text("m_68dc91ef78e7")};
     private static final String[] INVITE_MODES = {"off", "optional", "required"};
-    private static final String[] INVITE_LABELS = {"关闭", "选填", "必填"};
+    private final String[] INVITE_LABELS = {I18n.text("m_3fd47edce45b"), I18n.text("m_ebdcbdcf9c99"), I18n.text("m_11da9dc44285")};
     private static final String[] PERMISSIONS = {"tunnels", "domain_bind", "dns", "monitors", "oauth_connect"};
-    private static final String[] PERMISSION_LABELS = {"隧道管理", "域名绑定", "DNS 记录", "服务监控", "Cloudflare 授权"};
+    private final String[] PERMISSION_LABELS = {I18n.text("m_e920f47d0c05"), I18n.text("m_4bf8b66d7390"), I18n.text("m_72af91239cad"), I18n.text("m_7fab82054a8f"), I18n.text("m_1d81613aa5b5")};
     /** User cards shown before the "显示更多" button appears. */
     private static final int PAGE_SIZE = 8;
 
@@ -255,7 +255,7 @@ public class AdminFragment extends PageFragment {
             render();
         }, failure -> {
             loading = false;
-            banner = "加载失败：" + failure.getMessage();
+            banner = I18n.text("m_01de8216e0d0") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -345,14 +345,14 @@ public class AdminFragment extends PageFragment {
         header.removeAllViews();
         body.removeAllViews();
 
-        header.addView(UI.pageTitle(requireContext(), "管理后台"));
-        TextView subtitle = UI.muted(requireContext(), "管理用户、用户组、邀请码与注册策略");
+        header.addView(UI.pageTitle(requireContext(), I18n.text("m_87354adb1c31")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_74420630cb1f"));
         UI.margin(subtitle, 0, UI.XS, 0, 0);
         header.addView(subtitle);
 
         if (loading) {
             body.addView(UI.spacer(requireContext(), UI.MD));
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -492,42 +492,42 @@ public class AdminFragment extends PageFragment {
 
     private static String formatTime(long seconds) {
         if (seconds <= 0) return "—";
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date(seconds * 1000L));
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm", I18n.locale()).format(new Date(seconds * 1000L));
     }
 
     // --------------------------------------------------------------- users tab
 
     private void usersTab() {
-        LinearLayout card = cardHead("用户列表", null, showCreateUser ? "收起" : "新建用户", () -> {
+        LinearLayout card = cardHead(I18n.text("m_a4660b1813b3"), null, showCreateUser ? I18n.text("m_afd4b783536b") : I18n.text("m_3ae9a33489d7"), () -> {
             capture();
             showCreateUser = !showCreateUser;
             render();
         });
 
         if (showCreateUser) {
-            newUsernameInput = UI.input(requireContext(), "用户名");
+            newUsernameInput = UI.input(requireContext(), I18n.text("m_1a3f0617d6de"));
             newUsernameInput.setText(newUsername);
-            card.addView(UI.field(requireContext(), "用户名", newUsernameInput));
+            card.addView(UI.field(requireContext(), I18n.text("m_1a3f0617d6de"), newUsernameInput));
 
-            newEmailInput = UI.input(requireContext(), "邮箱（可留空）");
+            newEmailInput = UI.input(requireContext(), I18n.text("m_504ebd6e7929"));
             newEmailInput.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
             newEmailInput.setText(newEmail);
-            card.addView(UI.field(requireContext(), "邮箱", newEmailInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_73075237fd0f"), newEmailInput, UI.MD));
 
-            newPasswordInput = passwordInput("初始密码（≥6 位）");
+            newPasswordInput = passwordInput(I18n.text("m_f155bd296642"));
             newPasswordInput.setText(newPassword);
-            card.addView(UI.field(requireContext(), "初始密码", newPasswordInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_df387080f986"), newPasswordInput, UI.MD));
 
-            card.addView(picker("用户组", groupName(newUserGroupId), this::pickUserGroup));
+            card.addView(picker(I18n.text("m_963ead08d78d"), groupName(newUserGroupId), this::pickUserGroup));
             UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.MD, 0, 0);
 
-            UI.addRow(card, toggleRow("管理员", newUserAdmin, true, next -> {
+            UI.addRow(card, toggleRow(I18n.text("m_e19796712f1c"), newUserAdmin, true, next -> {
                 capture();
                 newUserAdmin = next;
                 render();
             }), UI.MD);
 
-            TextView create = UI.button(requireContext(), busy ? "创建中…" : "创建", UI.BTN_PRIMARY);
+            TextView create = UI.button(requireContext(), busy ? I18n.text("m_56b63def0e29") : I18n.text("m_cde2cd071d25"), UI.BTN_PRIMARY);
             create.setEnabled(!busy);
             create.setOnClickListener(v -> submitCreateUser());
             UI.margin(create, 0, UI.MD, 0, 0);
@@ -535,7 +535,7 @@ public class AdminFragment extends PageFragment {
             card.addView(UI.divider(requireContext()));
         }
 
-        userSearchInput = UI.input(requireContext(), "搜索用户名或邮箱");
+        userSearchInput = UI.input(requireContext(), I18n.text("m_5645a9f7777c"));
         userSearchInput.setText(userQuery);
         userSearchInput.addTextChangedListener(new Watcher(() -> {
             userQuery = userSearchInput.getText().toString().trim();
@@ -568,12 +568,12 @@ public class AdminFragment extends PageFragment {
         }
 
         String caption = userQuery.isEmpty()
-                ? "共 " + users.length() + " 个账户"
-                : "匹配 " + matches.size() + " / " + users.length() + " 个账户";
+                ? I18n.text("m_2428420e407f") + users.length() + I18n.text("m_9e1d21da836c")
+                : I18n.text("m_2b0dba4e5ce7") + matches.size() + " / " + users.length() + I18n.text("m_9e1d21da836c");
         userListSlot.addView(UI.muted(requireContext(), caption));
 
         if (matches.isEmpty()) {
-            userListSlot.addView(emptyState("没有匹配的用户。"));
+            userListSlot.addView(emptyState(I18n.text("m_def2b4425033")));
             return;
         }
 
@@ -583,7 +583,7 @@ public class AdminFragment extends PageFragment {
         }
         if (matches.size() > limit) {
             TextView more = UI.button(requireContext(),
-                    "显示更多（还有 " + (matches.size() - limit) + " 个）", UI.BTN_SECONDARY);
+                    I18n.text("m_8e4cffaddc6a") + (matches.size() - limit) + I18n.text("m_0e5129abb2bf"), UI.BTN_SECONDARY);
             more.setOnClickListener(v -> {
                 userShown += PAGE_SIZE;
                 renderUserList();
@@ -631,30 +631,30 @@ public class AdminFragment extends PageFragment {
         top.addView(UI.strong(requireContext(), user.optString("username")),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         boolean admin = "admin".equals(user.optString("role"));
-        top.addView(tag(admin ? "管理员" : "用户", admin));
+        top.addView(tag(admin ? I18n.text("m_e19796712f1c") : I18n.text("m_0d0e1a86b3aa"), admin));
         UI.margin(top.getChildAt(top.getChildCount() - 1), UI.SM, 0, 0, 0);
         boolean active = "active".equals(user.optString("status"));
-        top.addView(tag(active ? "正常" : "已禁用", active));
+        top.addView(tag(active ? I18n.text("m_296de0e31f8c") : I18n.text("m_bc5a87a757a5"), active));
         UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
         int passkeys = user.optInt("passkeys", 0);
-        top.addView(tag(passkeys > 0 ? passkeys + " 个通行密钥" : "仅密码", passkeys > 0));
+        top.addView(tag(passkeys > 0 ? passkeys + I18n.text("m_6857f925f760") : I18n.text("m_61467aa358ae"), passkeys > 0));
         UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
         if (user.optBoolean("password_login_disabled", false)) {
-            top.addView(tag("已禁用密码", false));
+            top.addView(tag(I18n.text("m_b7a378e767eb"), false));
             UI.margin(top.getChildAt(top.getChildCount() - 1), UI.XS, 0, 0, 0);
         }
         box.addView(top);
 
         List<String> meta = new ArrayList<>();
         String email = user.optString("email", "");
-        meta.add(email.isEmpty() ? "未填邮箱" : email);
-        meta.add("用户组：" + defaulted(groupName(user.optString("group_id"))));
-        meta.add("最近登录：" + formatTime(user.optLong("last_login_at", 0)));
+        meta.add(email.isEmpty() ? I18n.text("m_563e0e1dc68d") : email);
+        meta.add(I18n.text("m_24b09cb8e1f2") + defaulted(groupName(user.optString("group_id"))));
+        meta.add(I18n.text("m_125fd739288e") + formatTime(user.optLong("last_login_at", 0)));
         TextView caption = UI.muted(requireContext(), join(meta, " · "));
         UI.margin(caption, 0, UI.XS, 0, UI.SM);
         box.addView(caption);
 
-        TextView manage = UI.button(requireContext(), "管理", UI.BTN_SECONDARY);
+        TextView manage = UI.button(requireContext(), I18n.text("m_bb6d995724f4"), UI.BTN_SECONDARY);
         manage.setOnClickListener(v -> userActions(user));
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -666,23 +666,23 @@ public class AdminFragment extends PageFragment {
         String username = user.optString("username");
         boolean active = "active".equals(user.optString("status"));
         Sheet.of(requireContext(), username)
-                .item(R.drawable.ic_nav_logout, active ? "禁用账户" : "启用账户", () -> run(
+                .item(R.drawable.ic_nav_logout, active ? I18n.text("m_7943ebc6d9a9") : I18n.text("m_11ad8210bc60"), () -> run(
                         () -> Api.put("/api/admin/users/" + user.optString("id") + "/status",
                                 new JSONObject().put("status", active ? "disabled" : "active")),
-                        active ? "已禁用" : "已启用"))
-                .item(R.drawable.ic_nav_admin, "更换用户组", () -> pickGroupFor(user))
-                .item(R.drawable.ic_nav_edit, "重置密码", () -> promptResetPassword(user))
+                        active ? I18n.text("m_bc5a87a757a5") : I18n.text("m_dfb802238b38")))
+                .item(R.drawable.ic_nav_admin, I18n.text("m_92df516e1593"), () -> pickGroupFor(user))
+                .item(R.drawable.ic_nav_edit, I18n.text("m_d70928debc2e"), () -> promptResetPassword(user))
                 .item(R.drawable.ic_nav_logout, user.optBoolean("password_login_disabled", false)
-                                ? "恢复密码登录" : "禁用密码登录",
+                                ? I18n.text("m_466c8603a96a") : I18n.text("m_3a027241650b"),
                         () -> setUserPasswordLogin(user, !user.optBoolean("password_login_disabled", false)))
-                .item(R.drawable.ic_nav_trash, "删除用户", () -> confirmRemoveUser(user))
+                .item(R.drawable.ic_nav_trash, I18n.text("m_b75872bba6f1"), () -> confirmRemoveUser(user))
                 .show();
     }
 
     private void pickGroupFor(JSONObject user) {
         List<String> labels = new ArrayList<>();
         List<String> ids = new ArrayList<>();
-        labels.add("默认用户组");
+        labels.add(I18n.text("m_e69c528d68a8"));
         ids.add("");
         for (int i = 0; i < groups.length(); i++) {
             JSONObject group = groups.optJSONObject(i);
@@ -690,53 +690,53 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), "更换用户组").label(user.optString("username"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_92df516e1593")).label(user.optString("username"));
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> run(
                     () -> Api.put("/api/admin/users/" + user.optString("id") + "/group",
                             new JSONObject().put("group_id", id)),
-                    "用户组已更新"));
+                    I18n.text("m_9afb25dec846")));
         }
         sheet.show();
     }
 
     private void promptResetPassword(JSONObject user) {
-        EditText field = passwordInput("新密码（≥6 位）");
+        EditText field = passwordInput(I18n.text("m_84c2c26ef24b"));
         final String[] value = {""};
-        Modal.of(requireContext(), "重置密码")
-                .message("为 " + user.optString("username") + " 设置新密码，保存后该用户会被登出。")
+        Modal.of(requireContext(), I18n.text("m_d70928debc2e"))
+                .message(I18n.text("m_49c073f4fa15") + user.optString("username") + I18n.text("m_4b2bc6b2c569"))
                 .content(field)
-                .cancel("取消")
-                .confirm("重置", false, () -> {
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_cb5d682bac3d"), false, () -> {
                     value[0] = field.getText().toString();
                     if (value[0].length() < 6) {
-                        banner = "密码至少 6 位";
+                        banner = I18n.text("m_ac31ae58b658");
                         bannerError = true;
                         render();
                         return;
                     }
                     run(() -> Api.put("/api/admin/users/" + user.optString("id") + "/password",
                                     new JSONObject().put("new_password", value[0])),
-                            "密码已重置，该用户已被登出");
+                            I18n.text("m_4c5c1892de86"));
                 })
                 .show();
     }
 
     private void confirmRemoveUser(JSONObject user) {
-        Modal.of(requireContext(), "删除用户")
-                .message("确定删除 " + user.optString("username") + "？该操作不可恢复。")
-                .cancel("取消")
-                .confirm("删除", true, () -> run(
+        Modal.of(requireContext(), I18n.text("m_b75872bba6f1"))
+                .message(I18n.text("m_6fa91af954cd") + user.optString("username") + I18n.text("m_26ff3d7383ae"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_2f9daa828907"), true, () -> run(
                         () -> Api.delete("/api/admin/users/" + user.optString("id")),
-                        "用户已删除"))
+                        I18n.text("m_7ad39d9c27ab")))
                 .show();
     }
 
     private void submitCreateUser() {
         capture();
         if (newUsername.isEmpty() || newPassword.length() < 6) {
-            banner = "用户名必填，密码至少 6 位";
+            banner = I18n.text("m_21ee040fad34");
             bannerError = true;
             render();
             return;
@@ -749,7 +749,7 @@ public class AdminFragment extends PageFragment {
             payload.put("role", newUserAdmin ? "admin" : "user");
             if (!newUserGroupId.isEmpty()) payload.put("group_id", newUserGroupId);
             return Api.post("/api/admin/users", payload);
-        }, "用户已创建", () -> {
+        }, I18n.text("m_d4f7d0bf6262"), () -> {
             newUsername = "";
             newEmail = "";
             newPassword = "";
@@ -762,7 +762,7 @@ public class AdminFragment extends PageFragment {
     private void pickUserGroup() {
         List<String> labels = new ArrayList<>();
         List<String> ids = new ArrayList<>();
-        labels.add("默认用户组");
+        labels.add(I18n.text("m_e69c528d68a8"));
         ids.add("");
         for (int i = 0; i < groups.length(); i++) {
             JSONObject group = groups.optJSONObject(i);
@@ -770,7 +770,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), "选择用户组");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"));
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -784,25 +784,25 @@ public class AdminFragment extends PageFragment {
     // -------------------------------------------------------------- groups tab
 
     private void groupsTab() {
-        LinearLayout card = cardHead("用户组", groups.length() + " 个用户组",
-                showCreateGroup ? "收起" : "新建用户组", () -> {
+        LinearLayout card = cardHead(I18n.text("m_963ead08d78d"), groups.length() + I18n.text("m_26fe2eb629d5"),
+                showCreateGroup ? I18n.text("m_afd4b783536b") : I18n.text("m_e05eb0ea9c94"), () -> {
                     capture();
                     showCreateGroup = !showCreateGroup;
                     render();
                 });
 
         if (showCreateGroup) {
-            newGroupNameInput = UI.input(requireContext(), "用户组名称");
+            newGroupNameInput = UI.input(requireContext(), I18n.text("m_744e71a6afc1"));
             newGroupNameInput.setText(newGroupName);
-            card.addView(UI.field(requireContext(), "用户组名称", newGroupNameInput));
-            TextView create = UI.button(requireContext(), busy ? "创建中…" : "创建", UI.BTN_PRIMARY);
+            card.addView(UI.field(requireContext(), I18n.text("m_744e71a6afc1"), newGroupNameInput));
+            TextView create = UI.button(requireContext(), busy ? I18n.text("m_56b63def0e29") : I18n.text("m_cde2cd071d25"), UI.BTN_PRIMARY);
             create.setEnabled(!busy);
             create.setOnClickListener(v -> {
                 capture();
                 if (newGroupName.isEmpty()) return;
                 run(() -> Api.post("/api/admin/groups",
                                 new JSONObject().put("name", newGroupName).put("permissions", new JSONArray())),
-                        "用户组已创建", () -> {
+                        I18n.text("m_a44fb45d0f39"), () -> {
                             newGroupName = "";
                             showCreateGroup = false;
                         });
@@ -826,10 +826,10 @@ public class AdminFragment extends PageFragment {
         LinearLayout top = UI.row(requireContext());
         top.addView(UI.cardTitle(requireContext(), group.optString("name")),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        if (group.optBoolean("builtin", false)) top.addView(tag("内置", false));
+        if (group.optBoolean("builtin", false)) top.addView(tag(I18n.text("m_95e35aabd9a9"), false));
         card.addView(top);
 
-        TextView count = UI.muted(requireContext(), groupMemberCount(group.optString("id")) + " 名成员");
+        TextView count = UI.muted(requireContext(), groupMemberCount(group.optString("id")) + I18n.text("m_b786ec8651f4"));
         UI.margin(count, 0, UI.XS, 0, UI.MD);
         card.addView(count);
 
@@ -852,17 +852,17 @@ public class AdminFragment extends PageFragment {
                 for (String value : next2) payload.put(value);
                 run(() -> Api.put("/api/admin/groups/" + group.optString("id"),
                                 new JSONObject().put("name", group.optString("name")).put("permissions", payload)),
-                        "权限已更新");
+                        I18n.text("m_d72fbc805af9"));
             }), i == 0 ? 0 : UI.SM);
         }
 
         LinearLayout actions = UI.row(requireContext());
-        TextView rename = UI.button(requireContext(), "重命名", UI.BTN_SECONDARY);
+        TextView rename = UI.button(requireContext(), I18n.text("m_0d0cbac2eee5"), UI.BTN_SECONDARY);
         rename.setOnClickListener(v -> promptRenameGroup(group));
         UI.weight(rename, 1f);
         actions.addView(rename);
         if (!group.optBoolean("builtin", false)) {
-            TextView remove = UI.button(requireContext(), "删除", UI.BTN_DANGER);
+            TextView remove = UI.button(requireContext(), I18n.text("m_2f9daa828907"), UI.BTN_DANGER);
             remove.setOnClickListener(v -> confirmRemoveGroup(group));
             UI.weight(remove, 1f);
             UI.margin(remove, UI.SM, 0, 0, 0);
@@ -883,59 +883,59 @@ public class AdminFragment extends PageFragment {
 
     private void promptRenameGroup(JSONObject group) {
         if (group.optBoolean("builtin", false)) {
-            banner = "内置用户组不可重命名";
+            banner = I18n.text("m_e29e29f7c5d3");
             bannerError = true;
             render();
             return;
         }
-        EditText field = UI.input(requireContext(), "新的用户组名称");
+        EditText field = UI.input(requireContext(), I18n.text("m_e08ae7e4a8bf"));
         field.setText(group.optString("name"));
-        Modal.of(requireContext(), "重命名用户组")
+        Modal.of(requireContext(), I18n.text("m_26d99b409a65"))
                 .content(field)
-                .cancel("取消")
-                .confirm("保存", false, () -> {
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3030bf8f16d"), false, () -> {
                     String name = field.getText().toString().trim();
                     if (name.isEmpty() || name.equals(group.optString("name"))) return;
                     JSONArray perms = group.optJSONArray("permissions");
                     run(() -> Api.put("/api/admin/groups/" + group.optString("id"),
                                     new JSONObject().put("name", name)
                                             .put("permissions", perms == null ? new JSONArray() : perms)),
-                            "名称已更新");
+                            I18n.text("m_06afd1f0352e"));
                 })
                 .show();
     }
 
     private void confirmRemoveGroup(JSONObject group) {
-        Modal.of(requireContext(), "删除用户组")
-                .message("确定删除用户组 " + group.optString("name") + "？")
-                .cancel("取消")
-                .confirm("删除", true, () -> run(
+        Modal.of(requireContext(), I18n.text("m_2aacf3a5dbf0"))
+                .message(I18n.text("m_5a398d79b24c") + group.optString("name") + "？")
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_2f9daa828907"), true, () -> run(
                         () -> Api.delete("/api/admin/groups/" + group.optString("id")),
-                        "用户组已删除"))
+                        I18n.text("m_2194537e8be2")))
                 .show();
     }
 
     // ------------------------------------------------------------- invites tab
 
     private void invitesTab() {
-        LinearLayout card = cardHead("邀请码", invites.length() + " 个邀请码",
-                showCreateInvite ? "收起" : "生成邀请码", () -> {
+        LinearLayout card = cardHead(I18n.text("m_c8b56dca7aed"), invites.length() + I18n.text("m_5d17f5a39658"),
+                showCreateInvite ? I18n.text("m_afd4b783536b") : I18n.text("m_5f6a55e484cc"), () -> {
                     capture();
                     showCreateInvite = !showCreateInvite;
                     render();
                 });
 
         if (showCreateInvite) {
-            card.addView(picker("用户组", groupName(inviteGroupId), this::pickInviteGroup));
+            card.addView(picker(I18n.text("m_963ead08d78d"), groupName(inviteGroupId), this::pickInviteGroup));
             UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.MD, 0, 0);
 
-            inviteMaxInput = numberInput("0 = 不限", inviteMaxUses);
-            card.addView(UI.field(requireContext(), "可用次数（0 = 不限）", inviteMaxInput, UI.MD));
+            inviteMaxInput = numberInput(I18n.text("m_56d8df3e3345"), inviteMaxUses);
+            card.addView(UI.field(requireContext(), I18n.text("m_62162c91428a"), inviteMaxInput, UI.MD));
 
-            inviteExpireInput = numberInput("0 = 永久", inviteExpireDays);
-            card.addView(UI.field(requireContext(), "有效天数（0 = 永久）", inviteExpireInput, UI.MD));
+            inviteExpireInput = numberInput(I18n.text("m_c3aa8b7da12e"), inviteExpireDays);
+            card.addView(UI.field(requireContext(), I18n.text("m_5a52b819b316"), inviteExpireInput, UI.MD));
 
-            TextView create = UI.button(requireContext(), busy ? "生成中…" : "生成", UI.BTN_PRIMARY);
+            TextView create = UI.button(requireContext(), busy ? I18n.text("m_43d2661b36be") : I18n.text("m_1ad1463fe16f"), UI.BTN_PRIMARY);
             create.setEnabled(!busy);
             create.setOnClickListener(v -> submitCreateInvite());
             UI.margin(create, 0, UI.MD, 0, 0);
@@ -944,7 +944,7 @@ public class AdminFragment extends PageFragment {
         }
 
         if (invites.length() == 0) {
-            card.addView(emptyState("暂无邀请码。"));
+            card.addView(emptyState(I18n.text("m_bb1faeb3c558")));
         }
         for (int i = 0; i < invites.length(); i++) {
             JSONObject invite = invites.optJSONObject(i);
@@ -963,27 +963,27 @@ public class AdminFragment extends PageFragment {
         top.addView(UI.mono(requireContext(), invite.optString("code"), Theme.p().ink),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         boolean on = invite.optBoolean("enabled", false);
-        top.addView(tag(on ? "启用" : "停用", on));
+        top.addView(tag(on ? I18n.text("m_f4f0ead1116b") : I18n.text("m_4e6fd0e28c55"), on));
         box.addView(top);
 
         int max = invite.optInt("max_uses", 0);
         long expires = invite.optLong("expires_at", 0);
-        String meta = "用户组：" + defaulted(groupName(invite.optString("group_id")))
-                + " · 已用 " + invite.optInt("used_count", 0) + " / " + (max > 0 ? String.valueOf(max) : "∞")
-                + " · " + (expires > 0 ? formatTime(expires) : "永久");
+        String meta = I18n.text("m_24b09cb8e1f2") + defaulted(groupName(invite.optString("group_id")))
+                + I18n.text("m_136485364403") + invite.optInt("used_count", 0) + " / " + (max > 0 ? String.valueOf(max) : "∞")
+                + " · " + (expires > 0 ? formatTime(expires) : I18n.text("m_3e71ccc89a43"));
         TextView caption = UI.muted(requireContext(), meta);
         UI.margin(caption, 0, UI.XS, 0, UI.SM);
         box.addView(caption);
 
         LinearLayout actions = UI.row(requireContext());
-        TextView toggle = UI.button(requireContext(), on ? "停用" : "启用", UI.BTN_SECONDARY);
+        TextView toggle = UI.button(requireContext(), on ? I18n.text("m_4e6fd0e28c55") : I18n.text("m_f4f0ead1116b"), UI.BTN_SECONDARY);
         toggle.setOnClickListener(v -> run(
                 () -> Api.put("/api/admin/invites/" + invite.optString("code"),
                         new JSONObject().put("enabled", !on)),
-                on ? "已停用" : "已启用"));
+                on ? I18n.text("m_a8c3698b5b8c") : I18n.text("m_dfb802238b38")));
         UI.weight(toggle, 1f);
         actions.addView(toggle);
-        TextView remove = UI.button(requireContext(), "删除", UI.BTN_DANGER);
+        TextView remove = UI.button(requireContext(), I18n.text("m_2f9daa828907"), UI.BTN_DANGER);
         remove.setOnClickListener(v -> confirmRemoveInvite(invite));
         UI.weight(remove, 1f);
         UI.margin(remove, UI.SM, 0, 0, 0);
@@ -995,7 +995,7 @@ public class AdminFragment extends PageFragment {
     private void pickInviteGroup() {
         List<String> labels = new ArrayList<>();
         List<String> ids = new ArrayList<>();
-        labels.add("默认用户组");
+        labels.add(I18n.text("m_e69c528d68a8"));
         ids.add("");
         for (int i = 0; i < groups.length(); i++) {
             JSONObject group = groups.optJSONObject(i);
@@ -1003,7 +1003,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), "选择用户组");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"));
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -1023,7 +1023,7 @@ public class AdminFragment extends PageFragment {
             int days = parseInt(inviteExpireDays);
             payload.put("expires_at", days > 0 ? System.currentTimeMillis() / 1000L + (long) days * 86400L : 0);
             return Api.post("/api/admin/invites", payload);
-        }, "邀请码已生成", () -> {
+        }, I18n.text("m_67021bc43cbd"), () -> {
             showCreateInvite = false;
             inviteMaxUses = "";
             inviteExpireDays = "";
@@ -1031,12 +1031,12 @@ public class AdminFragment extends PageFragment {
     }
 
     private void confirmRemoveInvite(JSONObject invite) {
-        Modal.of(requireContext(), "删除邀请码")
-                .message("确定删除邀请码 " + invite.optString("code") + "？")
-                .cancel("取消")
-                .confirm("删除", true, () -> run(
+        Modal.of(requireContext(), I18n.text("m_6f2555f607af"))
+                .message(I18n.text("m_759aeb16d395") + invite.optString("code") + "？")
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_2f9daa828907"), true, () -> run(
                         () -> Api.delete("/api/admin/invites/" + invite.optString("code")),
-                        "邀请码已删除"))
+                        I18n.text("m_c714402bd321")))
                 .show();
     }
 
@@ -1073,39 +1073,39 @@ public class AdminFragment extends PageFragment {
      */
     private View rateLimitCard() {
 	Context ctx = requireContext();
-	LinearLayout card = cardHead("登录保护",
-		"登录、二次验证、注册、验证码、找回与重置密码都受此限制。账号额度是真正的防线，换 IP 绕不过去；IP 额度用来挡住一台机器横扫多个账号。任一触发即返回 429 并附带解锁时间。",
+	LinearLayout card = cardHead(I18n.text("m_37c24b911b27"),
+		I18n.text("m_305ae157faf7"),
 		null, null);
 
-	UI.addRow(card, toggleRow("启用登录限流", settings.optBoolean("rate_limit_enabled", false), true, next -> {
+	UI.addRow(card, toggleRow(I18n.text("m_829140bedce5"), settings.optBoolean("rate_limit_enabled", false), true, next -> {
 	settingsPut("rate_limit_enabled", next);
 	saveSettings();
 	}), UI.SM);
 
-	rateLimitPerAccountInput = numberInput(ctx, "0 = 默认 5 次，负数 = 不限", rateLimitPerAccount);
-	card.addView(UI.field(ctx, "每账号失败次数", rateLimitPerAccountInput, UI.SM));
+	rateLimitPerAccountInput = numberInput(ctx, I18n.text("m_455c4401e923"), rateLimitPerAccount);
+	card.addView(UI.field(ctx, I18n.text("m_671a08f4e738"), rateLimitPerAccountInput, UI.SM));
 
-	rateLimitPerIPInput = numberInput(ctx, "0 = 默认 20 次，负数 = 不限", rateLimitPerIP);
-	card.addView(UI.field(ctx, "每 IP 失败次数", rateLimitPerIPInput, UI.SM));
+	rateLimitPerIPInput = numberInput(ctx, I18n.text("m_697a0edd8846"), rateLimitPerIP);
+	card.addView(UI.field(ctx, I18n.text("m_cf5a28cff90f"), rateLimitPerIPInput, UI.SM));
 
-	rateLimitWindowInput = numberInput(ctx, "0 = 默认 15 分钟", rateLimitWindow);
-	card.addView(UI.field(ctx, "统计窗口（分钟）", rateLimitWindowInput, UI.SM));
+	rateLimitWindowInput = numberInput(ctx, I18n.text("m_5f566691080a"), rateLimitWindow);
+	card.addView(UI.field(ctx, I18n.text("m_088598d743e5"), rateLimitWindowInput, UI.SM));
 
-	rateLimitFamiliarInput = numberInput(ctx, "0 = 默认 3 倍，1 = 不放宽", rateLimitFamiliar);
-	card.addView(UI.field(ctx, "熟悉来源的额度倍数", rateLimitFamiliarInput, UI.SM));
-	card.addView(UI.muted(ctx, "90 天内登录过的网段（IPv4 记 /24，IPv6 记 /64）会给更宽的账号额度。放宽是倍数而不是放行，所以熟悉的网段也会用完。"));
+	rateLimitFamiliarInput = numberInput(ctx, I18n.text("m_e93cb34571fb"), rateLimitFamiliar);
+	card.addView(UI.field(ctx, I18n.text("m_b9ca02da2aa9"), rateLimitFamiliarInput, UI.SM));
+	card.addView(UI.muted(ctx, I18n.text("m_8a3dd29e76b4")));
 
-	TextView save = UI.button(ctx, busy ? "保存中…" : "保存限流设置", UI.BTN_PRIMARY);
+	TextView save = UI.button(ctx, busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a23922612975"), UI.BTN_PRIMARY);
 	save.setEnabled(!busy);
 	save.setOnClickListener(v -> saveRateLimitSettings());
 	UI.margin(save, 0, UI.MD, 0, 0);
 	card.addView(save);
 
-	UI.addRow(card, toggleRow("锁定时通知管理员", settings.optBoolean("rate_limit_notify", false), true, next -> {
+	UI.addRow(card, toggleRow(I18n.text("m_ab5fdea0b36d"), settings.optBoolean("rate_limit_notify", false), true, next -> {
 	settingsPut("rate_limit_notify", next);
 	saveSettings();
 	}), UI.MD);
-	card.addView(UI.muted(ctx, "走各管理员自己配置的通知渠道（TG / 邮件），并沿用「登录通知」开关。"));
+	card.addView(UI.muted(ctx, I18n.text("m_3decc654cc2a")));
 	return card;
     }
 
@@ -1125,12 +1125,12 @@ public class AdminFragment extends PageFragment {
 	render();
 	Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
 	busy = false;
-	banner = "登录保护设置已保存";
+	banner = I18n.text("m_ae654df5d8e1");
 	bannerError = false;
 	load();
 	}, failure -> {
 	busy = false;
-	banner = "保存失败: " + failure.getMessage();
+	banner = I18n.text("m_84bd3b614686") + failure.getMessage();
 	bannerError = true;
 	render();
 	});
@@ -1146,9 +1146,9 @@ public class AdminFragment extends PageFragment {
 
     private View registrationCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "注册策略"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_5c4ef9d52d09")));
 
-        UI.addRow(card, toggleRow("开放注册", regOpen(), true, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_04f83ab519b2"), regOpen(), true, next -> {
             settings.remove("registration_enabled");
             settingsPut("registration_enabled", next);
             saveSettings();
@@ -1156,17 +1156,17 @@ public class AdminFragment extends PageFragment {
 
         boolean verify = emailVerifyEnabled();
         boolean canVerify = smtpReady && regOpen();
-        UI.addRow(card, toggleRow("注册邮箱验证", verify, canVerify, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_25cece360c1c"), verify, canVerify, next -> {
             settingsPut("email_verify_disabled", !next);
             saveSettings();
         }), UI.MD);
         if (!smtpReady) {
-            TextView hint = UI.muted(requireContext(), "未配置邮件服务，验证码无法发送。");
+            TextView hint = UI.muted(requireContext(), I18n.text("m_47587cbad367"));
             UI.margin(hint, 0, UI.XS, 0, 0);
             card.addView(hint);
         }
 
-        TextView inviteLabel = UI.label(requireContext(), "邀请码");
+        TextView inviteLabel = UI.label(requireContext(), I18n.text("m_c8b56dca7aed"));
         UI.margin(inviteLabel, 0, UI.MD, 0, UI.SM);
         card.addView(inviteLabel);
         int mode = indexOf(INVITE_MODES, settings.optString("invite_mode", "off"));
@@ -1175,7 +1175,7 @@ public class AdminFragment extends PageFragment {
             saveSettings();
         }), 0);
 
-        card.addView(picker("默认用户组", defaulted(groupName(settings.optString("default_group_id", ""))),
+        card.addView(picker(I18n.text("m_e69c528d68a8"), defaulted(groupName(settings.optString("default_group_id", ""))),
                 this::pickDefaultGroup));
         UI.margin(card.getChildAt(card.getChildCount() - 1), 0, UI.MD, 0, 0);
         return card;
@@ -1183,34 +1183,34 @@ public class AdminFragment extends PageFragment {
 
     private View experimentalCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "IP 优选"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_b145d5c1a57b")));
         TextView hint = UI.muted(requireContext(),
-                "实例共享预算，非云平台额度。UTC 重置，取消不退；修改从下一轮生效。");
+                I18n.text("m_53053a487f1f"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
-        UI.addRow(card, toggleRow("开启实验性功能",
+        UI.addRow(card, toggleRow(I18n.text("m_06566a8c40f2"),
                 settings.optBoolean("experimental_features_enabled", false), !busy, next -> {
                     settingsPut("experimental_features_enabled", next);
                     saveSettings();
                 }), 0);
-        EditText daily = numberInput(requireContext(), "1 至 10000000", String.valueOf(settings.optInt("lab_daily_request_limit", 100000)));
-        EditText rate = numberInput(requireContext(), "1 至 1000", String.valueOf(settings.optInt("lab_requests_per_second", 10)));
-        EditText maximum = numberInput(requireContext(), "1 至 256", String.valueOf(settings.optInt("lab_max_workers", 32)));
+        EditText daily = numberInput(requireContext(), I18n.text("m_43daf24d5cfd"), String.valueOf(settings.optInt("lab_daily_request_limit", 100000)));
+        EditText rate = numberInput(requireContext(), I18n.text("m_5ed8f4d1306b"), String.valueOf(settings.optInt("lab_requests_per_second", 10)));
+        EditText maximum = numberInput(requireContext(), I18n.text("m_a071ff7b7d10"), String.valueOf(settings.optInt("lab_max_workers", 32)));
         daily.setEnabled(!busy);
         rate.setEnabled(!busy);
         maximum.setEnabled(!busy);
-        card.addView(UI.field(requireContext(), "每日请求预算（UTC）", daily, UI.MD));
-        card.addView(UI.field(requireContext(), "每秒请求数", rate, UI.MD));
-        card.addView(UI.field(requireContext(), "并发上限", maximum, UI.MD));
-        TextView save = UI.button(requireContext(), "保存优选限制", UI.BTN_PRIMARY);
+        card.addView(UI.field(requireContext(), I18n.text("m_8b57f87fb23a"), daily, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_b8f8cb247e4d"), rate, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_652a6f861b6d"), maximum, UI.MD));
+        TextView save = UI.button(requireContext(), I18n.text("m_eedfd7ecc753"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(view -> {
             int dailyValue = parseInt(daily.getText().toString());
             int rateValue = parseInt(rate.getText().toString());
             int maximumValue = parseInt(maximum.getText().toString());
             if (dailyValue < 1 || dailyValue > 10000000 || rateValue < 1 || rateValue > 1000 || maximumValue < 1 || maximumValue > 256) {
-                new AlertDialog.Builder(requireContext()).setMessage("预算须为 1 至 10000000、每秒请求数为 1 至 1000、并发上限为 1 至 256 的整数。")
-                        .setPositiveButton("知道了", null).show();
+                new AlertDialog.Builder(requireContext()).setMessage(I18n.text("m_c2d9dd20948b"))
+                        .setPositiveButton(I18n.text("m_de32e20193ad"), null).show();
                 return;
             }
             settingsPut("lab_daily_request_limit", dailyValue);
@@ -1224,14 +1224,14 @@ public class AdminFragment extends PageFragment {
 
     private View turnstileCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "人机验证（Cloudflare Turnstile）"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_e4f6aa5a185d")));
         TextView hint = UI.muted(requireContext(),
-                "可选防护：开启后登录、注册与找回密码需要完成 Cloudflare 人机验证。"
-                        + "先在 Cloudflare 控制台创建 Turnstile widget（把本站域名加入允许域名），再填写 Site Key 与 Secret Key。");
+                I18n.text("m_4a6fdf9e9abc")
+                        + I18n.text("m_078ba7491c8b"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
-        UI.addRow(card, toggleRow("启用人机验证", settings.optBoolean("turnstile_enabled", false), true, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_b05703226c5e"), settings.optBoolean("turnstile_enabled", false), true, next -> {
             capture();
             turnstileSiteKey = siteKeyInput == null ? turnstileSiteKey : siteKeyInput.getText().toString().trim();
             settingsPut("turnstile_enabled", next);
@@ -1242,15 +1242,15 @@ public class AdminFragment extends PageFragment {
         siteKeyInput.setText(turnstileSiteKey);
         card.addView(UI.field(requireContext(), "Site Key", siteKeyInput, UI.MD));
 
-        secretKeyInput = passwordInput("Secret Key（留空保持不变）");
+        secretKeyInput = passwordInput(I18n.text("m_96656dd2d25f"));
         secretKeyInput.setText(turnstileSecret);
         card.addView(UI.field(requireContext(), "Secret Key", secretKeyInput, UI.MD));
 
-        TextView state = tag(turnstileHasSecret ? "密钥：已设置" : "密钥：未设置", turnstileHasSecret);
+        TextView state = tag(turnstileHasSecret ? I18n.text("m_c0ee21a90d7b") : I18n.text("m_5061a4ea571c"), turnstileHasSecret);
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a3030bf8f16d"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> saveTurnstile());
         UI.addRow(card, save, 0);
@@ -1259,10 +1259,10 @@ public class AdminFragment extends PageFragment {
 
     private View oauthCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "Cloudflare OAuth 客户端"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_a44454e9d95a")));
         TextView hint = UI.muted(requireContext(),
-                "留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET；此处填写后优先于环境变量，密钥留空表示保持不变。\n"
-                        + "OAuth 客户端需勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit。");
+                I18n.text("m_c634788aa628")
+                        + I18n.text("m_5e27d6849810"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
@@ -1270,23 +1270,23 @@ public class AdminFragment extends PageFragment {
         oauthIdInput.setText(oauthClientId);
         card.addView(UI.field(requireContext(), "Client ID", oauthIdInput));
 
-        oauthSecretInput = passwordInput("Client Secret（留空保持不变）");
+        oauthSecretInput = passwordInput(I18n.text("m_be5f73c5b889"));
         oauthSecretInput.setText(oauthClientSecret);
         card.addView(UI.field(requireContext(), "Client Secret", oauthSecretInput, UI.MD));
 
-        oauthRedirectInput = UI.input(requireContext(), "回调地址（留空自动按访问域名推导）");
+        oauthRedirectInput = UI.input(requireContext(), I18n.text("m_9df3fe96b710"));
         oauthRedirectInput.setText(oauthRedirect);
-        card.addView(UI.field(requireContext(), "回调地址", oauthRedirectInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_9ca160d65985"), oauthRedirectInput, UI.MD));
 
-        oauthScopesInput = UI.input(requireContext(), "Scopes（留空用客户端已配置的）");
+        oauthScopesInput = UI.input(requireContext(), I18n.text("m_b813dbaced7d"));
         oauthScopesInput.setText(oauthScopes);
         card.addView(UI.field(requireContext(), "Scopes", oauthScopesInput, UI.MD));
 
-        TextView state = tag(oauthHasSecret ? "密钥：已设置" : "密钥：未设置", oauthHasSecret);
+        TextView state = tag(oauthHasSecret ? I18n.text("m_c0ee21a90d7b") : I18n.text("m_5061a4ea571c"), oauthHasSecret);
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a3030bf8f16d"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> saveOauth());
         UI.addRow(card, save, 0);
@@ -1295,23 +1295,23 @@ public class AdminFragment extends PageFragment {
 
     private View encryptionCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "应用加密密钥"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_dbf3b43ce49a")));
         TextView hint = UI.muted(requireContext(),
-                "用于加密 SMTP 密码、Cloudflare 授权令牌与 2FA 密文。未设置时自动生成并保存在数据库；"
-                        + "环境变量 APP_ENCRYPTION_KEY 优先。更换后需重启服务，且会使已保存的密文失效。");
+                I18n.text("m_319cbe979eb9")
+                        + I18n.text("m_a65c3f6bb334"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
-        encKeyField = UI.input(requireContext(), "64 位十六进制密钥（留空保持不变）");
+        encKeyField = UI.input(requireContext(), I18n.text("m_6171d4f4500d"));
         encKeyField.setText(encKeyInput);
         card.addView(encKeyField);
 
-        String source = "env".equals(encKeySource) ? "环境变量" : "stored".equals(encKeySource) ? "数据库" : "未设置";
-        TextView state = tag("当前来源：" + source, !"none".equals(encKeySource));
+        String source = "env".equals(encKeySource) ? I18n.text("m_ae27b474ea4d") : "stored".equals(encKeySource) ? I18n.text("m_263200d7d529") : I18n.text("m_2f5f1d6fbfb0");
+        TextView state = tag(I18n.text("m_1f45e225299d") + source, !"none".equals(encKeySource));
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存密钥", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a334bb468aba"), UI.BTN_PRIMARY);
         save.setEnabled(!busy && !encKeyInput.trim().isEmpty());
         save.setOnClickListener(v -> saveEncKey());
         UI.addRow(card, save, 0);
@@ -1321,7 +1321,7 @@ public class AdminFragment extends PageFragment {
     private void pickDefaultGroup() {
         List<String> labels = new ArrayList<>();
         List<String> ids = new ArrayList<>();
-        labels.add("（未设置）");
+        labels.add(I18n.text("m_ccb91ce53df9"));
         ids.add("");
         for (int i = 0; i < groups.length(); i++) {
             JSONObject group = groups.optJSONObject(i);
@@ -1329,7 +1329,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), "默认用户组");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_e69c528d68a8"));
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -1349,7 +1349,7 @@ public class AdminFragment extends PageFragment {
     }
 
     private void saveSettings() {
-        run(() -> Api.put("/api/admin/settings", settings), "设置已保存", () -> {
+        run(() -> Api.put("/api/admin/settings", settings), I18n.text("m_bd03c0aad701"), () -> {
             Session.applyConfig(settings);
             if (alive()) console().rebuildNav();
         });
@@ -1359,7 +1359,7 @@ public class AdminFragment extends PageFragment {
         capture();
         JSONObject payload = turnstilePayload();
         turnstileSecret = "";
-        run(() -> Api.put("/api/admin/settings", payload), "人机验证设置已保存");
+        run(() -> Api.put("/api/admin/settings", payload), I18n.text("m_763363acbbeb"));
     }
 
     private JSONObject turnstilePayload() {
@@ -1383,62 +1383,62 @@ public class AdminFragment extends PageFragment {
             payload.put("scopes", oauthScopes);
             if (!secret.isEmpty()) payload.put("client_secret", secret);
             return Api.put("/api/admin/oauth", payload);
-        }, "OAuth 客户端配置已保存");
+        }, I18n.text("m_12c3bd5c0eeb"));
     }
 
     private void saveEncKey() {
         capture();
         if (encKeyInput.isEmpty()) {
-            banner = "请输入 64 位十六进制密钥";
+            banner = I18n.text("m_24d0752eb75d");
             bannerError = true;
             render();
             return;
         }
         String key = encKeyInput;
         encKeyInput = "";
-        run(() -> Api.put("/api/admin/encryption-key", new JSONObject().put("key", key)), "加密密钥已保存");
+        run(() -> Api.put("/api/admin/encryption-key", new JSONObject().put("key", key)), I18n.text("m_764e8c4abd92"));
     }
 
     // ----------------------------------------------------------------- smtp
 
     private void smtpTab() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "SMTP 邮件服务"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_dd15bdd9da5a")));
         TextView hint = UI.muted(requireContext(),
-                "用于注册验证码与监控告警邮件。密码留空表示保持原值不变。"
-                        + (smtpReady ? "" : " 当前尚未完整配置。"));
+                I18n.text("m_25ed71be1ba5")
+                        + (smtpReady ? "" : I18n.text("m_f7b32edf785b")));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
         smtpHostInput = UI.input(requireContext(), "smtp.example.com");
         smtpHostInput.setText(smtpHost);
-        card.addView(UI.field(requireContext(), "SMTP 主机", smtpHostInput));
+        card.addView(UI.field(requireContext(), I18n.text("m_5344a59d11c5"), smtpHostInput));
 
-        smtpPortInput = numberInput("465 或 587", smtpPort);
-        card.addView(UI.field(requireContext(), "端口", smtpPortInput, UI.MD));
+        smtpPortInput = numberInput(I18n.text("m_7a9d079c1fb3"), smtpPort);
+        card.addView(UI.field(requireContext(), I18n.text("m_e71ac32b544b"), smtpPortInput, UI.MD));
 
-        smtpUserInput = UI.input(requireContext(), "用户名（通常为邮箱）");
+        smtpUserInput = UI.input(requireContext(), I18n.text("m_6a432ca72cc9"));
         smtpUserInput.setText(smtpUsername);
-        card.addView(UI.field(requireContext(), "用户名", smtpUserInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_1a3f0617d6de"), smtpUserInput, UI.MD));
 
-        smtpPasswordInput = passwordInput("密码 / 授权码（留空保持不变）");
+        smtpPasswordInput = passwordInput(I18n.text("m_077af8674c6a"));
         smtpPasswordInput.setText(smtpPassword);
-        card.addView(UI.field(requireContext(), "密码 / 授权码", smtpPasswordInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_32676619bb95"), smtpPasswordInput, UI.MD));
 
         smtpFromInput = UI.input(requireContext(), "panel@example.com");
         smtpFromInput.setText(smtpFrom);
-        card.addView(UI.field(requireContext(), "发件人", smtpFromInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_bae32961a3b5"), smtpFromInput, UI.MD));
 
-        TextView tlsLabel = UI.label(requireContext(), "传输加密");
+        TextView tlsLabel = UI.label(requireContext(), I18n.text("m_b31967d52c23"));
         UI.margin(tlsLabel, 0, UI.MD, 0, UI.SM);
         card.addView(tlsLabel);
-        UI.addRow(card, UI.segmented(requireContext(), new String[]{"加密", "不加密"}, smtpTls, index -> {
+        UI.addRow(card, UI.segmented(requireContext(), new String[]{I18n.text("m_320c254572c4"), I18n.text("m_69f3b744f3f2")}, smtpTls, index -> {
             capture();
             smtpTls = index;
             render();
         }), 0);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存设置", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_c8550237ba70"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> saveSmtp());
         UI.addRow(card, save, UI.MD);
@@ -1447,23 +1447,23 @@ public class AdminFragment extends PageFragment {
         body.addView(UI.spacer(requireContext(), UI.MD));
 
         LinearLayout test = UI.card(requireContext());
-        test.addView(UI.cardTitle(requireContext(), "发送测试邮件"));
-        testMailInput = UI.input(requireContext(), "你的邮箱");
+        test.addView(UI.cardTitle(requireContext(), I18n.text("m_f9ae1a31638d")));
+        testMailInput = UI.input(requireContext(), I18n.text("m_27558ddc9803"));
         testMailInput.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         testMailInput.setText(testMailTo);
-        test.addView(UI.field(requireContext(), "收件地址", testMailInput));
-        TextView send = UI.button(requireContext(), busy ? "发送中…" : "发送测试邮件", UI.BTN_SECONDARY);
+        test.addView(UI.field(requireContext(), I18n.text("m_b84b2b30c3d1"), testMailInput));
+        TextView send = UI.button(requireContext(), busy ? I18n.text("m_364970d8168c") : I18n.text("m_f9ae1a31638d"), UI.BTN_SECONDARY);
         send.setEnabled(!busy);
         send.setOnClickListener(v -> {
             capture();
             if (testMailTo.isEmpty()) {
-                banner = "请输入收件邮箱";
+                banner = I18n.text("m_2da3d7207b44");
                 bannerError = true;
                 render();
                 return;
             }
             String to = testMailTo;
-            run(() -> Api.post("/api/admin/smtp/test", new JSONObject().put("to", to)), "测试邮件已发送");
+            run(() -> Api.post("/api/admin/smtp/test", new JSONObject().put("to", to)), I18n.text("m_cfb7989b7a73"));
         });
         UI.addRow(test, send, UI.MD);
         body.addView(test);
@@ -1482,7 +1482,7 @@ public class AdminFragment extends PageFragment {
             payload.put("tls_mode", smtpTls == 1 ? "plain" : "ssl");
             if (!password.isEmpty()) payload.put("password", password);
             return Api.put("/api/admin/smtp", payload);
-        }, "SMTP 设置已保存");
+        }, I18n.text("m_dddcb690d105"));
     }
 
     // ---------------------------------------------------------------- helpers
@@ -1525,42 +1525,42 @@ public class AdminFragment extends PageFragment {
      */
     private View passkeySettingsCard() {
         Context ctx = requireContext();
-        LinearLayout card = cardHead("通行密钥",
-                "通行密钥要求 HTTPS，依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同域下的子域都能用。「允许的来源」只在需要限定同一依赖方下放开哪几个子域时才填，须与依赖方 ID 同域或为其子域；一个依赖方 ID 覆盖不了两个不同的域名。",
+        LinearLayout card = cardHead(I18n.text("m_102824e51a9d"),
+                I18n.text("m_714c69b463c4"),
                 null, null);
 
-        passkeyRPIDInput = UI.input(ctx, "依赖方 ID，如 panel.example.com");
+        passkeyRPIDInput = UI.input(ctx, I18n.text("m_9b9ca2069036"));
         passkeyRPIDInput.setText(passkeyRPID);
-        card.addView(UI.field(ctx, "依赖方 ID", passkeyRPIDInput, UI.SM));
+        card.addView(UI.field(ctx, I18n.text("m_041601fcfdb9"), passkeyRPIDInput, UI.SM));
 
-        passkeyOriginsInput = UI.input(ctx, "允许的来源，逗号分隔");
+        passkeyOriginsInput = UI.input(ctx, I18n.text("m_9fefc8c169c3"));
         passkeyOriginsInput.setText(passkeyOrigins);
-        card.addView(UI.field(ctx, "允许的来源", passkeyOriginsInput, UI.SM));
+        card.addView(UI.field(ctx, I18n.text("m_08976c1b5998"), passkeyOriginsInput, UI.SM));
 
         androidPackageInput = UI.input(ctx, "com.tunnelmanager.app");
         androidPackageInput.setText(androidPackage);
-        card.addView(UI.field(ctx, "Android 包名", androidPackageInput, UI.SM));
+        card.addView(UI.field(ctx, I18n.text("m_fdc7245f3cb7"), androidPackageInput, UI.SM));
 
-        androidFingerprintsInput = UI.textArea(ctx, "SHA-256 指纹，逗号或换行分隔");
+        androidFingerprintsInput = UI.textArea(ctx, I18n.text("m_d83849747d4b"));
         androidFingerprintsInput.setText(androidFingerprints);
-        card.addView(UI.field(ctx, "Android 签名指纹", androidFingerprintsInput, UI.SM));
+        card.addView(UI.field(ctx, I18n.text("m_0f65f682db8f"), androidFingerprintsInput, UI.SM));
         card.addView(UI.muted(ctx, androidFingerprintsEffective.isEmpty()
-                ? "当前没有生效的签名指纹，App 无法使用通行密钥。"
-                : "当前生效：" + androidFingerprintsEffective));
-        card.addView(UI.muted(ctx, "App 通过 /.well-known/assetlinks.json 校验域名归属，指纹取自签名证书（keytool 或 apksigner 的 SHA-256）。"));
+                ? I18n.text("m_bd29f1abcca3")
+                : I18n.text("m_04f2b844522a") + androidFingerprintsEffective));
+        card.addView(UI.muted(ctx, I18n.text("m_eba5f2cf8804")));
 
-        TextView save = UI.button(ctx, busy ? "保存中…" : "保存通行密钥设置", UI.BTN_PRIMARY);
+        TextView save = UI.button(ctx, busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_bbf51c405246"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> savePasskeySettings());
         UI.margin(save, 0, UI.MD, 0, 0);
         card.addView(save);
 
         card.addView(UI.divider(ctx));
-        UI.addRow(card, toggleRow("禁用密码登录（全站）", passwordLoginDisabled, passkeyAdminReady,
+        UI.addRow(card, toggleRow(I18n.text("m_f1d371db2841"), passwordLoginDisabled, passkeyAdminReady,
                 next -> setGlobalPasswordLogin(next)), UI.MD);
         card.addView(UI.muted(ctx, passkeyAdminReady
-                ? "开启后所有账户都只能用通行密钥登录；某个账户丢失通行密钥时，可在用户列表里恢复它的密码登录。"
-                : "需至少一名启用的管理员已绑定通行密钥，避免面板被锁死。"));
+                ? I18n.text("m_d0e92917ca4d")
+                : I18n.text("m_6be5de420252")));
         return card;
     }
 
@@ -1572,7 +1572,7 @@ public class AdminFragment extends PageFragment {
         render();
         Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
             busy = false;
-            banner = "通行密钥设置已保存";
+            banner = I18n.text("m_a50d4226fe2e");
             bannerError = false;
             load();
         }, failure -> {
@@ -1591,7 +1591,7 @@ public class AdminFragment extends PageFragment {
         render();
         Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
             busy = false;
-            banner = disabled ? "已禁用密码登录（全站）" : "已恢复密码登录（全站）";
+            banner = disabled ? I18n.text("m_01b240b5fcfd") : I18n.text("m_f5844ba700c6");
             bannerError = false;
             load();
         }, failure -> {
@@ -1653,7 +1653,7 @@ public class AdminFragment extends PageFragment {
     private void setUserPasswordLogin(JSONObject user, boolean disabled) {
         run(() -> Api.put("/api/admin/users/" + user.optString("id") + "/password-login",
                         new JSONObject().put("disabled", disabled)),
-                disabled ? "已禁用该账户的密码登录" : "已恢复该账户的密码登录");
+                disabled ? I18n.text("m_648081722ae3") : I18n.text("m_9a51c792b3f2"));
     }
 
     // ----------------------------------------------------------------- audit
@@ -1675,12 +1675,12 @@ public class AdminFragment extends PageFragment {
 
     private View auditStatsCard() {
         Context ctx = requireContext();
-        LinearLayout card = cardHead("审计概览", "近 7 天的操作统计。", null, null);
+        LinearLayout card = cardHead(I18n.text("m_2e44c1f92d1d"), I18n.text("m_4d7fff331f6b"), null, null);
         LinearLayout row = UI.row(ctx);
-        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("total", 0)), "操作"));
-        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("failed", 0)), "失败"));
-        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("today", 0)), "今日"));
-        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("actors", 0)), "活跃账号"));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("total", 0)), I18n.text("m_ed31fbb483ee")));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("failed", 0)), I18n.text("m_28384d7afd2e")));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("today", 0)), I18n.text("m_5c9cf5e0dd47")));
+        row.addView(auditStat(ctx, String.valueOf(auditStats.optInt("actors", 0)), I18n.text("m_3d8f6f5474e3")));
         card.addView(row);
         return card;
     }
@@ -1695,24 +1695,24 @@ public class AdminFragment extends PageFragment {
 
     private View auditFilterCard() {
         Context ctx = requireContext();
-        LinearLayout card = cardHead("筛选", null, "查询", () -> {
+        LinearLayout card = cardHead(I18n.text("m_b5f15473fdc0"), null, I18n.text("m_bcd6771e08ec"), () -> {
             auditPage = 1;
             loadAudit();
         });
 
-        auditActorInput = UI.input(ctx, "搜索用户（用户名）");
+        auditActorInput = UI.input(ctx, I18n.text("m_e412e5321b6d"));
         auditActorInput.setText(auditActor);
         UI.addRow(card, auditActorInput, UI.SM);
 
-        UI.addRow(card, auditPicker(ctx, "时间范围", AUDIT_RANGE_LABELS[auditRange],
-            "选择时间范围", AUDIT_RANGE_LABELS, index -> {
+        UI.addRow(card, auditPicker(ctx, I18n.text("m_07eb730af899"), AUDIT_RANGE_LABELS[auditRange],
+            I18n.text("m_ca06fe65bc35"), AUDIT_RANGE_LABELS, index -> {
             auditRange = index;
             auditPage = 1;
             loadAudit();
         }), UI.MD);
 
-        UI.addRow(card, auditPicker(ctx, "操作类型", AUDIT_CATEGORY_LABELS[auditCategory],
-            "选择操作类型", AUDIT_CATEGORY_LABELS, index -> {
+        UI.addRow(card, auditPicker(ctx, I18n.text("m_1c80d4a064ec"), AUDIT_CATEGORY_LABELS[auditCategory],
+            I18n.text("m_2cebc060d512"), AUDIT_CATEGORY_LABELS, index -> {
             auditCategory = index;
             auditPage = 1;
             loadAudit();
@@ -1745,17 +1745,17 @@ public class AdminFragment extends PageFragment {
 
     private View auditListCard() {
         Context ctx = requireContext();
-        LinearLayout card = cardHead("日志", null, "刷新", () -> loadAudit());
+        LinearLayout card = cardHead(I18n.text("m_7dbac1c20f23"), null, I18n.text("m_aee887434131"), () -> loadAudit());
         if (auditLoading) {
-            card.addView(UI.muted(ctx, "加载中…"));
+            card.addView(UI.muted(ctx, I18n.text("m_4927a53bcc88")));
             return card;
         }
         if (auditLogs.length() == 0) {
-            card.addView(emptyState("没有符合条件的日志。"));
+            card.addView(emptyState(I18n.text("m_5f1178aa4d21")));
             return card;
         }
         int pages = Math.max(1, (auditTotal + AUDIT_PAGE_SIZE - 1) / AUDIT_PAGE_SIZE);
-        card.addView(UI.muted(ctx, "共 " + auditTotal + " 条 · 第 " + auditPage + " / " + pages + " 页"));
+        card.addView(UI.muted(ctx, I18n.text("m_2428420e407f") + auditTotal + I18n.text("m_37fcd76651b7") + auditPage + " / " + pages + I18n.text("m_85ca81cf6abd")));
         for (int i = 0; i < auditLogs.length(); i++) {
             JSONObject entry = auditLogs.optJSONObject(i);
             if (entry == null) continue;
@@ -1763,14 +1763,14 @@ public class AdminFragment extends PageFragment {
         }
 
         LinearLayout pager = UI.row(ctx);
-        TextView prev = UI.button(ctx, "上一页", UI.BTN_SECONDARY);
+        TextView prev = UI.button(ctx, I18n.text("m_c9b9ae7a6144"), UI.BTN_SECONDARY);
         prev.setEnabled(auditPage > 1);
         prev.setOnClickListener(v -> {
             auditPage--;
             loadAudit();
         });
         pager.addView(prev);
-        TextView next = UI.button(ctx, "下一页", UI.BTN_SECONDARY);
+        TextView next = UI.button(ctx, I18n.text("m_8a8542f69648"), UI.BTN_SECONDARY);
         next.setEnabled(auditPage < pages);
         next.setOnClickListener(v -> {
             auditPage++;
@@ -1792,13 +1792,13 @@ public class AdminFragment extends PageFragment {
         LinearLayout top = UI.row(ctx);
         top.addView(UI.strong(ctx, auditActionLabel(entry.optString("action", ""))),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        top.addView(tag(success ? "成功" : "失败", success));
+        top.addView(tag(success ? I18n.text("m_053461ce86d2") : I18n.text("m_28384d7afd2e"), success));
         box.addView(top);
 
         List<String> meta = new ArrayList<>();
-        meta.add("操作人：" + defaulted(entry.optString("actor_name", "")));
+        meta.add(I18n.text("m_b0a12efde7fd") + defaulted(entry.optString("actor_name", "")));
         String target = entry.optString("target", "");
-        if (!target.isEmpty()) meta.add("对象：" + target);
+        if (!target.isEmpty()) meta.add(I18n.text("m_4fa5ed9eb23d") + target);
         String ip = entry.optString("ip", "");
         if (!ip.isEmpty()) meta.add("IP：" + ip);
         TextView caption = UI.muted(ctx, join(meta, " · "));
@@ -1842,7 +1842,7 @@ public class AdminFragment extends PageFragment {
             render();
         }, failure -> {
             auditLoading = false;
-            banner = "读取审计日志失败：" + failure.getMessage();
+            banner = I18n.text("m_32ef02f91bfc") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -1863,11 +1863,11 @@ public class AdminFragment extends PageFragment {
         return calendar.getTimeInMillis() / 1000L;
     }
 
-    private static String auditActionLabel(String action) {
+    private String auditActionLabel(String action) {
         for (int i = 0; i < AUDIT_ACTIONS.length; i++) {
             if (AUDIT_ACTIONS[i].equals(action)) return AUDIT_ACTION_LABELS[i];
         }
-        return action.isEmpty() ? "未知操作" : action;
+        return action.isEmpty() ? I18n.text("m_f242d2db4cea") : action;
     }
 
     private View emptyState(String message) {
@@ -1887,7 +1887,7 @@ public class AdminFragment extends PageFragment {
     }
 
     private static String defaulted(String value) {
-        return value == null || value.isEmpty() ? "默认" : value;
+        return value == null || value.isEmpty() ? I18n.text("m_844b8cc8dff7") : value;
     }
 
     private static String join(List<String> parts, String glue) {

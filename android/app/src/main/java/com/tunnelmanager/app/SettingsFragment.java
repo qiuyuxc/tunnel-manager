@@ -1,6 +1,7 @@
 package com.tunnelmanager.app;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
@@ -97,8 +98,47 @@ public class SettingsFragment extends PageFragment {
         UI.pagePadding(body);
         scroll.addView(body);
         render();
-        load();
+        if (loading) load();
+        else loadIcon();
         return scroll;
+    }
+
+    @Override public void onCreate(Bundle saved) {
+        super.onCreate(saved);
+        if (saved == null || !saved.containsKey("settingsConfig")) return;
+        try { applyConfig(new JSONObject(saved.getString("settingsConfig"))); }
+        catch (Exception ignored) { return; }
+        nameDraft = saved.getString("settingsName", nameDraft);
+        descriptionDraft = saved.getString("settingsDescription", descriptionDraft);
+        iconDraft = saved.getString("settingsIcon", iconDraft);
+        panelHostDraft = saved.getString("settingsHost", panelHostDraft);
+        preferredDraft = saved.getString("settingsPreferred", preferredDraft);
+        fallbackDraft = saved.getString("settingsFallback", fallbackDraft);
+        landingEnabled = saved.getBoolean("settingsLanding", landingEnabled);
+        java.util.ArrayList<String> names = saved.getStringArrayList("settingsPresetNames");
+        java.util.ArrayList<String> values = saved.getStringArrayList("settingsPresetValues");
+        if (names != null && values != null && names.size() == values.size()) {
+            presets.clear();
+            for (int i = 0; i < names.size(); i++) presets.add(new String[]{names.get(i), values.get(i)});
+        }
+        loading = false;
+    }
+
+    @Override public void onSaveInstanceState(@NonNull Bundle saved) {
+        capture();
+        saved.putString("settingsConfig", config.toString());
+        saved.putString("settingsName", nameDraft);
+        saved.putString("settingsDescription", descriptionDraft);
+        saved.putString("settingsIcon", iconDraft);
+        saved.putString("settingsHost", panelHostDraft);
+        saved.putString("settingsPreferred", preferredDraft);
+        saved.putString("settingsFallback", fallbackDraft);
+        saved.putBoolean("settingsLanding", landingEnabled);
+        java.util.ArrayList<String> names = new java.util.ArrayList<>(), values = new java.util.ArrayList<>();
+        for (String[] preset : presets) { names.add(preset[0]); values.add(preset[1]); }
+        saved.putStringArrayList("settingsPresetNames", names);
+        saved.putStringArrayList("settingsPresetValues", values);
+        super.onSaveInstanceState(saved);
     }
 
     // ------------------------------------------------------------------- data
@@ -114,7 +154,7 @@ public class SettingsFragment extends PageFragment {
             loadIcon();
         }, failure -> {
             loading = false;
-            statusMessage = "加载失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_01de8216e0d0") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -196,13 +236,13 @@ public class SettingsFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "全局设置"));
-        TextView subtitle = UI.muted(requireContext(), "集中管理站点品牌、域名绑定偏好、回退源与隧道设置");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3f754f38a654")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_304845c555ff"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -244,7 +284,7 @@ public class SettingsFragment extends PageFragment {
     }
 
     private TextView primaryAction(String label, Runnable action) {
-        TextView button = UI.button(requireContext(), busy ? "处理中…" : label, UI.BTN_PRIMARY);
+        TextView button = UI.button(requireContext(), busy ? I18n.text("m_d3d21191f32e") : label, UI.BTN_PRIMARY);
         button.setEnabled(!busy);
         button.setOnClickListener(v -> action.run());
         return button;
@@ -254,9 +294,9 @@ public class SettingsFragment extends PageFragment {
 
     private View siteCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("站点信息", "自定义浏览器标题、导航品牌、登录页名称、描述与站点图标。"));
+        card.addView(cardHead(I18n.text("m_a719b867f3fc"), I18n.text("m_22196a1072dc")));
 
-        TextView previewLabel = UI.label(requireContext(), "实时预览");
+        TextView previewLabel = UI.label(requireContext(), I18n.text("m_a76fdaad7519"));
         UI.margin(previewLabel, 0, 0, 0, UI.SM);
         card.addView(previewLabel);
 
@@ -269,7 +309,7 @@ public class SettingsFragment extends PageFragment {
         previewText.addView(UI.strong(requireContext(),
                 nameDraft.trim().isEmpty() ? "Tunnel Manager" : nameDraft.trim()));
         TextView previewDesc = UI.muted(requireContext(),
-                descriptionDraft.trim().isEmpty() ? "Cloudflare 隧道管理中心" : descriptionDraft.trim());
+                descriptionDraft.trim().isEmpty() ? I18n.text("m_c2c8982623de") : descriptionDraft.trim());
         UI.margin(previewDesc, 0, 1, 0, 0);
         previewText.addView(previewDesc);
         LinearLayout.LayoutParams previewTextLp = new LinearLayout.LayoutParams(
@@ -281,28 +321,28 @@ public class SettingsFragment extends PageFragment {
         nameInput = UI.input(requireContext(), "Tunnel Manager");
         nameInput.setText(nameDraft);
         nameInput.addTextChangedListener(new SimpleWatcher(this::refreshPreview));
-        card.addView(UI.field(requireContext(), "站点名称", nameInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_8ac4f0447b99"), nameInput, UI.MD));
 
-        descriptionInput = UI.input(requireContext(), "Cloudflare 隧道管理中心");
+        descriptionInput = UI.input(requireContext(), I18n.text("m_c2c8982623de"));
         descriptionInput.setText(descriptionDraft);
         descriptionInput.addTextChangedListener(new SimpleWatcher(this::refreshPreview));
-        card.addView(UI.field(requireContext(), "站点描述", descriptionInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_9ddde2b92952"), descriptionInput, UI.MD));
 
-        iconInput = UI.input(requireContext(), "https://example.com/icon.png，或上传本地图片");
+        iconInput = UI.input(requireContext(), I18n.text("m_22f956aa4f06"));
         iconInput.setText(iconDraft);
         iconInput.addTextChangedListener(new SimpleWatcher(() -> {
             iconDraft = iconInput.getText().toString().trim();
             ui.removeCallbacks(iconReload);
             ui.postDelayed(iconReload, 450);
         }));
-        card.addView(UI.field(requireContext(), "站点图标", iconInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_e220e37bbb93"), iconInput, UI.MD));
 
         LinearLayout iconActions = UI.row(requireContext());
-        TextView upload = UI.button(requireContext(), "上传图片", UI.BTN_SECONDARY);
+        TextView upload = UI.button(requireContext(), I18n.text("m_9fbb4750bb39"), UI.BTN_SECONDARY);
         upload.setOnClickListener(v -> iconPicker.launch("image/*"));
         iconActions.addView(upload);
         if (!iconDraft.isEmpty()) {
-            TextView clear = UI.button(requireContext(), "清除图标", UI.BTN_GHOST);
+            TextView clear = UI.button(requireContext(), I18n.text("m_10e0fd099bd2"), UI.BTN_GHOST);
             clear.setOnClickListener(v -> {
                 capture();
                 iconDraft = "";
@@ -314,19 +354,19 @@ public class SettingsFragment extends PageFragment {
             iconActions.addView(clear);
         }
         UI.addRow(card, iconActions, UI.SM);
-        note(card, "建议使用 1:1 图片，文件不超过 512 KB。", UI.SM);
+        note(card, I18n.text("m_8647947e6b61"), UI.SM);
 
         panelHostInput = UI.input(requireContext(), "panel.example.com");
         panelHostInput.setText(panelHostDraft);
-        card.addView(UI.field(requireContext(), "面板域名", panelHostInput, UI.MD));
-        note(card, "状态页自定义域名会复制该域名 ingress 的服务与源站参数。留空时自动使用管理员首次登录时的访问域名。", UI.SM);
+        card.addView(UI.field(requireContext(), I18n.text("m_d22b7b6d0776"), panelHostInput, UI.MD));
+        note(card, I18n.text("m_51b4048beb35"), UI.SM);
 
         UI.Toggle landing = new UI.Toggle(requireContext(), landingEnabled);
         LinearLayout landingRow = UI.row(requireContext());
         LinearLayout landingText = UI.column(requireContext());
-        landingText.addView(UI.strong(requireContext(), "启用首页（落地页）"));
+        landingText.addView(UI.strong(requireContext(), I18n.text("m_87b31918524a")));
         TextView landingHint = UI.muted(requireContext(),
-                "开启后，未登录用户访问站点将先看到首页，而不是直接进入登录页。");
+                I18n.text("m_287303a83357"));
         UI.margin(landingHint, 0, UI.XS, 0, 0);
         landingText.addView(landingHint);
         landingRow.addView(landingText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -341,7 +381,7 @@ public class SettingsFragment extends PageFragment {
         UI.addRow(card, landingRow, UI.MD);
 
         card.addView(UI.spacer(requireContext(), UI.MD));
-        card.addView(primaryAction("保存站点信息", this::saveSite));
+        card.addView(primaryAction(I18n.text("m_bcf1ace464e5"), this::saveSite));
         return card;
     }
 
@@ -356,7 +396,7 @@ public class SettingsFragment extends PageFragment {
         String name = nameInput == null ? "" : nameInput.getText().toString().trim();
         String desc = descriptionInput == null ? "" : descriptionInput.getText().toString().trim();
         ((TextView) text.getChildAt(0)).setText(name.isEmpty() ? "Tunnel Manager" : name);
-        ((TextView) text.getChildAt(1)).setText(desc.isEmpty() ? "Cloudflare 隧道管理中心" : desc);
+        ((TextView) text.getChildAt(1)).setText(desc.isEmpty() ? I18n.text("m_c2c8982623de") : desc);
     }
 
     /**
@@ -429,14 +469,14 @@ public class SettingsFragment extends PageFragment {
 
     private View presetsCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("常用 CNAME 组", "维护常用优选线路。域名绑定时可以直接选择，也可以继续手动输入。"));
+        card.addView(cardHead(I18n.text("m_f60a2d511962"), I18n.text("m_7e7f12cf948f")));
 
         preferredInput = UI.input(requireContext(), "cf.090227.xyz");
         preferredInput.setText(preferredDraft);
-        card.addView(UI.field(requireContext(), "默认优选 CNAME", preferredInput));
-        note(card, "未指定线路时自动使用此值。", UI.SM);
+        card.addView(UI.field(requireContext(), I18n.text("m_71b3aeb8f73c"), preferredInput));
+        note(card, I18n.text("m_bb8bd65fc13f"), UI.SM);
 
-        TextView savePreferred = UI.button(requireContext(), "保存默认值", UI.BTN_SECONDARY);
+        TextView savePreferred = UI.button(requireContext(), I18n.text("m_9e9ef2c6a1ec"), UI.BTN_SECONDARY);
         savePreferred.setOnClickListener(v -> savePreferredCNAME(preferredInput.getText().toString().trim()));
         UI.addRow(card, savePreferred, UI.SM);
 
@@ -446,7 +486,7 @@ public class SettingsFragment extends PageFragment {
             card.addView(presetRow(i));
         }
 
-        TextView add = UI.button(requireContext(), "添加常用 CNAME", UI.BTN_SECONDARY);
+        TextView add = UI.button(requireContext(), I18n.text("m_f47cac452640"), UI.BTN_SECONDARY);
         add.setEnabled(presets.size() < MAX_PRESETS);
         add.setOnClickListener(v -> {
             capture();
@@ -457,7 +497,7 @@ public class SettingsFragment extends PageFragment {
         UI.addRow(card, add, UI.MD);
 
         card.addView(UI.spacer(requireContext(), UI.MD));
-        card.addView(primaryAction("保存 CNAME 组", this::savePresets));
+        card.addView(primaryAction(I18n.text("m_801a8daafa2e"), this::savePresets));
         return card;
     }
 
@@ -479,15 +519,15 @@ public class SettingsFragment extends PageFragment {
         head.addView(remove);
         box.addView(head);
 
-        EditText name = UI.input(requireContext(), "例如：移动优选");
+        EditText name = UI.input(requireContext(), I18n.text("m_93bc08a447ce"));
         name.setText(presets.get(index)[0]);
         presetNameInputs.add(name);
-        box.addView(UI.field(requireContext(), "线路名称", name, UI.SM));
+        box.addView(UI.field(requireContext(), I18n.text("m_2035432e8a18"), name, UI.SM));
 
-        EditText value = UI.input(requireContext(), "例如：cdn.example.com");
+        EditText value = UI.input(requireContext(), I18n.text("m_91d03241c65a"));
         value.setText(presets.get(index)[1]);
         presetValueInputs.add(value);
-        box.addView(UI.field(requireContext(), "CNAME 地址", value, UI.SM));
+        box.addView(UI.field(requireContext(), I18n.text("m_ce05579d19d5"), value, UI.SM));
 
         LinearLayout wrap = UI.column(requireContext());
         wrap.addView(box);
@@ -500,13 +540,13 @@ public class SettingsFragment extends PageFragment {
 
     private View fallbackCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("回退源设置", "设置 Custom Hostnames 的 Fallback Origin。"));
+        card.addView(cardHead(I18n.text("m_119e1fd67f70"), I18n.text("m_855cdae806a9")));
 
-        fallbackInput = UI.input(requireContext(), "例如: fallback.example.com");
+        fallbackInput = UI.input(requireContext(), I18n.text("m_078389cf3046"));
         fallbackInput.setText(fallbackDraft);
         card.addView(fallbackInput);
 
-        TextView save = UI.button(requireContext(), "设置回退源", UI.BTN_SECONDARY);
+        TextView save = UI.button(requireContext(), I18n.text("m_0bb58707f90c"), UI.BTN_SECONDARY);
         save.setOnClickListener(v -> saveFallback(fallbackInput.getText().toString().trim()));
         UI.addRow(card, save, UI.MD);
         return card;
@@ -514,19 +554,19 @@ public class SettingsFragment extends PageFragment {
 
     private View tunnelCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("当前隧道", "隧道选择统一在隧道管理页完成，避免误填 ID。"));
+        card.addView(cardHead(I18n.text("m_b903d203f70a"), I18n.text("m_8401fe7d0746")));
 
         String tunnelId = config.optString("tunnel_id", "");
         String tunnelName = config.optString("tunnel_name", "");
         LinearLayout row = UI.row(requireContext());
         LinearLayout text = UI.column(requireContext());
-        text.addView(UI.strong(requireContext(), tunnelId.isEmpty() ? "尚未选择隧道"
-                : (tunnelName.isEmpty() ? "已选隧道" : tunnelName)));
+        text.addView(UI.strong(requireContext(), tunnelId.isEmpty() ? I18n.text("m_0e2cf15a2702")
+                : (tunnelName.isEmpty() ? I18n.text("m_8ce5320404d5") : tunnelName)));
         if (!tunnelId.isEmpty()) {
             text.addView(UI.mono(requireContext(), tunnelId, Theme.p().mute));
         }
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView go = UI.button(requireContext(), tunnelId.isEmpty() ? "选择隧道" : "切换隧道",
+        TextView go = UI.button(requireContext(), tunnelId.isEmpty() ? I18n.text("m_acfb8f32676c") : I18n.text("m_42b8762044e2"),
                 tunnelId.isEmpty() ? UI.BTN_PRIMARY : UI.BTN_SECONDARY);
         go.setOnClickListener(v -> openRoute("/tunnels"));
         row.addView(go);
@@ -539,7 +579,7 @@ public class SettingsFragment extends PageFragment {
     private void saveSite() {
         capture();
         if (nameDraft.trim().isEmpty()) {
-            statusMessage = "请输入站点名称";
+            statusMessage = I18n.text("m_85c2f8365c82");
             statusOk = false;
             render();
             return;
@@ -562,13 +602,13 @@ public class SettingsFragment extends PageFragment {
             iconDraft = result.optString("icon", iconDraft);
             landingEnabled = result.optBoolean("landing_enabled", landingEnabled);
             Session.applyConfig(siteIdentity(result));
-            statusMessage = "站点信息已更新";
+            statusMessage = I18n.text("m_1964b400b352");
             statusOk = true;
             render();
             loadIcon();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -586,7 +626,7 @@ public class SettingsFragment extends PageFragment {
 
     private void savePreferredCNAME(String value) {
         if (value.isEmpty()) {
-            statusMessage = "请输入默认优选 CNAME";
+            statusMessage = I18n.text("m_5799ba3fe8dc");
             statusOk = false;
             render();
             return;
@@ -600,12 +640,12 @@ public class SettingsFragment extends PageFragment {
         }, result -> {
             busy = false;
             preferredDraft = value;
-            statusMessage = "默认优选 CNAME 已更新";
+            statusMessage = I18n.text("m_20737048a527");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -615,7 +655,7 @@ public class SettingsFragment extends PageFragment {
         capture();
         for (String[] preset : presets) {
             if (preset[0].trim().isEmpty() || preset[1].trim().isEmpty()) {
-                statusMessage = "请补全所有线路名称和 CNAME 地址";
+                statusMessage = I18n.text("m_ea92a5f61f83");
                 statusOk = false;
                 render();
                 return;
@@ -645,12 +685,12 @@ public class SettingsFragment extends PageFragment {
                     presets.add(new String[]{item.optString("name", ""), item.optString("value", "")});
                 }
             }
-            statusMessage = "常用 CNAME 组已更新";
+            statusMessage = I18n.text("m_d12fd29ea414");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -658,7 +698,7 @@ public class SettingsFragment extends PageFragment {
 
     private void saveFallback(String domain) {
         if (domain.isEmpty()) {
-            statusMessage = "请输入回退源域名";
+            statusMessage = I18n.text("m_6301facafab9");
             statusOk = false;
             render();
             return;
@@ -672,12 +712,12 @@ public class SettingsFragment extends PageFragment {
         }, result -> {
             busy = false;
             fallbackDraft = domain;
-            statusMessage = result.optString("message", "回退源已设置");
+            statusMessage = result.optString("message", I18n.text("m_b9ed9651aa57"));
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "设置失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_a3614e8103ec") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -690,14 +730,14 @@ public class SettingsFragment extends PageFragment {
         try {
             String mime = requireContext().getContentResolver().getType(uri);
             if (mime == null || !mime.startsWith("image/")) {
-                statusMessage = "请选择图片文件";
+                statusMessage = I18n.text("m_35fc560913c0");
                 statusOk = false;
                 render();
                 return;
             }
             byte[] bytes = readAll(uri);
             if (bytes.length > MAX_ICON_BYTES) {
-                statusMessage = "图片不能超过 512 KB";
+                statusMessage = I18n.text("m_78c1f649e77d");
                 statusOk = false;
                 render();
                 return;
@@ -706,11 +746,11 @@ public class SettingsFragment extends PageFragment {
             iconDraft = "data:" + mime + ";base64," + Base64.encodeToString(bytes, Base64.NO_WRAP);
             iconBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             iconBitmapKey = iconDraft;
-            statusMessage = "图片已载入，保存站点信息后生效";
+            statusMessage = I18n.text("m_5bda44454e75");
             statusOk = true;
             render();
         } catch (Exception e) {
-            statusMessage = "读取图片失败：" + e.getMessage();
+            statusMessage = I18n.text("m_b1feeac12438") + e.getMessage();
             statusOk = false;
             render();
         }

@@ -1,4 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
+import { language, translateError } from '../i18n.ts'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -19,6 +20,7 @@ export const api = axios.create({
 
 // Attach auth token to all requests
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.headers['Accept-Language'] = language.value
   const token = localStorage.getItem('auth_token')
   config.validateSession?.(token)
   if (token) {
@@ -31,6 +33,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    if (typeof err.response?.data?.error === 'string') err.response.data.error = translateError(err.response.data.error)
     if (err.response?.status === 401 && !err.config?.skipAuthInvalidation
       && (!err.config?.validateSession || err.config.headers?.['X-Auth-Token'] === localStorage.getItem('auth_token'))
       && window.location.pathname !== '/login') {

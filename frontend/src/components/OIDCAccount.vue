@@ -1,41 +1,43 @@
 <template>
   <section class="settings-card oidc-account" aria-labelledby="oidc-account-title">
     <div class="settings-card-header">
-      <div><h3 id="oidc-account-title" class="settings-card-title">OIDC 登录账户</h3>
-      <p class="settings-card-desc">管理第三方登录身份，本站权限仍由当前账户决定。</p></div>
+      <div><h3 id="oidc-account-title" class="settings-card-title">{{ tr('m_d1eb3be9948a') }}</h3>
+      <p class="settings-card-desc">{{ tr('m_3ff70496ec7a') }}</p></div>
     </div>
-    <p v-if="loading" class="field-help" role="status">正在读取登录方式...</p>
+    <p v-if="loading" class="field-help" role="status">{{ tr('m_8d80ae2393c8') }}</p>
     <p v-if="error" class="oidc-error" role="alert">{{ error }}</p>
-    <button v-if="error && !account" type="button" class="btn btn-secondary" :disabled="busy || loading" @click="load">重试</button>
+    <button v-if="error && !account" type="button" class="btn btn-secondary" :disabled="busy || loading" @click="load">{{ tr('m_b8784c8dd563') }}</button>
     <p v-if="notice" class="field-help" role="status">{{ notice }}</p>
     <template v-if="account">
-      <p v-if="!account.has_password" class="oidc-hint">此账户尚未设置本站密码。请通过已绑定的 OIDC 身份重新认证并设置密码，再修改邮箱、用户名或安全设置。</p>
+      <p v-if="!account.has_password" class="oidc-hint">{{ tr('m_75239914cb85') }}</p>
       <ul v-if="account.bindings.length" class="oidc-bindings">
         <li v-for="binding in account.bindings" :key="binding.provider_id">
-          <div class="oidc-identity"><strong>{{ binding.name }}</strong><span>{{ binding.email || '未提供邮箱' }}</span><small>{{ binding.enabled ? '可用于登录' : '接入方已停用' }}</small></div>
+          <div class="oidc-identity"><strong>{{ binding.name }}</strong><span>{{ binding.email || tr('m_40b94aa7b1c2') }}</span><small>{{ binding.enabled ? tr('m_af891bc406e5') : tr('m_c7eed2143af4') }}</small></div>
           <div class="oidc-actions">
-            <button v-if="!account.has_password && binding.enabled" class="btn btn-secondary" type="button" :disabled="busy || !!passwordTicket" @click="start(binding.provider_id, 'password')">重新认证并设置密码</button>
-            <button class="btn btn-ghost danger-outline" type="button" :disabled="busy || !!passwordTicket" @click="confirmUnlink(binding)">解绑</button>
+            <button v-if="!account.has_password && binding.enabled" class="btn btn-secondary" type="button" :disabled="busy || !!passwordTicket" @click="start(binding.provider_id, 'password')">{{ tr('m_dcccc7b72be5') }}</button>
+            <button class="btn btn-ghost danger-outline" type="button" :disabled="busy || !!passwordTicket" @click="confirmUnlink(binding)">{{ tr('m_3ba0a291df80') }}</button>
           </div>
         </li>
       </ul>
-      <p v-else class="field-help">尚未绑定 OIDC 身份。</p>
+      <p v-else class="field-help">{{ tr('m_d9e3c6d08951') }}</p>
       <form v-if="passwordTicket" class="oidc-password" @submit.prevent="setPassword">
-        <h4>设置本站密码</h4>
-        <label class="field"><span class="field-label">新密码</span><input ref="passwordInput" v-model="password" class="vercel-input" type="password" autocomplete="new-password" minlength="6" maxlength="1024" required /></label>
-        <label class="field"><span class="field-label">确认密码</span><input v-model="passwordConfirm" class="vercel-input" type="password" autocomplete="new-password" minlength="6" maxlength="1024" required /></label>
-        <div class="oidc-actions"><button class="btn btn-primary" type="submit" :disabled="busy || password.length < 6 || password !== passwordConfirm">{{ busy ? '保存中...' : '设置密码' }}</button><button class="btn btn-ghost" type="button" :disabled="busy" @click="cancelPassword">取消</button></div>
+        <h4>{{ tr('m_f9597d80c822') }}</h4>
+        <label class="field"><span class="field-label">{{ tr('m_515e9c7cf7b2') }}</span><input ref="passwordInput" v-model="password" class="vercel-input" type="password" autocomplete="new-password" minlength="6" maxlength="1024" required /></label>
+        <label class="field"><span class="field-label">{{ tr('m_81b17bc0c362') }}</span><input v-model="passwordConfirm" class="vercel-input" type="password" autocomplete="new-password" minlength="6" maxlength="1024" required /></label>
+        <div class="oidc-actions"><button class="btn btn-primary" type="submit" :disabled="busy || password.length < 6 || password !== passwordConfirm">{{ busy ? tr('m_917b1c1f18d0') : tr('m_0139e54b9887') }}</button><button class="btn btn-ghost" type="button" :disabled="busy" @click="cancelPassword">{{ tr('m_2cd0f3be8738') }}</button></div>
       </form>
-      <label v-if="availableProviders.length && account.has_password" class="field oidc-bind-password"><span class="field-label">确认本站密码以添加绑定</span><input v-model="bindingPassword" class="vercel-input" type="password" autocomplete="current-password" maxlength="1024" :disabled="busy" /></label>
-      <div v-if="availableProviders.length" class="oidc-actions oidc-add" aria-label="绑定其他登录方式">
-        <button v-for="provider in availableProviders" :key="provider.id" class="btn btn-secondary" type="button" :disabled="busy || !!passwordTicket || !account.has_password || !bindingPassword" @click="start(provider.id, 'bind')">绑定 {{ provider.name }}</button>
+      <label v-if="availableProviders.length && account.has_password" class="field oidc-bind-password"><span class="field-label">{{ tr('m_8d6b4cd237f4') }}</span><input v-model="bindingPassword" class="vercel-input" type="password" autocomplete="current-password" maxlength="1024" :disabled="busy" /></label>
+      <div v-if="availableProviders.length" class="oidc-actions oidc-add" :aria-label="tr('m_a500a7ddaaf8')">
+        <button v-for="provider in availableProviders" :key="provider.id" class="btn btn-secondary" type="button" :disabled="busy || !!passwordTicket || !account.has_password || !bindingPassword" @click="start(provider.id, 'bind')">{{ tr('m_3dd97f4d2766') }} {{ provider.name }}</button>
       </div>
-      <p v-else-if="!account.bindings.length" class="field-help">管理员尚未启用 OIDC 接入方。</p>
+      <p v-else-if="!account.bindings.length" class="field-help">{{ tr('m_52c452e7f83d') }}</p>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDialog } from 'naive-ui'
@@ -69,7 +71,7 @@ async function load() {
     account.value = status.data
     providers.value = available.data
     emit('passwordStatus', status.data.has_password)
-  } catch (e: any) { if (!disposed) error.value = apiError(e, '无法读取 OIDC 登录方式') }
+  } catch (e: any) { if (!disposed) error.value = apiError(e, tr('m_6ec173b408c9')) }
   finally { if (!disposed) loading.value = false }
 }
 
@@ -79,16 +81,16 @@ async function start(id: string, action: 'bind' | 'password') {
   error.value = ''
   notice.value = ''
   try { const { data } = await startOIDCAccount(id, action, action === 'bind' ? bindingPassword.value : ''); bindingPassword.value = ''; if (!disposed) window.location.assign(data.authorization_url) }
-  catch (e: any) { if (!disposed) { error.value = apiError(e, '无法启动 OIDC 认证'); busy.value = false } }
+  catch (e: any) { if (!disposed) { error.value = apiError(e, tr('m_e3c9ccd519b4')); busy.value = false } }
 }
 
 function confirmUnlink(binding: OIDCBinding) {
-  dialog.warning({ title: '解绑 OIDC 身份', content: `解绑“${binding.name}”后将无法通过此身份登录。请确保账户保留其他可用登录方式。`, positiveText: '解绑', negativeText: '取消', positiveButtonProps: { type: 'error' }, onPositiveClick: async () => {
+  dialog.warning({ title: tr('m_0baea21e93bb'), content: tr('m_bf79777bd606', { p0: binding.name }), positiveText: tr('m_3ba0a291df80'), negativeText: tr('m_2cd0f3be8738'), positiveButtonProps: { type: 'error' }, onPositiveClick: async () => {
     busy.value = true
     error.value = ''
     notice.value = ''
-    try { await unlinkOIDC(binding.provider_id); await load(); if (!disposed) notice.value = 'OIDC 身份已解绑' }
-    catch (e: any) { if (!disposed) error.value = apiError(e, '解绑失败') }
+    try { await unlinkOIDC(binding.provider_id); await load(); if (!disposed) notice.value = tr('m_29341d7210b9') }
+    catch (e: any) { if (!disposed) error.value = apiError(e, tr('m_61dbace46644')) }
     finally { if (!disposed) busy.value = false }
   } })
 }
@@ -102,8 +104,8 @@ async function setPassword() {
     await setupOIDCPassword(passwordTicket.value, password.value)
     cancelPassword()
     await load()
-    if (!disposed) notice.value = '本站密码已设置，可以使用账户安全设置'
-  } catch (e: any) { if (!disposed) error.value = apiError(e, '密码设置失败，请重新认证后重试') }
+    if (!disposed) notice.value = tr('m_c7370ce7f52b')
+  } catch (e: any) { if (!disposed) error.value = apiError(e, tr('m_a4d5442c09d3')) }
   finally { if (!disposed) busy.value = false }
 }
 
@@ -123,9 +125,9 @@ onMounted(async () => {
     const { data } = await completeOIDC(ticket)
     if (disposed) return
     if ('password_setup_required' in data) { passwordTicket.value = data.ticket; await nextTick(); passwordInput.value?.focus() }
-    else if ('status' in data && data.status === 'ok') { await load(); if (!disposed) notice.value = 'OIDC 身份已绑定' }
-    else error.value = '认证结果无效，请重新开始'
-  } catch (e: any) { if (!disposed) error.value = apiError(e, 'OIDC 认证失败，请重新开始') }
+    else if ('status' in data && data.status === 'ok') { await load(); if (!disposed) notice.value = tr('m_ac3adc200aae') }
+    else error.value = tr('m_e2c65f6f95ba')
+  } catch (e: any) { if (!disposed) error.value = apiError(e, tr('m_fc3abe4d0986')) }
   finally { if (!disposed) busy.value = false }
 })
 onBeforeUnmount(() => { disposed = true; bindingPassword.value = ''; cancelPassword() })

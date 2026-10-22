@@ -1,139 +1,137 @@
 <template>
   <div class="page-container">
-    <router-link to="/monitors" class="back-link">← 返回监控列表</router-link>
+    <router-link to="/monitors" class="back-link">{{ tr('m_dfc19cac6dd8') }}</router-link>
 
     <div class="page-header det-head">
       <div class="det-title">
-        <h2>{{ monitor?.name || '加载中…' }}</h2>
-        <span v-if="monitor" class="text-muted">每 {{ monitor.interval_sec }}s 自动检测</span>
+        <h2>{{ monitor?.name || tr('m_4927a53bcc88') }}</h2>
+        <span v-if="monitor" class="text-muted">{{ tr('m_d8b82d5765fa') }} {{ monitor.interval_sec }}{{ tr('m_48ba2cb7a48d') }}</span>
       </div>
       <div v-if="monitor" class="det-actions">
         <span class="pub-chip" :class="{ on: monitor.publish_enabled }">
-          {{ monitor.publish_enabled ? '公开页已开启' : '未公开' }}
+          {{ monitor.publish_enabled ? tr('m_9f1e25609b1a') : tr('m_abcd7f608563') }}
         </span>
         <button class="btn btn-secondary btn-sm" @click="togglePublish">
-          {{ monitor.publish_enabled ? '关闭公开页' : '开启公开页' }}
+          {{ monitor.publish_enabled ? tr('m_6327d765e2fd') : tr('m_e2c3d2906783') }}
         </button>
-        <button v-if="monitor.public_token && monitor.publish_enabled" class="btn btn-secondary btn-sm" @click="copyLink">复制公开链接</button>
-        <button class="btn btn-primary btn-sm" :disabled="checking" @click="checkNow()">{{ checking ? '检测中…' : '立即检测' }}</button>
+        <button v-if="monitor.public_token && monitor.publish_enabled" class="btn btn-secondary btn-sm" @click="copyLink">{{ tr('m_2596d7de6c7b') }}</button>
+        <button class="btn btn-primary btn-sm" :disabled="checking" @click="checkNow()">{{ checking ? tr('m_3a1abf3422d2') : tr('m_14ca09ce1fd2') }}</button>
       </div>
     </div>
 
     <!-- 公开链接区 -->
     <div v-if="monitor?.publish_enabled && monitor.public_token" class="card pub-card">
-      <span class="caption-mono">公开状态页</span>
+      <span class="caption-mono">{{ tr('m_6e3331e264ce') }}</span>
       <code class="pub-url">{{ fullPublicUrl }}</code>
       <code v-if="monitor.public_domain" class="pub-url">https://{{ monitor.public_domain }}</code>
-      <button class="show-toggle" @click="regenToken">重新生成令牌</button>
+      <button class="show-toggle" @click="regenToken">{{ tr('m_03fb8dc8b53e') }}</button>
     </div>
 
     <!-- 公开页设置 -->
     <details v-if="monitor" class="card section pub-set">
-      <summary>公开页设置<span class="ps-sub">标题与公告展示在公开状态页顶部</span></summary>
+      <summary>{{ tr('m_c3d82c9ce085') }}<span class="ps-sub">{{ tr('m_ca7b7db374d1') }}</span></summary>
       <div class="ps-body">
-        <label class="fld"><span>公开页顶部图标（图片链接 / 上传，可留空用默认）</span>
+        <label class="fld"><span>{{ tr('m_6787f82d0c1e') }}</span>
           <div class="icon-row">
             <img v-if="iconPreview" :src="pubIcon" class="icon-prev" alt="" />
-            <input v-model="pubIcon" placeholder="https:// 图片地址，或点右侧上传" class="vercel-input icon-url" />
-            <button type="button" class="btn btn-secondary btn-sm up-btn" :disabled="uploading" @click="pickIconFile">{{ uploading ? '上传中…' : '上传图片' }}</button>
+            <input v-model="pubIcon" :placeholder="tr('m_2f32e0f1eccc')" class="vercel-input icon-url" />
+            <button type="button" class="btn btn-secondary btn-sm up-btn" :disabled="uploading" @click="pickIconFile">{{ uploading ? tr('m_ce1c9d61565f') : tr('m_9fbb4750bb39') }}</button>
             <input ref="iconFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden-file" @change="onIconFile" />
           </div></label>
-        <label class="fld"><span>显示主题</span>
+        <label class="fld"><span>{{ tr('m_0c3421deb8a7') }}</span>
           <select v-model="pubTheme" class="vercel-input theme-sel">
-            <option value="">科技蓝（默认配色）</option>
-            <option value="warm">暖米金</option>
+            <option value="">{{ tr('m_5e938f31fea4') }}</option>
+            <option value="warm">{{ tr('m_78e143c20da6') }}</option>
           </select></label>
-        <label class="fld"><span>自定义路径（留空用系统令牌）</span>
+        <label class="fld"><span>{{ tr('m_0c1da4d3cd29') }}</span>
           <div class="icon-row">
             <code class="path-prefix">/status/</code>
-            <input v-model.trim="pubSlug" maxlength="32" placeholder="例如：team" class="vercel-input icon-url" />
+            <input v-model.trim="pubSlug" maxlength="32" :placeholder="tr('m_ad293852688f')" class="vercel-input icon-url" />
           </div>
-          <p class="slug-hint text-muted">短链接预览：{{ slugPreview }}</p></label>
-        <label class="fld"><span>自定义域名（留空则只用面板域名访问）</span>
-          <input v-model.trim="pubDomain" maxlength="253" placeholder="例如：status.example.com" class="vercel-input" />
+          <p class="slug-hint text-muted">{{ tr('m_a9abfdabe0d6') }}{{ slugPreview }}</p></label>
+        <label class="fld"><span>{{ tr('m_ef8506a52a38') }}</span>
+          <input v-model.trim="pubDomain" maxlength="253" :placeholder="tr('m_f8edce7be00e')" class="vercel-input" />
           <p class="slug-hint text-muted">
-            填写后访问 <code class="inline-code">https://{{ pubDomain || 'status.example.com' }}</code> 会直接打开本状态页。
-            {{ pubDomainMode === 'simple' ? '直连模式会配置橙云 Tunnel CNAME。' : '优选模式会配置灰云优选 CNAME 与 SaaS Custom Hostname。' }}
+            {{ tr('m_4bad264a232a') }} <code class="inline-code">https://{{ pubDomain || 'status.example.com' }}</code> {{ tr('m_caefaccadda8') }}
+            {{ pubDomainMode === 'simple' ? tr('m_17f020263f9c') : tr('m_d68cfb5fdd0e') }}
           </p></label>
         <div class="fld domain-mode-field">
-          <span>域名接入方式</span>
-          <div class="status-mode-selector" role="radiogroup" aria-label="自定义域名接入方式">
+          <span>{{ tr('m_9fe789442ad9') }}</span>
+          <div class="status-mode-selector" role="radiogroup" :aria-label="tr('m_ae6511ef6bc9')">
             <button type="button" class="status-mode-option" :class="{ active: pubDomainMode === 'simple' }" role="radio" :aria-checked="pubDomainMode === 'simple'" @click="pubDomainMode = 'simple'">
-              <strong>直连</strong><span>橙云 Tunnel</span>
+              <strong>{{ tr('m_b06325c5660f') }}</strong><span>{{ tr('m_ac0b8ee0bf7f') }}</span>
             </button>
             <button type="button" class="status-mode-option" :class="{ active: pubDomainMode === 'preferred' }" role="radio" :aria-checked="pubDomainMode === 'preferred'" @click="pubDomainMode = 'preferred'">
-              <strong>优选</strong><span>灰云优选线路</span>
+              <strong>{{ tr('m_34e9234df233') }}</strong><span>{{ tr('m_93d8a08cba49') }}</span>
             </button>
           </div>
         </div>
         <div v-if="pubDomainMode === 'preferred'" class="preferred-domain-fields">
-          <label class="fld preferred-domain-field"><span>辅助回源域名</span>
-            <input v-model.trim="pubAuxDomain" maxlength="253" placeholder="例如：origin.example.com" class="vercel-input" />
-            <p class="slug-hint text-muted">自动开启橙云并指向当前 Tunnel，作为 SaaS Custom Origin。</p>
+          <label class="fld preferred-domain-field"><span>{{ tr('m_ceb8422bcb9d') }}</span>
+            <input v-model.trim="pubAuxDomain" maxlength="253" :placeholder="tr('m_facc063f438f')" class="vercel-input" />
+            <p class="slug-hint text-muted">{{ tr('m_d60a71f83845') }}</p>
           </label>
-          <label class="fld preferred-domain-field"><span>本次优选 CNAME</span>
+          <label class="fld preferred-domain-field"><span>{{ tr('m_309710e63b6d') }}</span>
             <cname-picker
               v-model="pubPreferredCNAME"
               class="status-cname-picker"
               :presets="configStore.config.cname_presets"
               :show-default="true"
               :default-value="configStore.config.preferred_cname"
-              placeholder="选择常用线路或手动输入"
+              :placeholder="tr('m_817c0185fe75')"
             />
-            <p class="slug-hint text-muted">留空使用全局默认：{{ configStore.config.preferred_cname || '未配置' }}</p>
+            <p class="slug-hint text-muted">{{ tr('m_5a4d6bfe1c64') }}{{ configStore.config.preferred_cname || tr('m_80a57e03f071') }}</p>
           </label>
         </div>
         <div v-if="pubDomain" class="domain-guide">
-          <span class="caption-mono">自动配置失败时，手动检查 DNS CNAME</span>
+          <span class="caption-mono">{{ tr('m_b8be77b7fb5f') }}</span>
           <div class="copy-row">
             <code class="token-box">{{ dnsGuide }}</code>
-            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(dnsGuide)">复制</button>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(dnsGuide)">{{ tr('m_63d90d977348') }}</button>
           </div>
-          <span class="caption-mono">手动检查 SaaS Custom Hostname</span>
+          <span class="caption-mono">{{ tr('m_2b5207563079') }}</span>
           <div class="copy-row">
             <code class="token-box">{{ saasGuide }}</code>
-            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(saasGuide)">复制</button>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(saasGuide)">{{ tr('m_63d90d977348') }}</button>
           </div>
-          <span class="caption-mono">手动检查 cloudflared ingress 规则</span>
+          <span class="caption-mono">{{ tr('m_bb4a26ca3cca') }}</span>
           <div class="copy-row">
             <code class="token-box">{{ ingressGuide }}</code>
-            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(ingressGuide)">复制</button>
+            <button type="button" class="btn btn-secondary btn-sm" @click="copyText(ingressGuide)">{{ tr('m_63d90d977348') }}</button>
           </div>
           <p v-if="pubDomainMode === 'preferred'" class="slug-hint text-muted">
-            访问域名 CNAME 需要关闭代理；辅助回源域名需要开启代理、指向当前 Tunnel，并作为 SaaS Custom Origin。
-            状态域名 ingress 不要设置 <code class="inline-code">httpHostHeader</code>，否则面板无法识别对应状态页。
+            {{ tr('m_f7e03718bee2') }} <code class="inline-code">httpHostHeader</code>{{ tr('m_78a3a2b2c3e8') }}
           </p>
           <p v-else class="slug-hint text-muted">
-            状态域名 CNAME 需要开启代理并指向当前 Tunnel；同名 SaaS Custom Hostname 会在保存时自动清理。
-            状态域名 ingress 仍会保留访客 Host，不设置 <code class="inline-code">httpHostHeader</code>。
+            {{ tr('m_1a1a1f926cba') }} <code class="inline-code">httpHostHeader</code>。
           </p>
         </div>
-        <label class="fld"><span>公开页标题</span>
+        <label class="fld"><span>{{ tr('m_5c7cd4454796') }}</span>
           <input v-model="pubTitle" maxlength="120" :placeholder="monitor.name" /></label>
-        <label class="fld"><span>公告文本</span>
-          <input v-model="announcement" maxlength="200" placeholder="例如：本周日凌晨 2:00-4:00 例行维护" /></label>
-        <div class="ps-actions"><button class="btn btn-secondary btn-sm" @click="savePublishSettings">保存设置</button></div>
+        <label class="fld"><span>{{ tr('m_1a124340fa56') }}</span>
+          <input v-model="announcement" maxlength="200" :placeholder="tr('m_fda4c67aae87')" /></label>
+        <div class="ps-actions"><button class="btn btn-secondary btn-sm" @click="savePublishSettings">{{ tr('m_c8550237ba70') }}</button></div>
       </div>
     </details>
 
     <!-- 告警设置 -->
     <details v-if="monitor" class="card section pub-set">
-      <summary>告警设置<span class="ps-sub">仅在服务状态变化时发送邮件通知</span></summary>
+      <summary>{{ tr('m_41cd995272ce') }}<span class="ps-sub">{{ tr('m_c5b1608fa825') }}</span></summary>
       <div class="ps-body">
-        <label class="fld alert-switch row-between"><span>启用状态变化邮件告警</span><n-switch v-model:value="alertEnabled" size="small" /></label>
-        <label class="fld"><span>收件邮箱（多个用英文逗号分隔，留空发送到注册邮箱）</span>
+        <label class="fld alert-switch row-between"><span>{{ tr('m_8e14f7e4b3be') }}</span><n-switch v-model:value="alertEnabled" size="small" /></label>
+        <label class="fld"><span>{{ tr('m_08b01e987e4e') }}</span>
           <input v-model="alertEmails" placeholder="ops@example.com, boss@example.com" /></label>
-        <div class="ps-actions"><button class="btn btn-secondary btn-sm" :disabled="savingAlert" @click="saveAlertSettings">{{ savingAlert ? '保存中…' : '保存告警设置' }}</button></div>
+        <div class="ps-actions"><button class="btn btn-secondary btn-sm" :disabled="savingAlert" @click="saveAlertSettings">{{ savingAlert ? tr('m_ff509c9ba052') : tr('m_cc95d97c64a8') }}</button></div>
         <div v-if="alertLogs.length" class="alert-log">
-          <span class="caption-mono">最近告警记录</span>
+          <span class="caption-mono">{{ tr('m_199edd1a1d6f') }}</span>
           <table class="alert-table">
-            <thead><tr><th>时间</th><th>目标</th><th>状态</th><th>通知</th><th>说明</th></tr></thead>
+            <thead><tr><th>{{ tr('m_8b6ff498515b') }}</th><th>{{ tr('m_57060c88a36b') }}</th><th>{{ tr('m_6320b4a8722a') }}</th><th>{{ tr('m_4b6ded8a7f18') }}</th><th>{{ tr('m_4262c45dc797') }}</th></tr></thead>
             <tbody>
               <tr v-for="log in alertLogs" :key="log.id">
-                <td>{{ new Date(log.created_at * 1000).toLocaleString() }}</td>
+                <td>{{ new Date(log.created_at * 1000).toLocaleString(locale) }}</td>
                 <td>{{ log.target_name || log.target_id }}</td>
                 <td>{{ log.state }}</td>
-                <td>{{ log.notified ? '已发送' : '失败' }}</td>
+                <td>{{ log.notified ? tr('m_60823aaec73b') : tr('m_28384d7afd2e') }}</td>
                 <td class="text-muted">{{ log.detail }}</td>
               </tr>
             </tbody>
@@ -145,21 +143,21 @@
     <!-- 添加服务 -->
     <div class="card section add-card">
       <div class="add-row">
-        <input v-model.trim="tName" class="vercel-input" placeholder="显示名称（选填）" />
-        <select v-model="probeType" class="vercel-input type-sel"><option value="http">HTTP</option><option value="tcp">TCP 端口</option><option value="icmp">Ping (ICMP)</option></select>
+        <input v-model.trim="tName" class="vercel-input" :placeholder="tr('m_8636d6879dff')" />
+        <select v-model="probeType" class="vercel-input type-sel"><option value="http">HTTP</option><option value="tcp">{{ tr('m_3f54e7dbbb3e') }}</option><option value="icmp">Ping (ICMP)</option></select>
         <select v-if="probeType === 'http'" v-model="probeMethod" class="vercel-input method-sel"><option value="GET">GET</option><option value="POST">POST</option></select>
-        <label v-if="probeType === 'http'" class="link-chk"><n-switch v-model:value="linkEnabled" size="small" /> 状态页跳转</label>
+        <label v-if="probeType === 'http'" class="link-chk"><n-switch v-model:value="linkEnabled" size="small" /> {{ tr('m_bee2d0d2d313') }}</label>
         <input v-model.trim="tUrl" class="vercel-input url" :placeholder="urlHint" @keyup.enter="addTarget" />
-        <button class="btn btn-primary btn-sm" :disabled="adding || !tUrl" @click="addTarget">{{ adding ? '添加中…' : '添加服务' }}</button>
+        <button class="btn btn-primary btn-sm" :disabled="adding || !tUrl" @click="addTarget">{{ adding ? tr('m_f470193bcdb6') : tr('m_6f760cbd09bb') }}</button>
       </div>
       <div v-if="routeHosts.length" class="route-pick">
-        <span class="rp-label">从隧道路由导入：</span>
-        <n-select v-model:value="routePick" size="small" placeholder="从路由导入…" class="rp-sel" :options="routeOptions" @update:value="onRoutePicked" />
+        <span class="rp-label">{{ tr('m_2063c5f171ad') }}</span>
+        <n-select v-model:value="routePick" size="small" :placeholder="tr('m_f95348371b73')" class="rp-sel" :options="routeOptions" @update:value="onRoutePicked" />
       </div>
     </div>
 
     <!-- 服务列表 -->
-    <div v-if="monitor && monitor.targets.length === 0" class="empty-note text-muted">还没有监控目标，先添加一个吧</div>
+    <div v-if="monitor && monitor.targets.length === 0" class="empty-note text-muted">{{ tr('m_e856d7de8100') }}</div>
     <div v-else-if="monitor" class="card target-list">
       <div v-for="(t, i) in monitor.targets" :key="t.id + '-' + i" class="target-row">
         <span
@@ -187,30 +185,30 @@
           <span class="latency" :class="latencyClass(t.latency_ms || 0)">{{ t.latency_ms != null ? t.latency_ms + 'ms' : '—' }}</span>
           <span class="uptime">24h {{ t.uptime_24h }}%</span>
         </div>
-        <button class="row-edit" title="编辑该服务" @click="openEdit(t)">
+        <button class="row-edit" :title="tr('m_55895abae0c5')" @click="openEdit(t)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
         </button>
-        <button class="row-delete" title="移除该服务" @click="askRemove(t)">
+        <button class="row-delete" :title="tr('m_73869310cfc3')" @click="askRemove(t)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
     </div>
 
     <!-- 编辑服务 -->
-<n-modal v-model:show="editOpen" preset="card" title="编辑服务" class="edit-modal">
+<n-modal v-model:show="editOpen" preset="card" :title="tr('m_a1944feec290')" class="edit-modal">
   <div class="edit-body">
-    <label class="fld"><span>名称</span><input v-model="editName" class="vercel-input" /></label>
-    <label class="fld"><span>探测方式</span>
-      <select v-model="editType" class="vercel-input"><option value="http">HTTP</option><option value="tcp">TCP 端口</option><option value="icmp">Ping (ICMP)</option></select></label>
-    <label class="fld"><span>地址</span><input v-model="editUrl" class="vercel-input" :placeholder='probeType === "tcp" ? "example.com:443" : probeType === "icmp" ? "example.com 或 1.1.1.1" : "https://example.com"' /></label>
-    <label v-if="editType === 'http'" class="fld"><span>HTTP 方法</span><select v-model="editMethod" class="vercel-input"><option value="GET">GET</option><option value="POST">POST</option></select></label>
-    <label v-if="editType === 'http'" class="fld row-between"><span>状态页跳转</span><n-switch v-model:value="editLink" size="small" /></label>
-    <p class="edit-note text-muted">修改地址、类型或方法会清空该服务的历史记录并重新探测。</p>
+    <label class="fld"><span>{{ tr('m_d44e9b3d3b31') }}</span><input v-model="editName" class="vercel-input" /></label>
+    <label class="fld"><span>{{ tr('m_86b4208b5178') }}</span>
+      <select v-model="editType" class="vercel-input"><option value="http">HTTP</option><option value="tcp">{{ tr('m_3f54e7dbbb3e') }}</option><option value="icmp">Ping (ICMP)</option></select></label>
+    <label class="fld"><span>{{ tr('m_37aac5b4e639') }}</span><input v-model="editUrl" class="vercel-input" :placeholder="editType === 'tcp' ? 'example.com:443' : editType === 'icmp' ? tr('m_b2a95d595694') : 'https://example.com'" /></label>
+    <label v-if="editType === 'http'" class="fld"><span>{{ tr('m_af1029a24f14') }}</span><select v-model="editMethod" class="vercel-input"><option value="GET">GET</option><option value="POST">POST</option></select></label>
+    <label v-if="editType === 'http'" class="fld row-between"><span>{{ tr('m_bee2d0d2d313') }}</span><n-switch v-model:value="editLink" size="small" /></label>
+    <p class="edit-note text-muted">{{ tr('m_a317f2fd5bae') }}</p>
   </div>
   <template #footer>
     <div class="ps-actions">
-      <button class="btn btn-secondary btn-sm" @click="editOpen = false">取消</button>
-      <button class="btn btn-primary btn-sm" :disabled="savingEdit || !editName || !editUrl" @click="saveEdit">{{ savingEdit ? '保存中…' : '保存修改' }}</button>
+      <button class="btn btn-secondary btn-sm" @click="editOpen = false">{{ tr('m_2cd0f3be8738') }}</button>
+      <button class="btn btn-primary btn-sm" :disabled="savingEdit || !editName || !editUrl" @click="saveEdit">{{ savingEdit ? tr('m_ff509c9ba052') : tr('m_991bb7cfe5a8') }}</button>
     </div>
   </template>
 </n-modal>
@@ -218,12 +216,12 @@
     <Teleport to="body">
       <div v-if="removing" class="dlg-mask" @click.self="removing = null">
         <div class="dlg">
-          <h3>移除监控目标</h3>
-          <p class="dlg-desc">将停止对以下地址的监测并清理其历史记录：</p>
+          <h3>{{ tr('m_2aa8a423ad8d') }}</h3>
+          <p class="dlg-desc">{{ tr('m_a68874fc731c') }}</p>
           <code class="dlg-code">{{ removing.url }}</code>
           <div class="dlg-actions">
-            <button class="btn btn-secondary btn-sm" :disabled="busy" @click="removing = null">取消</button>
-            <button class="btn btn-danger btn-sm" :disabled="busy" @click="confirmRemove">{{ busy ? '移除中…' : '确认移除' }}</button>
+            <button class="btn btn-secondary btn-sm" :disabled="busy" @click="removing = null">{{ tr('m_2cd0f3be8738') }}</button>
+            <button class="btn btn-danger btn-sm" :disabled="busy" @click="confirmRemove">{{ busy ? tr('m_19c4ca651c6d') : tr('m_ee7dea070d88') }}</button>
           </div>
         </div>
       </div>
@@ -232,6 +230,8 @@
 </template>
 
 <script setup lang="ts">
+import { locale, t as tr, localized } from '../i18n'
+
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
@@ -295,7 +295,7 @@ const iconFile = ref<HTMLInputElement | null>(null)
 
 const routeOptions = computed(() => routeHosts.value.map((h) => ({ label: h, value: h })))
 const slugPreview = computed(() => {
-  const seg = pubSlug.value.trim().toLowerCase() || monitor.value?.public_token || '<令牌>'
+  const seg = pubSlug.value.trim().toLowerCase() || monitor.value?.public_token || tr('m_60eec4a66f92')
   return '/status/' + seg
 })
 
@@ -303,63 +303,63 @@ const iconPreview = computed(() => /^(https?:\/\/|\/uploads\/|data:image\/)/.tes
 
 const dnsGuide = computed(() => {
   const tunnelID = configStore.config.tunnel_id
-  const tunnelTarget = tunnelID ? tunnelID + '.cfargotunnel.com' : '<当前 Tunnel 的 cfargotunnel.com 地址>'
+  const tunnelTarget = tunnelID ? tunnelID + '.cfargotunnel.com' : tr('m_bb80f332b422')
   if (pubDomainMode.value === 'simple') {
     return [
-      `类型:   CNAME`,
-      `名称:   ${pubDomain.value}`,
-      `目标:   ${tunnelTarget}`,
-      `代理:   已开启（橙云）`,
+      tr('m_0950c73c1224'),
+      tr('m_601e88260714', { p0: pubDomain.value }),
+      tr('m_f057d85938ac', { p0: tunnelTarget }),
+      tr('m_451921dbbbb9'),
     ].join('\n')
   }
   const preferred = pubPreferredCNAME.value.trim() || configStore.config.preferred_cname
   return [
-    `访问域名 CNAME`,
-    `名称:   ${pubDomain.value}`,
-    `目标:   ${preferred || '<本次或全局优选 CNAME>'}`,
-    `代理:   已关闭（灰云）`,
+    tr('m_e732d152ef62'),
+    tr('m_601e88260714', { p0: pubDomain.value }),
+    tr('m_f057d85938ac', { p0: preferred || '<本次或全局优选 CNAME>' }),
+    tr('m_2b62848b39cb'),
     ``,
-    `辅助回源域名 CNAME`,
-    `名称:   ${pubAuxDomain.value || '<辅助回源域名>'}`,
-    `目标:   ${tunnelTarget}`,
-    `代理:   已开启（橙云）`,
+    tr('m_d43173fb0bc5'),
+    tr('m_601e88260714', { p0: pubAuxDomain.value || '<辅助回源域名>' }),
+    tr('m_f057d85938ac', { p0: tunnelTarget }),
+    tr('m_451921dbbbb9'),
   ].join('\n')
 })
 
 const saasGuide = computed(() => {
   if (pubDomainMode.value === 'simple') {
     return [
-      `自定义主机名: ${pubDomain.value}`,
-      `状态:   应不存在（保存时自动清理）`,
+      tr('m_06c2c6838c32', { p0: pubDomain.value }),
+      tr('m_cda311735a2c'),
     ].join('\n')
   }
   return [
-    `自定义主机名: ${pubDomain.value}`,
-    `Custom Origin: ${pubAuxDomain.value || '<辅助回源域名>'}`,
-    `SSL 验证: HTTP DCV`,
+    tr('m_06c2c6838c32', { p0: pubDomain.value }),
+    tr('m_a508a980c029', { p0: pubAuxDomain.value || '<辅助回源域名>' }),
+    tr('m_e21d76d29b99'),
   ].join('\n')
 })
 
 const ingressGuide = computed(() => {
-  const service = configStore.config.service_url || '<面板的本机地址，例如 http://localhost:8080>'
-  const lines = [
-    `访问 Host: ${pubDomain.value}`,
-    `服务:      ${service}`,
-  ]
+  const service = configStore.config.service_url || tr('m_5f6877db2d5d')
+  const lines = localized(() => ([
+    tr('m_cd9259cf6aa1', { p0: pubDomain.value }),
+    tr('m_5d8e9fc14e37', { p0: service }),
+  ]))
   if (pubDomainMode.value === 'preferred') {
     lines.push(
-      `回源 Host: ${pubAuxDomain.value || '<辅助回源域名>'}`,
-      `服务:      ${service}`,
+      tr('m_a48a07d28158', { p0: pubAuxDomain.value || '<辅助回源域名>' }),
+      tr('m_5d8e9fc14e37', { p0: service }),
     )
   }
-  lines.push(`Host:      保留原始主机名，不设置 httpHostHeader`)
+  lines.push(tr('m_aa1fa243759a'))
   return lines.join('\n')
 })
 
 const urlHint = computed(() =>
-  probeType.value === 'tcp' ? '地址，例如 example.com:443 或 10.0.0.2:22' :
-  probeType.value === 'icmp' ? '主机或 IP，例如 example.com 或 1.1.1.1' :
-  '服务地址，例如 https://example.com 或 example.com')
+  probeType.value === 'tcp' ? tr('m_37f3e56fb8cf') :
+  probeType.value === 'icmp' ? tr('m_03e9b42f3d49') :
+  tr('m_2998fbabc22f'))
 
 const removing = ref<TargetStatus | null>(null)
 const busy = ref(false)
@@ -374,7 +374,7 @@ async function load() {
   try {
     const { data } = await getMonitor(monitorId)
     monitor.value = data
-    document.title = (data.name || '监控') + ' · 状态'
+    document.title = (data.name || tr('m_fdc390061698')) + tr('m_812af8bfea68')
     pubTitle.value = data.public_title || ''
     pubIcon.value = data.public_icon || ''
     pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
@@ -393,7 +393,7 @@ async function load() {
 }
 
 function stateText(s?: string) {
-  return s === 'ok' ? '正常' : s === 'warn' ? '异常' : s === 'down' ? '不可达' : '待检测'
+  return s === 'ok' ? tr('m_296de0e31f8c') : s === 'warn' ? tr('m_428fb8bfeecf') : s === 'down' ? tr('m_8d7c03019f1d') : tr('m_d80109d7decd')
 }
 
 function latencyClass(ms: number) {
@@ -405,8 +405,8 @@ function latencyClass(ms: number) {
 
 function barTitle(b: Heartbeat) {
   const d = new Date(b.t)
-  const time = isNaN(d.getTime()) ? '' : d.toLocaleString() + ' · '
-  return time + (b.s === 'ok' ? '正常' : b.s === 'warn' ? '异常' : '不可达') + (b.ms != null ? ' · ' + b.ms + 'ms' : '')
+  const time = isNaN(d.getTime()) ? '' : d.toLocaleString(locale.value) + ' · '
+  return time + (b.s === 'ok' ? tr('m_296de0e31f8c') : b.s === 'warn' ? tr('m_428fb8bfeecf') : tr('m_8d7c03019f1d')) + (b.ms != null ? ' · ' + b.ms + 'ms' : '')
 }
 
 async function addTarget() {
@@ -415,13 +415,13 @@ async function addTarget() {
   try {
     const { data } = await addMonitorTarget(monitorId, tName.value, tUrl.value, probeType.value, probeMethod.value, linkEnabled.value)
     monitor.value = data
-    message.success('已添加，马上开始首次检测')
+    message.success(tr('m_45500ea63957'))
     tName.value = ''
     tUrl.value = ''
     void checkNow(true)
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-    message.error(msg || '添加失败')
+    message.error(msg || tr('m_2ca15f1e2bb7'))
   } finally {
     adding.value = false
   }
@@ -471,9 +471,9 @@ async function saveAlertSettings() {
       alert_emails: alertEmails.value.trim(),
     })
     monitor.value = data
-    message.success(alertEnabled.value ? '告警已开启' : '告警已关闭')
+    message.success(alertEnabled.value ? tr('m_448c83281819') : tr('m_e2fc2905c1e5'))
   } catch (_) {
-    message.error('保存失败')
+    message.error(tr('m_6309a3bb5ba4'))
   } finally {
     savingAlert.value = false
   }
@@ -503,18 +503,18 @@ async function savePublishSettings() {
     })
     monitor.value = data
     if (data.domain_warning) {
-      message.warning(`设置已保存，但自动配置失败：${data.domain_warning}`)
+      message.warning(tr('m_adfd7207d786', { p0: data.domain_warning }))
     } else if (data.public_domain) {
       message.success(pubDomainMode.value === 'simple'
-        ? '公开页设置已保存，直连 Tunnel CNAME 与隧道路由已自动配置'
-        : '公开页设置已保存，优选 CNAME、辅助回源、SaaS 主机名与隧道路由已自动配置'
+        ? tr('m_8c5c89b2a677')
+        : tr('m_6c3b8ed249d1')
       )
     } else {
-      message.success('公开页设置已保存')
+      message.success(tr('m_8b6d94c37d84'))
     }
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-    message.error(msg || '保存失败')
+    message.error(msg || tr('m_6309a3bb5ba4'))
   }
 }
 
@@ -540,10 +540,10 @@ async function saveEdit() {
       link_enabled: editLink.value,
     })
     monitor.value = data
-    message.success('已保存，正在重新探测')
+    message.success(tr('m_6522a5dd6164'))
     editOpen.value = false
   } catch (_) {
-    message.error('保存失败')
+    message.error(tr('m_6309a3bb5ba4'))
   } finally {
     savingEdit.value = false
   }
@@ -562,9 +562,9 @@ async function onIconFile(e: Event) {
   try {
     const { data } = await uploadImage(file)
     pubIcon.value = data.url
-    message.success('图片已上传，别忘了保存设置')
+    message.success(tr('m_9c72008bce55'))
   } catch (_) {
-    message.error('上传失败（限 png/jpg/gif/webp，4MB 内）')
+    message.error(tr('m_359d821f4906'))
   } finally {
     uploading.value = false
   }
@@ -579,11 +579,11 @@ async function confirmRemove() {
   busy.value = true
   try {
     await removeMonitorTarget(monitorId, removing.value.id)
-    message.success('已移除')
+    message.success(tr('m_174688c755b9'))
     removing.value = null
     await load()
   } catch (_) {
-    message.error('移除失败')
+    message.error(tr('m_4757fc1d4709'))
   } finally {
     busy.value = false
   }
@@ -594,9 +594,9 @@ async function checkNow(silent = false) {
   try {
     const { data } = await checkMonitorNow(monitorId)
     applyOutcomes(data.outcomes || [])
-    if (!silent) message.success('检测完成')
+    if (!silent) message.success(tr('m_37888055c912'))
   } catch (_) {
-    if (!silent) message.error('检测失败，请稍后重试')
+    if (!silent) message.error(tr('m_34f7713ccce7'))
   } finally {
     checking.value = false
   }
@@ -619,9 +619,9 @@ async function togglePublish() {
   try {
     const { data } = await updateMonitor(monitorId, { publish_enabled: !monitor.value.publish_enabled })
     monitor.value = data
-    message.success(data.publish_enabled ? '公开页已开启' : '公开页已关闭')
+    message.success(data.publish_enabled ? tr('m_9f1e25609b1a') : tr('m_4741640d846b'))
   } catch (_) {
-    message.error('操作失败')
+    message.error(tr('m_0c3b4cf7aa25'))
   }
 }
 
@@ -629,22 +629,22 @@ async function regenToken() {
   try {
     await updateMonitor(monitorId, { regenerate_token: true })
     await load()
-    message.success('新令牌已生成，旧链接即刻失效')
+    message.success(tr('m_1babceb12194'))
   } catch (_) {
-    message.error('生成失败')
+    message.error(tr('m_470f92db3d64'))
   }
 }
 
 function copyLink() {
   navigator.clipboard.writeText(fullPublicUrl.value)
-    .then(() => message.success('公开链接已复制'))
-    .catch(() => message.error('复制失败'))
+    .then(() => message.success(tr('m_ce710b698fbc')))
+    .catch(() => message.error(tr('m_753d8bb0da99')))
 }
 
 function copyText(text: string) {
   navigator.clipboard.writeText(text)
-    .then(() => message.success('已复制'))
-    .catch(() => message.warning('复制失败，请手动选择文本'))
+    .then(() => message.success(tr('m_8f6f8d979c98')))
+    .catch(() => message.warning(tr('m_03ae6cf8db7c')))
 }
 
 onMounted(() => {

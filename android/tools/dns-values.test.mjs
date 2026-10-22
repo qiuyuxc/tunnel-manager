@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { writeI18nStub } from './i18n-stub.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const directory = mkdtempSync(join(tmpdir(), 'dns-values-'))
@@ -80,6 +81,7 @@ before(() => {
     return target
   })
   const result = spawnSync(executable('javac'), ['-encoding', 'UTF-8', '-d', directory,
+    writeI18nStub(directory),
     ...sources,
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/DNSValues.java'),
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/RequestScope.java'),

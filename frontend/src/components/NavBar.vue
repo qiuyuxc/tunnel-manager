@@ -4,8 +4,8 @@
        Nav is grouped with captions (工作空间 / 网络 / 管理); 个人 is pinned to
        the footer. Theme, effects and sign-out live in the top bar's avatar menu
        (ConsoleHeader), not here. -->
-  <aside class="sidebar" :class="{ collapsed }" aria-label="主导航">
-    <router-link to="/dashboard" class="brand" :aria-label="`${configStore.config.site_name} 控制面板`">
+  <aside class="sidebar" :class="{ collapsed }" :aria-label="tr('m_9bae68040509')">
+    <router-link to="/dashboard" class="brand" :aria-label="tr('m_31b5eeeb4bbd', { p0: configStore.config.site_name })">
       <BrandMark :size="36" />
       <span class="brand-text">
         <span class="brand-name">{{ configStore.config.site_name }}</span>
@@ -48,21 +48,23 @@
       <button
         type="button"
         class="collapse-btn"
-        :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
-        :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
+        :aria-label="collapsed ? tr('m_eea954b92548') : tr('m_ce1d67c2703c')"
+        :title="collapsed ? tr('m_eea954b92548') : tr('m_ce1d67c2703c')"
         @click="collapsed = !collapsed"
       >
         <span class="nav-icon" aria-hidden="true" v-html="collapsed ? icons.expand : icons.collapse" />
-        <span class="nav-label">收起侧边栏</span>
+        <span class="nav-label">{{ tr('m_ce1d67c2703c') }}</span>
       </button>
       <div class="sidebar-foot">
-        <span class="foot-status"><span class="dot" aria-hidden="true" />{{ configStore.displayName || '当前实例' }}</span>
+        <span class="foot-status"><span class="dot" aria-hidden="true" />{{ configStore.displayName || tr('m_5e96c8ea4820') }}</span>
       </div>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { GROUP_LABELS, SIDEBAR_GROUPS, icons, isActivePath, useNavItems } from '../navigation'

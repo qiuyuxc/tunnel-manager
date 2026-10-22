@@ -145,7 +145,7 @@ public class LabFragment extends PageFragment {
             try {
                 payload.put("dns", Api.get("/api/lab/ip-selector/ownership/dns"));
             } catch (Exception failure) {
-                payload.put("dns", new JSONObject().put("available", false).put("message", "暂时无法检查已绑定账户，可手动添加 TXT。"));
+                payload.put("dns", new JSONObject().put("available", false).put("message", I18n.text("m_1f4884fcf7fe")));
             }
             return payload;
         }, payload -> {
@@ -160,7 +160,7 @@ public class LabFragment extends PageFragment {
         }, failure -> {
             if (!viewActive || !alive()) return;
             loading = false;
-            banner = "加载失败：" + failure.getMessage();
+            banner = I18n.text("m_01de8216e0d0") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -182,7 +182,7 @@ public class LabFragment extends PageFragment {
                 capture();
                 if (wasRunning != running || !previousRun.equals(currentRun)) {
                     JSONObject latest = latestRun();
-                    banner = running ? "任务运行中" : latest == null ? "任务已停止" : latest.optString("error", "");
+                    banner = running ? I18n.text("m_5df4f96d6d93") : latest == null ? I18n.text("m_7915a0e1de89") : latest.optString("error", "");
                     bannerError = !running && latest != null && !latest.optBoolean("success", false);
                 }
                 render();
@@ -194,7 +194,7 @@ public class LabFragment extends PageFragment {
             schedulePoll();
         }, failure -> {
             if (!viewActive || !alive()) return;
-            if (authorizationSummary != null) authorizationSummary.setText("状态更新失败：" + failure.getMessage());
+            if (authorizationSummary != null) authorizationSummary.setText(I18n.text("m_90cc944c3b69") + failure.getMessage());
             schedulePoll();
         });
     }
@@ -258,11 +258,11 @@ public class LabFragment extends PageFragment {
 
     private String authorizationText() {
         JSONObject current = state();
-        String text = (authorized() ? "域名已授权" : "请先验证域名") + " · UTC " + current.optString("budget_day", "")
-                + "\n已预留 " + current.optInt("budget_used") + " / " + current.optInt("budget_limit", 100000)
-                + " · " + current.optInt("requests_per_second", 10) + " 请求/秒 · 最多 " + current.optInt("max_workers", 32) + " 并发";
+        String text = (authorized() ? I18n.text("m_f95cc5f89b68") : I18n.text("m_e1cceb37fec6")) + " · UTC " + current.optString("budget_day", "")
+                + I18n.text("m_d7e8f89b8663") + current.optInt("budget_used") + " / " + current.optInt("budget_limit", 100000)
+                + " · " + current.optInt("requests_per_second", 10) + I18n.text("m_01e5d1dfa525") + current.optInt("max_workers", 32) + I18n.text("m_a756bd10d06d");
         long cooldown = current.optLong("next_allowed_at") - System.currentTimeMillis() / 1000;
-        if (cooldown > 0) text += "\n启动冷却剩余 " + cooldown + " 秒";
+        if (cooldown > 0) text += I18n.text("m_687462f06425") + cooldown + I18n.text("m_00fe8dda1fd7");
         String error = verification().optString("last_error", "");
         if (error.isEmpty()) error = current.optString("last_error", "");
         if (!error.isEmpty()) text += "\n" + error;
@@ -327,14 +327,14 @@ public class LabFragment extends PageFragment {
         body.removeAllViews();
         progressSlot = null;
 
-        body.addView(UI.pageTitle(requireContext(), "IP 优选实验室"));
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3db29474a184")));
         TextView subtitle = UI.muted(requireContext(),
-                "HTTP 探测、延迟排序与 DNS 更新");
+                I18n.text("m_c903232627f5"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -384,19 +384,19 @@ public class LabFragment extends PageFragment {
     }
 
     private View ownershipCard() {
-        LinearLayout card = cardHead("DNS TXT 域名验证", "与探测 Host/SNI 独立。验证后请保留 DNS 中的 TXT。");
+        LinearLayout card = cardHead(I18n.text("m_fad1f3ce9254"), I18n.text("m_efff3af6baf6"));
         authorizationInput = UI.input(requireContext(), "example.com");
         authorizationInput.setText(authorizationDomain);
-        card.addView(UI.field(requireContext(), "验证域名", authorizationInput));
+        card.addView(UI.field(requireContext(), I18n.text("m_ca1c8872d2ec"), authorizationInput));
         authorizationSummary = UI.body(requireContext(), authorizationText());
         UI.addRow(card, authorizationSummary, UI.MD);
         if (dnsAvailability != null) {
-            String dnsInfo = dnsAvailability.optString("message", "未绑定 DNS 账户，请手动添加 TXT。");
+            String dnsInfo = dnsAvailability.optString("message", I18n.text("m_1a8bb3651868"));
             String accountName = dnsAvailability.optString("account_name", "");
-            if (!accountName.isEmpty()) dnsInfo += " 当前账户：" + accountName;
+            if (!accountName.isEmpty()) dnsInfo += I18n.text("m_db9f8be9eeb5") + accountName;
             UI.addRow(card, UI.muted(requireContext(), dnsInfo), UI.MD);
             if (dnsAvailability.optBoolean("available", false)) {
-                TextView automatic = UI.button(requireContext(), "一键填写并验证", UI.BTN_PRIMARY);
+                TextView automatic = UI.button(requireContext(), I18n.text("m_6f6769158cd2"), UI.BTN_PRIMARY);
                 automatic.setEnabled(!busy && !running);
                 automatic.setOnClickListener(view -> {
                     schedule = false;
@@ -405,38 +405,38 @@ public class LabFragment extends PageFragment {
                 UI.addRow(card, automatic, UI.MD);
             }
         }
-        TextView help = UI.button(requireContext(), "使用说明", UI.BTN_GHOST);
-        help.setOnClickListener(view -> new AlertDialog.Builder(requireContext()).setTitle("使用说明")
-                .setMessage("预算由管理员设置，按候选 IP 预留，取消不退，UTC 次日重置；修改从下一轮生效，超出新并发上限时按上限运行。这不是云平台用量统计。\n\n一键只添加本次 TXT，不覆盖其他记录，也不启动扫描。验证成功后收起记录值；运行前仍会复查，请保留 DNS 中的 TXT。\n\n只探测自建或已获授权的 Host/SNI。TXT 验证不代表探针免计费，请向托管平台确认。")
-                .setPositiveButton("知道了", null).show());
+        TextView help = UI.button(requireContext(), I18n.text("m_cb4ba40bf823"), UI.BTN_GHOST);
+        help.setOnClickListener(view -> new AlertDialog.Builder(requireContext()).setTitle(I18n.text("m_cb4ba40bf823"))
+                .setMessage(I18n.text("m_3c48683ffca0"))
+                .setPositiveButton(I18n.text("m_de32e20193ad"), null).show());
         UI.addRow(card, help, UI.MD);
-        TextView challenge = UI.button(requireContext(), "生成 TXT", UI.BTN_SECONDARY);
+        TextView challenge = UI.button(requireContext(), I18n.text("m_b906b98d56bf"), UI.BTN_SECONDARY);
         challenge.setEnabled(!busy && !running);
         challenge.setOnClickListener(view -> {
             capture();
             Runnable generate = () -> ownershipAction("/ownership/challenge");
             if (verification().optString("token").isEmpty()) generate.run();
-            else new AlertDialog.Builder(requireContext()).setMessage("生成新记录会撤销旧授权并关闭定时任务，是否继续？")
-                    .setNegativeButton("取消", null).setPositiveButton("继续", (dialog, which) -> generate.run()).show();
+            else new AlertDialog.Builder(requireContext()).setMessage(I18n.text("m_ad26c362ad25"))
+                    .setNegativeButton(I18n.text("m_2cd0f3be8738"), null).setPositiveButton(I18n.text("m_7c9691192f1b"), (dialog, which) -> generate.run()).show();
         });
         UI.addRow(card, challenge, UI.MD);
         JSONObject verified = verification();
         if (!verified.optString("token").isEmpty()) {
             if (authorized()) {
-                UI.addRow(card, UI.muted(requireContext(), "已验证：" + verified.optString("domain")), UI.MD);
+                UI.addRow(card, UI.muted(requireContext(), I18n.text("m_00097d89c4fe") + verified.optString("domain")), UI.MD);
             } else for (String field : new String[]{"record_name", "token"}) {
                 String text = verified.optString(field);
-                TextView recordText = UI.body(requireContext(), ("record_name".equals(field) ? "TXT 完整记录名\n" : "TXT 记录值\n") + text);
+                TextView recordText = UI.body(requireContext(), ("record_name".equals(field) ? I18n.text("m_fa1ed10b3059") : I18n.text("m_e74b93aa2288")) + text);
                 recordText.setTextIsSelectable(true);
                 UI.addRow(card, recordText, UI.MD);
-                TextView copy = UI.button(requireContext(), "record_name".equals(field) ? "复制记录名" : "复制记录值", UI.BTN_GHOST);
+                TextView copy = UI.button(requireContext(), "record_name".equals(field) ? I18n.text("m_24b0fd0474b8") : I18n.text("m_82554e2b0462"), UI.BTN_GHOST);
                 copy.setOnClickListener(view -> {
                     ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
                     if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("DNS TXT", text));
                 });
                 card.addView(copy);
             }
-            TextView verify = UI.button(requireContext(), "检查 TXT 记录", UI.BTN_PRIMARY);
+            TextView verify = UI.button(requireContext(), I18n.text("m_45ef5bfe7b6f"), UI.BTN_PRIMARY);
             verify.setEnabled(!busy && !running);
             verify.setOnClickListener(view -> ownershipAction("/ownership/verify"));
             UI.addRow(card, verify, UI.MD);
@@ -476,9 +476,9 @@ public class LabFragment extends PageFragment {
 
         LinearLayout meta = UI.row(requireContext());
         meta.addView(UI.muted(requireContext(),
-                        "已扫描 " + value.optInt("scanned", 0) + " / " + total),
+                        I18n.text("m_93ef77874ea0") + value.optInt("scanned", 0) + " / " + total),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        meta.addView(UI.muted(requireContext(), "匹配 " + value.optInt("matched", 0)));
+        meta.addView(UI.muted(requireContext(), I18n.text("m_2b0dba4e5ce7") + value.optInt("matched", 0)));
         UI.margin(meta, 0, UI.SM, 0, 0);
         card.addView(meta);
 
@@ -488,7 +488,7 @@ public class LabFragment extends PageFragment {
     private View toolbar() {
         LinearLayout card = UI.card(requireContext());
         LinearLayout head = UI.row(requireContext());
-        TextView pill = running ? UI.tag(requireContext(), "任务运行中", false) : UI.tag(requireContext(), "空闲", true);
+        TextView pill = running ? UI.tag(requireContext(), I18n.text("m_5df4f96d6d93"), false) : UI.tag(requireContext(), I18n.text("m_dae661d17c2d"), true);
         if (running) {
             pill.setTextColor(Theme.p().statusDegradedText);
             pill.setBackground(UI.roundedStroke(Theme.p().statusDegradedBg, UI.RADIUS_PILL,
@@ -498,13 +498,13 @@ public class LabFragment extends PageFragment {
         statusBox.setGravity(Gravity.START);
         statusBox.addView(pill);
         head.addView(statusBox, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView refresh = UI.button(requireContext(), "刷新状态", UI.BTN_GHOST);
+        TextView refresh = UI.button(requireContext(), I18n.text("m_802a407c7743"), UI.BTN_GHOST);
         refresh.setEnabled(!busy);
         refresh.setOnClickListener(v -> loadStatus());
         head.addView(refresh);
         card.addView(head);
 
-        TextView run = UI.button(requireContext(), running ? "运行中…" : "保存并执行", UI.BTN_PRIMARY);
+        TextView run = UI.button(requireContext(), running ? I18n.text("m_14d9f2d830ad") : I18n.text("m_126a24ed51ca"), UI.BTN_PRIMARY);
         run.setEnabled(!running && !busy && authorized()
                 && state().optLong("next_allowed_at") <= System.currentTimeMillis() / 1000
                 && state().optInt("budget_used") < state().optInt("budget_limit", 100000));
@@ -512,7 +512,7 @@ public class LabFragment extends PageFragment {
         UI.margin(run, 0, UI.MD, 0, 0);
         card.addView(run);
         if (running || schedule) {
-            TextView stop = UI.button(requireContext(), "停止并关闭定时", UI.BTN_SECONDARY);
+            TextView stop = UI.button(requireContext(), I18n.text("m_db53b055cad4"), UI.BTN_SECONDARY);
             stop.setEnabled(!busy);
             stop.setOnClickListener(view -> ownershipAction("/stop"));
             UI.addRow(card, stop, UI.MD);
@@ -522,12 +522,12 @@ public class LabFragment extends PageFragment {
 
     private String phaseText() {
         String phase = phase();
-        if ("preparing".equals(phase)) return "准备扫描…";
-        if ("scanning".equals(phase)) return "正在探测 IP…";
-        if ("updating_dns".equals(phase)) return "扫描完成，正在更新华为云 DNS…";
-        if ("completed".equals(phase)) return "任务已完成";
-        if ("failed".equals(phase)) return "任务未完成，请检查错误信息";
-        return "等待执行";
+        if ("preparing".equals(phase)) return I18n.text("m_81c4d554eaac");
+        if ("scanning".equals(phase)) return I18n.text("m_37425cd304f1");
+        if ("updating_dns".equals(phase)) return I18n.text("m_5b74adf3e039");
+        if ("completed".equals(phase)) return I18n.text("m_e9a880e59521");
+        if ("failed".equals(phase)) return I18n.text("m_3ef426846721");
+        return I18n.text("m_4f021f59121c");
     }
 
     private LinearLayout cardHead(String title, String desc) {
@@ -561,33 +561,33 @@ public class LabFragment extends PageFragment {
     }
 
     private View probeCard() {
-        LinearLayout card = cardHead("探测配置",
-                "Host 与 SNI 可指向托管在 Cloudflare 或其他平台的域名；SNI 留空时使用 Host。");
+        LinearLayout card = cardHead(I18n.text("m_d9cb32d240c7"),
+                I18n.text("m_2d028c40657b"));
 
         hostInput = UI.input(requireContext(), "cdn.example.com");
         hostInput.setText(host);
         card.addView(UI.field(requireContext(), "Host（HTTP Host Header）", hostInput));
 
-        sniInput = UI.input(requireContext(), "留空使用 Host");
+        sniInput = UI.input(requireContext(), I18n.text("m_263273daac57"));
         sniInput.setText(sni);
         card.addView(UI.field(requireContext(), "SNI（TLS Server Name）", sniInput, UI.MD));
 
         pathInput = UI.input(requireContext(), "/healthz");
         pathInput.setText(probePath);
-        card.addView(UI.field(requireContext(), "探测路径", pathInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_fc12218cc64a"), pathInput, UI.MD));
 
         statusesInput = UI.input(requireContext(), "200,204");
         statusesInput.setText(statuses);
-        card.addView(UI.field(requireContext(), "接受状态码", statusesInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_f881100e7e8f"), statusesInput, UI.MD));
 
         timeoutInput = numberInput("2", timeout);
         workersInput = numberInput("32", workers);
         UI.addRow(card, pair(
-                UI.field(requireContext(), "超时（秒）", timeoutInput),
-                UI.field(requireContext(), "并发数（1 至 " + state().optInt("max_workers", 32) + "）", workersInput)), UI.MD);
+                UI.field(requireContext(), I18n.text("m_e814e078437b"), timeoutInput),
+                UI.field(requireContext(), I18n.text("m_08810ec6a754") + state().optInt("max_workers", 32) + "）", workersInput)), UI.MD);
 
         topInput = numberInput("10", top);
-        card.addView(UI.field(requireContext(), "保留 Top N", topInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_7ae5ac99ec7d"), topInput, UI.MD));
 
         targetsInput = UI.textArea(requireContext(),
                 "1.2.3.4\n1.2.4.0/24\n1.2.5.10-1.2.5.20");
@@ -597,18 +597,18 @@ public class LabFragment extends PageFragment {
         targetsInput.setMaxLines(8);
         targetsInput.setText(ipTargets);
         card.addView(UI.field(requireContext(),
-                "IP 段（支持单 IP、CIDR、范围，逗号或换行分隔）", targetsInput, UI.MD));
+                I18n.text("m_273f5800a334"), targetsInput, UI.MD));
         return card;
     }
 
     private View autoCard() {
-        LinearLayout card = cardHead("自动化与华为云 DNS",
-                "密钥使用应用加密密钥加密保存；关闭「自动更新 DNS」时仅扫描并展示结果。");
+        LinearLayout card = cardHead(I18n.text("m_951e770ec529"),
+                I18n.text("m_3490d11e4c6b"));
 
-        card.addView(toggleRow("定时执行", schedule, next -> {
+        card.addView(toggleRow(I18n.text("m_978cb333292d"), schedule, next -> {
             capture();
             if (next && !authorized()) {
-                banner = "请先完成当前管理员的域名验证";
+                banner = I18n.text("m_f4f840a282f3");
                 bannerError = true;
                 render();
                 return;
@@ -619,10 +619,10 @@ public class LabFragment extends PageFragment {
 
         if (schedule) {
             intervalInput = numberInput("30", intervalMinutes);
-            card.addView(UI.field(requireContext(), "间隔（分钟）", intervalInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_63f674fb44eb"), intervalInput, UI.MD));
         }
 
-        UI.addRow(card, toggleRow("自动更新华为云 DNS", updateDns, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_7ce4f8dc5c94"), updateDns, next -> {
             capture();
             updateDns = next;
             render();
@@ -631,15 +631,15 @@ public class LabFragment extends PageFragment {
         if (updateDns) {
             zoneInput = UI.input(requireContext(), "example.com");
             zoneInput.setText(zone);
-            card.addView(UI.field(requireContext(), "Zone 名称", zoneInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_dd7848177924"), zoneInput, UI.MD));
 
-            zoneIdInput = UI.input(requireContext(), "填写后跳过 Zone 查询");
+            zoneIdInput = UI.input(requireContext(), I18n.text("m_8a3962db8e0b"));
             zoneIdInput.setText(zoneId);
-            card.addView(UI.field(requireContext(), "Zone ID（可选）", zoneIdInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_61aa3db2f187"), zoneIdInput, UI.MD));
 
             recordInput = UI.input(requireContext(), "cdn.example.com");
             recordInput.setText(record);
-            card.addView(UI.field(requireContext(), "A 记录", recordInput, UI.MD));
+            card.addView(UI.field(requireContext(), I18n.text("m_1ff08664dd50"), recordInput, UI.MD));
 
             ttlInput = numberInput("300", ttl);
             card.addView(UI.field(requireContext(), "TTL", ttlInput, UI.MD));
@@ -653,10 +653,10 @@ public class LabFragment extends PageFragment {
             accessKeyInput.setText(accessKey);
             card.addView(UI.field(requireContext(), "Access Key", accessKeyInput, UI.MD));
 
-            secretInput = passwordInput(hasSecretKey ? "留空保持现有密钥" : "输入 Secret Access Key");
+            secretInput = passwordInput(hasSecretKey ? I18n.text("m_0eeb82a0c096") : I18n.text("m_2fa84bb7ab9b"));
             secretInput.setText(secretDraft);
             LinearLayout secretField = UI.field(requireContext(), "Secret Key", secretInput, UI.MD);
-            TextView state = UI.tag(requireContext(), hasSecretKey ? "密钥已设置" : "密钥未设置", hasSecretKey);
+            TextView state = UI.tag(requireContext(), hasSecretKey ? I18n.text("m_248a0bb2c9db") : I18n.text("m_83fe22d7f5b2"), hasSecretKey);
             UI.margin(state, 0, UI.SM, 0, 0);
             LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -665,7 +665,7 @@ public class LabFragment extends PageFragment {
             card.addView(secretField);
         }
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存配置", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_6e584e3d5ce6"), UI.BTN_PRIMARY);
         save.setEnabled(!busy && !running);
         save.setOnClickListener(v -> save());
         UI.margin(save, 0, UI.LG, 0, 0);
@@ -699,20 +699,20 @@ public class LabFragment extends PageFragment {
 
     private View resultsCard() {
         JSONObject latest = latestRun();
-        String summary = "尚未执行。";
+        String summary = I18n.text("m_8854c2f7d83b");
         if (latest != null) {
             summary = formatTime(latest.optLong("started_at", 0))
-                    + " · 扫描 " + latest.optInt("scanned", 0) + " 个，匹配 " + latest.optInt("matched", 0) + " 个";
+                    + I18n.text("m_6427855ccbd2") + latest.optInt("scanned", 0) + I18n.text("m_94ed3ac99f3c") + latest.optInt("matched", 0) + I18n.text("m_7aaf96ad52e0");
             JSONArray selected = latest.optJSONArray("selected_ips");
             if (selected != null && selected.length() > 0) {
-                summary += " · 选中 " + selected.length() + " 个";
+                summary += I18n.text("m_1d3f49b1b16c") + selected.length() + I18n.text("m_7aaf96ad52e0");
             }
         }
-        LinearLayout card = cardHead("最近结果", summary);
+        LinearLayout card = cardHead(I18n.text("m_8f0ef3b2b86d"), summary);
 
         JSONArray results = latest == null ? null : latest.optJSONArray("results");
         if (results == null || results.length() == 0) {
-            card.addView(emptyState(latest == null ? "暂无探测结果，请保存配置后立即执行。" : "本轮没有命中任何 IP。"));
+            card.addView(emptyState(latest == null ? I18n.text("m_a1b1a1640ed1") : I18n.text("m_3318ecab73f4")));
             return card;
         }
         for (int i = 0; i < results.length(); i++) {
@@ -743,20 +743,20 @@ public class LabFragment extends PageFragment {
         JSONObject latest = latestRun();
         JSONArray diagnostics = latest == null ? null : latest.optJSONArray("diagnostics");
         if (diagnostics == null || diagnostics.length() == 0) return null;
-        LinearLayout card = cardHead("未命中原因", "未命中不等于 IP 完全不可用。显示 " + diagnostics.length()
-                + " / " + latest.optInt("rejected", diagnostics.length()) + " 条，最多保留 100 条；可单独复测一个 IP。");
+        LinearLayout card = cardHead(I18n.text("m_7148c33da141"), I18n.text("m_fafb6ea98d14") + diagnostics.length()
+                + " / " + latest.optInt("rejected", diagnostics.length()) + I18n.text("m_5954340a1d5b"));
         JSONObject probe = latest.optJSONObject("probe");
         String statuses = probe == null ? "" : probe.optString("statuses");
-        if (probe != null) card.addView(UI.muted(requireContext(), "本次探针：" + probe.optString("host")
-                + probe.optString("path") + " · SNI " + probe.optString("sni") + " · 接受 " + statuses));
+        if (probe != null) card.addView(UI.muted(requireContext(), I18n.text("m_0b33b09c41d2") + probe.optString("host")
+                + probe.optString("path") + " · SNI " + probe.optString("sni") + I18n.text("m_8c59d98a4b33") + statuses));
         for (int index = 0; index < diagnostics.length(); index++) {
             JSONObject result = diagnostics.optJSONObject(index);
             if (result == null) continue;
             LinearLayout row = UI.column(requireContext());
             row.addView(UI.mono(requireContext(), result.optString("ip") + " · " + result.optLong("latency_ms") + " ms", Theme.p().ink));
             String problem = result.optString("error");
-            String detail = !problem.isEmpty() ? "探测失败：" + problem
-                    : "HTTP " + result.optInt("status") + "，不在本次接受状态码 " + statuses + " 中";
+            String detail = !problem.isEmpty() ? I18n.text("m_2f43232ebb77") + problem
+                    : "HTTP " + result.optInt("status") + I18n.text("m_54c086747683") + statuses + I18n.text("m_ce59ce17163a");
             row.addView(UI.muted(requireContext(), detail));
             UI.addRow(card, row, UI.SM);
         }
@@ -772,14 +772,14 @@ public class LabFragment extends PageFragment {
             total = segments == null ? 0 : segments.length();
         }
         String summary = total == 0
-                ? "本轮暂无分段统计。"
-                : "共 " + total + " 个输入段，其中 " + missed.size() + " 段 0 命中，涉及 "
-                        + missedTotal(missed) + " 个 IP。请先核对探针响应与未命中原因，再决定是否剔除。";
+                ? I18n.text("m_2fd51e19890c")
+                : I18n.text("m_2428420e407f") + total + I18n.text("m_087c52b5de51") + missed.size() + I18n.text("m_0ca2d660e912")
+                        + missedTotal(missed) + I18n.text("m_6ac17b291511");
 
-        LinearLayout card = cardHead("未命中 IP 段", summary);
+        LinearLayout card = cardHead(I18n.text("m_f3cb5e38d5d7"), summary);
 
         if (missed.isEmpty()) {
-            card.addView(emptyState("暂无未命中的 IP 段。"));
+            card.addView(emptyState(I18n.text("m_46dfefce779d")));
             return card;
         }
 
@@ -790,21 +790,21 @@ public class LabFragment extends PageFragment {
             LinearLayout top = UI.row(requireContext());
             top.addView(UI.mono(requireContext(), item.optString("target"), Theme.p().ink),
                     new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            top.addView(UI.tag(requireContext(), "可剔除", false));
+            top.addView(UI.tag(requireContext(), I18n.text("m_822e6ca6c58a"), false));
             row.addView(top);
             TextView meta = UI.muted(requireContext(),
-                    "已探测 " + item.optInt("scanned", 0) + " · 命中 " + item.optInt("matched", 0));
+                    I18n.text("m_abcce5c1437a") + item.optInt("scanned", 0) + I18n.text("m_6015819aab22") + item.optInt("matched", 0));
             UI.margin(meta, 0, UI.XS, 0, 0);
             row.addView(meta);
             UI.addRow(card, row, i == 0 ? 0 : UI.SM);
         }
 
         LinearLayout actions = UI.row(requireContext());
-        TextView copy = UI.button(requireContext(), "复制未命中段", UI.BTN_SECONDARY);
+        TextView copy = UI.button(requireContext(), I18n.text("m_72a7b6671168"), UI.BTN_SECONDARY);
         copy.setOnClickListener(v -> copyMissed(missed));
         UI.weight(copy, 1f);
         actions.addView(copy);
-        TextView drop = UI.button(requireContext(), "一键剔除并保存", UI.BTN_DANGER);
+        TextView drop = UI.button(requireContext(), I18n.text("m_5aefa3f30318"), UI.BTN_DANGER);
         drop.setEnabled(!running && !busy);
         drop.setOnClickListener(v -> confirmDrop(missed));
         UI.weight(drop, 1f);
@@ -841,9 +841,9 @@ public class LabFragment extends PageFragment {
     }
 
     private View historyCard() {
-        LinearLayout card = cardHead("执行历史", "最多保留 20 条记录。");
+        LinearLayout card = cardHead(I18n.text("m_02451fd58cd3"), I18n.text("m_03bba0057f3d"));
         if (runs.length() == 0) {
-            card.addView(emptyState("暂无执行历史。"));
+            card.addView(emptyState(I18n.text("m_69c0d2ee422f")));
             return card;
         }
         for (int i = 0; i < runs.length(); i++) {
@@ -856,12 +856,12 @@ public class LabFragment extends PageFragment {
             top.addView(UI.body(requireContext(), formatTime(item.optLong("started_at", 0))),
                     new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             boolean success = item.optBoolean("success", false);
-            top.addView(UI.tag(requireContext(), success ? "成功" : "失败", success));
+            top.addView(UI.tag(requireContext(), success ? I18n.text("m_053461ce86d2") : I18n.text("m_28384d7afd2e"), success));
             row.addView(top);
 
             TextView meta = UI.muted(requireContext(),
-                    "扫描 " + item.optInt("scanned", 0) + " / 匹配 " + item.optInt("matched", 0)
-                            + " · DNS " + (item.optBoolean("dns_updated", false) ? "已更新" : "未更新"));
+                    I18n.text("m_221f3304a691") + item.optInt("scanned", 0) + I18n.text("m_3b0c274bd233") + item.optInt("matched", 0)
+                            + " · DNS " + (item.optBoolean("dns_updated", false) ? I18n.text("m_434203a723b4") : I18n.text("m_bb44f79f1933")));
             UI.margin(meta, 0, UI.XS, 0, 0);
             row.addView(meta);
 
@@ -879,7 +879,7 @@ public class LabFragment extends PageFragment {
     private static String formatTime(long seconds) {
         if (seconds <= 0) return "—";
         java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("MM-dd HH:mm:ss",
-                java.util.Locale.getDefault());
+                I18n.locale());
         return format.format(new java.util.Date(seconds * 1000L));
     }
 
@@ -894,7 +894,7 @@ public class LabFragment extends PageFragment {
             if (!viewActive || !alive()) return;
             busy = false;
             running = true;
-            banner = "任务已开始执行";
+            banner = I18n.text("m_7f935d40a91e");
             bannerError = false;
             render();
             ui.removeCallbacks(pollTask);
@@ -902,7 +902,7 @@ public class LabFragment extends PageFragment {
         }, failure -> {
             if (!viewActive || !alive()) return;
             busy = false;
-            banner = "执行失败：" + failure.getMessage();
+            banner = I18n.text("m_a998931e9cab") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -942,7 +942,7 @@ public class LabFragment extends PageFragment {
         }, result -> {
             if (!viewActive || !alive()) return;
             busy = false;
-            banner = "实验功能配置已保存";
+            banner = I18n.text("m_2890332be041");
             bannerError = false;
             applySettings(result);
             render();
@@ -951,7 +951,7 @@ public class LabFragment extends PageFragment {
         }, failure -> {
             if (!viewActive || !alive()) return;
             busy = false;
-            banner = "保存失败：" + failure.getMessage();
+            banner = I18n.text("m_6ade7baf8737") + failure.getMessage();
             bannerError = true;
             render();
         });
@@ -974,11 +974,11 @@ public class LabFragment extends PageFragment {
             busy = false;
             applyStatus(result);
             if (!"/ownership/verify".equals(action)) schedule = false;
-            banner = "/stop".equals(action) ? "已请求停止，并关闭定时任务" : "/ownership/challenge".equals(action)
-                    ? "请添加 TXT 记录，然后点击检查" : "域名验证通过；定时任务需手动开启";
+            banner = "/stop".equals(action) ? I18n.text("m_c1a4539fd21f") : "/ownership/challenge".equals(action)
+                    ? I18n.text("m_d6390eeb1913") : I18n.text("m_31a1025984de");
             if ("/ownership/dns".equals(action)) {
                 JSONObject operation = result.optJSONObject("operation");
-                banner = operation == null ? "TXT 已提交，请检查解析结果" : operation.optString("message");
+                banner = operation == null ? I18n.text("m_5d43722902f7") : operation.optString("message");
             }
             bannerError = false;
             render();
@@ -987,7 +987,7 @@ public class LabFragment extends PageFragment {
             if (!viewActive || !alive()) return;
             busy = false;
             if ("/ownership/verify".equals(action)) schedule = false;
-            banner = "操作失败：" + failure.getMessage();
+            banner = I18n.text("m_37cdfdb143a7") + failure.getMessage();
             bannerError = true;
             render();
             loadStatus();
@@ -1003,7 +1003,7 @@ public class LabFragment extends PageFragment {
         ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard == null) return;
         clipboard.setPrimaryClip(ClipData.newPlainText("missed-segments", text.toString()));
-        banner = "未命中 IP 段已复制";
+        banner = I18n.text("m_b364d30acd30");
         bannerError = false;
         render();
     }
@@ -1022,17 +1022,17 @@ public class LabFragment extends PageFragment {
         }
         int removed = current.size() - kept.size();
         if (removed == 0) {
-            banner = "当前输入中没有找到与最近一轮完全一致的未命中段";
+            banner = I18n.text("m_3d3ce77e1cc8");
             bannerError = true;
             render();
             return;
         }
         capture();
-        Modal.of(requireContext(), "剔除未命中 IP 段")
-                .message("确定剔除 " + missed.size() + " 个未命中段吗？将减少 " + missedTotal(missed)
-                        + " 个 IP 的后续探测压力。")
-                .cancel("取消")
-                .confirm("剔除并保存", true, () -> {
+        Modal.of(requireContext(), I18n.text("m_2410beea7b59"))
+                .message(I18n.text("m_25dc865b15b9") + missed.size() + I18n.text("m_d3eccb0aa84e") + missedTotal(missed)
+                        + I18n.text("m_b7d9a16af903"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_7aef3d7d5120"), true, () -> {
                     StringBuilder text = new StringBuilder();
                     for (String target : kept) {
                         if (text.length() > 0) text.append('\n');

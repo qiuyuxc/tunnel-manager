@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :theme-overrides="currentThemeOverrides">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="currentThemeOverrides" :locale="componentLocale" :date-locale="componentDateLocale">
     <n-message-provider>
       <n-dialog-provider>
         <div class="app-shell" v-if="!route.meta.public">
@@ -24,6 +24,8 @@
 
 <script setup lang="ts">
 import { darkTheme } from 'naive-ui'
+import { enUS, zhCN, dateEnUS, dateZhCN } from 'naive-ui'
+import { language } from './i18n'
 import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -39,6 +41,8 @@ import {
 } from './theme'
 
 const route = useRoute()
+const componentLocale = computed(() => language.value === 'zh-CN' ? zhCN : enUS)
+const componentDateLocale = computed(() => language.value === 'zh-CN' ? dateZhCN : dateEnUS)
 const configStore = useConfigStore()
 const isLogin = computed(() => route.path === '/login')
 const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)

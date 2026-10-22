@@ -8,7 +8,7 @@
         <span class="sheet-handle" aria-hidden="true" />
         <div class="sheet-head">
           <span class="sheet-title">{{ title }}</span>
-          <button type="button" class="sheet-close" aria-label="关闭" @click="emit('close')">
+          <button type="button" class="sheet-close" :aria-label="tr('m_3fd47edce45b')" @click="emit('close')">
             <span v-html="icons.close" />
           </button>
         </div>
@@ -19,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onBeforeUnmount, watch } from 'vue'
 import { icons } from '../navigation'
 

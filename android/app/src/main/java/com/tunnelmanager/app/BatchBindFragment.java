@@ -76,7 +76,7 @@ public class BatchBindFragment extends PageFragment {
         scroll.addView(body);
         refresh.addView(scroll);
 
-        body.addView(UI.muted(requireContext(), "加载中…"));
+        body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
         load();
         return refresh;
     }
@@ -105,27 +105,27 @@ public class BatchBindFragment extends PageFragment {
     private void renderFailure(String message) {
         if (body == null || !alive()) return;
         body.removeAllViews();
-        body.addView(UI.banner(requireContext(), message == null ? "加载失败" : message, true));
+        body.addView(UI.banner(requireContext(), message == null ? I18n.text("m_d1d044826a45") : message, true));
     }
 
     private void render() {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "批量绑定"));
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_6f7ce20a6c76")));
 
-        TextView subtitle = UI.muted(requireContext(), "每组独立设置转发地址，按顺序绑定主域名和辅助域名");
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_47569b64b367"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         String tunnelId = config.optString("tunnel_id", "");
         if (tunnelId.isEmpty()) {
-            body.addView(UI.banner(requireContext(), "前置条件未满足：请先在「隧道管理」锁定隧道。", true));
+            body.addView(UI.banner(requireContext(), I18n.text("m_e14f68766d5f"), true));
             body.addView(UI.spacer(requireContext(), UI.LG));
         } else {
             LinearLayout contextCard = UI.card(requireContext());
-            contextCard.addView(UI.label(requireContext(), "当前隧道"));
-            TextView name = UI.text(requireContext(), config.optString("tunnel_name", "已选隧道"),
+            contextCard.addView(UI.label(requireContext(), I18n.text("m_b903d203f70a")));
+            TextView name = UI.text(requireContext(), config.optString("tunnel_name", I18n.text("m_8ce5320404d5")),
                     14, Theme.p().ink, Typeface.BOLD);
             UI.margin(name, 0, UI.XS, 0, 0);
             contextCard.addView(name);
@@ -144,7 +144,7 @@ public class BatchBindFragment extends PageFragment {
             body.addView(banner);
         }
 
-        TextView submit = UI.button(requireContext(), submitting ? "批量绑定中…" : "批量绑定", UI.BTN_PRIMARY);
+        TextView submit = UI.button(requireContext(), submitting ? I18n.text("m_a046ed2375f2") : I18n.text("m_6f7ce20a6c76"), UI.BTN_PRIMARY);
         UI.fill(submit);
         UI.margin(submit, 0, UI.MD, 0, 0);
         submit.setOnClickListener(v -> submit());
@@ -152,7 +152,7 @@ public class BatchBindFragment extends PageFragment {
         refresh.setEnabled(!submitting);
         if (submitting) {
             OperationProgress.setInputsEnabled(body, false);
-            OperationProgress progress = new OperationProgress(requireContext(), "正在绑定 " + groups.size() + " 组域名", startedAt);
+            OperationProgress progress = new OperationProgress(requireContext(), I18n.text("m_39a525ea3674") + groups.size() + I18n.text("m_4f62334de8d4"), startedAt);
             UI.margin(progress, 0, UI.MD, 0, 0);
             body.addView(progress, body.getChildCount() - 1);
         }
@@ -163,7 +163,7 @@ public class BatchBindFragment extends PageFragment {
 
         LinearLayout head = UI.row(requireContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(UI.label(requireContext(), "绑定组 " + (index + 1)),
+        head.addView(UI.label(requireContext(), I18n.text("m_6f44344e1844") + (index + 1)),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_plus, Theme.p().body, v -> {
             capture();
@@ -179,7 +179,7 @@ public class BatchBindFragment extends PageFragment {
         }
         card.addView(head);
 
-        LinearLayout modes = UI.segmented(requireContext(), new String[]{"简单模式", "优选模式"}, group.mode,
+        LinearLayout modes = UI.segmented(requireContext(), new String[]{I18n.text("m_fa521927b78a"), I18n.text("m_a7974623c82b")}, group.mode,
                 selected -> {
                     group.mode = selected;
                     group.cnameField.setVisibility(selected == 1 ? View.VISIBLE : View.GONE);
@@ -191,11 +191,11 @@ public class BatchBindFragment extends PageFragment {
         group.serviceView = UI.input(requireContext(), "http://localhost:3000");
         group.serviceView.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         group.serviceView.setText(group.serviceUrl);
-        card.addView(UI.field(requireContext(), "转发地址", group.serviceView, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_c762fbaaad6f"), group.serviceView, UI.MD));
 
-        group.cnameView = UI.input(requireContext(), "留空使用全局配置");
+        group.cnameView = UI.input(requireContext(), I18n.text("m_ea7fff30de58"));
         group.cnameView.setText(group.cname);
-        TextView pick = UI.button(requireContext(), "常用线路", UI.BTN_SECONDARY);
+        TextView pick = UI.button(requireContext(), I18n.text("m_0bb90daa665f"), UI.BTN_SECONDARY);
         pick.setOnClickListener(v -> openCnamePicker(group));
         LinearLayout cnameRow = UI.row(requireContext());
         cnameRow.addView(group.cnameView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -203,18 +203,18 @@ public class BatchBindFragment extends PageFragment {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         pickLp.leftMargin = UI.dp(UI.SM);
         cnameRow.addView(pick, pickLp);
-        group.cnameField = UI.field(requireContext(), "优选 CNAME · 选填", cnameRow, UI.MD);
+        group.cnameField = UI.field(requireContext(), I18n.text("m_a436375ffcdc"), cnameRow, UI.MD);
         card.addView(group.cnameField);
 
-        group.mainView = UI.input(requireContext(), "例如：kukie.cn");
+        group.mainView = UI.input(requireContext(), I18n.text("m_6aede1cf2f10"));
         group.mainView.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         group.mainView.setText(group.main);
-        card.addView(UI.field(requireContext(), "主域名", group.mainView, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_13cfe9660cdf"), group.mainView, UI.MD));
 
-        group.auxView = UI.input(requireContext(), "例如：fallback.169977.xyz");
+        group.auxView = UI.input(requireContext(), I18n.text("m_c0c3f6dc7617"));
         group.auxView.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         group.auxView.setText(group.aux);
-        group.auxField = UI.field(requireContext(), "辅助域名 · 用作回源", group.auxView, UI.MD);
+        group.auxField = UI.field(requireContext(), I18n.text("m_c1fb6c5a78c6"), group.auxView, UI.MD);
         card.addView(group.auxField);
 
         group.cnameField.setVisibility(group.mode == 1 ? View.VISIBLE : View.GONE);
@@ -232,9 +232,9 @@ public class BatchBindFragment extends PageFragment {
 
     private void openCnamePicker(final Group group) {
         String fallback = config.optString("preferred_cname", "");
-        Sheet.Builder sheet = Sheet.of(requireContext(), "优选 CNAME").label("常用线路");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ff425d8a519d")).label(I18n.text("m_0bb90daa665f"));
         sheet.item(R.drawable.ic_nav_check,
-                fallback.isEmpty() ? "使用全局配置" : "使用全局配置（" + fallback + "）",
+                fallback.isEmpty() ? I18n.text("m_f779cb9be535") : I18n.text("m_dbcddd8ad553") + fallback + "）",
                 () -> group.cnameView.setText(""));
 
         JSONArray presets = config.optJSONArray("cname_presets");
@@ -277,14 +277,14 @@ public class BatchBindFragment extends PageFragment {
                 valid = false;
                 group.ok = false;
                 group.result = needsAux
-                        ? "转发地址、主域名、辅助域名都要填"
-                        : "转发地址和主域名都要填";
+                        ? I18n.text("m_72586c7b53ca")
+                        : I18n.text("m_cc6561d5be5e");
             }
         }
         if (!valid) {
             summary = "";
             render();
-            toast("请补全每组的转发地址和域名");
+            toast(I18n.text("m_8a67c4b01df0"));
             return;
         }
 
@@ -319,19 +319,19 @@ public class BatchBindFragment extends PageFragment {
                 JSONObject result = results == null ? null : results.optJSONObject(i);
                 if (result == null) {
                     group.ok = false;
-                    group.result = "未收到该组的执行结果";
+                    group.result = I18n.text("m_10250dd969a2");
                     continue;
                 }
                 group.ok = result.optBoolean("success");
                 group.result = result.optString("message", "");
                 if (group.ok) succeeded++;
             }
-            summary = "批量绑定完成：" + succeeded + "/" + groups.size() + " 成功";
+            summary = I18n.text("m_9cc96a50fd25") + succeeded + "/" + groups.size() + I18n.text("m_d08c769747bb");
             render();
             toast(summary);
         }, failure -> {
             submitting = false;
-            summary = "请求未完成：" + failure.getMessage() + "。若请求超时或断连，结果可能已写入，请核对后再重试。";
+            summary = I18n.text("m_2b749830e7b6") + failure.getMessage() + I18n.text("m_a258169282ae");
             render();
             toast(summary);
         });

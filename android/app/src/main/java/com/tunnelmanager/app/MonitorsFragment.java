@@ -74,7 +74,7 @@ public class MonitorsFragment extends PageFragment {
             try {
                 result.put("overview", Api.get("/api/monitors/overview"));
             } catch (Exception failure) {
-                result.put("summary_error", "七天统计暂不可用，下拉可重试。项目状态仍按已获取的数据展示。");
+                result.put("summary_error", I18n.text("m_ec17571f0591"));
             }
             return result;
         }, result -> {
@@ -87,7 +87,7 @@ public class MonitorsFragment extends PageFragment {
         }, failure -> {
             if (request != generation || body == null || !alive()) return;
             loading = false;
-            error = failure.getMessage() == null ? "加载失败，下拉重试" : failure.getMessage();
+            error = failure.getMessage() == null ? I18n.text("m_abe7d7c55e82") : failure.getMessage();
             render();
         });
     }
@@ -98,29 +98,29 @@ public class MonitorsFragment extends PageFragment {
         refresh.setRefreshing(loading);
         body.removeAllViews();
         LinearLayout head = UI.row(requireContext());
-        head.addView(UI.pageTitle(requireContext(), "每一次心跳"),
+        head.addView(UI.pageTitle(requireContext(), I18n.text("m_6496450c34cc")),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageView create = UI.iconButton(requireContext(), R.drawable.ic_nav_plus, Theme.p().success, view -> askCreate());
-        create.setContentDescription("创建监控项目");
+        create.setContentDescription(I18n.text("m_f9313095ee64"));
         create.setEnabled(!creating);
         head.addView(create);
         body.addView(head);
-        UI.addRow(body, UI.muted(requireContext(), "所有服务的状态，一眼看清。"), UI.XS);
+        UI.addRow(body, UI.muted(requireContext(), I18n.text("m_9bc73d27682d")), UI.XS);
         if (!error.isEmpty()) {
-            UI.addRow(body, UI.banner(requireContext(), error + (monitors == null ? "" : "\n当前显示上次获取的数据。"), true), UI.MD);
-            TextView retry = UI.button(requireContext(), "重新加载", UI.BTN_SECONDARY);
+            UI.addRow(body, UI.banner(requireContext(), error + (monitors == null ? "" : I18n.text("m_d695dc5b7076")), true), UI.MD);
+            TextView retry = UI.button(requireContext(), I18n.text("m_7bdd5ce1e298"), UI.BTN_SECONDARY);
             retry.setOnClickListener(view -> load());
             UI.addRow(body, retry, UI.SM);
         }
         if (monitors == null) {
-            if (error.isEmpty()) UI.addRow(body, UI.muted(requireContext(), "正在读取监控项目…"), UI.LG);
+            if (error.isEmpty()) UI.addRow(body, UI.muted(requireContext(), I18n.text("m_5dec25178795")), UI.LG);
             return;
         }
         UI.addRow(body, healthCard(), UI.LG);
         if (monitors.length() == 0) {
             UI.addRow(body, emptyCard(), UI.MD);
         } else {
-            UI.addRow(body, MonitorViews.heading(requireContext(), "监控项目", UI.muted(requireContext(), monitors.length() + " 个")), UI.LG);
+            UI.addRow(body, MonitorViews.heading(requireContext(), I18n.text("m_ce0d1c8bffa4"), UI.muted(requireContext(), monitors.length() + I18n.text("m_7aaf96ad52e0"))), UI.LG);
             for (int index = 0; index < monitors.length(); index++) {
                 JSONObject monitor = monitors.optJSONObject(index);
                 if (monitor != null) UI.addRow(body, monitorCard(monitor), UI.MD);
@@ -140,8 +140,8 @@ public class MonitorsFragment extends PageFragment {
                 if (target != null) counts.add(target.optString("state"));
             }
         }
-        String headline = counts.total == 0 ? "等待添加服务" : counts.down > 0 ? "有服务需要关注"
-                : counts.warn > 0 ? "部分服务响应降级" : counts.unknown > 0 ? "部分服务状态待确认" : "全部服务运行正常";
+        String headline = counts.total == 0 ? I18n.text("m_0692146b00f4") : counts.down > 0 ? I18n.text("m_d82e21620f20")
+                : counts.warn > 0 ? I18n.text("m_8f870465b0d0") : counts.unknown > 0 ? I18n.text("m_fac5c7c11d39") : I18n.text("m_7a5db8b2e966");
         LinearLayout card = UI.card(requireContext());
         card.addView(UI.text(requireContext(), headline, 14, MonitorViews.color(counts.state()), Typeface.BOLD));
         long checks = 0;
@@ -155,10 +155,10 @@ public class MonitorsFragment extends PageFragment {
         double uptime = overview == null ? Double.NaN : overview.optDouble("uptime", Double.NaN);
         boolean available = checks > 0 && Double.isFinite(uptime) && uptime >= 0 && uptime <= 100;
         TextView value = UI.text(requireContext(), available ? String.format(Locale.US, "%.2f%%", uptime)
-                : overview == null ? "统计暂不可用" : "暂无检测样本", available ? 38 : 24, Theme.p().ink, Typeface.BOLD);
+                : overview == null ? I18n.text("m_0c05d493962c") : I18n.text("m_9c7536505d91"), available ? 38 : 24, Theme.p().ink, Typeface.BOLD);
         value.setFontFeatureSettings("tnum");
         UI.addRow(card, value, UI.SM);
-        UI.addRow(card, UI.muted(requireContext(), "过去 7 天可用率 · " + monitors.length() + " 个项目 · " + counts.total + " 个服务"), UI.XS);
+        UI.addRow(card, UI.muted(requireContext(), I18n.text("m_715297b3b0b9") + monitors.length() + I18n.text("m_80e59927e937") + counts.total + I18n.text("m_97827a9c3766")), UI.XS);
         if (counts.total > 0) UI.addRow(card, UI.muted(requireContext(), MonitorViews.summary(counts)), UI.SM);
         if (!summaryError.isEmpty()) UI.addRow(card, UI.muted(requireContext(), summaryError), UI.SM);
         return card;
@@ -167,11 +167,11 @@ public class MonitorsFragment extends PageFragment {
     private View emptyCard() {
         LinearLayout card = UI.card(requireContext());
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.addView(UI.strong(requireContext(), "还没有监控项目"));
-        TextView copy = UI.muted(requireContext(), "创建项目，再添加服务地址。系统会按固定间隔持续检测。 ");
+        card.addView(UI.strong(requireContext(), I18n.text("m_de10338046d1")));
+        TextView copy = UI.muted(requireContext(), I18n.text("m_b863658061be"));
         copy.setGravity(Gravity.CENTER);
         UI.addRow(card, copy, UI.SM);
-        TextView create = UI.button(requireContext(), creating ? "正在创建…" : "创建第一个监控", UI.BTN_PRIMARY);
+        TextView create = UI.button(requireContext(), creating ? I18n.text("m_7c0305bc0ce6") : I18n.text("m_b466199f99b9"), UI.BTN_PRIMARY);
         create.setEnabled(!creating);
         create.setOnClickListener(view -> askCreate());
         UI.addRow(card, create, UI.MD);
@@ -184,24 +184,24 @@ public class MonitorsFragment extends PageFragment {
         MonitorHistory.Counts counts = MonitorViews.counts(targets);
         LinearLayout card = UI.card(requireContext());
         TextView status = UI.statusPill(requireContext(), counts.state());
-        if (counts.total == 0) status.setText("未配置");
-        card.addView(MonitorViews.heading(requireContext(), monitor.optString("name", "监控项目"), status));
-        UI.addRow(card, UI.muted(requireContext(), counts.total + " 个服务 · 每 " + monitor.optInt("interval_sec")
-                + " 秒检查 · " + (monitor.optBoolean("publish_enabled") ? "已公开" : "未公开")), UI.SM);
+        if (counts.total == 0) status.setText(I18n.text("m_80a57e03f071"));
+        card.addView(MonitorViews.heading(requireContext(), monitor.optString("name", I18n.text("m_ce0d1c8bffa4")), status));
+        UI.addRow(card, UI.muted(requireContext(), counts.total + I18n.text("m_ec0d8d41c8b8") + monitor.optInt("interval_sec")
+                + I18n.text("m_501a9b32374a") + (monitor.optBoolean("publish_enabled") ? I18n.text("m_8e1f5e13ff18") : I18n.text("m_abcd7f608563"))), UI.SM);
         if (counts.total > 0) UI.addRow(card, UI.muted(requireContext(), MonitorViews.summary(counts)), UI.XS);
         JSONObject target = MonitorViews.selectedTarget(targets, "");
         if (target != null) {
             MonitorHistory history = MonitorViews.history(target);
-            UI.addRow(card, UI.muted(requireContext(), "历史预览 · " + target.optString("name", "服务")), UI.MD);
+            UI.addRow(card, UI.muted(requireContext(), I18n.text("m_cecaf4fdd200") + target.optString("name", I18n.text("m_ec309ab207ef"))), UI.MD);
             UI.addRow(card, new MonitorHistoryView(requireContext(), history, false, 0), UI.XS);
-            UI.addRow(card, UI.muted(requireContext(), history.samples.size() + " 个抽样点 · 最近样本 "
+            UI.addRow(card, UI.muted(requireContext(), history.samples.size() + I18n.text("m_497f6778fd27")
                     + MonitorViews.time(history.lastTime())), UI.XS);
-            UI.addRow(card, UI.text(requireContext(), "当前响应 " + MonitorViews.latency(target) + " · "
+            UI.addRow(card, UI.text(requireContext(), I18n.text("m_42bd6da6129e") + MonitorViews.latency(target) + " · "
                     + MonitorViews.stateLabel(target.optString("state")), 12, MonitorViews.color(target.optString("state")), Typeface.NORMAL), UI.XS);
         } else {
-            UI.addRow(card, UI.muted(requireContext(), "添加服务后开始记录健康历史。"), UI.MD);
+            UI.addRow(card, UI.muted(requireContext(), I18n.text("m_7b9c2ecf8593")), UI.MD);
         }
-        TextView open = UI.text(requireContext(), "查看项目 ›", 13, Theme.p().success, Typeface.BOLD);
+        TextView open = UI.text(requireContext(), I18n.text("m_49378cc6f396"), 13, Theme.p().success, Typeface.BOLD);
         UI.addRow(card, open, UI.MD);
         card.setBackground(UI.pressable(UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_LG, Theme.p().hairline, 1), Theme.p().btnGhostHover));
         card.setFocusable(true);
@@ -215,19 +215,19 @@ public class MonitorsFragment extends PageFragment {
 
     private void askCreate() {
         if (creating) return;
-        EditText name = UI.input(requireContext(), "例如：生产环境服务");
+        EditText name = UI.input(requireContext(), I18n.text("m_f34513a8e6f4"));
         name.setSingleLine(true);
         name.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(60)});
-        Modal.of(requireContext(), "创建监控项目")
-                .message("给这组服务起个名字，建好后可以继续添加要探测的地址。")
-                .content(name).cancel("取消")
-                .confirm("创建", false, () -> create(name.getText().toString().trim())).show();
+        Modal.of(requireContext(), I18n.text("m_f9313095ee64"))
+                .message(I18n.text("m_996ba67e9a60"))
+                .content(name).cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_cde2cd071d25"), false, () -> create(name.getText().toString().trim())).show();
     }
 
     private void create(String name) {
         if (creating) return;
         if (name.isEmpty()) {
-            toast("请填写项目名称");
+            toast(I18n.text("m_68aec18ecc28"));
             return;
         }
         creating = true;
@@ -244,9 +244,9 @@ public class MonitorsFragment extends PageFragment {
     }
 
     private void askDelete(String id, String name) {
-        Modal.of(requireContext(), "删除监控项目")
-                .message("将删除「" + name + "」及其全部检测历史，公开链接同步失效。")
-                .cancel("取消").confirm("确认删除", true, () -> Api.async(() -> Api.delete("/api/monitors/" + id),
+        Modal.of(requireContext(), I18n.text("m_b2fc749edfa3"))
+                .message(I18n.text("m_fbc9178f86b7") + name + I18n.text("m_1b54e6f260d4"))
+                .cancel(I18n.text("m_2cd0f3be8738")).confirm(I18n.text("m_a3ea3c17b401"), true, () -> Api.async(() -> Api.delete("/api/monitors/" + id),
                         result -> load(), failure -> toast(failure.getMessage()))).show();
     }
 

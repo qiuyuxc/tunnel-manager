@@ -165,24 +165,24 @@ public class DNSFragment extends PageFragment {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "DNS 管理"));
-        TextView subtitle = UI.muted(requireContext(), "集中查看和维护 Cloudflare 区域中的 DNS 记录");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_474fb6002594")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_7157e9363786"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         LinearLayout actions = UI.row(requireContext());
-        TextView add = UI.button(requireContext(), "添加记录", UI.BTN_PRIMARY);
+        TextView add = UI.button(requireContext(), I18n.text("m_42845d86b969"), UI.BTN_PRIMARY);
         add.setEnabled(!zoneId.isEmpty());
         add.setOnClickListener(v -> openEditor(null));
         UI.weight(add, 1f);
         actions.addView(add);
-        TextView bulk = UI.button(requireContext(), "批量新增", UI.BTN_SECONDARY);
+        TextView bulk = UI.button(requireContext(), I18n.text("m_8cb8203cbf30"), UI.BTN_SECONDARY);
         bulk.setEnabled(!zoneId.isEmpty());
         bulk.setOnClickListener(view -> openBatchCreate());
         UI.weight(bulk, 1f);
         UI.margin(bulk, UI.SM, 0, 0, 0);
         actions.addView(bulk);
-        TextView reload = UI.button(requireContext(), "刷新", UI.BTN_SECONDARY);
+        TextView reload = UI.button(requireContext(), I18n.text("m_aee887434131"), UI.BTN_SECONDARY);
         reload.setOnClickListener(v -> loadRecords());
         UI.weight(reload, 1f);
         UI.margin(reload, UI.SM, 0, 0, 0);
@@ -206,9 +206,9 @@ public class DNSFragment extends PageFragment {
     private View zoneCard() {
         LinearLayout card = UI.card(requireContext());
 
-        card.addView(UI.label(requireContext(), "区域"));
+        card.addView(UI.label(requireContext(), I18n.text("m_3382870bc4ad")));
         TextView pick = UI.button(requireContext(),
-                zoneId.isEmpty() ? "选择区域" : zoneName, UI.BTN_SECONDARY);
+                zoneId.isEmpty() ? I18n.text("m_8b34c0fd32be") : zoneName, UI.BTN_SECONDARY);
         pick.setSingleLine(true);
         pick.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         UI.fill(pick);
@@ -216,8 +216,8 @@ public class DNSFragment extends PageFragment {
         pick.setOnClickListener(v -> openZonePicker());
         card.addView(pick);
 
-        card.addView(UI.label(requireContext(), "搜索记录"));
-        EditText query = UI.input(requireContext(), "名称、内容或类型");
+        card.addView(UI.label(requireContext(), I18n.text("m_72c1c6e22586")));
+        EditText query = UI.input(requireContext(), I18n.text("m_c7fb3c34cfcb"));
         query.setText(search);
         query.setEnabled(!zoneId.isEmpty());
         query.addTextChangedListener(new TextWatcher() {
@@ -253,14 +253,14 @@ public class DNSFragment extends PageFragment {
         LinearLayout bar = UI.row(requireContext());
         bar.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView count = UI.strong(requireContext(), "已选 " + selected.size() + " 条");
+        TextView count = UI.strong(requireContext(), I18n.text("m_52c963128eab") + selected.size() + I18n.text("m_6fb2840d568a"));
         bar.addView(count, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView edit = UI.button(requireContext(), "批量修改", UI.BTN_SECONDARY);
+        TextView edit = UI.button(requireContext(), I18n.text("m_8f98ede913e1"), UI.BTN_SECONDARY);
         edit.setOnClickListener(v -> openBatchEditor());
         bar.addView(edit);
 
-        TextView remove = UI.button(requireContext(), "批量删除", UI.BTN_DANGER);
+        TextView remove = UI.button(requireContext(), I18n.text("m_ddae7a0fc554"), UI.BTN_DANGER);
         remove.setOnClickListener(v -> confirmBatchDelete());
         UI.margin(remove, UI.SM, 0, 0, 0);
         bar.addView(remove);
@@ -289,7 +289,7 @@ public class DNSFragment extends PageFragment {
         list.setTag("dns-list");
 
         if (loading) {
-            list.addView(UI.muted(requireContext(), "正在读取 DNS 记录…"));
+            list.addView(UI.muted(requireContext(), I18n.text("m_9cc04745d685")));
             return list;
         }
         if (!loadError.isEmpty()) {
@@ -297,20 +297,20 @@ public class DNSFragment extends PageFragment {
             return list;
         }
         if (zoneId.isEmpty()) {
-            list.addView(emptyCard("先选择一个区域", "选择后即可查看和管理该区域的记录。"));
+            list.addView(emptyCard(I18n.text("m_341902462c1f"), I18n.text("m_e712c11d0c29")));
             return list;
         }
 
         List<JSONObject> visible = filtered();
         if (visible.isEmpty()) {
-            list.addView(emptyCard(search.isEmpty() ? "尚无 DNS 记录" : "没有匹配的记录",
-                    search.isEmpty() ? "添加第一条记录以开始解析流量。" : "尝试更换搜索关键词。"));
+            list.addView(emptyCard(search.isEmpty() ? I18n.text("m_e87dcce7a9db") : I18n.text("m_e455f075d925"),
+                    search.isEmpty() ? I18n.text("m_52112034c082") : I18n.text("m_55ace8c95341")));
             return list;
         }
 
-        TextView count = UI.muted(requireContext(), "显示 " + visible.size() + " 条记录"
-                + (search.isEmpty() ? "" : "，共 " + records.length() + " 条")
-                + (selected.isEmpty() ? "" : "，已选 " + selected.size() + " 条"));
+        TextView count = UI.muted(requireContext(), I18n.text("m_2166772cf952") + visible.size() + I18n.text("m_53aa7f3019bb")
+                + (search.isEmpty() ? "" : I18n.text("m_5fc0078b78d8") + records.length() + I18n.text("m_6fb2840d568a"))
+                + (selected.isEmpty() ? "" : I18n.text("m_c0d45ffee400") + selected.size() + I18n.text("m_6fb2840d568a")));
         UI.margin(count, 0, 0, 0, UI.SM);
         list.addView(count);
 
@@ -400,13 +400,13 @@ public class DNSFragment extends PageFragment {
             head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_edit, p.body, v -> openEditor(record)));
             head.addView(UI.iconButton(requireContext(), R.drawable.ic_nav_trash, p.error, v -> confirmDelete(record)));
         } else {
-            head.addView(UI.muted(requireContext(), "只读"));
+            head.addView(UI.muted(requireContext(), I18n.text("m_3b5ec3533b0e")));
         }
         card.addView(head);
 
         String content = record.optString("content");
         if (content.isEmpty() && record.has("data")) content = record.optString("data");
-        if ("MX".equals(type)) content = "优先级 " + record.optInt("priority") + " · " + content;
+        if ("MX".equals(type)) content = I18n.text("m_810f949e9ec1") + record.optInt("priority") + " · " + content;
         TextView value = UI.mono(requireContext(), content, p.body);
         value.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         value.setPadding(UI.dp(20 + UI.MD), UI.dp(UI.SM), 0, 0);
@@ -414,9 +414,9 @@ public class DNSFragment extends PageFragment {
 
         StringBuilder meta = new StringBuilder();
         if (proxyEligible(type)) {
-            meta.append(record.optBoolean("proxied") ? "已代理" : "仅 DNS");
+            meta.append(record.optBoolean("proxied") ? I18n.text("m_5c7bbf98286f") : I18n.text("m_80848ec9f9a4"));
         } else {
-            meta.append("代理不适用");
+            meta.append(I18n.text("m_0b389df53cd0"));
         }
         meta.append(" · TTL ").append(ttlLabel(record.optInt("ttl")));
         TextView caption = UI.muted(requireContext(), meta.toString());
@@ -437,16 +437,16 @@ public class DNSFragment extends PageFragment {
     }
 
     private static String ttlLabel(int ttl) {
-        if (ttl == 1) return "自动";
-        if (ttl < 3600) return (ttl / 60) + " 分钟";
-        if (ttl < 86400) return (ttl / 3600) + " 小时";
-        return (ttl / 86400) + " 天";
+        if (ttl == 1) return I18n.text("m_7eb336e42cb5");
+        if (ttl < 3600) return (ttl / 60) + I18n.text("m_40de54344d22");
+        if (ttl < 86400) return (ttl / 3600) + I18n.text("m_8f82ece04f3a");
+        return (ttl / 86400) + I18n.text("m_4ce3054e7c4d");
     }
 
     private static String contentLabel(String type) {
-        if ("MX".equals(type)) return "邮件服务器";
-        if ("TXT".equals(type)) return "文本内容";
-        return "目标内容";
+        if ("MX".equals(type)) return I18n.text("m_bc41a064e66b");
+        if ("TXT".equals(type)) return I18n.text("m_479bac57975e");
+        return I18n.text("m_99ec095a258f");
     }
 
     private static String validateContent(String type, String raw) {
@@ -456,7 +456,7 @@ public class DNSFragment extends PageFragment {
     // ------------------------------------------------------------------ sheets
 
     private void openZonePicker() {
-        Sheet.Builder sheet = Sheet.of(requireContext(), "选择区域").label("Cloudflare 区域");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_8b34c0fd32be")).label(I18n.text("m_4fab6a8be07d"));
         for (int i = 0; i < zones.length(); i++) {
             JSONObject zone = zones.optJSONObject(i);
             if (zone == null) continue;
@@ -471,7 +471,7 @@ public class DNSFragment extends PageFragment {
             });
         }
         if (zones.length() == 0) {
-            sheet.item(R.drawable.ic_nav_dns, "没有可用的区域", () -> {
+            sheet.item(R.drawable.ic_nav_dns, I18n.text("m_4d069966fe94"), () -> {
             });
         }
         sheet.show();
@@ -496,17 +496,17 @@ public class DNSFragment extends PageFragment {
     private static String placeholderFor(String type) {
         switch (type) {
             case "AAAA":
-                return "例如 2001:db8::1";
+                return I18n.text("m_7fcbf1d0e8d2");
             case "NS":
             case "PTR":
             case "CNAME":
-                return "例如 target.example.com";
+                return I18n.text("m_01c2dcecc710");
             case "TXT":
-                return "输入 TXT 记录内容";
+                return I18n.text("m_aa51c4d276e4");
             case "MX":
-                return "例如 mail.example.com";
+                return I18n.text("m_7b17349f7925");
             default:
-                return "例如 192.0.2.1";
+                return I18n.text("m_1e661077b17d");
         }
     }
 
@@ -519,11 +519,11 @@ public class DNSFragment extends PageFragment {
         final int[] proxyChoice = {0};
 
         LinearLayout form = UI.column(requireContext());
-        form.addView(UI.muted(requireContext(), "已选择 " + selected.size()
-                + " 条记录。留空或选择「不修改」的字段保持原值。"));
+        form.addView(UI.muted(requireContext(), I18n.text("m_3b2ee82dd97c") + selected.size()
+                + I18n.text("m_bfa6a79d97ea")));
 
         final String[] typeLabels = new String[TYPES.length + 1];
-        typeLabels[0] = "保持原类型";
+        typeLabels[0] = I18n.text("m_dc919123840f");
         System.arraycopy(TYPES, 0, typeLabels, 1, TYPES.length);
         final TextView typeButton = UI.button(requireContext(), typeLabels[0], UI.BTN_SECONDARY);
         typeButton.setSingleLine(true);
@@ -531,17 +531,17 @@ public class DNSFragment extends PageFragment {
         UI.fill(typeButton);
 
         final LinearLayout contentField = UI.column(requireContext());
-        final EditText content = UI.input(requireContext(), "解析值");
+        final EditText content = UI.input(requireContext(), I18n.text("m_5632a6a4e542"));
 
-        final TextView ttlButton = UI.button(requireContext(), "不修改", UI.BTN_SECONDARY);
+        final TextView ttlButton = UI.button(requireContext(), I18n.text("m_b531bbc08116"), UI.BTN_SECONDARY);
         UI.fill(ttlButton);
 
         final LinearLayout proxyField = UI.column(requireContext());
-        final TextView proxyButton = UI.button(requireContext(), "不修改", UI.BTN_SECONDARY);
+        final TextView proxyButton = UI.button(requireContext(), I18n.text("m_b531bbc08116"), UI.BTN_SECONDARY);
         UI.fill(proxyButton);
 
         typeButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), "解析类型").label("批量修改");
+            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_d45e6a43ac72")).label(I18n.text("m_8f98ede913e1"));
             for (int i = 0; i < typeLabels.length; i++) {
                 final int index = i;
                 sheet.item(R.drawable.ic_nav_check, typeLabels[i], () -> {
@@ -557,10 +557,10 @@ public class DNSFragment extends PageFragment {
         });
 
         ttlButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), "TTL").label("批量修改");
-            sheet.item(R.drawable.ic_nav_check, "不修改", () -> {
+            Sheet.Builder sheet = Sheet.of(requireContext(), "TTL").label(I18n.text("m_8f98ede913e1"));
+            sheet.item(R.drawable.ic_nav_check, I18n.text("m_b531bbc08116"), () -> {
                 ttl[0] = -1;
-                ttlButton.setText("不修改");
+                ttlButton.setText(I18n.text("m_b531bbc08116"));
             });
             for (final int value : TTLS) {
                 sheet.item(R.drawable.ic_nav_check, ttlLabel(value), () -> {
@@ -571,9 +571,9 @@ public class DNSFragment extends PageFragment {
             sheet.show();
         });
 
-        final String[] proxyLabels = {"不修改", "已代理", "仅 DNS"};
+        final String[] proxyLabels = {I18n.text("m_b531bbc08116"), I18n.text("m_5c7bbf98286f"), I18n.text("m_80848ec9f9a4")};
         proxyButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), "代理状态").label("批量修改");
+            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_b90665e74c01")).label(I18n.text("m_8f98ede913e1"));
             for (int i = 0; i < proxyLabels.length; i++) {
                 final int index = i;
                 sheet.item(R.drawable.ic_nav_check, proxyLabels[i], () -> {
@@ -585,22 +585,22 @@ public class DNSFragment extends PageFragment {
         });
 
         contentField.setVisibility(View.GONE);
-        form.addView(UI.field(requireContext(), "解析类型", typeButton, UI.MD));
+        form.addView(UI.field(requireContext(), I18n.text("m_d45e6a43ac72"), typeButton, UI.MD));
         UI.margin(contentField, 0, UI.MD, 0, 0);
         UI.fill(contentField);
-        contentField.addView(UI.label(requireContext(), "解析值"));
+        contentField.addView(UI.label(requireContext(), I18n.text("m_5632a6a4e542")));
         UI.margin(content, 0, UI.dp(6), 0, 0);
         contentField.addView(content);
         form.addView(contentField);
         form.addView(UI.field(requireContext(), "TTL", ttlButton, UI.MD));
-        proxyField.addView(UI.label(requireContext(), "代理状态"));
+        proxyField.addView(UI.label(requireContext(), I18n.text("m_b90665e74c01")));
         UI.margin(proxyButton, 0, UI.dp(6), 0, 0);
         proxyField.addView(proxyButton);
         UI.margin(proxyField, 0, UI.MD, 0, 0);
         UI.fill(proxyField);
         form.addView(proxyField);
 
-        TextView apply = UI.button(requireContext(), "应用到 " + selected.size() + " 条记录", UI.BTN_PRIMARY);
+        TextView apply = UI.button(requireContext(), I18n.text("m_d6c0b9b6c6fb") + selected.size() + I18n.text("m_53aa7f3019bb"), UI.BTN_PRIMARY);
         UI.fill(apply);
         UI.margin(apply, 0, UI.LG, 0, 0);
         apply.setOnClickListener(v -> {
@@ -615,7 +615,7 @@ public class DNSFragment extends PageFragment {
         });
         form.addView(apply);
 
-        Sheet.of(requireContext(), "批量修改 DNS 记录").content(form).show();
+        Sheet.of(requireContext(), I18n.text("m_542fce600639")).content(form).show();
     }
 
     /** The console PUTs each selected record in turn; so does this. */
@@ -627,7 +627,7 @@ public class DNSFragment extends PageFragment {
         }
         for (JSONObject record : targets) {
             if (!DNSJson.editable(record) || (!type.isEmpty() && DNSValues.structured(record.optString("type")))) {
-                toast("包含只读记录，或尝试批量改变 SRV/CAA 类型；请逐条编辑结构化字段");
+                toast(I18n.text("m_98c1648c9086"));
                 return;
             }
         }
@@ -656,22 +656,22 @@ public class DNSFragment extends PageFragment {
             }
             return done;
         }, count -> {
-            toast("已更新 " + count + " 条记录");
+            toast(I18n.text("m_2e770b687629") + count + I18n.text("m_53aa7f3019bb"));
             loadRecords();
         }, failure -> toast(failure.getMessage()));
     }
 
     private void confirmBatchDelete() {
-        Modal.of(requireContext(), "批量删除 DNS 记录")
-                .message("将删除已选的 " + selected.size() + " 条记录，此操作无法撤销。")
-                .cancel("取消")
-                .confirm("确认删除", true, this::runBatchDelete)
+        Modal.of(requireContext(), I18n.text("m_6f0b4dde3678"))
+                .message(I18n.text("m_f065dedfd77a") + selected.size() + I18n.text("m_1009f8ca3b6c"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3ea3c17b401"), true, this::runBatchDelete)
                 .show();
     }
 
     private void runBatchDelete() {
         List<String> ids = new ArrayList<>(selected);
-        statusMessage = "正在删除 0/" + ids.size() + " …";
+        statusMessage = I18n.text("m_911f3aea5f86") + ids.size() + " …";
         render();
         Api.async(() -> {
             int done = 0;
@@ -681,7 +681,7 @@ public class DNSFragment extends PageFragment {
             }
             return done;
         }, count -> {
-            statusMessage = "已删除 " + count + " 条记录";
+            statusMessage = I18n.text("m_4f616c9f960e") + count + I18n.text("m_53aa7f3019bb");
             toast(statusMessage);
             loadRecords();
         }, failure -> {
@@ -694,14 +694,14 @@ public class DNSFragment extends PageFragment {
     private void confirmDelete(JSONObject record) {
         if (!DNSJson.editable(record)) return;
         final String targetZone = zoneId;
-        Modal.of(requireContext(), "删除 DNS 记录")
-                .message("确定删除 " + record.optString("type") + " 记录 " + record.optString("name")
-                        + " 吗？此操作无法撤销。")
-                .cancel("取消")
-                .confirm("确认删除", true, () -> Api.async(
+        Modal.of(requireContext(), I18n.text("m_ab190f1faa64"))
+                .message(I18n.text("m_6fa91af954cd") + record.optString("type") + I18n.text("m_5cd9d0528965") + record.optString("name")
+                        + I18n.text("m_a79a0def3e5e"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3ea3c17b401"), true, () -> Api.async(
                         () -> Api.delete("/api/zones/" + targetZone + "/dns-records/" + record.optString("id")),
                         ok -> {
-                            toast("记录已删除");
+                            toast(I18n.text("m_36bdc2fdb515"));
                             loadRecords();
                         },
                         failure -> toast(failure.getMessage())))

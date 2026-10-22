@@ -1,30 +1,32 @@
 <template>
-  <n-modal :show="open" preset="card" title="AI 连接配置" class="ai-settings-modal" :style="{ width: 'min(560px, calc(100vw - 24px))' }" @update:show="close">
+  <n-modal :show="open" preset="card" :title="tr('m_036413404922')" class="ai-settings-modal" :style="{ width: 'min(560px, calc(100vw - 24px))' }" @update:show="close">
     <div class="settings-body">
-      <p v-if="settings?.shared_enabled && !settings?.is_admin" class="notice">由管理员提供全站共享连接。密钥与端点不可查看，会话和任务仍仅属于你。</p>
+      <p v-if="settings?.shared_enabled && !settings?.is_admin" class="notice">{{ tr('m_72e1d25a4b93') }}</p>
       <template v-else-if="settings">
-        <label v-if="settings.is_admin">配置范围
-          <select v-model="scope" :disabled="saving" @change="fill"><option value="personal">我的个人配置</option><option value="shared">全站共享配置</option></select>
+        <label v-if="settings.is_admin">{{ tr('m_d77674f90811') }}
+          <select v-model="scope" :disabled="saving" @change="fill"><option value="personal">{{ tr('m_eeb62339a596') }}</option><option value="shared">{{ tr('m_0372d8590b30') }}</option></select>
         </label>
-        <label v-if="scope === 'shared'" class="check"><input v-model="sharedEnabled" type="checkbox" :disabled="saving" />启用全站共享</label>
-        <p class="notice">{{ scope === 'shared' ? '开启后所有用户使用此连接，关闭后恢复各自个人配置。共享异常时不会回退到个人密钥。' : '此连接仅供你使用。开启全站共享时暂停使用，但不会删除。' }}</p>
+        <label v-if="scope === 'shared'" class="check"><input v-model="sharedEnabled" type="checkbox" :disabled="saving" />{{ tr('m_f6f63440e200') }}</label>
+        <p class="notice">{{ scope === 'shared' ? tr('m_b8aa668dda8a') : tr('m_2a6990243b0a') }}</p>
         <form @submit.prevent="save">
-          <label>API 端点<input v-model="endpoint" type="url" placeholder="https://api.example.com/v1" autocomplete="off" :disabled="saving" /></label>
-          <label>接口格式<select v-model="apiFormat" :disabled="saving"><option value="chat_completions">Chat Completions（兼容接口）</option><option value="responses">OpenAI Responses（原生接口）</option></select></label>
-          <label v-if="apiFormat === 'responses'" class="check"><input v-model="reasoningSummary" type="checkbox" :disabled="saving" />请求思考摘要（需要模型支持）</label>
-          <label>模型名称<input v-model="model" placeholder="填写服务商支持的模型 ID" maxlength="200" autocomplete="off" :disabled="saving" /></label>
-          <label>API 密钥<input v-model="apiKey" type="password" :placeholder="keySet ? '已设置，留空保留原密钥' : '请输入 API 密钥'" autocomplete="new-password" :disabled="saving" /></label>
-          <p class="note">支持 Chat Completions 和 OpenAI Responses，均支持流式回复与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 指运行后端的电脑或容器。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥在服务端加密保存，不回显；更换端点需重新填写密钥。</p>
+          <label>{{ tr('m_3d1ab62be024') }}<input v-model="endpoint" type="url" placeholder="https://api.example.com/v1" autocomplete="off" :disabled="saving" /></label>
+          <label>{{ tr('m_77ff2042727b') }}<select v-model="apiFormat" :disabled="saving"><option value="chat_completions">{{ tr('m_82026a7b6020') }}</option><option value="responses">{{ tr('m_bc31ab86ad29') }}</option></select></label>
+          <label v-if="apiFormat === 'responses'" class="check"><input v-model="reasoningSummary" type="checkbox" :disabled="saving" />{{ tr('m_884e4a50553e') }}</label>
+          <label>{{ tr('m_cb2f1709f983') }}<input v-model="model" :placeholder="tr('m_198031fe42c1')" maxlength="200" autocomplete="off" :disabled="saving" /></label>
+          <label>{{ tr('m_5f600b307b4e') }}<input v-model="apiKey" type="password" :placeholder="keySet ? tr('m_a025b0c0b478') : tr('m_f6277fc55bc2')" autocomplete="new-password" :disabled="saving" /></label>
+          <p class="note">{{ tr('m_66774fdd35ac') }}</p>
           <p v-if="error" class="error" role="alert">{{ error }}</p>
-          <button class="primary" :disabled="saving" type="submit">{{ saving ? '保存中…' : '保存配置' }}</button>
+          <button class="primary" :disabled="saving" type="submit">{{ saving ? tr('m_ff509c9ba052') : tr('m_6e584e3d5ce6') }}</button>
         </form>
       </template>
-      <p v-else>正在读取配置…</p>
+      <p v-else>{{ tr('m_8a044dd74276') }}</p>
     </div>
   </n-modal>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { ref, watch } from 'vue'
 import { NModal } from 'naive-ui'
 import { saveAISettings, type AISettings } from '../api/assistant'

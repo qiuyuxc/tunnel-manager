@@ -19,6 +19,7 @@ import (
 
 	"tunnel-manager/auth"
 	"tunnel-manager/handlers"
+	"tunnel-manager/i18n"
 	"tunnel-manager/models"
 	"tunnel-manager/services"
 	"tunnel-manager/setup"
@@ -26,7 +27,7 @@ import (
 )
 
 // Version is the current application version.
-const Version = "v2.9.0"
+const Version = "v3.0.0"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -233,6 +234,7 @@ func main() {
 	r.Use(chimw.Compress(5))
 	r.Use(mw.CORS)
 	r.Use(handlers.StatusDomainRedirect(st))
+	r.Use(i18n.Middleware)
 
 	r.Route("/api", func(r chi.Router) {
 		// Public site branding

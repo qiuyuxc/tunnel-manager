@@ -1,49 +1,49 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2>控制面板</h2>
-      <p>系统概览与快捷操作</p>
+      <h2>{{ tr('m_69e7a943ab4e') }}</h2>
+      <p>{{ tr('m_c275624d9980') }}</p>
     </div>
     <!-- Status Cards -->
     <div class="card-grid card-grid-4 section">
       <div class="metric-card">
-        <span class="metric-label">当前隧道</span>
+        <span class="metric-label">{{ tr('m_b903d203f70a') }}</span>
         <div class="metric-value">
-          <template v-if="config.tunnel_id"><span class="metric-text" :title="config.tunnel_name">{{ config.tunnel_name || '已选隧道' }}</span></template>
-          <span v-else class="text-muted">未配置</span>
+          <template v-if="config.tunnel_id"><span class="metric-text" :title="config.tunnel_name">{{ config.tunnel_name || tr('m_8ce5320404d5') }}</span></template>
+          <span v-else class="text-muted">{{ tr('m_80a57e03f071') }}</span>
         </div>
         <div class="metric-foot">
-          <router-link to="/tunnels" class="link">管理隧道</router-link>
+          <router-link to="/tunnels" class="link">{{ tr('m_506383a3c781') }}</router-link>
         </div>
       </div>
       <div class="metric-card">
-        <span class="metric-label">转发地址</span>
+        <span class="metric-label">{{ tr('m_c762fbaaad6f') }}</span>
         <div class="metric-value">
           <code v-if="config.service_url" class="inline-code" :title="config.service_url">{{ config.service_url }}</code>
-          <span v-else class="text-muted">未配置</span>
+          <span v-else class="text-muted">{{ tr('m_80a57e03f071') }}</span>
         </div>
         <div class="metric-foot">
-          <router-link to="/domain" class="link">设置地址</router-link>
+          <router-link to="/domain" class="link">{{ tr('m_e402aa7f1798') }}</router-link>
         </div>
       </div>
       <div class="metric-card">
-        <span class="metric-label">默认优选 CNAME</span>
+        <span class="metric-label">{{ tr('m_71b3aeb8f73c') }}</span>
         <div class="metric-value">
           <code class="inline-code" :title="config.preferred_cname">{{ config.preferred_cname }}</code>
         </div>
         <div class="metric-foot">
-          <router-link to="/settings" class="link">修改默认</router-link>
+          <router-link to="/settings" class="link">{{ tr('m_7cab1449964d') }}</router-link>
         </div>
       </div>
       <div class="metric-card">
-        <span class="metric-label">运行状态</span>
+        <span class="metric-label">{{ tr('m_e46b0272bd64') }}</span>
         <div class="metric-value">
           <span class="status-tag" :class="isReady ? 'healthy' : 'down'">
-            {{ isReady ? '配置就绪' : '配置未就绪' }}
+            {{ isReady ? tr('m_35a26ed26fb2') : tr('m_db2293169b76') }}
           </span>
         </div>
         <div class="metric-foot text-muted">
-          {{ isReady ? '可以进行域名绑定' : '缺少必要配置' }}
+          {{ isReady ? tr('m_2ea081143b43') : tr('m_936a274a99e1') }}
         </div>
       </div>
     </div>
@@ -51,33 +51,33 @@
     <!-- Monitor Overview -->
     <div class="card section">
       <div class="card-header ov-header">
-        <span class="caption-mono">监控概览 · 近 7 天</span>
-        <router-link to="/monitors" class="link ov-more">前往监控管理</router-link>
+        <span class="caption-mono">{{ tr('m_c3f43bf6cb8e') }}</span>
+        <router-link to="/monitors" class="link ov-more">{{ tr('m_105410a6df72') }}</router-link>
       </div>
 
       <div v-if="ov && ov.targets === 0" class="ov-empty">
-        <p>还没有监控项目。</p>
-        <p class="ov-empty-sub">创建一个后，这里会展示服务可用率与延迟峰值走势，还能生成对外状态页。</p>
-        <router-link to="/monitors" class="btn btn-primary btn-sm">创建监控</router-link>
+        <p>{{ tr('m_f4b9a6576c67') }}</p>
+        <p class="ov-empty-sub">{{ tr('m_330aea12560f') }}</p>
+        <router-link to="/monitors" class="btn btn-primary btn-sm">{{ tr('m_bf2247cd1864') }}</router-link>
       </div>
 
       <div v-else-if="ov" class="ov-body">
         <div class="ov-stats">
           <div class="stat">
             <span class="stat-num">{{ ov.uptime ?? ov.uptime_24h }}<em>%</em></span>
-            <span class="stat-lab">7 天可用率</span>
+            <span class="stat-lab">{{ tr('m_51694b10eb9a') }}</span>
           </div>
           <div class="stat">
             <span class="stat-num">{{ ov.avg_latency_ms || '—' }}<em v-if="ov.avg_latency_ms">ms</em></span>
-            <span class="stat-lab">平均延迟</span>
+            <span class="stat-lab">{{ tr('m_24e14c0ff18c') }}</span>
           </div>
           <div class="stat">
             <span class="stat-num">{{ ov.peak_latency_ms || '—' }}<em v-if="ov.peak_latency_ms">ms</em></span>
-            <span class="stat-lab">峰值延迟</span>
+            <span class="stat-lab">{{ tr('m_db9fa1f2420c') }}</span>
           </div>
           <div class="stat">
             <span class="stat-num stat-split"><i class="okc">{{ ov.ok }}</i><i class="warnc">{{ ov.warn }}</i><i class="downc">{{ ov.down }}</i></span>
-            <span class="stat-lab">正常 / 异常 / 不可达</span>
+            <span class="stat-lab">{{ tr('m_986ee8e02870') }}</span>
           </div>
         </div>
 
@@ -104,56 +104,56 @@
             </div>
           </div>
           <div class="legend">
-            <span><i class="lg-peak"></i>峰值</span>
-            <span><i class="lg-avg good"></i>平均（正常）</span>
-            <span><i class="lg-avg mid"></i>出现异常</span>
-            <span><i class="lg-avg bad"></i>出现不可达</span>
+            <span><i class="lg-peak"></i>{{ tr('m_5fa34377ddca') }}</span>
+            <span><i class="lg-avg good"></i>{{ tr('m_2fd1b622dd44') }}</span>
+            <span><i class="lg-avg mid"></i>{{ tr('m_5eed6049cc53') }}</span>
+            <span><i class="lg-avg bad"></i>{{ tr('m_f2544b8d232f') }}</span>
           </div>
         </div>
       </div>
 
-      <div v-else class="ov-empty"><p>加载中…</p></div>
+      <div v-else class="ov-empty"><p>{{ tr('m_4927a53bcc88') }}</p></div>
     </div>
 
     <!-- Quick Actions -->
     <div class="card section ov-card">
       <div class="card-header">
-        <span class="caption-mono">快捷操作</span>
+        <span class="caption-mono">{{ tr('m_899432d83d98') }}</span>
       </div>
       <div class="quick-actions">
         <router-link to="/tunnels" class="action-tile">
           <div class="action-icon" v-html="icons.tunnel" />
           <div class="action-body">
-            <strong>隧道管理</strong>
-            <span>查看、创建和选择 Cloudflare Tunnel</span>
+            <strong>{{ tr('m_e920f47d0c05') }}</strong>
+            <span>{{ tr('m_91e0e3d19ebf') }}</span>
           </div>
         </router-link>
         <router-link to="/monitors" class="action-tile">
           <div class="action-icon" v-html="icons.monitor" />
           <div class="action-body">
-            <strong>服务监控</strong>
-            <span>可用性探测与公开状态页</span>
+            <strong>{{ tr('m_7fab82054a8f') }}</strong>
+            <span>{{ tr('m_c9c94c3a6470') }}</span>
           </div>
         </router-link>
         <router-link to="/domain" class="action-tile" :class="{ disabled: !isReady }">
           <div class="action-icon" v-html="icons.domain" />
           <div class="action-body">
-            <strong>域名绑定</strong>
-            <span>将域名绑定到已选隧道</span>
+            <strong>{{ tr('m_4bf8b66d7390') }}</strong>
+            <span>{{ tr('m_e9935df19bad') }}</span>
           </div>
         </router-link>
         <router-link to="/dns" class="action-tile">
           <div class="action-icon" v-html="icons.dns" />
           <div class="action-body">
-            <strong>DNS 管理</strong>
-            <span>管理 Cloudflare DNS 记录</span>
+            <strong>{{ tr('m_474fb6002594') }}</strong>
+            <span>{{ tr('m_8f643f738546') }}</span>
           </div>
         </router-link>
         <router-link to="/settings" class="action-tile">
           <div class="action-icon" v-html="icons.settings" />
           <div class="action-body">
-            <strong>全局设置</strong>
-            <span>站点品牌、CNAME 预设、回退源</span>
+            <strong>{{ tr('m_3f754f38a654') }}</strong>
+            <span>{{ tr('m_3ea7902dcfe5') }}</span>
           </div>
         </router-link>
       </div>
@@ -163,17 +163,17 @@
     <SheetPanel :open="detailOpen" :title="detailTitle" @close="detailOpen = false">
       <template v-if="detail">
         <div class="detail-stats">
-          <span>检测 {{ detail.total }} 次</span>
-          <span v-if="detail.warn" class="warnc">异常 {{ detail.warn }}</span>
-          <span v-if="detail.down" class="downc">不可达 {{ detail.down }}</span>
-          <span v-if="detail.peak_ms">峰值 {{ detail.peak_ms }}ms</span>
-          <span v-if="detail.avg_ms">平均 {{ Math.round(detail.avg_ms) }}ms</span>
+          <span>{{ tr('m_071089398bfd') }} {{ detail.total }} {{ tr('m_172fb7e67b9b') }}</span>
+          <span v-if="detail.warn" class="warnc">{{ tr('m_428fb8bfeecf') }} {{ detail.warn }}</span>
+          <span v-if="detail.down" class="downc">{{ tr('m_8d7c03019f1d') }} {{ detail.down }}</span>
+          <span v-if="detail.peak_ms">{{ tr('m_5fa34377ddca') }} {{ detail.peak_ms }}ms</span>
+          <span v-if="detail.avg_ms">{{ tr('m_a49ffd73bc85') }} {{ Math.round(detail.avg_ms) }}ms</span>
         </div>
 
-        <div v-if="!detailIssues.length" class="detail-empty">这一天没有出现异常。</div>
+        <div v-if="!detailIssues.length" class="detail-empty">{{ tr('m_5435dc68f0ff') }}</div>
 
         <template v-else>
-          <div class="group-label">涉及 {{ detailIssues.length }} 个目标</div>
+          <div class="group-label">{{ tr('m_121bc4ad14a0') }} {{ detailIssues.length }} {{ tr('m_24bab5d15a9b') }}</div>
           <router-link
             v-for="issue in detailIssues"
             :key="issue.monitor_id + '/' + issue.target_id"
@@ -186,19 +186,19 @@
               <span class="issue-chevron" v-html="navIcons.chevron" />
             </div>
             <div class="issue-meta">
-              <span v-if="issue.down" class="downc">不可达 {{ issue.down }}</span>
-              <span v-if="issue.warn" class="warnc">异常 {{ issue.warn }}</span>
-              <span v-if="issue.peak_ms">峰值 {{ issue.peak_ms }}ms</span>
+              <span v-if="issue.down" class="downc">{{ tr('m_8d7c03019f1d') }} {{ issue.down }}</span>
+              <span v-if="issue.warn" class="warnc">{{ tr('m_428fb8bfeecf') }} {{ issue.warn }}</span>
+              <span v-if="issue.peak_ms">{{ tr('m_5fa34377ddca') }} {{ issue.peak_ms }}ms</span>
             </div>
             <div v-for="(inc, i) in issue.incidents" :key="i" class="incident">
               <span class="incident-time">{{ incidentRange(inc) }}</span>
               <span :class="inc.state === 'down' ? 'downc' : 'warnc'">
-                {{ inc.state === 'down' ? '不可达' : '降级' }}
+                {{ inc.state === 'down' ? tr('m_8d7c03019f1d') : tr('m_9f22b41cf5d7') }}
               </span>
               <span v-if="incidentDetail(inc)" class="incident-cause">{{ incidentDetail(inc) }}</span>
             </div>
             <div v-if="issue.incident_count > issue.incidents.length" class="incident-more">
-              另有 {{ issue.incident_count - issue.incidents.length }} 段未列出
+              {{ tr('m_268ec6902063') }} {{ issue.incident_count - issue.incidents.length }} {{ tr('m_60469b2478bc') }}
             </div>
           </router-link>
         </template>
@@ -208,6 +208,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getMonitorOverview, type BucketIncident, type BucketStat, type OverviewResp } from '../api'
 import { icons as navIcons } from '../navigation'
@@ -259,19 +261,19 @@ function bucketLabel(sec: number) {
   const d = new Date(sec * 1000)
   if (isNaN(d.getTime())) return ''
   // A server that predates the field only ever sent hourly buckets.
-  if ((ov.value?.bucket_sec ?? 3600) < 86400) return d.getHours() + '时'
+  if ((ov.value?.bucket_sec ?? 3600) < 86400) return d.getHours() + tr('m_7d58b6422cac')
   return d.getMonth() + 1 + '/' + d.getDate()
 }
 
 function bucketTitle(b: BucketStat) {
-  if (!b.total) return bucketLabel(b.hour) + ' · 无数据'
+  if (!b.total) return bucketLabel(b.hour) + tr('m_577a94a037ec')
   return [
     bucketLabel(b.hour),
-    '平均 ' + b.avg_ms + 'ms',
-    '峰值 ' + b.peak_ms + 'ms',
-    '检测 ' + b.total + ' 次',
-    b.warn ? '异常 ' + b.warn : '',
-    b.down ? '不可达 ' + b.down : '',
+    tr('m_acf531be9aa9') + b.avg_ms + 'ms',
+    tr('m_cd4fd6677c07') + b.peak_ms + 'ms',
+    tr('m_8533a9ba995e') + b.total + tr('m_f81526efce19'),
+    b.warn ? tr('m_aafb70b7aab2') + b.warn : '',
+    b.down ? tr('m_edc10d4f3ecf') + b.down : '',
   ].filter(Boolean).join(' · ')
 }
 
@@ -281,7 +283,7 @@ const detail = ref<BucketStat | null>(null)
 const detailOpen = ref(false)
 
 const detailIssues = computed(() => detail.value?.issues ?? [])
-const detailTitle = computed(() => (detail.value ? bucketLabel(detail.value.hour) + ' 的问题' : ''))
+const detailTitle = computed(() => (detail.value ? bucketLabel(detail.value.hour) + tr('m_70bcee5995c2') : ''))
 
 /** An empty day has nothing to drill into, so it stays inert. */
 function openDetail(b: BucketStat) {
@@ -305,7 +307,7 @@ function incidentRange(inc: BucketIncident) {
 /** The probe's own message is more specific than the bare status code. */
 function incidentDetail(inc: BucketIncident) {
   const bits: string[] = []
-  if (inc.count > 1) bits.push('连续 ' + inc.count + ' 次')
+  if (inc.count > 1) bits.push(tr('m_3c54ef9ee95e') + inc.count + tr('m_f81526efce19'))
   const cause = inc.error || (inc.code ? 'HTTP ' + inc.code : '')
   if (cause) bits.push(cause)
   return bits.join(' · ')

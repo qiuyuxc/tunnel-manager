@@ -1,5 +1,6 @@
 <template>
   <div class="login-page">
+    <div class="login-language"><LanguageSelect /></div>
     <div class="login-card" :class="{ 'login-card-shake': shaking }">
       <div class="login-logo">
         <span class="logo-mark" aria-hidden="true">
@@ -11,70 +12,70 @@
         </span>
       </div>
       <h1 class="login-title">{{ store.config.site_name }}</h1>
-      <p class="login-subtitle">{{ store.config.site_description || '登录以继续' }}</p>
+      <p class="login-subtitle">{{ store.config.site_description || tr('m_f702792b3358') }}</p>
       <div v-if="modeSwitchable" class="mode-tabs">
-        <button type="button" class="mode-tab" :class="{ active: mode === 'login' }" @click="switchMode('login')">登录</button>
-        <button type="button" class="mode-tab" :class="{ active: mode === 'register' }" @click="switchMode('register')">注册</button>
+        <button type="button" class="mode-tab" :class="{ active: mode === 'login' }" @click="switchMode('login')">{{ tr('m_1e2df9c3075a') }}</button>
+        <button type="button" class="mode-tab" :class="{ active: mode === 'register' }" @click="switchMode('register')">{{ tr('m_c4fb62202bad') }}</button>
       </div>
       <Transition name="step-fade" mode="out-in">
         <div :key="mode + '-' + step">
           <template v-if="step === 'oidc-email'">
             <form class="login-form" @submit.prevent="finishOIDCLogin">
-              <p class="login-subtitle">验证邮箱后继续登录，首次登录将自动创建账号。</p>
+              <p class="login-subtitle">{{ tr('m_4af6d732bd51') }}</p>
               <div class="field">
-                <label class="field-label" for="oidc-email">账户邮箱</label>
+                <label class="field-label" for="oidc-email">{{ tr('m_f8f1b032f460') }}</label>
                 <input id="oidc-email" :value="oidcEmail" class="vercel-input" type="email" readonly />
               </div>
               <div class="field">
-                <label class="field-label" for="oidc-code">邮件验证码</label>
-                <input id="oidc-code" v-model="oidcCode" class="vercel-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位数字" />
+                <label class="field-label" for="oidc-code">{{ tr('m_2d60deda8e1e') }}</label>
+                <input id="oidc-code" v-model="oidcCode" class="vercel-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :placeholder="tr('m_7ce6963f19ce')" />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
-              <button type="button" class="btn btn-secondary login-btn" :disabled="codeSending || codeCooldown > 0 || loading" @click="handleOIDCSendCode">{{ codeSending ? '发送中...' : codeCooldown > 0 ? codeCooldown + ' 秒后重发' : '发送验证码' }}</button>
-              <button type="submit" class="btn btn-primary login-btn" :disabled="loading || !oidcCode.trim()">{{ loading ? '验证中...' : '验证并登录' }}</button>
-              <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="cancelOIDC">返回登录</button>
+              <button type="button" class="btn btn-secondary login-btn" :disabled="codeSending || codeCooldown > 0 || loading" @click="handleOIDCSendCode">{{ codeSending ? tr('m_9d2ee1e4d8c3') : codeCooldown > 0 ? codeCooldown + tr('m_9ccacca8a78c') : tr('m_4656fed515ae') }}</button>
+              <button type="submit" class="btn btn-primary login-btn" :disabled="loading || !oidcCode.trim()">{{ loading ? tr('m_6c128e0ad353') : tr('m_4e34537e5d0c') }}</button>
+              <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="cancelOIDC">{{ tr('m_747b0f9082e6') }}</button>
             </form>
           </template>
           <template v-else-if="mode === 'forgot'">
             <div class="factor-heading">
               <span class="security-stamp">RESET PASSWORD</span>
-              <p class="login-subtitle">通过注册邮箱重置密码（需管理员已配置邮件服务）</p>
+              <p class="login-subtitle">{{ tr('m_6bd2317c80bf') }}</p>
             </div>
             <form class="login-form" @submit.prevent="handleResetPassword">
               <div class="field">
-                <label class="field-label" for="fp-email">注册邮箱</label>
+                <label class="field-label" for="fp-email">{{ tr('m_a751637c0425') }}</label>
                 <div class="email-row">
                   <input id="fp-email" v-model="forgotForm.email" type="email" placeholder="you@example.com" class="vercel-input" />
                   <button type="button" class="btn btn-secondary code-btn" :disabled="codeCooldown > 0 || codeSending" @click="handleForgotSend">
-                    {{ codeCooldown > 0 ? codeCooldown + 's' : (codeSending ? '发送中' : '发送验证码') }}
+                    {{ codeCooldown > 0 ? codeCooldown + 's' : (codeSending ? tr('m_9eacfc58bf9f') : tr('m_4656fed515ae')) }}
                   </button>
                 </div>
               </div>
               <div class="field">
-                <label class="field-label" for="fp-code">重置验证码</label>
-                <input id="fp-code" v-model="forgotForm.code" type="text" placeholder="6 位数字" class="vercel-input" maxlength="6" inputmode="numeric" />
+                <label class="field-label" for="fp-code">{{ tr('m_23ca81d774ca') }}</label>
+                <input id="fp-code" v-model="forgotForm.code" type="text" :placeholder="tr('m_7ce6963f19ce')" class="vercel-input" maxlength="6" inputmode="numeric" />
               </div>
               <div class="field">
-                <label class="field-label" for="fp-password">新密码</label>
-                <input id="fp-password" v-model="forgotForm.newPassword" type="password" placeholder="至少 6 位" class="vercel-input" autocomplete="new-password" />
+                <label class="field-label" for="fp-password">{{ tr('m_515e9c7cf7b2') }}</label>
+                <input id="fp-password" v-model="forgotForm.newPassword" type="password" :placeholder="tr('m_041568c2db7a')" class="vercel-input" autocomplete="new-password" />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
               <div v-if="turnstileEnabled" ref="forgotTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
-                {{ loading ? '重置中...' : '重置密码' }}
+                {{ loading ? tr('m_9be1af6abe7d') : tr('m_d70928debc2e') }}
               </button>
-              <button type="button" class="btn btn-ghost login-btn" @click="switchMode('login')">返回登录</button>
+              <button type="button" class="btn btn-ghost login-btn" @click="switchMode('login')">{{ tr('m_747b0f9082e6') }}</button>
             </form>
           </template>
           <template v-else-if="mode === 'register'">
             <form class="login-form" @submit.prevent="handleRegister">
               <div class="field">
-                <label class="field-label" for="reg-username">用户名</label>
-                <input id="reg-username" v-model="regForm.username" type="text" placeholder="2-32 位字母、数字、_ 或 -" class="vercel-input" autocomplete="username" />
+                <label class="field-label" for="reg-username">{{ tr('m_1a3f0617d6de') }}</label>
+                <input id="reg-username" v-model="regForm.username" type="text" :placeholder="tr('m_f5ec6ffdb41a')" class="vercel-input" autocomplete="username" />
               </div>
               <div class="field">
-                <label class="field-label" for="reg-email">邮箱</label>
+                <label class="field-label" for="reg-email">{{ tr('m_73075237fd0f') }}</label>
                 <div class="email-row">
                   <input id="reg-email" v-model="regForm.email" type="email" placeholder="you@example.com" class="vercel-input" autocomplete="email" />
                   <button
@@ -84,37 +85,37 @@
                     :disabled="codeCooldown > 0 || codeSending"
                     @click="handleSendCode"
                   >
-                    {{ codeCooldown > 0 ? codeCooldown + 's' : (codeSending ? '发送中' : '发送验证码') }}
+                    {{ codeCooldown > 0 ? codeCooldown + 's' : (codeSending ? tr('m_9eacfc58bf9f') : tr('m_4656fed515ae')) }}
                   </button>
                 </div>
               </div>
               <div v-if="authConfig.email_verify_enabled" class="field">
-                <label class="field-label" for="reg-code">邮箱验证码</label>
-                <input id="reg-code" v-model="regForm.verifyCode" type="text" placeholder="6 位数字" class="vercel-input" maxlength="6" inputmode="numeric" />
+                <label class="field-label" for="reg-code">{{ tr('m_3acdd163e67a') }}</label>
+                <input id="reg-code" v-model="regForm.verifyCode" type="text" :placeholder="tr('m_7ce6963f19ce')" class="vercel-input" maxlength="6" inputmode="numeric" />
               </div>
               <div class="field">
-                <label class="field-label" for="reg-password">密码</label>
-                <input id="reg-password" v-model="regForm.password" type="password" placeholder="至少 6 位" class="vercel-input" autocomplete="new-password" />
+                <label class="field-label" for="reg-password">{{ tr('m_a621ab606db2') }}</label>
+                <input id="reg-password" v-model="regForm.password" type="password" :placeholder="tr('m_041568c2db7a')" class="vercel-input" autocomplete="new-password" />
               </div>
               <div v-if="authConfig.invite_mode !== 'off'" class="field">
                 <label class="field-label" for="reg-invite">
-                  邀请码{{ authConfig.invite_mode === 'required' ? '' : '（选填）' }}
+                  {{ tr('m_c8b56dca7aed') }}{{ authConfig.invite_mode === 'required' ? '' : tr('m_968333deb095') }}
                 </label>
-                <input id="reg-invite" v-model="regForm.invite" type="text" placeholder="邀请码" class="vercel-input" />
+                <input id="reg-invite" v-model="regForm.invite" type="text" :placeholder="tr('m_c8b56dca7aed')" class="vercel-input" />
               </div>
               <div v-if="error" class="login-error" role="alert">{{ error }}</div>
               <div v-if="turnstileEnabled" ref="regTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
-                {{ loading ? '注册中...' : '注册并登录' }}
+                {{ loading ? tr('m_bda8d590a9f7') : tr('m_e1ec379a4043') }}
               </button>
-              <button type="button" class="link-btn" @click="switchMode('login')">已有账号？去登录</button>
+              <button type="button" class="link-btn" @click="switchMode('login')">{{ tr('m_31e31254f5f0') }}</button>
             </form>
           </template>
           <template v-else-if="step === 'credentials'">
             <form class="login-form" @submit.prevent="handleLogin">
               <div class="field">
-                <label class="field-label" for="login-username">用户名</label>
+                <label class="field-label" for="login-username">{{ tr('m_1a3f0617d6de') }}</label>
                 <input
                   id="login-username"
                   ref="usernameInput"
@@ -127,7 +128,7 @@
                 />
               </div>
               <div class="field">
-                <label class="field-label" for="login-password">密码</label>
+                <label class="field-label" for="login-password">{{ tr('m_a621ab606db2') }}</label>
                 <input
                   id="login-password"
                   ref="passwordInput"
@@ -143,37 +144,37 @@
               <div v-if="turnstileEnabled" ref="loginTurnstile" class="turnstile-wrap"></div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
-                {{ loading ? '登录中...' : '登录' }}
+                {{ loading ? tr('m_c0b692e4f515') : tr('m_1e2df9c3075a') }}
               </button>
               <button v-if="passkeySupported" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handlePasskeyLogin">
                 <span v-if="passkeyBusy" class="spinner"></span>
-                {{ passkeyBusy ? '等待验证...' : '使用通行密钥登录' }}
+                {{ passkeyBusy ? tr('m_7c93e5eb917e') : tr('m_e984682db258') }}
               </button>
-              <div v-if="oidcProviders.length" class="oidc-login-options" aria-label="其他登录方式">
-                <p class="field-label">其他登录方式</p>
-                <button v-for="provider in oidcProviders" :key="provider.id" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handleOIDCLogin(provider.id)">使用 {{ provider.name }} 登录</button>
+              <div v-if="oidcProviders.length" class="oidc-login-options" :aria-label="tr('m_ca7af643043a')">
+                <p class="field-label">{{ tr('m_ca7af643043a') }}</p>
+                <button v-for="provider in oidcProviders" :key="provider.id" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handleOIDCLogin(provider.id)">{{ tr('m_cdfd0b34e491') }} {{ provider.name }} {{ tr('m_1e2df9c3075a') }}</button>
               </div>
-              <button type="button" class="link-btn" @click="switchMode('forgot')">忘记密码？</button>
+              <button type="button" class="link-btn" @click="switchMode('forgot')">{{ tr('m_1d02d7f1c5c4') }}</button>
             </form>
           </template>
           <template v-else>
             <div class="factor-heading">
               <span class="security-stamp">2FA REQUIRED</span>
-              <p class="login-subtitle">输入认证器验证码或一次性恢复码</p>
+              <p class="login-subtitle">{{ tr('m_6c6cfabd59bf') }}</p>
             </div>
             <form class="login-form" @submit.prevent="handleFactorLogin">
               <div class="factor-meta">
-                <span>验证请求</span>
+                <span>{{ tr('m_8bd2fa0068b8') }}</span>
                 <strong :class="{ 'countdown-warning': remainingSeconds <= 60 }">{{ countdown }}</strong>
               </div>
               <div class="field">
-                <label class="field-label" for="login-factor">验证码或恢复码</label>
+                <label class="field-label" for="login-factor">{{ tr('m_3b9346649649') }}</label>
                 <input
                   id="login-factor"
                   ref="factorInput"
                   v-model="factorCode"
                   type="text"
-                  placeholder="000000 或 XXXX-XXXX-…"
+                  :placeholder="tr('m_555c49803059')"
                   class="vercel-input factor-input"
                   :class="{ 'input-error': error }"
                   autocomplete="one-time-code"
@@ -185,14 +186,14 @@
               <div v-if="error" class="login-error" role="alert" aria-live="polite">{{ error }}</div>
               <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
-                {{ loading ? '验证中...' : '验证并登录' }}
+                {{ loading ? tr('m_6c128e0ad353') : tr('m_4e34537e5d0c') }}
               </button>
               <button v-if="passkeySupported && passkeyFactorAvailable" type="button" class="btn btn-secondary login-btn" :disabled="loading || passkeyBusy" @click="handlePasskeyFactor">
                 <span v-if="passkeyBusy" class="spinner"></span>
-                {{ passkeyBusy ? '等待验证...' : '使用通行密钥验证' }}
+                {{ passkeyBusy ? tr('m_7c93e5eb917e') : tr('m_28c3158cdf27') }}
               </button>
               <button type="button" class="btn btn-ghost login-btn" :disabled="loading" @click="resetChallenge()">
-                返回密码登录
+                {{ tr('m_f7e73e3576e7') }}
               </button>
             </form>
           </template>
@@ -202,6 +203,9 @@
   </div>
 </template>
 <script setup lang="ts">
+import LanguageSelect from '../components/LanguageSelect.vue'
+import { t as tr } from '../i18n'
+
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
@@ -376,9 +380,9 @@ async function handlePasskeyLogin() {
     await router.replace('/dashboard')
   } catch (e: any) {
     if (e?.name === 'NotAllowedError' || e?.name === 'AbortError') {
-      error.value = '已取消通行密钥验证'
+      error.value = tr('m_db900a083e3e')
     } else {
-      error.value = e.response?.data?.error || e.message || '通行密钥登录失败'
+      error.value = e.response?.data?.error || e.message || tr('m_9b4340ac3382')
     }
     triggerShake()
   } finally {
@@ -403,9 +407,9 @@ async function handlePasskeyFactor() {
     await router.replace('/dashboard')
   } catch (e: any) {
     if (e?.name === 'NotAllowedError' || e?.name === 'AbortError') {
-      error.value = '已取消通行密钥验证'
+      error.value = tr('m_db900a083e3e')
     } else {
-      error.value = e.response?.data?.error || e.message || '通行密钥验证失败'
+      error.value = e.response?.data?.error || e.message || tr('m_17c96c45fc4c')
     }
     triggerShake()
   } finally {
@@ -415,13 +419,13 @@ async function handlePasskeyFactor() {
 
 async function handleLogin() {
   if (!form.username || !form.password) {
-    error.value = '请输入用户名和密码'
+    error.value = tr('m_1793872ca1c9')
     triggerShake()
     return
   }
   const turnstileTokenValue = takeTurnstileToken()
   if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     triggerShake()
     void renderTurnstile()
     return
@@ -433,7 +437,7 @@ async function handleLogin() {
     if (response.status === 202 && 'two_factor_required' in response.data) {
       const expiresAt = Date.parse(response.data.expires_at)
       if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-        error.value = '验证请求无效或已过期，请重新登录'
+        error.value = tr('m_4c0839ec2ac6')
         form.password = ''
         await nextTick()
         passwordInput.value?.focus()
@@ -457,8 +461,8 @@ async function handleLogin() {
     }
   } catch (e: any) {
     error.value = e.response?.status === 401
-      ? '用户名或密码错误'
-      : '登录失败: ' + (e.response?.data?.error || e.message)
+      ? tr('m_a9a6a83a7d22')
+      : tr('m_193e0b000ce7') + (e.response?.data?.error || e.message)
     triggerShake()
     await nextTick()
     passwordInput.value?.focus()
@@ -470,11 +474,11 @@ async function handleLogin() {
 async function handleFactorLogin() {
   const code = factorCode.value.trim()
   if (!code) {
-    error.value = '请输入验证码或恢复码'
+    error.value = tr('m_61eb3fa7e4f4')
     return
   }
   if (Date.now() >= challengeExpiresAt.value) {
-    resetChallenge('验证请求已过期，请重新输入密码')
+    resetChallenge(tr('m_a6b11a4afb71'))
     return
   }
   loading.value = true
@@ -488,12 +492,12 @@ async function handleFactorLogin() {
     if (e.response?.status === 401) {
       failedFactorAttempts.value += 1
       if (failedFactorAttempts.value >= 5) {
-        resetChallenge('验证次数已用尽，请重新输入密码')
+        resetChallenge(tr('m_82fadaa985ec'))
         return
       }
-      error.value = '验证码或恢复码无效'
+      error.value = tr('m_84ac8c912896')
     } else {
-      error.value = '验证失败: ' + (e.response?.data?.error || e.message)
+      error.value = tr('m_1f752a49011b') + (e.response?.data?.error || e.message)
     }
     factorCode.value = ''
     await nextTick()
@@ -511,7 +515,7 @@ function updateCountdown() {
   const seconds = Math.max(0, Math.ceil((challengeExpiresAt.value - Date.now()) / 1000))
   remainingSeconds.value = seconds
   countdown.value = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-  if (seconds === 0) resetChallenge('验证请求已过期，请重新输入密码')
+  if (seconds === 0) resetChallenge(tr('m_a6b11a4afb71'))
 }
 function resetChallenge(message = '') {
   clearChallengeTimer()
@@ -554,7 +558,7 @@ async function handleOIDCLogin(id: string) {
   if (loading.value || passkeyBusy.value || disposed) return
   const token = takeTurnstileToken()
   if (turnstileEnabled.value && !token) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     void renderTurnstile()
     return
   }
@@ -565,7 +569,7 @@ async function handleOIDCLogin(id: string) {
     if (!disposed) window.location.assign(data.authorization_url)
   } catch (e: any) {
     if (disposed) return
-    error.value = e.response?.data?.error || 'OIDC 登录暂不可用'
+    error.value = e.response?.data?.error || tr('m_f0473741a7ca')
     loading.value = false
     void renderTurnstile()
   }
@@ -600,9 +604,9 @@ async function finishOIDCLogin() {
       oidcTicket.value = ''
       store.setAuth(data.token, data.username, data.role)
       await router.replace('/dashboard')
-    } else error.value = '认证结果无效，请重新登录'
+    } else error.value = tr('m_4fe7e7ab747e')
   } catch (e: any) {
-    if (!disposed) error.value = e.response?.data?.error || 'OIDC 登录失败，请重新登录'
+    if (!disposed) error.value = e.response?.data?.error || tr('m_349ec35c5154')
   } finally {
     if (!disposed) loading.value = false
   }
@@ -622,7 +626,7 @@ async function handleOIDCSendCode() {
       if (codeCooldown.value <= 0) window.clearInterval(cooldownTimer)
     }, 1000)
   } catch (e: any) {
-    if (!disposed) error.value = e.response?.data?.error || '邮件发送失败'
+    if (!disposed) error.value = e.response?.data?.error || tr('m_a98d3ab9e1bb')
   } finally {
     if (!disposed) codeSending.value = false
   }
@@ -640,12 +644,12 @@ function cancelOIDC() {
 async function handleSendCode() {
   const email = regForm.email.trim()
   if (!email) {
-    error.value = '请先填写邮箱'
+    error.value = tr('m_bed85797d991')
     return
   }
   const turnstileTokenValue = takeTurnstileToken()
   if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     void renderTurnstile()
     return
   }
@@ -662,7 +666,7 @@ async function handleSendCode() {
       }
     }, 1000)
   } catch (e: any) {
-    error.value = e.response?.data?.error || '验证码发送失败'
+    error.value = e.response?.data?.error || tr('m_f2d0fada0803')
   } finally {
     codeSending.value = false
     void renderTurnstile()
@@ -672,12 +676,12 @@ async function handleSendCode() {
 async function handleForgotSend() {
   const email = forgotForm.email.trim()
   if (!email) {
-    error.value = '请先填写注册邮箱'
+    error.value = tr('m_9643ca765953')
     return
   }
   const turnstileTokenValue = takeTurnstileToken()
   if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     void renderTurnstile()
     return
   }
@@ -694,7 +698,7 @@ async function handleForgotSend() {
       }
     }, 1000)
   } catch (e: any) {
-    error.value = e.response?.data?.error || '验证码发送失败'
+    error.value = e.response?.data?.error || tr('m_f2d0fada0803')
   } finally {
     codeSending.value = false
     void renderTurnstile()
@@ -704,16 +708,16 @@ async function handleForgotSend() {
 async function handleResetPassword() {
   const email = forgotForm.email.trim()
   if (!email || !forgotForm.code.trim() || !forgotForm.newPassword) {
-    error.value = '请填写邮箱、验证码和新密码'
+    error.value = tr('m_3be67f5752f6')
     return
   }
   if (forgotForm.newPassword.length < 6) {
-    error.value = '新密码至少 6 位'
+    error.value = tr('m_4e1f11e21737')
     return
   }
   const turnstileTokenValue = takeTurnstileToken()
   if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     triggerShake()
     void renderTurnstile()
     return
@@ -726,9 +730,9 @@ async function handleResetPassword() {
     forgotForm.code = ''
     forgotForm.newPassword = ''
     switchMode('login')
-    error.value = '密码已重置，请使用新密码登录'
+    error.value = tr('m_310a97dbe461')
   } catch (e: any) {
-    error.value = e.response?.data?.error || '重置失败'
+    error.value = e.response?.data?.error || tr('m_4230b353344a')
   } finally {
     loading.value = false
     void renderTurnstile()
@@ -739,23 +743,23 @@ async function handleRegister() {
   const username = regForm.username.trim()
   const email = regForm.email.trim()
   if (!username || !email || !regForm.password) {
-    error.value = '请填写用户名、邮箱和密码'
+    error.value = tr('m_194dcb264083')
     triggerShake()
     return
   }
   if (authConfig.value.email_verify_enabled && !regForm.verifyCode.trim()) {
-    error.value = '请输入邮箱验证码'
+    error.value = tr('m_c25caca78469')
     triggerShake()
     return
   }
   if (authConfig.value.invite_mode === 'required' && !regForm.invite.trim()) {
-    error.value = '邀请码不能为空'
+    error.value = tr('m_9cf670228f66')
     triggerShake()
     return
   }
   const turnstileTokenValue = takeTurnstileToken()
   if (turnstileEnabled.value && !turnstileTokenValue) {
-    error.value = '请完成人机验证'
+    error.value = tr('m_10ef93c129e5')
     triggerShake()
     void renderTurnstile()
     return
@@ -775,7 +779,7 @@ async function handleRegister() {
     regForm.password = ''
     await router.replace('/dashboard')
   } catch (e: any) {
-    error.value = e.response?.data?.error || '注册失败: ' + (e.message || '')
+    error.value = e.response?.data?.error || tr('m_4f07718f79cf') + (e.message || '')
     triggerShake()
   } finally {
     loading.value = false

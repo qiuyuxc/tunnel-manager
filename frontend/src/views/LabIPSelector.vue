@@ -2,57 +2,57 @@
   <div class="page-container lab-page">
     <div class="page-header">
       <div>
-        <h2>IP 优选实验室</h2>
-        <p>HTTP 探测、延迟排序与 DNS 更新</p>
+        <h2>{{ tr('m_3db29474a184') }}</h2>
+        <p>{{ tr('m_c903232627f5') }}</p>
       </div>
       <div class="header-actions">
-        <span class="tag" :class="running ? 'tag-warn' : 'tag-down'">{{ running ? '任务运行中' : '空闲' }}</span>
-        <button class="btn btn-secondary" :disabled="loading" @click="refresh()">刷新状态</button>
-        <button v-if="running || form.schedule" class="btn btn-secondary" :disabled="acting" @click="stop">停止并关闭定时</button>
-        <button class="btn btn-primary" :disabled="!canRun" @click="run">{{ running ? '运行中…' : '保存并执行' }}</button>
+        <span class="tag" :class="running ? 'tag-warn' : 'tag-down'">{{ running ? tr('m_5df4f96d6d93') : tr('m_dae661d17c2d') }}</span>
+        <button class="btn btn-secondary" :disabled="loading" @click="refresh()">{{ tr('m_802a407c7743') }}</button>
+        <button v-if="running || form.schedule" class="btn btn-secondary" :disabled="acting" @click="stop">{{ tr('m_db53b055cad4') }}</button>
+        <button class="btn btn-primary" :disabled="!canRun" @click="run">{{ running ? tr('m_14d9f2d830ad') : tr('m_126a24ed51ca') }}</button>
       </div>
     </div>
 
     <p v-if="loadError" role="alert">{{ loadError }}</p>
-    <section class="settings-card" aria-label="域名授权和请求预算">
+    <section class="settings-card" :aria-label="tr('m_ee87a1453607')">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">DNS TXT 域名验证</div>
-          <div class="settings-card-desc">与探测 Host/SNI 独立。验证后请保留 DNS 中的 TXT。</div>
+          <div class="settings-card-title">{{ tr('m_fad1f3ce9254') }}</div>
+          <div class="settings-card-desc">{{ tr('m_efff3af6baf6') }}</div>
         </div>
-        <span class="tag" :class="authorized ? 'tag-ok' : 'tag-warn'">{{ authorized ? '已授权' : '待验证' }}</span>
+        <span class="tag" :class="authorized ? 'tag-ok' : 'tag-warn'">{{ authorized ? tr('m_521e65ffc7d0') : tr('m_76a2e875d985') }}</span>
       </div>
       <label class="field">
-        <span class="field-label">验证域名</span>
+        <span class="field-label">{{ tr('m_ca1c8872d2ec') }}</span>
         <input v-model="authorizationDomain" class="vercel-input" placeholder="example.com" :disabled="acting || running" />
       </label>
-      <p class="dns-automation-info">{{ dnsAvailability.available ? `DNS 账户：${dnsAvailability.account_name || '已绑定'}` : dnsAvailability.message }}</p>
+      <p class="dns-automation-info">{{ dnsAvailability.available ? tr('m_72f21fa88edc', { p0: dnsAvailability.account_name || '已绑定' }) : dnsAvailability.message }}</p>
       <div class="header-actions">
-        <button v-if="dnsAvailability.available" class="btn btn-primary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="provisionDNS">一键填写并验证</button>
-        <button class="btn btn-secondary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="challenge">生成 TXT</button>
-        <button class="btn btn-primary" :disabled="!verification?.token || acting || running" @click="verify">检查 TXT 记录</button>
+        <button v-if="dnsAvailability.available" class="btn btn-primary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="provisionDNS">{{ tr('m_6f6769158cd2') }}</button>
+        <button class="btn btn-secondary" :disabled="loading || saving || acting || running || !authorizationDomain.trim()" @click="challenge">{{ tr('m_b906b98d56bf') }}</button>
+        <button class="btn btn-primary" :disabled="!verification?.token || acting || running" @click="verify">{{ tr('m_45ef5bfe7b6f') }}</button>
       </div>
       <p v-if="dnsMessage" role="status">{{ dnsMessage }}</p>
-      <p v-if="authorized" role="status">已验证：{{ verification?.domain }}</p>
+      <p v-if="authorized" role="status">{{ tr('m_00097d89c4fe') }}{{ verification?.domain }}</p>
       <div v-if="verification?.token && !authorized" class="verification-record">
-        <label class="field"><span class="field-label">TXT 完整记录名</span><input class="vercel-input" readonly :value="verification.record_name" /></label>
-        <label class="field"><span class="field-label">TXT 记录值</span><textarea class="vercel-input" readonly rows="3" :value="verification.token"></textarea></label>
+        <label class="field"><span class="field-label">{{ tr('m_d5684e061cde') }}</span><input class="vercel-input" readonly :value="verification.record_name" /></label>
+        <label class="field"><span class="field-label">{{ tr('m_fae98107cabc') }}</span><textarea class="vercel-input" readonly rows="3" :value="verification.token"></textarea></label>
         <div class="header-actions">
-          <button class="btn btn-secondary" @click="copyText(verification.record_name)">复制记录名</button>
-          <button class="btn btn-secondary" @click="copyText(verification.token)">复制记录值</button>
+          <button class="btn btn-secondary" @click="copyText(verification.record_name)">{{ tr('m_24b0fd0474b8') }}</button>
+          <button class="btn btn-secondary" @click="copyText(verification.token)">{{ tr('m_82554e2b0462') }}</button>
         </div>
-        <p v-if="verification.checked_at">上次检查：{{ formatTime(verification.checked_at) }}</p>
+        <p v-if="verification.checked_at">{{ tr('m_d308a2437c93') }}{{ formatTime(verification.checked_at) }}</p>
         <p v-if="verification.last_error" role="alert">{{ verification.last_error }}</p>
       </div>
-      <p class="budget-summary">今日预算 {{ security?.budget_used || 0 }} / {{ security?.budget_limit || 100000 }} · {{ security?.requests_per_second || 10 }} 请求/秒 · 最多 {{ security?.max_workers || 32 }} 并发</p>
-      <details class="lab-help"><summary>使用说明</summary>
-        <p>预算由管理员设置，按候选 IP 数量预留，取消不退；UTC 次日重置。限额修改从下一轮生效，已有配置超出新并发上限时按上限运行。这不是云平台用量统计。</p>
-        <p>一键验证只添加本次 TXT，不覆盖其他记录，也不启动扫描。验证通过后收起记录值，运行前仍会复查；请勿删除 DNS 中的 TXT。</p>
-        <p>只探测自建或已获授权的 Host/SNI。TXT 验证不代表探针免计费，请向托管平台确认。</p>
+      <p class="budget-summary">{{ tr('m_19653c640000') }} {{ security?.budget_used || 0 }} / {{ security?.budget_limit || 100000 }} · {{ security?.requests_per_second || 10 }} {{ tr('m_7412c06ecb92') }} {{ security?.max_workers || 32 }} {{ tr('m_2b66a2b53a76') }}</p>
+      <details class="lab-help"><summary>{{ tr('m_cb4ba40bf823') }}</summary>
+        <p>{{ tr('m_23ee3a59baf4') }}</p>
+        <p>{{ tr('m_abc9c75b3058') }}</p>
+        <p>{{ tr('m_2382c1a8328d') }}</p>
       </details>
-      <p v-if="cooldownSeconds > 0">启动冷却剩余 {{ cooldownSeconds }} 秒。</p>
+      <p v-if="cooldownSeconds > 0">{{ tr('m_ec8fd7fdbb89') }} {{ cooldownSeconds }} {{ tr('m_b84a191d9dc8') }}</p>
       <p v-if="security?.last_error" role="alert">{{ security.last_error }}</p>
-      <p v-if="security?.next_run">下次定时执行：{{ new Date(security.next_run).toLocaleString() }}</p>
+      <p v-if="security?.next_run">{{ tr('m_55623af3870c') }}{{ new Date(security.next_run).toLocaleString(locale) }}</p>
     </section>
 
     <section v-if="progress.total > 0" class="settings-card progress-card">
@@ -64,16 +64,16 @@
         <div class="progress-fill" :class="{ active: running }" :style="{ width: progress.percent + '%' }"></div>
       </div>
       <div class="progress-meta">
-        <span>已扫描 {{ progress.scanned }} / {{ progress.total }}</span>
-        <span>匹配 {{ progress.matched }}</span>
+        <span>{{ tr('m_36ec02ee7514') }} {{ progress.scanned }} / {{ progress.total }}</span>
+        <span>{{ tr('m_fd047ccb2020') }} {{ progress.matched }}</span>
       </div>
     </section>
 
     <section class="settings-card">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">探测配置</div>
-          <div class="settings-card-desc">Host 与 SNI 可指向托管在 Cloudflare 或其他平台的域名；SNI 留空时使用 Host。</div>
+          <div class="settings-card-title">{{ tr('m_d9cb32d240c7') }}</div>
+          <div class="settings-card-desc">{{ tr('m_2d028c40657b') }}</div>
         </div>
       </div>
       <div class="lab-grid">
@@ -83,31 +83,31 @@
         </label>
         <label class="field">
           <span class="field-label">SNI（TLS Server Name）</span>
-          <input v-model="form.sni" type="text" class="vercel-input" placeholder="留空使用 Host" />
+          <input v-model="form.sni" type="text" class="vercel-input" :placeholder="tr('m_263273daac57')" />
         </label>
         <label class="field">
-          <span class="field-label">探测路径</span>
+          <span class="field-label">{{ tr('m_fc12218cc64a') }}</span>
           <input v-model="form.path" type="text" class="vercel-input" placeholder="/healthz" />
         </label>
         <label class="field">
-          <span class="field-label">接受状态码</span>
+          <span class="field-label">{{ tr('m_f881100e7e8f') }}</span>
           <input v-model="form.statuses" type="text" class="vercel-input" placeholder="200,204" />
         </label>
         <label class="field">
-          <span class="field-label">超时（秒）</span>
+          <span class="field-label">{{ tr('m_e814e078437b') }}</span>
           <input v-model.number="form.timeout" type="number" min="1" max="15" class="vercel-input" />
         </label>
         <label class="field">
-          <span class="field-label">并发数</span>
+          <span class="field-label">{{ tr('m_f33bc7f6cdbb') }}</span>
           <input v-model.number="form.workers" type="number" min="1" :max="security?.max_workers || 32" class="vercel-input" />
         </label>
         <label class="field">
-          <span class="field-label">保留 Top N</span>
+          <span class="field-label">{{ tr('m_7ae5ac99ec7d') }}</span>
           <input v-model.number="form.top" type="number" min="1" max="100" class="vercel-input" />
         </label>
       </div>
       <label class="field">
-        <span class="field-label">IP 段（支持单 IP、CIDR、范围，逗号或换行分隔）</span>
+        <span class="field-label">{{ tr('m_273f5800a334') }}</span>
         <textarea v-model="form.ip_targets" rows="5" class="vercel-input" placeholder="1.2.3.4&#10;1.2.4.0/24&#10;1.2.5.10-1.2.5.20"></textarea>
       </label>
     </section>
@@ -115,35 +115,35 @@
     <section class="settings-card">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">自动化与华为云 DNS</div>
-          <div class="settings-card-desc">密钥使用应用加密密钥加密保存；关闭“自动更新 DNS”时仅扫描并展示结果。</div>
+          <div class="settings-card-title">{{ tr('m_951e770ec529') }}</div>
+          <div class="settings-card-desc">{{ tr('m_0b9783ce7495') }}</div>
         </div>
       </div>
       <div class="lab-switch-row">
         <label class="lab-switch">
           <n-switch v-model:value="form.schedule" size="small" :disabled="!authorized || running" />
-          <span>定时执行</span>
+          <span>{{ tr('m_978cb333292d') }}</span>
         </label>
         <label class="field interval-field">
-          <span class="field-label">间隔（分钟）</span>
+          <span class="field-label">{{ tr('m_63f674fb44eb') }}</span>
           <input v-model.number="form.interval_minutes" type="number" min="5" max="1440" class="vercel-input" />
         </label>
         <label class="lab-switch">
           <n-switch v-model:value="form.update_dns" size="small" />
-          <span>自动更新华为云 DNS</span>
+          <span>{{ tr('m_7ce4f8dc5c94') }}</span>
         </label>
       </div>
       <div class="lab-grid" v-if="form.update_dns">
         <label class="field">
-          <span class="field-label">Zone 名称</span>
+          <span class="field-label">{{ tr('m_dd7848177924') }}</span>
           <input v-model="form.zone" type="text" class="vercel-input" placeholder="example.com" />
         </label>
         <label class="field">
-          <span class="field-label">Zone ID（可选）</span>
-          <input v-model="form.zone_id" type="text" class="vercel-input" placeholder="填写后跳过 Zone 查询" />
+          <span class="field-label">{{ tr('m_61aa3db2f187') }}</span>
+          <input v-model="form.zone_id" type="text" class="vercel-input" :placeholder="tr('m_8a3962db8e0b')" />
         </label>
         <label class="field">
-          <span class="field-label">A 记录</span>
+          <span class="field-label">{{ tr('m_1ff08664dd50') }}</span>
           <input v-model="form.record" type="text" class="vercel-input" placeholder="cdn.example.com" />
         </label>
         <label class="field">
@@ -160,25 +160,25 @@
         </label>
         <label class="field">
           <span class="field-label">Secret Key</span>
-          <input v-model="secretKey" type="password" class="vercel-input" :placeholder="hasSecretKey ? '留空保持不变' : '输入 Secret Access Key'" autocomplete="off" />
-          <span class="tag" :class="hasSecretKey ? 'tag-ok' : 'tag-down'">{{ hasSecretKey ? '密钥已设置' : '密钥未设置' }}</span>
+          <input v-model="secretKey" type="password" class="vercel-input" :placeholder="hasSecretKey ? tr('m_3260348163d0') : tr('m_2fa84bb7ab9b')" autocomplete="off" />
+          <span class="tag" :class="hasSecretKey ? 'tag-ok' : 'tag-down'">{{ hasSecretKey ? tr('m_248a0bb2c9db') : tr('m_83fe22d7f5b2') }}</span>
         </label>
       </div>
       <div class="actions-row">
-        <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存配置' }}</button>
+        <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? tr('m_ff509c9ba052') : tr('m_6e584e3d5ce6') }}</button>
       </div>
     </section>
 
     <section class="settings-card">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">最近结果</div>
+          <div class="settings-card-title">{{ tr('m_8f0ef3b2b86d') }}</div>
           <div class="settings-card-desc">{{ latestSummary }}</div>
         </div>
       </div>
       <div v-if="latest?.results?.length" class="table-wrap">
         <table class="lab-table">
-          <thead><tr><th>排名</th><th>IP</th><th>状态码</th><th>延迟</th></tr></thead>
+          <thead><tr><th>{{ tr('m_6570a98f2850') }}</th><th>IP</th><th>{{ tr('m_06f7d7341212') }}</th><th>{{ tr('m_18045b8c40f1') }}</th></tr></thead>
           <tbody>
             <tr v-for="(item, index) in latest.results" :key="item.ip">
               <td>{{ index + 1 }}</td>
@@ -189,42 +189,42 @@
           </tbody>
         </table>
       </div>
-      <div v-else class="empty-state">{{ latest ? '本轮没有命中任何 IP。' : '暂无探测结果，请保存配置后立即执行。' }}</div>
+      <div v-else class="empty-state">{{ latest ? tr('m_3318ecab73f4') : tr('m_a1b1a1640ed1') }}</div>
     </section>
 
     <section class="settings-card">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">未命中 IP 段</div>
+          <div class="settings-card-title">{{ tr('m_f3cb5e38d5d7') }}</div>
           <div class="settings-card-desc">{{ segmentSummary }}</div>
         </div>
         <div class="segment-actions">
-          <button class="btn btn-secondary btn-sm" type="button" :disabled="!missedSegments.length" @click="copyMissedSegments">复制未命中段</button>
-          <button class="btn btn-danger btn-sm" type="button" :disabled="!missedSegments.length || running || saving" @click="removeMissedSegments">一键剔除并保存</button>
+          <button class="btn btn-secondary btn-sm" type="button" :disabled="!missedSegments.length" @click="copyMissedSegments">{{ tr('m_72a7b6671168') }}</button>
+          <button class="btn btn-danger btn-sm" type="button" :disabled="!missedSegments.length || running || saving" @click="removeMissedSegments">{{ tr('m_5aefa3f30318') }}</button>
         </div>
       </div>
       <div v-if="missedSegments.length" class="table-wrap segment-wrap">
         <table class="lab-table">
-          <thead><tr><th>输入段</th><th>已探测 IP</th><th>命中</th><th>建议</th></tr></thead>
+          <thead><tr><th>{{ tr('m_dd9e35831b7f') }}</th><th>{{ tr('m_b6fe8f96b0d6') }}</th><th>{{ tr('m_393df9bb13ea') }}</th><th>{{ tr('m_abee4974732a') }}</th></tr></thead>
           <tbody>
             <tr v-for="item in missedSegments" :key="item.target">
               <td class="mono">{{ item.target }}</td>
               <td>{{ item.scanned }}</td>
               <td>{{ item.matched }}</td>
-              <td><span class="tag tag-down">先核对原因</span></td>
+              <td><span class="tag tag-down">{{ tr('m_0688a3f24ede') }}</span></td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div v-else class="empty-state">暂无未命中的 IP 段。</div>
+      <div v-else class="empty-state">{{ tr('m_46dfefce779d') }}</div>
     </section>
 
-    <section v-if="latest?.diagnostics?.length" class="settings-card" aria-label="未命中原因">
+    <section v-if="latest?.diagnostics?.length" class="settings-card" :aria-label="tr('m_7148c33da141')">
       <div class="settings-card-header"><div>
-        <div class="settings-card-title">未命中原因</div>
-        <div class="settings-card-desc">显示 {{ latest.diagnostics.length }} / {{ latest.rejected }} 条，最多 100 条。未命中仅代表本次探测失败。</div>
+        <div class="settings-card-title">{{ tr('m_7148c33da141') }}</div>
+        <div class="settings-card-desc">{{ tr('m_4e1449e7d5e5') }} {{ latest.diagnostics.length }} / {{ latest.rejected }} {{ tr('m_835808f0c9d6') }}</div>
       </div></div>
-      <p v-if="latest.probe" class="settings-card-desc diagnostic-context">本次探针：{{ latest.probe.host }}{{ latest.probe.path }} · SNI {{ latest.probe.sni || latest.probe.host }} · 接受 {{ latest.probe.statuses }}</p>
+      <p v-if="latest.probe" class="settings-card-desc diagnostic-context">{{ tr('m_0b33b09c41d2') }}{{ latest.probe.host }}{{ latest.probe.path }} · SNI {{ latest.probe.sni || latest.probe.host }} {{ tr('m_17a0b00c2611') }} {{ latest.probe.statuses }}</p>
       <ul class="diagnostic-list"><li v-for="(item, index) in latest.diagnostics" :key="`${item.ip}-${index}`">
         <div><code>{{ item.ip }}</code><span>{{ item.latency_ms }} ms</span></div>
         <p>{{ describeLabFailure(item, latest.probe?.statuses) }}</p>
@@ -234,30 +234,34 @@
     <section class="settings-card">
       <div class="settings-card-header">
         <div>
-          <div class="settings-card-title">执行历史</div>
-          <div class="settings-card-desc">最多保留 20 条记录。</div>
+          <div class="settings-card-title">{{ tr('m_02451fd58cd3') }}</div>
+          <div class="settings-card-desc">{{ tr('m_03bba0057f3d') }}</div>
         </div>
       </div>
       <div v-if="runs.length" class="table-wrap">
         <table class="lab-table">
-          <thead><tr><th>开始时间</th><th>状态</th><th>扫描 / 匹配</th><th>DNS</th><th>错误</th></tr></thead>
+          <thead><tr><th>{{ tr('m_6a9906c79f26') }}</th><th>{{ tr('m_6320b4a8722a') }}</th><th>{{ tr('m_52142dd33847') }}</th><th>DNS</th><th>{{ tr('m_0bc1fb72ae1b') }}</th></tr></thead>
           <tbody>
             <tr v-for="item in runs" :key="item.id">
               <td>{{ formatTime(item.started_at) }}</td>
-              <td><span class="tag" :class="item.success ? 'tag-ok' : 'tag-down'">{{ item.success ? '成功' : '失败' }}</span></td>
+              <td><span class="tag" :class="item.success ? 'tag-ok' : 'tag-down'">{{ item.success ? tr('m_053461ce86d2') : tr('m_28384d7afd2e') }}</span></td>
               <td>{{ item.scanned }} / {{ item.matched }}</td>
-              <td>{{ item.dns_updated ? '已更新' : '未更新' }}</td>
+              <td>{{ item.dns_updated ? tr('m_434203a723b4') : tr('m_bb44f79f1933') }}</td>
               <td class="error-cell">{{ item.error || '—' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div v-else class="empty-state">暂无执行历史。</div>
+      <div v-else class="empty-state">{{ tr('m_69c0d2ee422f') }}</div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import { usePanelDialogs } from '../composables/usePanelDialogs'
+const panel = usePanelDialogs()
+import { locale, t as tr } from '../i18n'
+
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { useRouter } from 'vue-router'
@@ -289,7 +293,7 @@ const ownerId = ref('')
 const acting = ref(false)
 const loadError = ref('')
 const authorizationDomain = ref('')
-const dnsAvailability = ref<LabDNSAvailability>({ available: false, message: '正在检查已绑定的 DNS 账户…' })
+const dnsAvailability = ref<LabDNSAvailability>({ available: false, message: tr('m_96ef6383be03') })
 const dnsMessage = ref('')
 const security = ref<LabIPSelectorStatusResponse['status']>()
 const verification = computed(() => security.value?.verification)
@@ -335,20 +339,20 @@ const missedSegments = computed(() => latest.value?.segments?.filter((item) => i
 const missedIPCount = computed(() => missedSegments.value.reduce((total, item) => total + item.scanned, 0))
 const segmentSummary = computed(() => {
   const total = latest.value?.segments?.length || 0
-  if (!total) return '本轮暂无分段统计。'
-  return `${total} 个输入段 · ${missedSegments.value.length} 段未命中 · ${missedIPCount.value} 个 IP。剔除前请核对原因。`
+  if (!total) return tr('m_2fd51e19890c')
+  return tr('m_9c97ed38c9f8', { p0: total, p1: missedSegments.value.length, p2: missedIPCount.value })
 })
 const phaseText = computed(() => {
-  if (phase.value === 'preparing') return '准备扫描…'
-  if (phase.value === 'scanning') return '正在探测 IP…'
-  if (phase.value === 'updating_dns') return '扫描完成，正在更新华为云 DNS…'
-  if (phase.value === 'completed') return '任务已完成'
-  if (phase.value === 'failed') return '任务未完成，请检查错误信息'
-  return '等待执行'
+  if (phase.value === 'preparing') return tr('m_81c4d554eaac')
+  if (phase.value === 'scanning') return tr('m_37425cd304f1')
+  if (phase.value === 'updating_dns') return tr('m_5b74adf3e039')
+  if (phase.value === 'completed') return tr('m_e9a880e59521')
+  if (phase.value === 'failed') return tr('m_3ef426846721')
+  return tr('m_4f021f59121c')
 })
 const latestSummary = computed(() => {
-  if (!latest.value) return '尚未执行。'
-  return `${formatTime(latest.value.started_at)} · 扫描 ${latest.value.scanned} 个，匹配 ${latest.value.matched} 个${latest.value.selected_ips?.length ? ` · 选中 ${latest.value.selected_ips.length} 个` : ''}`
+  if (!latest.value) return tr('m_8854c2f7d83b')
+  return tr('m_c31381502adf', { p0: formatTime(latest.value.started_at), p1: latest.value.scanned, p2: latest.value.matched, p3: latest.value.selected_ips?.length ? ` · 选中 ${latest.value.selected_ips.length} 个` : '' })
 })
 
 async function loadSettings() {
@@ -382,12 +386,12 @@ async function refresh(showError = true) {
     await loadStatus()
     if (showError) await loadDNSAvailability()
   } catch (e: any) {
-    loadError.value = '状态加载失败：' + (e.response?.data?.error || e.message)
+    loadError.value = tr('m_4ac99dfe3af5') + (e.response?.data?.error || e.message)
     if (e.response?.status === 404) {
       configStore.setExperimentalFeatures(false)
       await router.replace('/dashboard')
     }
-    if (showError) message.error('加载失败: ' + (e.response?.data?.error || e.message))
+    if (showError) message.error(tr('m_08417baa06d4') + (e.response?.data?.error || e.message))
   }
 }
 
@@ -396,7 +400,7 @@ async function loadDNSAvailability() {
     const { data } = await getLabDNSAvailability()
     if (!disposed) dnsAvailability.value = data
   } catch {
-    if (!disposed) dnsAvailability.value = { available: false, message: '暂时无法检查已绑定账户，可手动添加 TXT，或点击刷新状态重试。' }
+    if (!disposed) dnsAvailability.value = { available: false, message: tr('m_0ac80d4f8a89') }
   }
 }
 
@@ -408,10 +412,10 @@ async function provisionDNS() {
   try {
     const { data } = await provisionLabDNS(authorizationDomain.value.trim())
     dnsMessage.value = data.message
-    if (data.verified) message.success('TXT 已自动填写并验证通过')
-    else message.warning('TXT 已提交，请等待 DNS 生效后再次检查')
+    if (data.verified) message.success(tr('m_767d6789caeb'))
+    else message.warning(tr('m_217a4e26c9df'))
   } catch (error: any) {
-    dnsMessage.value = '自动填写未完成：' + (error.response?.data?.error || error.message) + '。可继续使用手动添加。'
+    dnsMessage.value = tr('m_33342a67bf61') + (error.response?.data?.error || error.message) + tr('m_0db26bcf68fb')
     message.error(dnsMessage.value)
   } finally {
     await refresh(false)
@@ -421,7 +425,7 @@ async function provisionDNS() {
 
 async function save() {
   if (!Number.isInteger(form.value.workers) || form.value.workers < 1 || form.value.workers > (security.value?.max_workers || 32)) {
-    message.error(`并发数须为 1 至 ${security.value?.max_workers || 32} 的整数`)
+    message.error(tr('m_01121b5c6bb2', { p0: security.value?.max_workers || 32 }))
     return false
   }
   saving.value = true
@@ -436,9 +440,9 @@ async function save() {
     secretKey.value = ''
     saved = true
     await loadStatus()
-    message.success('实验功能配置已保存')
+    message.success(tr('m_2890332be041'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     saving.value = false
   }
@@ -451,10 +455,10 @@ async function run() {
   try {
     await runLabIPSelector()
     running.value = true
-    message.success('任务已开始执行')
+    message.success(tr('m_7f935d40a91e'))
     await loadStatus()
   } catch (e: any) {
-    message.error('执行失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_1243370e674f') + (e.response?.data?.error || e.message))
     await refresh(false)
   } finally {
     acting.value = false
@@ -464,13 +468,13 @@ async function run() {
 async function challenge() {
   if (acting.value || saving.value || running.value) return
   dnsMessage.value = ''
-  if (verification.value?.token && !window.confirm('生成新记录会撤销旧授权并关闭定时任务，是否继续？')) return
+  if (verification.value?.token && !await panel.confirm(tr('m_ad26c362ad25'))) return
   acting.value = true
   try {
     await createLabChallenge(authorizationDomain.value.trim())
     form.value.schedule = false
     await loadStatus()
-    message.success('请添加 TXT 记录，然后点击检查')
+    message.success(tr('m_d6390eeb1913'))
   } catch (error: any) {
     message.error(error.response?.data?.error || error.message)
   } finally { acting.value = false }
@@ -480,7 +484,7 @@ async function verify() {
   acting.value = true
   try {
     await verifyLabOwnership()
-    message.success('域名验证通过；定时任务需手动开启')
+    message.success(tr('m_31a1025984de'))
   } catch (error: any) {
     form.value.schedule = false
     message.error(error.response?.data?.error || error.message)
@@ -495,15 +499,15 @@ async function stop() {
   try {
     await stopLabIPSelector()
     form.value.schedule = false
-    message.success('已请求停止，并关闭定时任务')
+    message.success(tr('m_c1a4539fd21f'))
     await loadStatus()
   } catch (error: any) { message.error(error.response?.data?.error || error.message) }
   finally { acting.value = false }
 }
 
 async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); message.success('已复制') }
-  catch { message.error('复制失败，请手动选择文本') }
+  try { await navigator.clipboard.writeText(text); message.success(tr('m_8f6f8d979c98')) }
+  catch { message.error(tr('m_03ae6cf8db7c')) }
 }
 
 async function poll() {
@@ -514,22 +518,22 @@ async function poll() {
 async function copyMissedSegments() {
   try {
     await navigator.clipboard.writeText(missedSegments.value.map((item) => item.target).join('\n'))
-    message.success('未命中 IP 段已复制')
+    message.success(tr('m_b364d30acd30'))
   } catch (_) {
-    message.error('复制失败，请手动选择表格内容')
+    message.error(tr('m_a5f260d9204a'))
   }
 }
 
 async function removeMissedSegments() {
   if (!missedSegments.value.length || running.value) return
-  if (!window.confirm(`确定剔除 ${missedSegments.value.length} 个未命中段吗？将减少 ${missedIPCount.value} 个 IP 的后续探测压力。`)) return
+  if (!await panel.confirm(tr('m_34e8ee3dbdda', { p0: missedSegments.value.length, p1: missedIPCount.value }))) return
 
   const missedTargets = new Set(missedSegments.value.map((item) => item.target))
   const currentTargets = form.value.ip_targets.split(/[,\s]+/).filter(Boolean)
   const keptTargets = currentTargets.filter((target) => !missedTargets.has(target))
   const removedCount = currentTargets.length - keptTargets.length
   if (!removedCount) {
-    message.warning('当前输入中没有找到与最近一轮完全一致的未命中段')
+    message.warning(tr('m_3d3ce77e1cc8'))
     return
   }
 
@@ -540,7 +544,7 @@ async function removeMissedSegments() {
 }
 
 function formatTime(seconds: number) {
-  return new Date(seconds * 1000).toLocaleString()
+  return new Date(seconds * 1000).toLocaleString(locale.value)
 }
 
 onMounted(async () => {

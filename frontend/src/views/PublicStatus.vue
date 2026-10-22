@@ -1,6 +1,6 @@
 <template>
   <div class="pub-page">
-    <button class="theme-toggle" :title="isDark ? '切换到亮色' : '切换到暗色'" @click="toggleTheme">
+    <button class="theme-toggle" :title="isDark ? tr('m_8a9add32ce6a') : tr('m_3defe73838c1')" @click="toggleTheme">
       <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -13,14 +13,14 @@
             <span v-else class="brand-emoji">{{ data.public_icon }}</span>
           </div>
           <h1>{{ data.public_title || data.name }}</h1>
-          <p v-if="updatedText" class="pub-sub">最近更新 {{ updatedText }} · 每 {{ data.interval_sec }}s 检测一次</p>
+          <p v-if="updatedText" class="pub-sub">{{ tr('m_b067526e73e5') }} {{ updatedText }} {{ tr('m_e08203a71642') }} {{ data.interval_sec }}{{ tr('m_e22f233142fd') }}</p>
         </div>
 
         <div v-if="overall !== null" class="pub-overall" :class="overall">
           <span class="ov-dot"></span>
-          <span v-if="overall === 'all'">全部服务运行正常</span>
-          <span v-else-if="overall === 'some'">部分服务出现异常</span>
-          <span v-else>多个服务不可达</span>
+          <span v-if="overall === 'all'">{{ tr('m_7a5db8b2e966') }}</span>
+          <span v-else-if="overall === 'some'">{{ tr('m_2db097c4202a') }}</span>
+          <span v-else>{{ tr('m_9064b524377a') }}</span>
         </div>
 
         <div v-if="data.announcement" class="pub-notice">{{ data.announcement }}</div>
@@ -30,18 +30,18 @@
             <header class="svc-head">
               <span class="st-dot" :class="'d-' + t.state"></span>
               <strong class="svc-name">{{ t.name }}</strong>
-              <a v-if="t.link" class="svc-link" :href="t.link" target="_blank" rel="noopener" :title="'打开 ' + t.name">
+              <a v-if="t.link" class="svc-link" :href="t.link" target="_blank" rel="noopener" :title="tr('m_84041df0ce44') + t.name">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
               </a>
-              <span class="up-pct">近24h可用 {{ fmtPct(t.uptime_24h) }}</span>
-              <span class="lat">{{ t.latency_ms != null && t.state !== 'down' ? t.latency_ms + 'ms' : '' }}{{ t.state === 'down' ? (t.error || '无响应') : '' }}</span>
+              <span class="up-pct">{{ tr('m_134dbead1f72') }} {{ fmtPct(t.uptime_24h) }}</span>
+              <span class="lat">{{ t.latency_ms != null && t.state !== 'down' ? t.latency_ms + 'ms' : '' }}{{ t.state === 'down' ? (t.error || tr('m_8fec97c85043')) : '' }}</span>
             </header>
             <div class="bars-lg" aria-hidden="true">
               <i v-for="(b, bi) in t.bars" :key="bi" :class="'b-' + b.s"></i>
             </div>
             <footer class="svc-foot">
-              <span>过去 {{ Math.min(t.bars.length, 40) * data.interval_sec >= 60 ? Math.round(Math.min(t.bars.length, 40) * data.interval_sec / 60) + ' 分钟' : Math.min(t.bars.length, 40) * data.interval_sec + ' 秒' }}内</span>
-              <span>{{ barOk(t.bars) }}/{{ t.bars.length }} 正常</span>
+              <span>{{ tr('m_3774af744856') }} {{ Math.min(t.bars.length, 40) * data.interval_sec >= 60 ? Math.round(Math.min(t.bars.length, 40) * data.interval_sec / 60) + tr('m_40de54344d22') : Math.min(t.bars.length, 40) * data.interval_sec + tr('m_00fe8dda1fd7') }}{{ tr('m_b2126ce9c100') }}</span>
+              <span>{{ barOk(t.bars) }}/{{ t.bars.length }} {{ tr('m_296de0e31f8c') }}</span>
             </footer>
           </section>
         </div>
@@ -51,14 +51,16 @@
 
       <div v-else-if="error" class="pub-error">
         <h1>{{ error }}</h1>
-        <router-link to="/" class="home-link">返回首页</router-link>
+        <router-link to="/" class="home-link">{{ tr('m_d66f4359dae3') }}</router-link>
       </div>
-      <div v-else class="pub-loading">加载中…</div>
+      <div v-else class="pub-loading">{{ tr('m_4927a53bcc88') }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { locale, t as tr } from '../i18n'
+
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPublicStatus, type PublicStatusData } from '../api'
@@ -102,7 +104,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 const updatedText = computed(() => {
   if (!data.value?.updated_at) return ''
   const d = new Date(data.value.updated_at)
-  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString()
+  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString(locale.value)
 })
 
 const overall = computed<null | 'all' | 'some' | 'many'>(() => {
@@ -127,10 +129,10 @@ async function load() {
     const res = await fetchPublicStatus(token)
     data.value = res
     applyAdminTheme(res.public_theme)
-    document.title = (res.name || '状态页') + ' · 服务状态'
+    document.title = (res.name || tr('m_b22223ee1ffb')) + tr('m_73431f7a1ac5')
     error.value = ''
   } catch (_) {
-    error.value = '页面不存在或已被关闭'
+    error.value = tr('m_2f8ac8eb2be1')
   }
 }
 

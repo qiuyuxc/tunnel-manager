@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"tunnel-manager/i18n"
 )
 
 // Only completed, validated conversation data is published as a done event.
@@ -62,6 +64,9 @@ func (stream *aiChatStream) Send(kind string, data any) error {
 	raw, err := json.Marshal(data)
 	if err != nil {
 		return err
+	}
+	if kind == "status" || kind == "error" {
+		raw = i18n.TranslateJSON(raw, stream.writer.Header().Get("Content-Language"))
 	}
 	if _, err = fmt.Fprintf(stream.writer, "event: %s\ndata: %s\n\n", kind, raw); err != nil {
 		return err

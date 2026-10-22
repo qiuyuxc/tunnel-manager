@@ -30,40 +30,40 @@ public class AboutFragment extends PageFragment {
             "https://api.github.com/repos/qiuyuxc/tunnel-manager/releases/latest";
 
     /** Highlights of the current release, as the web page lists them. */
-    private static final String[] HIGHLIGHTS = {
-            "AI 助手支持原生 Responses 与 Chat Completions 协议，连接配置可选择 API 协议",
-            "Web 和 Android 支持流式对话与思考状态，配置任务仍须明确确认后执行",
-            "待确认任务支持编辑参数，并可核对 DNS、隧道路由和监控的变更内容",
-            "Web 支持多个标准 OIDC 接入方登录，可关联已有账户或按注册策略创建新用户",
-            "Web 账户页支持 OIDC 绑定、解绑与首次设置本站密码，保留至少一种登录方式",
-            "OIDC 登录继续遵循本站账号禁用、二步验证和用户组权限规则",
+    private final String[] HIGHLIGHTS = {
+            I18n.text("m_1ae15c6bd1be"),
+            I18n.text("m_251a77247045"),
+            I18n.text("m_4c2f23822e3d"),
+            I18n.text("m_19dff4cfa946"),
+            I18n.text("m_3c816b7f18b2"),
+            I18n.text("m_c046ce1f1e92"),
     };
 
-    private static final String[][] FEATURES = {
-            {"隧道管理", "新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS"},
-            {"域名绑定", "简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS"},
-            {"DNS 管理", "支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，结构化字段编辑、批量新增与逐条结果"},
-            {"AI 助手", "描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对"},
-            {"IP 优选实验室", "独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新"},
-            {"Telegram Bot", "在手机上远程管理隧道、域名与 DNS，支持长轮询与 Webhook"},
-            {"Cloudflare OAuth", "授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token"},
-            {"多用户与管理后台", "邮箱注册与用户组权限隔离，管理员统一管理用户、邀请码与注册策略"},
-            {"邮件告警", "服务状态变化时自动发送告警邮件（仅状态变化触发），SMTP 可视化配置并支持测试发送"},
-            {"安全认证", "Argon2id 密码哈希、TOTP 双重验证与恢复码，密钥与令牌加密存储"},
+    private final String[][] FEATURES = {
+            {I18n.text("m_e920f47d0c05"), I18n.text("m_ff534389da66")},
+            {I18n.text("m_4bf8b66d7390"), I18n.text("m_b3c3831a9225")},
+            {I18n.text("m_474fb6002594"), I18n.text("m_9fbdbc4caeba")},
+            {I18n.text("m_1b0049fcfd41"), I18n.text("m_23efa07a6b81")},
+            {I18n.text("m_3db29474a184"), I18n.text("m_165170c6d7f2")},
+            {"Telegram Bot", I18n.text("m_d2acf85ae520")},
+            {"Cloudflare OAuth", I18n.text("m_20c9a5fcb58a")},
+            {I18n.text("m_f6a93d54ba44"), I18n.text("m_4d4267727699")},
+            {I18n.text("m_384a5d60f314"), I18n.text("m_d33996c19397")},
+            {I18n.text("m_53b57f1e9171"), I18n.text("m_8716134bee6b")},
     };
 
-    private static final String[][] STACK = {
+    private final String[][] STACK = {
             {"Android", "Java · Android Views · AndroidX"},
-            {"前端", "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
-            {"后端", "Go · chi · SQLite"},
-            {"集成", "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
+            {I18n.text("m_866a4fa82c25"), "Vue 3 · TypeScript · Naive UI · Vite · Pinia"},
+            {I18n.text("m_9b826346239e"), "Go · chi · SQLite"},
+            {I18n.text("m_4115d63bd549"), "Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions"},
     };
 
     private ScrollView scroll;
     private LinearLayout body;
 
-    private String appVersion = "未知";
-    private String serverVersion = "读取中…";
+    private String appVersion = I18n.text("m_4d8c1c5b4283");
+    private String serverVersion = I18n.text("m_346ff60e6c7c");
     private long appVersionCode;
     private String latestTag = "";
     private String latestBody = "";
@@ -92,10 +92,10 @@ public class AboutFragment extends PageFragment {
     private void readAppVersion() {
         try {
             PackageInfo info = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0);
-            appVersion = info.versionName == null ? "未知" : "v" + info.versionName;
+            appVersion = info.versionName == null ? I18n.text("m_4d8c1c5b4283") : "v" + info.versionName;
             appVersionCode = android.os.Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
         } catch (PackageManager.NameNotFoundException failure) {
-            appVersion = "未知";
+            appVersion = I18n.text("m_4d8c1c5b4283");
             appVersionCode = 0;
         }
     }
@@ -113,14 +113,14 @@ public class AboutFragment extends PageFragment {
         Api.async(() -> Api.external(Session.server() + "/api/health", "application/json"), raw -> {
             if (request != generation || body == null) return;
             try {
-                serverVersion = new JSONObject(raw).optString("version", "未知");
+                serverVersion = new JSONObject(raw).optString("version", I18n.text("m_4d8c1c5b4283"));
             } catch (Exception ignored) {
-                serverVersion = "无法读取";
+                serverVersion = I18n.text("m_c27041585556");
             }
             render();
         }, failure -> {
             if (request != generation || body == null) return;
-            serverVersion = "无法连接";
+            serverVersion = I18n.text("m_6340b951ecd3");
             render();
         });
     }
@@ -149,7 +149,7 @@ public class AboutFragment extends PageFragment {
         }, failure -> {
             if (request != generation || body == null) return;
             checking = false;
-            checkError = "无法连接 GitHub，请检查网络后重试。";
+            checkError = I18n.text("m_ec5a2ccad49c");
             render();
         });
     }
@@ -161,8 +161,8 @@ public class AboutFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "关于"));
-        TextView subtitle = UI.muted(requireContext(), "版本信息、项目仓库与更新动态");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_52d25a9e30ba")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_5f96499d539c"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
@@ -204,10 +204,10 @@ public class AboutFragment extends PageFragment {
         mark.setBackground(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_LG));
         card.addView(mark, new LinearLayout.LayoutParams(UI.dp(64), UI.dp(64)));
         UI.addRow(card, UI.text(requireContext(), "Tunnel Manager", 24, Theme.p().ink, Typeface.BOLD), UI.MD);
-        UI.addRow(card, UI.muted(requireContext(), "连接本地，让服务自由抵达。"), UI.XS);
-        UI.addRow(card, UI.muted(requireContext(), "Android 原生 · " + appVersion), UI.SM);
-        card.addView(linkRow("仓库地址", REPO_URL));
-        card.addView(linkRow("在线文档", DOCS_URL));
+        UI.addRow(card, UI.muted(requireContext(), I18n.text("m_4ba7340afe15")), UI.XS);
+        UI.addRow(card, UI.muted(requireContext(), I18n.text("m_84f41bb438c5") + appVersion), UI.SM);
+        card.addView(linkRow(I18n.text("m_e6161ef37a62"), REPO_URL));
+        card.addView(linkRow(I18n.text("m_1c4b87b88528"), DOCS_URL));
         return card;
     }
 
@@ -233,19 +233,19 @@ public class AboutFragment extends PageFragment {
 
     private View versionCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "版本与更新"));
-        UI.addRow(card, UI.muted(requireContext(), "App 版本来自当前安装包，服务端版本来自已连接的面板，两者分别更新。"), UI.XS);
-        UI.addRow(card, versionRow("App 版本", appVersion, Theme.p().ink), UI.MD);
-        card.addView(versionRow("构建号", appVersionCode == 0 ? "未知" : String.valueOf(appVersionCode), Theme.p().mute));
-        card.addView(versionRow("服务端版本", serverVersion, Theme.p().ink));
-        card.addView(versionRow("项目最新发布", latestTag.isEmpty() ? "尚未取得" : latestTag, Theme.p().ink));
-        card.addView(versionRow("App 更新状态", versionStatus(appVersion), versionStatusColor(appVersion)));
-        card.addView(versionRow("服务端更新状态", versionStatus(serverVersion), versionStatusColor(serverVersion)));
-        TextView check = UI.button(requireContext(), checking ? "检查中…" : "检查更新", UI.BTN_SECONDARY);
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_cebbc1f61ca0")));
+        UI.addRow(card, UI.muted(requireContext(), I18n.text("m_988b7bf951b5")), UI.XS);
+        UI.addRow(card, versionRow(I18n.text("m_b40c58015bd3"), appVersion, Theme.p().ink), UI.MD);
+        card.addView(versionRow(I18n.text("m_74589c24cada"), appVersionCode == 0 ? I18n.text("m_4d8c1c5b4283") : String.valueOf(appVersionCode), Theme.p().mute));
+        card.addView(versionRow(I18n.text("m_4e87ee56bf2b"), serverVersion, Theme.p().ink));
+        card.addView(versionRow(I18n.text("m_ca0bbfb59e95"), latestTag.isEmpty() ? I18n.text("m_43240f4f30b8") : latestTag, Theme.p().ink));
+        card.addView(versionRow(I18n.text("m_5d487e656329"), versionStatus(appVersion), versionStatusColor(appVersion)));
+        card.addView(versionRow(I18n.text("m_c7b8f4d7fd6d"), versionStatus(serverVersion), versionStatusColor(serverVersion)));
+        TextView check = UI.button(requireContext(), checking ? I18n.text("m_fb11aa6f2982") : I18n.text("m_7f68ebad19ba"), UI.BTN_SECONDARY);
         check.setEnabled(!checking);
         check.setOnClickListener(v -> loadRelease());
         UI.addRow(card, check, UI.MD);
-        UI.addRow(card, UI.muted(requireContext(), "更新比较以项目发布标签为准，App 与服务端需分别更新：Android 安装包见发布页附件，服务端替换二进制并重启。"), UI.SM);
+        UI.addRow(card, UI.muted(requireContext(), I18n.text("m_de8a4204c612")), UI.SM);
         return card;
     }
 
@@ -264,13 +264,13 @@ public class AboutFragment extends PageFragment {
 
     /** Summarises one installed version against the latest published release tag. */
     private String versionStatus(String installed) {
-        if (checking) return "检查中…";
-        if (latestTag.isEmpty()) return checkError.isEmpty() ? "尚未检查" : "检查失败";
-        if (parse(latestTag) == null || parse(installed) == null) return "无法比较版本";
+        if (checking) return I18n.text("m_fb11aa6f2982");
+        if (latestTag.isEmpty()) return checkError.isEmpty() ? I18n.text("m_cdbc0434f568") : I18n.text("m_4f6f06254d16");
+        if (parse(latestTag) == null || parse(installed) == null) return I18n.text("m_73b8bd534007");
         int diff = compare(latestTag, installed);
-        if (diff > 0) return "可更新到 " + latestTag;
-        if (diff == 0) return "已是最新版本";
-        return "领先线上发布";
+        if (diff > 0) return I18n.text("m_3effbd8332c9") + latestTag;
+        if (diff == 0) return I18n.text("m_bc310480b4ce");
+        return I18n.text("m_3886917af351");
     }
 
     private int versionStatusColor(String installed) {
@@ -303,7 +303,7 @@ public class AboutFragment extends PageFragment {
     }
 
     private View highlightsCard() {
-        LinearLayout card = card("本版本亮点", "Android App " + appVersion + " 的重点变化。");
+        LinearLayout card = card(I18n.text("m_42c169ac53c2"), "Android App " + appVersion + I18n.text("m_a8ec2cc5f780"));
         for (String item : HIGHLIGHTS) {
             card.addView(bullet(item, 0));
         }
@@ -327,9 +327,9 @@ public class AboutFragment extends PageFragment {
 
     private View releaseCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "最新发布更新内容"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_25b119e0eede")));
         TextView desc = UI.muted(requireContext(),
-                latestTag.isEmpty() ? "来自 GitHub Release。" : "来自 GitHub Release · " + latestTag);
+                latestTag.isEmpty() ? I18n.text("m_3c25c74af188") : I18n.text("m_fbd5949788bc") + latestTag);
         UI.margin(desc, 0, UI.XS, 0, UI.MD);
         card.addView(desc);
 
@@ -361,7 +361,7 @@ public class AboutFragment extends PageFragment {
     }
 
     private View featuresCard() {
-        LinearLayout card = card("功能特性", "主要能力一览。");
+        LinearLayout card = card(I18n.text("m_9351fb06ea54"), I18n.text("m_0e22df176d79"));
         for (String[] feature : FEATURES) {
             LinearLayout box = UI.column(requireContext());
             box.setBackground(UI.roundedStroke(Theme.p().canvasSoft2, UI.RADIUS_MD, Theme.p().hairline, 1));
@@ -377,7 +377,7 @@ public class AboutFragment extends PageFragment {
     }
 
     private View stackCard() {
-        LinearLayout card = card("技术栈", "构建本项目使用的技术。");
+        LinearLayout card = card(I18n.text("m_265b45019e65"), I18n.text("m_3d9b89277530"));
         for (String[] row : STACK) {
             LinearLayout line = UI.row(requireContext());
             line.addView(UI.muted(requireContext(), row[0]),
@@ -395,7 +395,7 @@ public class AboutFragment extends PageFragment {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
         } catch (Exception e) {
-            android.widget.Toast.makeText(requireContext(), "没有可用的浏览器", android.widget.Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(requireContext(), I18n.text("m_7f46936a74b7"), android.widget.Toast.LENGTH_SHORT).show();
         }
     }
 }

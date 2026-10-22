@@ -32,10 +32,10 @@ test('both Android packaging paths use the same version metadata', () => {
 })
 
 test('both changelogs and web highlights describe the current release', () => {
-  for (const file of ['docs/changelog.md', 'docs/en/changelog.md']) {
-    assert.equal(read(file).match(/^## v([^\s]+)$/m)?.[1], version, file)
+  for (const language of ['zh-CN', 'en']) {
+    assert.equal(json('docs/content/changelog.json')[language].match(/^## v([^\s]+)$/m)?.[1], version, language)
   }
-  assert.ok(read('frontend/src/views/About.vue').includes(`v${version} 的重点变化`))
+  assert.ok(Object.values(json('locales/zh-CN.json')).some(value => value.includes(`v${version} 的重点变化`)))
 })
 
 test('native and web release highlights stay aligned', () => {
@@ -44,7 +44,7 @@ test('native and web release highlights stay aligned', () => {
   const web = read('frontend/src/views/About.vue')
     .match(/<ul class="changelog-list">([\s\S]*?)<\/ul>/)?.[1] || ''
   const nativeItems = [...native.matchAll(/"([^"]+)"/g)].map(match => match[1])
-  const webItems = [...web.matchAll(/<li>([^<]+)<\/li>/g)].map(match => match[1])
+  const webItems = [...web.matchAll(/tr\('([^']+)'\)/g)].map(match => match[1])
   assert.ok(nativeItems.length > 0)
   assert.deepEqual(nativeItems, webItems)
 })

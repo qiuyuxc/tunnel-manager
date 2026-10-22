@@ -23,8 +23,9 @@ A web control panel for Cloudflare Tunnel, plus a native Android client. Create 
 | Public status page | Share without login; short paths, custom domains, direct-tunnel or optimized CNAME access, and a custom domain only exposes its own page | [Public status page](https://docs.kukie.cn/en/guide/monitors-status#public-status-page) |
 | Cloudflare connection | OAuth 2.0 with PKCE and automatic token refresh, multiple accounts; static API tokens still work | [OAuth connection](https://docs.kukie.cn/en/guide/cloudflare-oauth) |
 | Telegram bot | Manage tunnels, bindings and DNS records remotely, with confirmation before deletes | [Telegram bot](https://docs.kukie.cn/en/guide/telegram-bot) |
-| AI assistant | Personal/shared model connections with approval-gated tunnel, direct binding, DNS and monitor tasks | [AI assistant](docs/en/guide/ai-assistant.md) |
+| AI assistant | Personal/shared model connections with approval-gated tunnel, direct binding, DNS and monitor tasks | [AI assistant](https://docs.kukie.cn/en/guide/ai-assistant) |
 | Android app | Native client for the same API: overview, monitoring, tunnels, DNS and notifications, with a bottom tab bar and system notifications | [Android app](https://docs.kukie.cn/en/guide/android-app) |
+| Languages | Web and Android follow system language by default, with saved Chinese or English preferences and shared translation resources | [Language & translation maintenance](https://docs.kukie.cn/en/guide/language) |
 | Security | Argon2id password hashing, TOTP two-factor auth and one-time recovery codes | [Security & admin auth](https://docs.kukie.cn/en/guide/security) |
 
 ## Architecture

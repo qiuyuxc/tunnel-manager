@@ -91,7 +91,7 @@ final class Api {
     static JSONArray getArray(String path) throws Failure {
         Object value = parse(request("GET", path, null));
         if (value instanceof JSONArray) return (JSONArray) value;
-        throw new Failure(0, "响应格式不正确");
+        throw new Failure(0, I18n.text("m_d7c40bab50f2"));
     }
 
     static JSONObject post(String path, JSONObject body) throws Failure {
@@ -113,6 +113,7 @@ final class Api {
             conn = (HttpURLConnection) new URL(scope.session.server + path).openConnection();
             conn.setRequestMethod("POST"); conn.setConnectTimeout(10000); conn.setReadTimeout(180000);
             conn.setRequestProperty("Accept", "text/event-stream");
+            conn.setRequestProperty("Accept-Language", I18n.languageTag());
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             conn.setRequestProperty("X-Auth-Token", scope.session.token);
             conn.setDoOutput(true);
@@ -131,11 +132,11 @@ final class Api {
                 while ((line = reader.readLine()) != null) {
                     scope.check();
                     total += line.length();
-                    if (total > 4 * 1024 * 1024) throw new Failure(0, "回复过长，请缩小请求范围");
+                    if (total > 4 * 1024 * 1024) throw new Failure(0, I18n.text("m_21d5010ed46d"));
                     if (line.isEmpty()) {
                         if (data.length() == 0) { event = "message"; continue; }
                         JSONObject value = new JSONObject(data.toString());
-                        if ("error".equals(event)) throw new Failure(0, value.optString("error", "回复未完成，请重试"));
+                        if ("error".equals(event)) throw new Failure(0, value.optString("error", I18n.text("m_b7b96f677d8e")));
                         if ("done".equals(event)) return value;
                         value.put("event", event);
                         MAIN.post(() -> { if (scope.session.matches(Session.snapshot())) onEvent.accept(value); });
@@ -144,7 +145,7 @@ final class Api {
                     else if (line.startsWith("data:")) { String value = line.substring(5); if (value.startsWith(" ")) value = value.substring(1); data.append(value).append('\n'); }
                 }
             }
-            throw new Failure(0, "连接已中断，回复未完整接收，尚未生成新任务");
+            throw new Failure(0, I18n.text("m_622be08aa01d"));
         } catch (Failure e) { throw e; }
         catch (Exception e) { throw new Failure(0, networkMessage(e)); }
         finally { if (conn != null) conn.disconnect(); }
@@ -162,7 +163,7 @@ final class Api {
     private static JSONObject object(String raw) throws Failure {
         Object value = parse(raw);
         if (value instanceof JSONObject) return (JSONObject) value;
-        throw new Failure(0, "响应格式不正确");
+        throw new Failure(0, I18n.text("m_d7c40bab50f2"));
     }
 
     /**
@@ -175,7 +176,7 @@ final class Api {
      */
     static JSONObject postFile(String path, byte[] data, String filename, String mime) throws Failure {
         String base = Session.server();
-        if (base.isEmpty()) throw new Failure(0, "未配置服务器地址");
+        if (base.isEmpty()) throw new Failure(0, I18n.text("m_104745b10ab6"));
         String boundary = "----tm" + System.nanoTime();
         HttpURLConnection conn = null;
         try {
@@ -186,6 +187,7 @@ final class Api {
             conn.setDoOutput(true);
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            conn.setRequestProperty("Accept-Language", I18n.languageTag());
             String token = Session.token();
             if (!token.isEmpty()) conn.setRequestProperty("X-Auth-Token", token);
 
@@ -229,7 +231,7 @@ final class Api {
     /** Fetches a same-server asset (an uploaded avatar or icon) as raw bytes. */
     static byte[] asset(String path) throws Failure {
         String base = Session.server();
-        if (base.isEmpty()) throw new Failure(0, "未配置服务器地址");
+        if (base.isEmpty()) throw new Failure(0, I18n.text("m_104745b10ab6"));
         // Branding can point at a CDN rather than this server; only a relative
         // path needs the console's address in front of it.
         String url = path.startsWith("http://") || path.startsWith("https://") ? path : base + path;
@@ -243,7 +245,7 @@ final class Api {
             String token = Session.token();
             if (!token.isEmpty()) conn.setRequestProperty("X-Auth-Token", token);
             int code = conn.getResponseCode();
-            if (code >= 400) throw new Failure(code, "图片加载失败");
+            if (code >= 400) throw new Failure(code, I18n.text("m_572993f5820a"));
             return readBytes(conn.getInputStream());
         } catch (Failure e) {
             throw e;
@@ -285,7 +287,7 @@ final class Api {
             int code = conn.getResponseCode();
             InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
             String raw = readAll(in);
-            if (code >= 400) throw new Failure(code, "请求失败（HTTP " + code + "）");
+            if (code >= 400) throw new Failure(code, I18n.text("m_99841da5202b") + code + "）");
             return raw;
         } catch (Failure e) {
             throw e;
@@ -301,7 +303,7 @@ final class Api {
         try {
             return new JSONTokener(raw).nextValue();
         } catch (Exception e) {
-            throw new Failure(0, "响应解析失败");
+            throw new Failure(0, I18n.text("m_9a8a0b39f334"));
         }
     }
 
@@ -312,13 +314,14 @@ final class Api {
     private static String request(String method, String path, JSONObject body, RequestScope scope) throws Failure {
         if (scope != null) scope.check();
         String base = scope == null ? Session.server() : scope.session.server;
-        if (base.isEmpty()) throw new Failure(0, "未配置服务器地址");
+        if (base.isEmpty()) throw new Failure(0, I18n.text("m_104745b10ab6"));
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(base + path).openConnection();
             conn.setRequestMethod(method);
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(path.startsWith("/api/assistant/") ? 180000 : 25000);
+            conn.setRequestProperty("Accept-Language", I18n.languageTag());
             conn.setRequestProperty("Accept", "application/json");
             String token = scope == null ? Session.token() : scope.session.token;
             if (!token.isEmpty()) conn.setRequestProperty("X-Auth-Token", token);
@@ -365,24 +368,24 @@ final class Api {
             message = new JSONObject(raw).optString("error", "");
         } catch (Exception ignored) {
         }
-        if (message.contains("invalid credentials")) return "用户名或密码错误";
-        if (message.contains("unauthorized")) return "登录状态已失效，请重新登录";
-        if (message.contains("forbidden") || message.contains("permission")) return "没有权限执行该操作";
-        if (message.contains("not found")) return "对象不存在或已被删除";
-        if (message.contains("required")) return "请填写必填项";
+        if (message.contains("invalid credentials")) return I18n.text("m_a9a6a83a7d22");
+        if (message.contains("unauthorized")) return I18n.text("m_aa2943a75de2");
+        if (message.contains("forbidden") || message.contains("permission")) return I18n.text("m_b7fcc405e49c");
+        if (message.contains("not found")) return I18n.text("m_158780e04042");
+        if (message.contains("required")) return I18n.text("m_760e540a81f9");
         if (!message.isEmpty()) return message;
-        return "请求失败（HTTP " + code + "）";
+        return I18n.text("m_99841da5202b") + code + "）";
     }
 
     private static String networkMessage(Exception e) {
         String message = e.getMessage() == null ? "" : e.getMessage();
         if (message.contains("ECONNREFUSED") || message.contains("Failed to connect")) {
-            return "连不上服务器，请检查地址和端口";
+            return I18n.text("m_ff8da88893d7");
         }
-        if (message.contains("timed out") || message.contains("timeout")) return "连接超时，请检查网络";
-        if (message.contains("Unable to resolve host")) return "域名解析失败，请检查地址";
-        if (message.contains("CLEARTEXT")) return "该地址不允许明文 HTTP 访问";
-        return "网络错误：" + (message.isEmpty() ? e.getClass().getSimpleName() : message);
+        if (message.contains("timed out") || message.contains("timeout")) return I18n.text("m_a3fceccd6229");
+        if (message.contains("Unable to resolve host")) return I18n.text("m_417a14c8aae9");
+        if (message.contains("CLEARTEXT")) return I18n.text("m_27d0f8469bb1");
+        return I18n.text("m_4a5f658ed9ae") + (message.isEmpty() ? e.getClass().getSimpleName() : message);
     }
 
     private static String readAll(InputStream in) throws Exception {

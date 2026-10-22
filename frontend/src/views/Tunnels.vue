@@ -2,27 +2,27 @@
   <div class="page-container">
     <div class="page-heading-row section">
       <div class="page-header">
-        <h2>隧道管理</h2>
-        <p>浏览 Cloudflare Tunnel，并锁定当前要管理的隧道</p>
+        <h2>{{ tr('m_e920f47d0c05') }}</h2>
+        <p>{{ tr('m_c7a5c63e5953') }}</p>
       </div>
       <div class="toolbar">
         <button class="btn btn-secondary" :disabled="loading" @click="loadTunnels">
           <svg :class="{ spin: loading }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          <span>{{ loading ? '刷新中' : '刷新' }}</span>
+          <span>{{ loading ? tr('m_3af7e5489e61') : tr('m_aee887434131') }}</span>
         </button>
         <button class="btn btn-primary" @click="startCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>新建隧道</span>
+          <span>{{ tr('m_ee6527b22aaf') }}</span>
         </button>
       </div>
     </div>
     <div class="card section tunnel-table-card">
       <div v-if="loading" class="empty-state">
         <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        <span class="empty-text">加载中...</span>
+        <span class="empty-text">{{ tr('m_9dc0825fba54') }}</span>
       </div>
       <div v-else-if="tunnels.length > 0" class="table-scroll">
-        <table class="data-table" aria-label="Cloudflare 隧道列表">
+        <table class="data-table" :aria-label="tr('m_caebfe1e68a0')">
           <colgroup>
             <col class="col-name" />
             <col class="col-id" />
@@ -32,29 +32,29 @@
           </colgroup>
           <thead>
             <tr>
-              <th>名称</th>
-              <th>隧道 ID</th>
-              <th>状态</th>
-              <th>当前选择</th>
-              <th class="action-column">操作</th>
+              <th>{{ tr('m_d44e9b3d3b31') }}</th>
+              <th>{{ tr('m_17f261a9385c') }}</th>
+              <th>{{ tr('m_6320b4a8722a') }}</th>
+              <th>{{ tr('m_8d30e0eb426f') }}</th>
+              <th class="action-column">{{ tr('m_ed31fbb483ee') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="tunnel in tunnels" :key="tunnel.id" :class="{ 'row-selected': config.tunnel_id === tunnel.id }">
-              <td class="cell-name" data-label="名称">{{ tunnel.name }}</td>
-              <td data-label="隧道 ID"><code class="tunnel-id-code">{{ tunnel.id }}</code></td>
-              <td data-label="状态"><span class="status-tag" :class="tunnel.status">{{ tunnel.status }}</span></td>
-              <td data-label="当前选择">
-                <span v-if="config.tunnel_id === tunnel.id" class="selected-mark"><span class="selected-dot"></span>已选中</span>
-                <span v-else class="text-muted">未选择</span>
+              <td class="cell-name" :data-label="tr('m_d44e9b3d3b31')">{{ tunnel.name }}</td>
+              <td :data-label="tr('m_17f261a9385c')"><code class="tunnel-id-code">{{ tunnel.id }}</code></td>
+              <td :data-label="tr('m_6320b4a8722a')"><span class="status-tag" :class="tunnel.status">{{ tunnel.status }}</span></td>
+              <td :data-label="tr('m_8d30e0eb426f')">
+                <span v-if="config.tunnel_id === tunnel.id" class="selected-mark"><span class="selected-dot"></span>{{ tr('m_a737fd72b016') }}</span>
+                <span v-else class="text-muted">{{ tr('m_1182c5454f11') }}</span>
               </td>
-              <td class="action-column" data-label="操作">
+              <td class="action-column" :data-label="tr('m_ed31fbb483ee')">
                 <div class="row-actions">
-                  <router-link :to="`/tunnels/${tunnel.id}`" class="btn btn-secondary btn-sm">详情</router-link>
+                  <router-link :to="`/tunnels/${tunnel.id}`" class="btn btn-secondary btn-sm">{{ tr('m_979a332955c8') }}</router-link>
                   <button class="btn btn-primary btn-sm" :disabled="config.tunnel_id === tunnel.id" @click="selectTunnel(tunnel)">
-                    {{ config.tunnel_id === tunnel.id ? '已选中' : '选择' }}
+                    {{ config.tunnel_id === tunnel.id ? tr('m_a737fd72b016') : tr('m_c11330b85234') }}
                   </button>
-                  <button class="btn btn-ghost btn-sm btn-text-danger" @click="confirmDelete(tunnel)">删除</button>
+                  <button class="btn btn-ghost btn-sm btn-text-danger" @click="confirmDelete(tunnel)">{{ tr('m_2f9daa828907') }}</button>
                 </div>
               </td>
             </tr>
@@ -62,50 +62,52 @@
         </table>
       </div>
       <div v-else class="empty-state">
-        <span class="empty-text">暂无隧道</span>
-        <span class="text-muted">点击"新建隧道"创建第一条隧道</span>
+        <span class="empty-text">{{ tr('m_6413e61b6bc7') }}</span>
+        <span class="text-muted">{{ tr('m_2efdc680cddf') }}</span>
       </div>
     </div>
-    <n-modal v-model:show="showCreate" preset="card" title="新建隧道" class="tunnel-modal" :bordered="false">
+    <n-modal v-model:show="showCreate" preset="card" :title="tr('m_ee6527b22aaf')" class="tunnel-modal" :bordered="false">
       <div class="modal-form">
-        <label class="form-label">隧道名称</label>
-        <input v-model="createName" placeholder="例如：prod-tunnel" class="vercel-input" @keyup.enter="submitCreate" />
+        <label class="form-label">{{ tr('m_b679939ed787') }}</label>
+        <input v-model="createName" :placeholder="tr('m_d03538e23717')" class="vercel-input" @keyup.enter="submitCreate" />
       </div>
       <template #footer>
         <div class="modal-footer">
-          <button class="btn btn-ghost" @click="showCreate = false">取消</button>
+          <button class="btn btn-ghost" @click="showCreate = false">{{ tr('m_2cd0f3be8738') }}</button>
           <button class="btn btn-primary" :disabled="creating || !createName.trim()" @click="submitCreate">
-            {{ creating ? '创建中...' : '创建' }}
+            {{ creating ? tr('m_687d8f3ba99e') : tr('m_cde2cd071d25') }}
           </button>
         </div>
       </template>
     </n-modal>
-    <n-modal v-model:show="showToken" preset="card" title="隧道创建成功" class="tunnel-modal" :bordered="false">
+    <n-modal v-model:show="showToken" preset="card" :title="tr('m_93d9bdf907c6')" class="tunnel-modal" :bordered="false">
       <div class="modal-form">
-        <p class="modal-hint">保存以下连接令牌，或复制运行命令到安装了 cloudflared 的服务器执行。</p>
+        <p class="modal-hint">{{ tr('m_77e218f54885') }}</p>
         <div class="copy-row">
           <code class="token-box">{{ created?.run_command || created?.token }}</code>
-          <button class="btn btn-secondary btn-sm" @click="copyText(created?.run_command || created?.token || '')">复制</button>
+          <button class="btn btn-secondary btn-sm" @click="copyText(created?.run_command || created?.token || '')">{{ tr('m_63d90d977348') }}</button>
         </div>
         <div v-if="created?.warning" class="token-warning">{{ created.warning }}</div>
         <div class="install-guide">
           <button class="install-toggle" @click="showInstall = !showInstall">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            查看 cloudflared 安装脚本
+            {{ tr('m_9c685c211f33') }}
           </button>
           <pre v-if="showInstall" class="token-box install-script">{{ installScript }}</pre>
         </div>
       </div>
       <template #footer>
         <div class="modal-footer">
-          <button class="btn btn-primary" @click="showToken = false">完成</button>
+          <button class="btn btn-primary" @click="showToken = false">{{ tr('m_c0b3fbff51cc') }}</button>
         </div>
       </template>
     </n-modal>
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { t as tr } from '../i18n'
+
+import { computed, ref, onMounted } from 'vue'
 import { useMessage, useDialog, NModal } from 'naive-ui'
 import { listTunnels, setTunnelSelection, createTunnel, deleteTunnel, type Tunnel, type CreateTunnelResponse } from '../api'
 import { useConfigStore } from '../stores/config'
@@ -123,19 +125,13 @@ const createName = ref('')
 const showToken = ref(false)
 const created = ref<CreateTunnelResponse | null>(null)
 const showInstall = ref(false)
-const installScript = `# 添加 Cloudflare GPG 密钥
-sudo mkdir -p --mode=0755 /usr/share/keyrings
-curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
-# 添加 apt 软件源
-echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
-# 安装 cloudflared
-sudo apt-get update && sudo apt-get install cloudflared`
+const installScript = computed(() => tr('m_7a3234e91a76'))
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text)
-    message.success('已复制')
+    message.success(tr('m_8f6f8d979c98'))
   } catch {
-    message.warning('复制失败，请手动选择文本')
+    message.warning(tr('m_03ae6cf8db7c'))
   }
 }
 async function loadTunnels() {
@@ -148,7 +144,7 @@ async function loadTunnels() {
       requestAnimationFrame(() => { listVisible.value = true })
     })
   } catch (e: any) {
-    message.error('获取隧道列表失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_6779e3e1d2f2') + (e.response?.data?.error || e.message))
   } finally {
     loading.value = false
   }
@@ -158,9 +154,9 @@ async function selectTunnel(tunnel: Tunnel) {
     await setTunnelSelection(tunnel.id, tunnel.name)
     config.tunnel_id = tunnel.id
     config.tunnel_name = tunnel.name
-    message.success('隧道已锁定')
+    message.success(tr('m_6e2b7249dc7c'))
   } catch (e: any) {
-    message.error('选择失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_a6c42e79dfd2') + (e.response?.data?.error || e.message))
   }
 }
 async function clearTunnel() {
@@ -168,9 +164,9 @@ async function clearTunnel() {
     await setTunnelSelection('', '')
     config.tunnel_id = ''
     config.tunnel_name = ''
-    message.success('已清除隧道选择')
+    message.success(tr('m_58be968d5567'))
   } catch (e: any) {
-    message.error('清除失败')
+    message.error(tr('m_2952f4853185'))
   }
 }
 function startCreate() {
@@ -189,17 +185,17 @@ async function submitCreate() {
     showToken.value = true
     await loadTunnels()
   } catch (e: any) {
-    message.error('创建失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_cdcc0d62ab79') + (e.response?.data?.error || e.message))
   } finally {
     creating.value = false
   }
 }
 function confirmDelete(tunnel: Tunnel) {
   dialog.warning({
-    title: '删除隧道',
-    content: `确定删除隧道「${tunnel.name}」吗？此操作无法撤销。若该隧道仍有活动连接，Cloudflare 会拒绝删除。`,
-    positiveText: '确认删除',
-    negativeText: '取消',
+    title: tr('m_cf5e530b1ad3'),
+    content: tr('m_f6412c0cf213', { p0: tunnel.name }),
+    positiveText: tr('m_a3ea3c17b401'),
+    negativeText: tr('m_2cd0f3be8738'),
     async onPositiveClick() {
       try {
         await deleteTunnel(tunnel.id)
@@ -207,10 +203,10 @@ function confirmDelete(tunnel: Tunnel) {
           config.tunnel_id = ''
           config.tunnel_name = ''
         }
-        message.success('隧道已删除')
+        message.success(tr('m_72d83d119709'))
         await loadTunnels()
       } catch (e: any) {
-        message.error('删除失败: ' + (e.response?.data?.error || e.message))
+        message.error(tr('m_48477dd59e05') + (e.response?.data?.error || e.message))
         return false
       }
     },
@@ -219,9 +215,9 @@ function confirmDelete(tunnel: Tunnel) {
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text)
-    message.success('已复制')
+    message.success(tr('m_8f6f8d979c98'))
   } catch {
-    message.warning('复制失败，请手动选择文本')
+    message.warning(tr('m_03ae6cf8db7c'))
   }
 }
 onMounted(() => { loadTunnels() })

@@ -1,17 +1,19 @@
 <template>
   <form ref="editorElement" class="task-editor" @submit.prevent="save">
-    <p>调整参数后保存，再勾选确认执行。保存修改不会执行任务。</p>
-    <p v-if="stale" role="alert">任务已更新，请取消编辑后核对最新内容。</p>
+    <p>{{ tr('m_f9871e460d83') }}</p>
+    <p v-if="stale" role="alert">{{ tr('m_627ec605a45e') }}</p>
     <fieldset class="editor-fields" :disabled="busy || stale"><template v-for="(value, key) in draft" :key="key">
       <p v-if="task.tool === 'update_dns_record' && ['zone_id', 'record_id'].includes(key)">{{ labels[key] }}：{{ value }}</p>
-      <label v-else-if="key === 'type' && task.tool.includes('dns_record')" class="dns-type">记录类型<select :value="value" @change="draft = changeAssistantDNSType(draft, ($event.target as HTMLSelectElement).value)"><option v-for="type in dnsTypes" :key="type" :value="type">{{ type }}</option></select></label>
+      <label v-else-if="key === 'type' && task.tool.includes('dns_record')" class="dns-type">{{ tr('m_8f6363220575') }}<select :value="value" @change="draft = changeAssistantDNSType(draft, ($event.target as HTMLSelectElement).value)"><option v-for="type in dnsTypes" :key="type" :value="type">{{ type }}</option></select></label>
       <AssistantArgumentField v-else :field="key" :label="labels[key] || key" :model-value="value" @update:model-value="draft[key] = $event" />
     </template></fieldset>
-    <div class="editor-actions"><button type="submit" :disabled="busy || stale">{{ busy ? '正在保存…' : '保存修改' }}</button><button type="button" :disabled="busy" @click="emit('cancel')">取消编辑</button></div>
+    <div class="editor-actions"><button type="submit" :disabled="busy || stale">{{ busy ? tr('m_6bdb4435095e') : tr('m_991bb7cfe5a8') }}</button><button type="button" :disabled="busy" @click="emit('cancel')">{{ tr('m_4b29ce8e4093') }}</button></div>
   </form>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { AITask } from '../api/assistant'
 import AssistantArgumentField from './AssistantArgumentField.vue'

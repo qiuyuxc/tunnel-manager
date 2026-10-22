@@ -2,20 +2,20 @@
   <div class="page-container">
     <div class="page-header monitors-head">
       <div>
-        <h2>服务监控</h2>
-        <p>创建监控项目，持续探测服务可用性</p>
+        <h2>{{ tr('m_7fab82054a8f') }}</h2>
+        <p>{{ tr('m_3154a947344f') }}</p>
       </div>
-      <button class="btn btn-primary btn-sm" @click="createOpen = true">创建监控</button>
+      <button class="btn btn-primary btn-sm" @click="createOpen = true">{{ tr('m_bf2247cd1864') }}</button>
     </div>
 
-    <div v-if="loading" class="empty-note">加载中...</div>
+    <div v-if="loading" class="empty-note">{{ tr('m_9dc0825fba54') }}</div>
     <div v-else-if="monitors.length === 0" class="empty-card">
       <div class="empty-icon" aria-hidden="true">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
-      <h3>还没有监控项目</h3>
-      <p>创建一个监控项目，添加需要盯住的服务地址，系统会按固定间隔自动检测并在公开页展示状态。</p>
-      <button class="btn btn-primary btn-sm" @click="createOpen = true">创建第一个监控</button>
+      <h3>{{ tr('m_de10338046d1') }}</h3>
+      <p>{{ tr('m_fd4bea55e1ad') }}</p>
+      <button class="btn btn-primary btn-sm" @click="createOpen = true">{{ tr('m_b466199f99b9') }}</button>
     </div>
 
     <div v-else class="monitor-list">
@@ -31,10 +31,10 @@
         <div class="mi-main">
           <div class="mi-name-row">
             <strong class="mi-name" :title="m.name">{{ m.name }}</strong>
-            <span class="mi-count">{{ m.targets.length }} 个服务</span>
+            <span class="mi-count">{{ m.targets.length }} {{ tr('m_af9a620ed1dd') }}</span>
           </div>
           <div class="mi-meta text-muted">
-            每 {{ m.interval_sec }}s 检测 · {{ m.publish_enabled ? '公开页已开启' : '未公开' }}
+            {{ tr('m_d8b82d5765fa') }} {{ m.interval_sec }}{{ tr('m_d188327fd281') }} {{ m.publish_enabled ? tr('m_9f1e25609b1a') : tr('m_abcd7f608563') }}
             <span v-if="m.targets.length" class="sum-dots">
               <span class="sum-dot ok"></span>{{ countState(m, 'ok') }}
               <span class="sum-dot warn"></span>{{ countState(m, 'warn') }}
@@ -43,8 +43,8 @@
           </div>
         </div>
         <div class="mi-actions" @click.stop>
-          <button class="btn btn-secondary btn-sm" @click="copyPublic(m)">复制公开链接</button>
-          <button class="row-delete" title="删除监控项目" @click="askDelete(m)">
+          <button class="btn btn-secondary btn-sm" @click="copyPublic(m)">{{ tr('m_2596d7de6c7b') }}</button>
+          <button class="row-delete" :title="tr('m_b2fc749edfa3')" @click="askDelete(m)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -55,15 +55,15 @@
     <Teleport to="body">
       <div v-if="createOpen" class="dlg-mask" @click.self="createOpen = false">
         <div class="dlg">
-          <h3>创建监控项目</h3>
+          <h3>{{ tr('m_f9313095ee64') }}</h3>
           <label class="fld">
-            <span>项目名称</span>
-            <input v-model.trim="newName" maxlength="60" placeholder="例如：生产环境服务" />
+            <span>{{ tr('m_867698fb7b0c') }}</span>
+            <input v-model.trim="newName" maxlength="60" :placeholder="tr('m_f34513a8e6f4')" />
           </label>
           <div class="dlg-actions">
-            <button class="btn btn-secondary btn-sm" @click="createOpen = false">取消</button>
+            <button class="btn btn-secondary btn-sm" @click="createOpen = false">{{ tr('m_2cd0f3be8738') }}</button>
             <button class="btn btn-primary btn-sm" :disabled="creating || !newName" @click="doCreate">
-              {{ creating ? '创建中…' : '创建并配置服务' }}
+              {{ creating ? tr('m_56b63def0e29') : tr('m_253dbbfd9d0f') }}
             </button>
           </div>
         </div>
@@ -74,11 +74,11 @@
     <Teleport to="body">
       <div v-if="deleting" class="dlg-mask" @click.self="deleting = null">
         <div class="dlg">
-          <h3>删除监控项目</h3>
-          <p class="dlg-desc">将删除「{{ deleting.name }}」及其全部检测历史，公开链接同步失效。</p>
+          <h3>{{ tr('m_b2fc749edfa3') }}</h3>
+          <p class="dlg-desc">{{ tr('m_fbc9178f86b7') }}{{ deleting.name }}{{ tr('m_1b54e6f260d4') }}</p>
           <div class="dlg-actions">
-            <button class="btn btn-secondary btn-sm" :disabled="busy" @click="deleting = null">取消</button>
-            <button class="btn btn-danger btn-sm" :disabled="busy" @click="confirmDelete">{{ busy ? '删除中…' : '确认删除' }}</button>
+            <button class="btn btn-secondary btn-sm" :disabled="busy" @click="deleting = null">{{ tr('m_2cd0f3be8738') }}</button>
+            <button class="btn btn-danger btn-sm" :disabled="busy" @click="confirmDelete">{{ busy ? tr('m_5e8e7af57abb') : tr('m_a3ea3c17b401') }}</button>
           </div>
         </div>
       </div>
@@ -87,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
@@ -134,11 +136,11 @@ async function doCreate() {
     const { data } = await createMonitor(newName.value)
     createOpen.value = false
     newName.value = ''
-    message.success('已创建，开始添加需要监控的服务')
+    message.success(tr('m_95a3e8f09bfc'))
     void router.push('/monitors/' + data.id)
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-    message.error(msg || '创建失败')
+    message.error(msg || tr('m_7e6a71efbf63'))
   } finally {
     creating.value = false
   }
@@ -150,8 +152,8 @@ function copyPublic(m: MonitorView) {
   const seg = m.public_slug || m.public_token
   if (!seg) return
   navigator.clipboard.writeText(location.origin + publicStatusPath(seg))
-    .then(() => message.success('公开链接已复制'))
-    .catch(() => message.error('复制失败'))
+    .then(() => message.success(tr('m_ce710b698fbc')))
+    .catch(() => message.error(tr('m_753d8bb0da99')))
 }
 
 function askDelete(m: MonitorView) {
@@ -163,11 +165,11 @@ async function confirmDelete() {
   busy.value = true
   try {
     await deleteMonitor(deleting.value.id)
-    message.success('已删除')
+    message.success(tr('m_077a6d37719a'))
     await load()
     deleting.value = null
   } catch (_) {
-    message.error('删除失败')
+    message.error(tr('m_c228558cf257'))
   } finally {
     busy.value = false
   }

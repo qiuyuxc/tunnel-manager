@@ -8,32 +8,32 @@
             <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
           </svg>
         </span>
-        <h1 class="setup-title">安装引导</h1>
-        <p class="setup-subtitle">选择面板使用的数据库，并设置管理员账户</p>
+        <h1 class="setup-title">{{ tr('m_e03334f01c2f') }}</h1>
+        <p class="setup-subtitle">{{ tr('m_5f7533982f55') }}</p>
       </header>
 
       <div v-if="loading" class="setup-loading">
         <span class="spinner"></span>
-        <span>正在读取安装状态…</span>
+        <span>{{ tr('m_3a0b3e662e0b') }}</span>
       </div>
 
       <template v-else-if="status">
         <ol class="setup-steps">
-          <li :class="{ active: step === 1, done: step > 1 }"><em>1</em>数据库</li>
-          <li :class="{ active: step === 2 }"><em>2</em>管理员账户</li>
+          <li :class="{ active: step === 1, done: step > 1 }"><em>1</em>{{ tr('m_263200d7d529') }}</li>
+          <li :class="{ active: step === 2 }"><em>2</em>{{ tr('m_aea56d3951f2') }}</li>
         </ol>
 
         <section v-if="step === 1" class="setup-section">
           <div v-if="status.env_locked" class="setup-note">
-            <strong>数据库由环境变量提供</strong>
-            <p>本次启动由环境变量（<code>DATABASE_URL</code> / <code>STORE_PATH</code>）指定存储，安装引导不再询问数据库类型，只创建管理员账户。</p>
+            <strong>{{ tr('m_36089d2ca3ff') }}</strong>
+            <p>{{ tr('m_672b4d495cc6') }}<code>DATABASE_URL</code> / <code>STORE_PATH</code>{{ tr('m_3fe8ea8f9d28') }}</p>
             <div class="setup-facts">
-              <div><span>类型</span><b>{{ driverLabel(status.storage.driver) }}</b></div>
-              <div v-if="status.storage.driver === 'sqlite'"><span>文件</span><b>{{ status.storage.path || '—' }}</b></div>
+              <div><span>{{ tr('m_ba40014ff496') }}</span><b>{{ driverLabel(status.storage.driver) }}</b></div>
+              <div v-if="status.storage.driver === 'sqlite'"><span>{{ tr('m_39932f24fe11') }}</span><b>{{ status.storage.path || '—' }}</b></div>
               <template v-else>
-                <div><span>主机</span><b>{{ status.storage.postgres?.host || status.storage.url || '—' }}</b></div>
-                <div v-if="status.storage.postgres?.database"><span>数据库</span><b>{{ status.storage.postgres.database }}</b></div>
-                <div v-if="status.storage.postgres?.user"><span>用户</span><b>{{ status.storage.postgres.user }}</b></div>
+                <div><span>{{ tr('m_e87d9f23a3f5') }}</span><b>{{ status.storage.postgres?.host || status.storage.url || '—' }}</b></div>
+                <div v-if="status.storage.postgres?.database"><span>{{ tr('m_263200d7d529') }}</span><b>{{ status.storage.postgres.database }}</b></div>
+                <div v-if="status.storage.postgres?.user"><span>{{ tr('m_0d0e1a86b3aa') }}</span><b>{{ status.storage.postgres.user }}</b></div>
               </template>
             </div>
           </div>
@@ -47,7 +47,7 @@
                 @click="chooseDriver('sqlite')"
               >
                 <span class="driver-name">SQLite</span>
-                <span class="driver-desc">单文件数据库，零依赖，适合单机部署</span>
+                <span class="driver-desc">{{ tr('m_70c9a7386f69') }}</span>
               </button>
               <button
                 type="button"
@@ -56,57 +56,57 @@
                 @click="chooseDriver('postgres')"
               >
                 <span class="driver-name">PostgreSQL</span>
-                <span class="driver-desc">外部数据库，适合多实例或已有数据库运维</span>
+                <span class="driver-desc">{{ tr('m_9601abfcbd7e') }}</span>
               </button>
             </div>
 
             <div v-if="driver === 'sqlite'" class="setup-form">
               <div class="field">
-                <label class="field-label" for="setup-sqlite">数据库文件路径</label>
+                <label class="field-label" for="setup-sqlite">{{ tr('m_8997667013c2') }}</label>
                 <input id="setup-sqlite" v-model="sqlitePath" class="vercel-input mono" placeholder="data/tunnel-manager.db" spellcheck="false" />
-                <small class="setup-hint">相对于服务工作目录，目录会自动创建。</small>
+                <small class="setup-hint">{{ tr('m_9a9424715d8f') }}</small>
               </div>
             </div>
 
             <div v-else class="setup-form">
               <div class="field-row">
                 <div class="field grow">
-                  <label class="field-label" for="setup-pg-host">主机</label>
+                  <label class="field-label" for="setup-pg-host">{{ tr('m_e87d9f23a3f5') }}</label>
                   <input id="setup-pg-host" v-model="postgres.host" class="vercel-input mono" placeholder="127.0.0.1" spellcheck="false" />
                 </div>
                 <div class="field port">
-                  <label class="field-label" for="setup-pg-port">端口</label>
+                  <label class="field-label" for="setup-pg-port">{{ tr('m_e71ac32b544b') }}</label>
                   <input id="setup-pg-port" v-model.number="postgres.port" class="vercel-input mono" inputmode="numeric" placeholder="5432" />
                 </div>
               </div>
               <div class="field">
-                <label class="field-label" for="setup-pg-db">数据库名</label>
+                <label class="field-label" for="setup-pg-db">{{ tr('m_acd97cee58a9') }}</label>
                 <input id="setup-pg-db" v-model="postgres.database" class="vercel-input mono" placeholder="tunnel_manager" spellcheck="false" />
               </div>
               <div class="field-row">
                 <div class="field grow">
-                  <label class="field-label" for="setup-pg-user">用户名</label>
+                  <label class="field-label" for="setup-pg-user">{{ tr('m_1a3f0617d6de') }}</label>
                   <input id="setup-pg-user" v-model="postgres.user" class="vercel-input mono" placeholder="postgres" spellcheck="false" />
                 </div>
                 <div class="field grow">
-                  <label class="field-label" for="setup-pg-pass">密码</label>
+                  <label class="field-label" for="setup-pg-pass">{{ tr('m_a621ab606db2') }}</label>
                   <input
                     id="setup-pg-pass"
                     v-model="postgres.password"
                     type="password"
                     class="vercel-input mono"
-                    :placeholder="status.has_secret ? '留空沿用已保存的密码' : '数据库密码'"
+                    :placeholder="status.has_secret ? tr('m_645ce9c168df') : tr('m_073519025471')"
                     autocomplete="new-password"
                   />
                 </div>
               </div>
               <div class="field">
-                <label class="field-label" for="setup-pg-ssl">SSL 模式</label>
+                <label class="field-label" for="setup-pg-ssl">{{ tr('m_3a2408fd44b0') }}</label>
                 <select id="setup-pg-ssl" v-model="postgres.ssl_mode" class="vercel-input">
                   <option v-for="mode in sslModes" :key="mode" :value="mode">{{ mode }}</option>
                 </select>
               </div>
-              <small class="setup-hint">主机可填域名或 IP；与数据库同机部署时也可填 Unix socket 目录（如 <code>/var/run/postgresql</code>）。目标数据库需已存在，且账户有建表权限。</small>
+              <small class="setup-hint">{{ tr('m_9c2187c57ae0') }} <code>/var/run/postgresql</code>{{ tr('m_2bb2038bfd36') }}</small>
             </div>
 
             <div v-if="testMessage" class="setup-result" :class="testedKey === payloadKey ? 'ok' : 'bad'">{{ testMessage }}</div>
@@ -115,10 +115,10 @@
           <div class="setup-actions">
             <button v-if="!status.env_locked" type="button" class="btn btn-secondary" :disabled="testing || submitting" @click="handleTest">
               <span v-if="testing" class="spinner"></span>
-              {{ testing ? '测试中…' : '测试连接' }}
+              {{ testing ? tr('m_105a9082c346') : tr('m_0a98a48eaaac') }}
             </button>
             <button type="button" class="btn btn-primary" :disabled="testing || submitting" @click="goAdminStep">
-              下一步
+              {{ tr('m_acfc4e74a650') }}
             </button>
           </div>
         </section>
@@ -126,35 +126,35 @@
         <section v-else class="setup-section">
           <div class="setup-form">
             <div class="field">
-              <label class="field-label" for="setup-admin">管理员用户名</label>
+              <label class="field-label" for="setup-admin">{{ tr('m_ef3ad87738fc') }}</label>
               <input id="setup-admin" v-model="adminUsername" class="vercel-input" placeholder="admin" autocomplete="username" spellcheck="false" />
             </div>
             <div class="field">
-              <label class="field-label" for="setup-pass">管理员密码</label>
-              <input id="setup-pass" v-model="adminPassword" type="password" class="vercel-input" placeholder="至少 6 位" autocomplete="new-password" />
+              <label class="field-label" for="setup-pass">{{ tr('m_c19091521d71') }}</label>
+              <input id="setup-pass" v-model="adminPassword" type="password" class="vercel-input" :placeholder="tr('m_041568c2db7a')" autocomplete="new-password" />
             </div>
             <div class="field">
-              <label class="field-label" for="setup-pass2">确认密码</label>
-              <input id="setup-pass2" v-model="adminConfirm" type="password" class="vercel-input" placeholder="再输入一次" autocomplete="new-password" />
+              <label class="field-label" for="setup-pass2">{{ tr('m_81b17bc0c362') }}</label>
+              <input id="setup-pass2" v-model="adminConfirm" type="password" class="vercel-input" :placeholder="tr('m_f725268ab2d3')" autocomplete="new-password" />
             </div>
-            <small class="setup-hint">密码只保存在本地数据库，不会打印到日志，请自行妥善保管。</small>
+            <small class="setup-hint">{{ tr('m_6d6369cd0367') }}</small>
           </div>
 
           <div v-if="error" class="setup-result bad" role="alert">{{ error }}</div>
 
           <div class="setup-actions">
-            <button type="button" class="btn btn-secondary" :disabled="submitting" @click="step = 1">上一步</button>
+            <button type="button" class="btn btn-secondary" :disabled="submitting" @click="step = 1">{{ tr('m_da336fdc0dbd') }}</button>
             <button type="button" class="btn btn-primary" :disabled="submitting" @click="handleComplete">
               <span v-if="submitting" class="spinner"></span>
-              {{ submitting ? '安装中…' : '完成安装' }}
+              {{ submitting ? tr('m_19658d9fa9aa') : tr('m_d505339b3422') }}
             </button>
           </div>
         </section>
       </template>
 
       <div v-else-if="!restarting" class="setup-loading">
-        <span>无法连接后端服务。</span>
-        <button type="button" class="btn btn-secondary" @click="load()">重试</button>
+        <span>{{ tr('m_06fcd85c7528') }}</span>
+        <button type="button" class="btn btn-secondary" @click="load()">{{ tr('m_b8784c8dd563') }}</button>
       </div>
     </div>
 
@@ -162,11 +162,11 @@
       <div class="setup-card">
         <div class="setup-loading">
           <span v-if="!restartFailed" class="spinner"></span>
-          <strong>安装完成，正在启动面板…</strong>
+          <strong>{{ tr('m_86fa46bbb30e') }}</strong>
           <p class="setup-subtitle">
-            {{ restartFailed ? '已安装，但没等到面板响应。可以在日志里确认启动情况，或直接前往登录页。' : slowRestart ? '启动比平时慢一些，仍在等待服务响应…' : '服务重启后会自动跳转到登录页。' }}
+            {{ restartFailed ? tr('m_672113e00a33') : slowRestart ? tr('m_41fd7067f4bb') : tr('m_f03d8379b597') }}
           </p>
-          <button v-if="restartFailed" type="button" class="btn btn-primary" @click="router.replace('/login')">前往登录页</button>
+          <button v-if="restartFailed" type="button" class="btn btn-primary" @click="router.replace('/login')">{{ tr('m_093d5fcb7597') }}</button>
         </div>
       </div>
     </div>
@@ -174,6 +174,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { completeSetup, setupStatus, testSetupStorage, waitForPanelRestart, type SetupDriver, type SetupStoragePayload } from '../api/setup'
@@ -259,10 +261,10 @@ async function handleTest() {
   try {
     const res = await testSetupStorage(payload())
     testedKey.value = res.ok ? payloadKey.value : ''
-    testMessage.value = res.ok ? '连接成功' : res.error || '连接失败'
+    testMessage.value = res.ok ? tr('m_4a19cb8a31d7') : res.error || tr('m_89c4766afc85')
   } catch (e: any) {
     testedKey.value = ''
-    testMessage.value = e?.response?.data?.error || e?.message || '连接失败'
+    testMessage.value = e?.response?.data?.error || e?.message || tr('m_89c4766afc85')
   } finally {
     testing.value = false
   }
@@ -271,7 +273,7 @@ async function handleTest() {
 function goAdminStep() {
   error.value = ''
   if (!envLocked.value && testedKey.value !== payloadKey.value) {
-    testMessage.value = '请先测试连接'
+    testMessage.value = tr('m_7db039ac76c4')
     return
   }
   step.value = 2
@@ -280,15 +282,15 @@ function goAdminStep() {
 async function handleComplete() {
   if (submitting.value) return
   if (!adminUsername.value.trim()) {
-    error.value = '请填写管理员用户名'
+    error.value = tr('m_7a790a1d27f0')
     return
   }
   if (adminPassword.value.length < 6) {
-    error.value = '密码至少 6 位'
+    error.value = tr('m_ac31ae58b658')
     return
   }
   if (adminPassword.value !== adminConfirm.value) {
-    error.value = '两次输入的密码不一致'
+    error.value = tr('m_58807745708e')
     return
   }
   submitting.value = true
@@ -296,12 +298,12 @@ async function handleComplete() {
   try {
     const res = await completeSetup(payload(), adminUsername.value.trim(), adminPassword.value)
     if (!res.ok) {
-      error.value = res.error || '安装失败'
+      error.value = res.error || tr('m_a8581cc00ff3')
       return
     }
     await startPanel()
   } catch (e: any) {
-    error.value = e?.response?.data?.error || e?.message || '安装失败'
+    error.value = e?.response?.data?.error || e?.message || tr('m_a8581cc00ff3')
   } finally {
     submitting.value = false
   }

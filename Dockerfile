@@ -5,6 +5,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm npm ci --loglevel verbose
 COPY frontend/ .
+COPY locales/ /app/locales/
 RUN npm run build
 
 # Stage 2: Build backend

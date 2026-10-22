@@ -42,14 +42,14 @@ final class AssistantTaskEditor {
 
     private void render() {
         form.removeAllViews();
-        form.addView(UI.muted(context, "修改后保存，再勾选确认执行。保存不会执行任务。"));
+        form.addView(UI.muted(context, I18n.text("m_b385ac5af51e")));
         Iterator<String> keys = draft.keys();
         while (keys.hasNext()) {
             String key = keys.next();
             if ("update_dns_record".equals(tool) && ("zone_id".equals(key) || "record_id".equals(key))) {
                 form.addView(UI.muted(context, AssistantTaskSelection.argumentLabel(key) + "：" + draft.optString(key)));
             } else if ("type".equals(key) && tool.contains("dns_record")) {
-                TextView choose = UI.button(context, "记录类型：" + draft.optString(key), UI.BTN_SECONDARY);
+                TextView choose = UI.button(context, I18n.text("m_a86b7b28351b") + draft.optString(key), UI.BTN_SECONDARY);
                 choose.setOnClickListener(view -> chooseDNSType());
                 form.addView(choose);
             } else addField(form, key, draft.opt(key), value -> draft.put(key, value));
@@ -57,9 +57,9 @@ final class AssistantTaskEditor {
     }
 
     private void chooseDNSType() {
-        Sheet.Builder sheet = Sheet.of(context, "选择记录类型");
+        Sheet.Builder sheet = Sheet.of(context, I18n.text("m_e17cf46a4083"));
         for (String type : new String[]{"A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA", "PTR"}) {
-            sheet.action(R.drawable.ic_nav_assistant, type, "切换后请核对记录值", () -> {
+            sheet.action(R.drawable.ic_nav_assistant, type, I18n.text("m_4c24d8c28433"), () -> {
                 if (type.equals(draft.optString("type"))) return;
                 try {
                     draft.put("type", type); draft.remove("data"); draft.remove("priority"); draft.remove("content");
@@ -89,12 +89,12 @@ final class AssistantTaskEditor {
             JSONArray array = (JSONArray) value;
             for (int i = 0; i < array.length(); i++) {
                 final int index = i;
-                addField(parent, "第 " + (i + 1) + " 项", array.opt(i), updated -> array.put(index, updated));
-                TextView remove = UI.button(context, "移除这项", UI.BTN_GHOST);
+                addField(parent, I18n.text("m_9552fe3bd366") + (i + 1) + I18n.text("m_f9d529eacdf3"), array.opt(i), updated -> array.put(index, updated));
+                TextView remove = UI.button(context, I18n.text("m_b80f8ec9d893"), UI.BTN_GHOST);
                 remove.setOnClickListener(view -> { array.remove(index); render(); });
                 parent.addView(remove);
             }
-            TextView add = UI.button(context, "添加预设", UI.BTN_SECONDARY);
+            TextView add = UI.button(context, I18n.text("m_1073a088d1a0"), UI.BTN_SECONDARY);
             add.setOnClickListener(view -> { try { array.put(new JSONObject().put("name", "").put("value", "")); render(); } catch (Exception ignored) { } });
             parent.addView(add);
         } else if (value instanceof Boolean) {
@@ -106,7 +106,7 @@ final class AssistantTaskEditor {
             parent.addView(UI.label(context, label));
             String[] modes = {"off", "optional", "required"};
             int selected = "required".equals(value) ? 2 : "optional".equals(value) ? 1 : 0;
-            parent.addView(UI.segmented(context, new String[]{"不使用", "可选", "必须"}, selected, index -> { try { setter.set(modes[index]); } catch (Exception ignored) { } }));
+            parent.addView(UI.segmented(context, new String[]{I18n.text("m_dd21dd9bdd9a"), I18n.text("m_537352400c49"), I18n.text("m_2c08cddfb13b")}, selected, index -> { try { setter.set(modes[index]); } catch (Exception ignored) { } }));
         } else {
             EditText input = UI.input(context, label);
             boolean number = value instanceof Number;

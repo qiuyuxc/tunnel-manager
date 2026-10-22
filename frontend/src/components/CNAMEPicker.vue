@@ -17,7 +17,7 @@
       type="button"
       :disabled="disabled"
       :aria-expanded="open"
-      aria-label="展开优选 CNAME 选择组"
+      :aria-label="tr('m_32d8324f8f29')"
       @click="toggleMenu"
     >
       <svg :class="{ rotated: open }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -52,13 +52,15 @@
           <span>{{ item.name }}</span>
           <small>{{ item.value }}</small>
         </button>
-        <div v-if="!showDefault && presets.length === 0" class="picker-empty">暂无常用 CNAME，请前往全局设置添加。</div>
+        <div v-if="!showDefault && presets.length === 0" class="picker-empty">{{ tr('m_f9b6c8a24283') }}</div>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CNAMEPreset } from '../api'
 
@@ -73,10 +75,10 @@ const props = withDefaults(defineProps<{
   defaultValue?: string
 }>(), {
   inputId: undefined,
-  placeholder: '选择常用线路或手动输入',
+  placeholder: tr('m_817c0185fe75'),
   disabled: false,
   showDefault: false,
-  defaultLabel: '使用默认配置',
+  defaultLabel: tr('m_dba90d12bb8a'),
   defaultValue: '',
 })
 

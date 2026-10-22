@@ -12,7 +12,7 @@ public final class TunnelFilterTest {
                 check(TunnelFilter.state("inactive") == TunnelFilter.State.INACTIVE, "Inactive is not down");
                 check(TunnelFilter.state(null) == TunnelFilter.State.UNKNOWN, "Missing state is unknown");
                 check(TunnelFilter.state("new-server-state") == TunnelFilter.State.UNKNOWN, "Future state is unknown");
-                check("未连接".equals(TunnelFilter.State.INACTIVE.label), "Inactive is not paused");
+                check("未连接".equals(TunnelFilter.State.INACTIVE.label()), "Inactive is not paused");
                 check(TunnelFilter.State.UNKNOWN.style.isEmpty(), "Unknown is not an error");
                 break;
             case "search":

@@ -12,6 +12,9 @@
   <script>
     (function () {
       var root = document.documentElement
+      var preference = localStorage.getItem('tm_language')
+      var languages = navigator.languages || [navigator.language]
+      root.lang = preference === 'zh-CN' || preference === 'en' ? preference : (/^zh/i.test(languages[0]) ? 'zh-CN' : 'en')
       var visualTheme = localStorage.getItem('visual_theme')
       var darkMode = localStorage.getItem('dark_mode') !== 'false'
       root.setAttribute('data-visual-theme', visualTheme === 'warm' ? 'warm' : 'enterprise')

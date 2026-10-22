@@ -70,22 +70,22 @@ public class TunnelsFragment extends PageFragment {
         refresh.addView(scroll);
 
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.pageTitle(requireContext(), "隧道管理"),
+        header.addView(UI.pageTitle(requireContext(), I18n.text("m_e920f47d0c05")),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageView reload = UI.iconButton(requireContext(), R.drawable.ic_nav_refresh, Theme.p().body, view -> reload());
-        reload.setContentDescription("刷新隧道");
+        reload.setContentDescription(I18n.text("m_5f79b57ee40f"));
         header.addView(reload);
         ImageView create = UI.iconButton(requireContext(), R.drawable.ic_nav_plus, Theme.p().success, view -> console().showCreateTunnel());
-        create.setContentDescription("新建隧道");
+        create.setContentDescription(I18n.text("m_ee6527b22aaf"));
         header.addView(create);
         body.addView(header);
-        UI.addRow(body, UI.muted(requireContext(), "从本地服务，到世界的另一端。"), UI.XS);
+        UI.addRow(body, UI.muted(requireContext(), I18n.text("m_6f4973626b77")), UI.XS);
 
-        EditText search = UI.input(requireContext(), "搜索隧道名称或 ID");
+        EditText search = UI.input(requireContext(), I18n.text("m_111798a8646d"));
         search.setSingleLine(true);
         search.setSaveEnabled(false);
         search.setText(query);
-        search.setContentDescription("搜索隧道名称或 ID");
+        search.setContentDescription(I18n.text("m_111798a8646d"));
         search.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence text, int start, int before, int count) {}
@@ -96,8 +96,8 @@ public class TunnelsFragment extends PageFragment {
         });
         UI.addRow(body, search, UI.LG);
         String[] labels = new String[TunnelFilter.State.values().length + 1];
-        labels[0] = "全部";
-        for (int index = 1; index < labels.length; index++) labels[index] = TunnelFilter.State.values()[index - 1].label;
+        labels[0] = I18n.text("m_5c55a67935af");
+        for (int index = 1; index < labels.length; index++) labels[index] = TunnelFilter.State.values()[index - 1].label();
         filters = UI.segmented(requireContext(), labels, selectedFilter, selected -> {
             selectedFilter = selected;
             renderList();
@@ -176,7 +176,7 @@ public class TunnelsFragment extends PageFragment {
             }
         }
         for (int index = 0; index < counts.length; index++) {
-            String label = index == 0 ? "全部" : TunnelFilter.State.values()[index - 1].label;
+            String label = index == 0 ? I18n.text("m_5c55a67935af") : TunnelFilter.State.values()[index - 1].label();
             ((TextView) filters.getChildAt(index)).setText(label + (tunnels == null ? "" : " " + counts[index]));
         }
         renderList();
@@ -185,12 +185,12 @@ public class TunnelsFragment extends PageFragment {
 
     private View currentCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.label(requireContext(), "当前隧道"));
-        TextView title = UI.strong(requireContext(), currentId.isEmpty() ? "尚未选择" : currentName.isEmpty() ? "未命名隧道" : currentName);
+        card.addView(UI.label(requireContext(), I18n.text("m_b903d203f70a")));
+        TextView title = UI.strong(requireContext(), currentId.isEmpty() ? I18n.text("m_c5768ca9726c") : currentName.isEmpty() ? I18n.text("m_80fa39fefe91") : currentName);
         UI.addRow(card, title, UI.SM);
         UI.addRow(card, UI.muted(requireContext(), currentId.isEmpty()
-                ? "从列表的操作菜单选择隧道，用于后续域名绑定。"
-                : "域名绑定将使用这条隧道，可在操作菜单中切换或取消锁定。"), UI.XS);
+                ? I18n.text("m_4f84f8847292")
+                : I18n.text("m_efefd6cb6c71")), UI.XS);
         return card;
     }
 
@@ -199,20 +199,20 @@ public class TunnelsFragment extends PageFragment {
         listSlot.removeAllViews();
         if (!error.isEmpty()) {
             listSlot.addView(UI.banner(requireContext(), error, true));
-            TextView retry = UI.button(requireContext(), "重新加载", UI.BTN_SECONDARY);
+            TextView retry = UI.button(requireContext(), I18n.text("m_7bdd5ce1e298"), UI.BTN_SECONDARY);
             retry.setOnClickListener(view -> reload());
             UI.addRow(listSlot, retry, UI.MD);
             return;
         }
         if (tunnels == null) {
-            listSlot.addView(UI.muted(requireContext(), "正在加载隧道…"));
+            listSlot.addView(UI.muted(requireContext(), I18n.text("m_8d725908f6c1")));
             return;
         }
         if (tunnels.length() == 0) {
             LinearLayout empty = UI.card(requireContext());
-            empty.addView(UI.strong(requireContext(), "还没有隧道"));
-            UI.addRow(empty, UI.muted(requireContext(), "创建一条隧道，获取连接命令，再把它交给要接入的主机。"), UI.SM);
-            TextView create = UI.button(requireContext(), "创建第一条隧道", UI.BTN_PRIMARY);
+            empty.addView(UI.strong(requireContext(), I18n.text("m_29bde9a99a93")));
+            UI.addRow(empty, UI.muted(requireContext(), I18n.text("m_87cfef35ce5d")), UI.SM);
+            TextView create = UI.button(requireContext(), I18n.text("m_596a9e55c9ef"), UI.BTN_PRIMARY);
             create.setOnClickListener(view -> console().showCreateTunnel());
             UI.addRow(empty, create, UI.MD);
             listSlot.addView(empty);
@@ -228,9 +228,9 @@ public class TunnelsFragment extends PageFragment {
             if (count++ > 0) list.addView(UI.divider(requireContext()));
             list.addView(tunnelRow(tunnel));
         }
-        listSlot.addView(UI.label(requireContext(), "筛选结果 · " + count + " 条"));
+        listSlot.addView(UI.label(requireContext(), I18n.text("m_d218b0776515") + count + I18n.text("m_6fb2840d568a")));
         if (count == 0) {
-            UI.addRow(listSlot, UI.muted(requireContext(), "没有匹配的隧道，试试其他名称、ID 或状态。"), UI.MD);
+            UI.addRow(listSlot, UI.muted(requireContext(), I18n.text("m_5a0e866d3bdb")), UI.MD);
         } else {
             UI.addRow(listSlot, list, UI.SM);
         }
@@ -238,7 +238,7 @@ public class TunnelsFragment extends PageFragment {
 
     private View tunnelRow(JSONObject tunnel) {
         String id = tunnel.optString("id");
-        String name = tunnel.optString("name", "").isEmpty() ? "未命名隧道" : tunnel.optString("name");
+        String name = tunnel.optString("name", "").isEmpty() ? I18n.text("m_80fa39fefe91") : tunnel.optString("name");
         LinearLayout row = UI.row(requireContext());
         row.setPadding(0, UI.dp(UI.MD), 0, UI.dp(UI.MD));
         LinearLayout text = UI.column(requireContext());
@@ -251,14 +251,14 @@ public class TunnelsFragment extends PageFragment {
         LinearLayout meta = UI.row(requireContext());
         meta.addView(UI.tunnelStatusPill(requireContext(), tunnel.optString("status")));
         if (id.equals(currentId)) {
-            TextView current = UI.text(requireContext(), "当前使用", 12, Theme.p().success, Typeface.NORMAL);
+            TextView current = UI.text(requireContext(), I18n.text("m_5ddff4afab27"), 12, Theme.p().success, Typeface.NORMAL);
             UI.margin(current, UI.SM, 0, 0, 0);
             meta.addView(current);
         }
         UI.addRow(text, meta, UI.SM);
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageView more = UI.iconButton(requireContext(), R.drawable.ic_nav_more, Theme.p().body, view -> openActions(tunnel));
-        more.setContentDescription("隧道操作：" + name);
+        more.setContentDescription(I18n.text("m_f4f119412d35") + name);
         UI.margin(more, UI.SM, 0, 0, 0);
         row.addView(more);
         row.setBackground(UI.pressable(UI.rounded(Theme.p().canvasRaised, UI.RADIUS_MD), Theme.p().btnGhostHover));
@@ -271,29 +271,29 @@ public class TunnelsFragment extends PageFragment {
 
     private void openActions(JSONObject tunnel) {
         String id = tunnel.optString("id");
-        String name = tunnel.optString("name", "").isEmpty() ? "未命名隧道" : tunnel.optString("name");
+        String name = tunnel.optString("name", "").isEmpty() ? I18n.text("m_80fa39fefe91") : tunnel.optString("name");
         Sheet.Builder sheet = Sheet.of(requireContext(), name)
-                .action(R.drawable.ic_nav_tunnels, "查看详情", "路由规则与隧道信息", () -> openRoute("/tunnels/" + id));
-        if (id.equals(currentId)) sheet.item(R.drawable.ic_nav_close, "取消锁定", () -> select("", ""));
-        else sheet.item(R.drawable.ic_nav_check, "锁定这条隧道", () -> select(id, name));
-        sheet.item(R.drawable.ic_nav_copy, "复制隧道 ID", () -> copy(id));
-        sheet.item(R.drawable.ic_nav_trash, "删除隧道", () -> askDelete(id, name));
+                .action(R.drawable.ic_nav_tunnels, I18n.text("m_a748cc074f78"), I18n.text("m_e14ac5b6d3e8"), () -> openRoute("/tunnels/" + id));
+        if (id.equals(currentId)) sheet.item(R.drawable.ic_nav_close, I18n.text("m_2446e5438f16"), () -> select("", ""));
+        else sheet.item(R.drawable.ic_nav_check, I18n.text("m_017c754f6e8b"), () -> select(id, name));
+        sheet.item(R.drawable.ic_nav_copy, I18n.text("m_e4454a660640"), () -> copy(id));
+        sheet.item(R.drawable.ic_nav_trash, I18n.text("m_cf5e530b1ad3"), () -> askDelete(id, name));
         sheet.show();
     }
 
     private void select(String id, String name) {
         Api.async(() -> Api.post("/api/config/tunnel", new JSONObject().put("id", id).put("name", name)), result -> {
-            toast(id.isEmpty() ? "已取消锁定" : "已锁定「" + name + "」");
+            toast(id.isEmpty() ? I18n.text("m_af906a2476a2") : I18n.text("m_a9ca30fdc300") + name + "」");
             reload();
         }, failure -> toast(failure.getMessage()));
     }
 
     private void askDelete(String id, String name) {
-        Modal.of(requireContext(), "删除隧道")
-                .message("确定删除「" + name + "」吗？此操作无法撤销，隧道仍有活动连接时 Cloudflare 会拒绝删除。")
-                .cancel("取消")
-                .confirm("确认删除", true, () -> Api.async(() -> Api.delete("/api/tunnels/" + id), result -> {
-                    toast("隧道已删除");
+        Modal.of(requireContext(), I18n.text("m_cf5e530b1ad3"))
+                .message(I18n.text("m_72f49a525798") + name + I18n.text("m_a17e8f4371a0"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3ea3c17b401"), true, () -> Api.async(() -> Api.delete("/api/tunnels/" + id), result -> {
+                    toast(I18n.text("m_72d83d119709"));
                     reload();
                 }, failure -> toast(failure.getMessage())))
                 .show();
@@ -303,8 +303,8 @@ public class TunnelsFragment extends PageFragment {
         if (id.isEmpty()) return;
         ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard == null) return;
-        clipboard.setPrimaryClip(ClipData.newPlainText("隧道 ID", id));
-        if (Build.VERSION.SDK_INT < 33) toast("已复制");
+        clipboard.setPrimaryClip(ClipData.newPlainText(I18n.text("m_17f261a9385c"), id));
+        if (Build.VERSION.SDK_INT < 33) toast(I18n.text("m_8f6f8d979c98"));
     }
 
     private void toast(String message) {

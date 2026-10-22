@@ -40,7 +40,7 @@ import java.util.Set;
 public class NotificationsFragment extends PageFragment {
 
     private static final int REQ_NOTIFY = 71;
-    private static final String[] CHANNEL_LABELS = {"关闭通知", "仅邮箱", "仅 Telegram", "邮箱 + Telegram"};
+    private final String[] CHANNEL_LABELS = {I18n.text("m_27413c315695"), I18n.text("m_128003be2c2c"), I18n.text("m_e7d8fb7fa65f"), I18n.text("m_2b36843d5a74")};
 
     private ScrollView scroll;
     private LinearLayout body;
@@ -80,8 +80,8 @@ public class NotificationsFragment extends PageFragment {
         UI.pagePadding(body);
         scroll.addView(body);
 
-        body.addView(UI.pageTitle(requireContext(), "通知设置"));
-        body.addView(UI.muted(requireContext(), "加载中…"));
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_247ca01ae280")));
+        body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
         load();
         return scroll;
     }
@@ -148,13 +148,13 @@ public class NotificationsFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "通知设置"));
-        TextView subtitle = UI.muted(requireContext(), "选择通知渠道与事件，登录成功等事件会按你的配置发送提醒");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_247ca01ae280")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_3767e83d1c67"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (!loadError.isEmpty()) {
-            body.addView(UI.banner(requireContext(), "加载失败：" + loadError, true));
+            body.addView(UI.banner(requireContext(), I18n.text("m_01de8216e0d0") + loadError, true));
             body.addView(UI.spacer(requireContext(), UI.MD));
         }
 
@@ -219,19 +219,19 @@ public class NotificationsFragment extends PageFragment {
     // ------------------------------------------------------------- host card
 
     private View hostCard() {
-        LinearLayout card = rowsCard("本机通知",
-                "由 App 自己在后台轮询服务器，不用开着浏览器也能收到告警；只在这台设备生效，需要手动开启。");
+        LinearLayout card = rowsCard(I18n.text("m_5de89cb69dab"),
+                I18n.text("m_6a7a66616ad4"));
 
         boolean enabled = hostEnabled();
         boolean permission = notificationsAllowed();
 
-        LinearLayout push = settingRow("后台告警推送", hostHint(enabled, permission), hostToggle(enabled));
+        LinearLayout push = settingRow(I18n.text("m_9f98f9238b0b"), hostHint(enabled, permission), hostToggle(enabled));
         card.addView(push);
 
-        LinearLayout batteryRow = settingRow("忽略电池优化",
-                "系统在息屏后可能限制后台轮询，允许后告警更及时。", null);
+        LinearLayout batteryRow = settingRow(I18n.text("m_b360487b1126"),
+                I18n.text("m_0c7582ec3d7d"), null);
         TextView battery = UI.button(requireContext(),
-                ignoringBattery() ? "已允许" : "去允许", UI.BTN_SECONDARY);
+                ignoringBattery() ? I18n.text("m_75d889ac43a2") : I18n.text("m_beea4ffde7bf"), UI.BTN_SECONDARY);
         battery.setOnClickListener(v -> openBatterySettings());
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -240,11 +240,11 @@ public class NotificationsFragment extends PageFragment {
         UI.addRow(card, batteryRow, UI.MD);
 
         TextView note = UI.muted(requireContext(),
-                "推送与邮件告警同源：需要在具体监控项目里开启「告警」，且只在状态发生变化时触发。");
+                I18n.text("m_55682d4cb56d"));
         UI.margin(note, 0, UI.MD, 0, 0);
         card.addView(note);
 
-        TextView test = UI.button(requireContext(), "发送本机测试通知", UI.BTN_SECONDARY);
+        TextView test = UI.button(requireContext(), I18n.text("m_aba258defcc1"), UI.BTN_SECONDARY);
         test.setOnClickListener(v -> AlertService.postTest(requireContext()));
         UI.margin(test, 0, UI.MD, 0, 0);
         card.addView(test);
@@ -252,10 +252,10 @@ public class NotificationsFragment extends PageFragment {
     }
 
     private String hostHint(boolean enabled, boolean permission) {
-        if (!permission) return "系统还没允许本机发送通知，打开开关时会弹出授权。";
-        if (!enabled) return "已关闭。开启后 App 会常驻一条低调通知来维持轮询。";
-        if (!ignoringBattery()) return "运行中；建议同时允许忽略电池优化，避免息屏后被系统掐掉。";
-        return "运行中，服务端一有状态变化就会推送到这里。";
+        if (!permission) return I18n.text("m_d2df17878e54");
+        if (!enabled) return I18n.text("m_f5f1e934f984");
+        if (!ignoringBattery()) return I18n.text("m_f565e5e601f9");
+        return I18n.text("m_bc67ea42aa7f");
     }
 
     private UI.Toggle hostToggle(boolean enabled) {
@@ -278,8 +278,8 @@ public class NotificationsFragment extends PageFragment {
     // --------------------------------------------------------- channel cards
 
     private View channelCard() {
-        LinearLayout card = rowsCard("通知渠道",
-                "可选邮箱、Telegram，或两者同时发送；选择「关闭通知」则不会发送任何提醒。");
+        LinearLayout card = rowsCard(I18n.text("m_b2354cebb5bc"),
+                I18n.text("m_3c8e6a869915"));
         int choice = channelChoice();
         for (int i = 0; i < CHANNEL_LABELS.length; i++) {
             final int index = i;
@@ -321,7 +321,7 @@ public class NotificationsFragment extends PageFragment {
     }
 
     private View eventsCard() {
-        LinearLayout card = rowsCard("通知事件", "开启的事件才会发送提醒。");
+        LinearLayout card = rowsCard(I18n.text("m_e2ecbfe6774d"), I18n.text("m_d216483c416a"));
         UI.Toggle toggle = new UI.Toggle(requireContext(), loginEvent);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(UI.dp(34), UI.dp(20));
         lp.leftMargin = UI.dp(UI.MD);
@@ -333,12 +333,12 @@ public class NotificationsFragment extends PageFragment {
             toggle.setOn(loginEvent);
             render();
         });
-        card.addView(settingRow("登录通知", "每次账户登录成功后发送提醒（含时间与 IP）。", toggle));
+        card.addView(settingRow(I18n.text("m_f7141ed88f5b"), I18n.text("m_2c35d196666e"), toggle));
         return card;
     }
 
     private View emailsCard() {
-        LinearLayout card = rowsCard("邮箱收件人", "每行一个邮箱，支持多个收件人；仅在启用邮箱渠道时生效。");
+        LinearLayout card = rowsCard(I18n.text("m_b925241c3e99"), I18n.text("m_a18a8b2ffdbe"));
         emailsInput = UI.textArea(requireContext(), "you@example.com\nops@example.com");
         emailsInput.setText(emailsDraft);
         UI.fill(emailsInput);
@@ -347,30 +347,30 @@ public class NotificationsFragment extends PageFragment {
     }
 
     private View telegramCard() {
-        LinearLayout card = rowsCard("Telegram 机器人",
-                "使用你自己的 Bot（由 @BotFather 创建），与面板管理员无关；仅在启用 Telegram 渠道时生效。");
+        LinearLayout card = rowsCard(I18n.text("m_b0edcbcc7bba"),
+                I18n.text("m_2b6aee03cf2d"));
 
-        tokenInput = UI.input(requireContext(), tokenSet ? "留空保持不变" : "123456:ABC…");
+        tokenInput = UI.input(requireContext(), tokenSet ? I18n.text("m_3260348163d0") : "123456:ABC…");
         tokenInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         tokenInput.setText(tokenDraft);
         card.addView(UI.field(requireContext(), "Bot Token", tokenInput));
 
-        TextView tag = UI.tag(requireContext(), tokenSet ? "已设置" : "未设置", tokenSet);
+        TextView tag = UI.tag(requireContext(), tokenSet ? I18n.text("m_e025f1ff7199") : I18n.text("m_2f5f1d6fbfb0"), tokenSet);
         UI.margin(tag, 0, UI.SM, 0, UI.MD);
         card.addView(tag);
 
         chatInput = UI.input(requireContext(), "123456789");
         chatInput.setText(chatDraft);
-        card.addView(UI.field(requireContext(), "接收 Chat ID", chatInput));
+        card.addView(UI.field(requireContext(), I18n.text("m_6da43c19f64c"), chatInput));
 
         TextView hint = UI.muted(requireContext(),
-                "获取方式：先向自己的 Bot 发送任意消息，再打开 https://api.telegram.org/bot<TOKEN>/getUpdates ，取返回结果中的 chat.id。");
+                I18n.text("m_914f31341eff"));
         UI.margin(hint, 0, UI.MD, 0, 0);
         card.addView(hint);
 
         if (!tokenSet && remoteBotSet) {
             TextView reuse = UI.button(requireContext(),
-                    busy ? "复用中…" : "一键复用远程控制的 Bot", UI.BTN_SECONDARY);
+                    busy ? I18n.text("m_51750dd31297") : I18n.text("m_77765ef7d0e2"), UI.BTN_SECONDARY);
             reuse.setEnabled(!busy);
             reuse.setOnClickListener(v -> reuseFromTelegram());
             UI.margin(reuse, 0, UI.MD, 0, 0);
@@ -383,13 +383,13 @@ public class NotificationsFragment extends PageFragment {
         LinearLayout row = UI.row(requireContext());
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存设置", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_c8550237ba70"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> save());
         UI.weight(save, 1f);
         row.addView(save);
 
-        TextView test = UI.button(requireContext(), "发送测试通知", UI.BTN_SECONDARY);
+        TextView test = UI.button(requireContext(), I18n.text("m_5e0022a1e907"), UI.BTN_SECONDARY);
         test.setOnClickListener(v -> sendTest());
         UI.weight(test, 1f);
         UI.margin(test, UI.SM, 0, 0, 0);
@@ -429,7 +429,7 @@ public class NotificationsFragment extends PageFragment {
             ContextCompat.startForegroundService(requireContext(), intent);
             prefs.edit().putBoolean(AlertService.KEY_ENABLED, true).apply();
         } catch (Exception e) {
-            statusMessage = "无法启动后台告警：" + e.getMessage();
+            statusMessage = I18n.text("m_7be22be3c536") + e.getMessage();
             statusOk = false;
         }
     }
@@ -451,7 +451,7 @@ public class NotificationsFragment extends PageFragment {
                 startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         Uri.parse("package:" + requireContext().getPackageName())));
             } catch (Exception ignored) {
-                statusMessage = "无法打开电池优化设置，请到系统设置里手动允许。";
+                statusMessage = I18n.text("m_3a06b25e3949");
                 statusOk = false;
                 render();
             }
@@ -466,7 +466,7 @@ public class NotificationsFragment extends PageFragment {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startAlerts();
         } else {
-            statusMessage = "系统未允许通知权限，后台告警无法开启。";
+            statusMessage = I18n.text("m_3bc1e8c871de");
             statusOk = false;
         }
         render();
@@ -498,12 +498,12 @@ public class NotificationsFragment extends PageFragment {
         }, settings -> {
             busy = false;
             applySettings(settings);
-            statusMessage = "通知设置已保存";
+            statusMessage = I18n.text("m_07a20770f7aa");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -514,11 +514,11 @@ public class NotificationsFragment extends PageFragment {
         statusMessage = "";
         render();
         Api.async(() -> Api.post("/api/notify/test", null), ok -> {
-            statusMessage = "测试通知已发送，请检查配置的渠道";
+            statusMessage = I18n.text("m_9732496ef33e");
             statusOk = true;
             render();
         }, failure -> {
-            statusMessage = "发送失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_e44775371d6b") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -531,12 +531,12 @@ public class NotificationsFragment extends PageFragment {
         Api.async(() -> Api.post("/api/notify/reuse", null), settings -> {
             busy = false;
             applySettings(settings);
-            statusMessage = "已复用远程控制的 Bot Token";
+            statusMessage = I18n.text("m_63f4b00fe00c");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "复用失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_57ef54e7a666") + failure.getMessage();
             statusOk = false;
             render();
         });

@@ -1,11 +1,13 @@
 {
   "name": "tunnel-manager-docs",
   "private": true,
-  "version": "2.9.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
+    "dev": "node scripts/content.mjs && vitepress dev",
+    "build": "node scripts/content.mjs && vitepress build",
+    "content:generate": "node scripts/content.mjs",
+    "content:check": "node scripts/content.mjs --check",
     "preview": "vitepress preview"
   },
   "devDependencies": {

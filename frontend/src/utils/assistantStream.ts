@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.ts'
 export interface AssistantStreamEvent { type: string; data: Record<string, unknown> }
 
 export async function readAssistantStream(body: ReadableStream<Uint8Array>, onEvent: (event: AssistantStreamEvent) => void): Promise<void> {
@@ -9,7 +10,7 @@ export async function readAssistantStream(body: ReadableStream<Uint8Array>, onEv
       const { value, done } = await reader.read()
       if (done) break
       total += value.length
-      if (total > 4 * 1024 * 1024) throw new Error('回复过长，请缩小请求范围')
+      if (total > 4 * 1024 * 1024) throw new Error(tr('m_21d5010ed46d'))
       buffer += decoder.decode(value, { stream: true })
       let boundary: RegExpMatchArray | null
       while ((boundary = buffer.match(/\r?\n\r?\n/))) {
@@ -23,11 +24,11 @@ export async function readAssistantStream(body: ReadableStream<Uint8Array>, onEv
         }
         if (!data.length) continue
         const payload = JSON.parse(data.join('\n')) as Record<string, unknown>
-        if (type === 'error') throw new Error(typeof payload.error === 'string' ? payload.error : '回复未完成，请重试')
+        if (type === 'error') throw new Error(typeof payload.error === 'string' ? payload.error : tr('m_b7b96f677d8e'))
         onEvent({ type, data: payload })
         if (type === 'done') { completed = true; break }
       }
     }
-    if (!completed) throw new Error('连接已中断，回复未完整接收，尚未生成新任务')
+    if (!completed) throw new Error(tr('m_622be08aa01d'))
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
 }

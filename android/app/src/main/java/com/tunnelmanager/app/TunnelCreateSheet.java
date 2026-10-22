@@ -39,7 +39,7 @@ public final class TunnelCreateSheet {
             state.open = true;
             state.name = saved.getString("tunnel_create_name", "");
             if (saved.getBoolean("tunnel_create_pending")) {
-                state.error = "上次创建结果未确认，请先检查隧道列表，避免重复创建。";
+                state.error = I18n.text("m_6f47a98020cc");
             }
         }
         state.revision.observe(activity, ignored -> render());
@@ -73,7 +73,7 @@ public final class TunnelCreateSheet {
         if (sheet == null || !sheet.isShowing()) build();
         sheet.setDismissible(!state.busy);
         submit.setEnabled(!state.busy);
-        submit.setText(state.result != null ? "完成" : state.busy ? "创建中…" : "创建隧道");
+        submit.setText(state.result != null ? I18n.text("m_c0b3fbff51cc") : state.busy ? I18n.text("m_56b63def0e29") : I18n.text("m_e33080d615cb"));
         if (state.result != null) {
             if (!showingResult) showResult(state.result);
             if (state.refreshPending) {
@@ -90,8 +90,8 @@ public final class TunnelCreateSheet {
     private void build() {
         showingResult = false;
         content = UI.column(activity);
-        content.addView(UI.muted(activity, "使用当前授权的 Cloudflare 账户创建。创建不会自动接入主机，也不会切换当前隧道。"));
-        name = UI.input(activity, "例如：我的家庭实验室");
+        content.addView(UI.muted(activity, I18n.text("m_b0e77cb061b2")));
+        name = UI.input(activity, I18n.text("m_e06a8e35aa96"));
         name.setSingleLine(true);
         name.setSaveEnabled(false);
         name.setFilters(new InputFilter[]{new InputFilter.LengthFilter(60)});
@@ -107,19 +107,19 @@ public final class TunnelCreateSheet {
             create();
             return true;
         });
-        content.addView(UI.field(activity, "隧道名称", name, UI.LG));
+        content.addView(UI.field(activity, I18n.text("m_b679939ed787"), name, UI.LG));
         error = UI.banner(activity, "", true);
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         error.setVisibility(View.GONE);
         UI.margin(error, 0, UI.MD, 0, 0);
         content.addView(error);
-        submit = UI.button(activity, "创建隧道", UI.BTN_PRIMARY);
+        submit = UI.button(activity, I18n.text("m_e33080d615cb"), UI.BTN_PRIMARY);
         UI.fill(submit);
         submit.setOnClickListener(view -> {
             if (state.result != null) sheet.dismiss();
             else create();
         });
-        sheet = Sheet.of(activity, "新建一条连接").content(content).footer(submit).onDismiss(() -> {
+        sheet = Sheet.of(activity, I18n.text("m_389b92b75e48")).content(content).footer(submit).onDismiss(() -> {
             if (disposed) return;
             state.open = false;
             state.name = "";
@@ -141,8 +141,8 @@ public final class TunnelCreateSheet {
     private void showResult(JSONObject result) {
         showingResult = true;
         content.removeAllViews();
-        content.addView(UI.strong(activity, "隧道已创建"));
-        TextView hint = UI.muted(activity, "在已安装 cloudflared 的主机上执行运行命令，隧道才会开始连接。请妥善保管令牌，不要发送给他人。");
+        content.addView(UI.strong(activity, I18n.text("m_2c410ba6c66f")));
+        TextView hint = UI.muted(activity, I18n.text("m_b83305d65d40"));
         UI.margin(hint, 0, UI.SM, 0, UI.MD);
         content.addView(hint);
         String command = result.optString("run_command", "");
@@ -156,19 +156,19 @@ public final class TunnelCreateSheet {
             code.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
             code.setBackground(UI.rounded(Theme.p().canvasSoft2, UI.RADIUS_MD));
             content.addView(code);
-            TextView copy = UI.button(activity, hasCommand ? "复制运行命令" : "复制连接令牌", UI.BTN_SECONDARY);
+            TextView copy = UI.button(activity, hasCommand ? I18n.text("m_209c6b3fd0a8") : I18n.text("m_6bef8cdd90c0"), UI.BTN_SECONDARY);
             UI.fill(copy);
             UI.margin(copy, 0, UI.SM, 0, 0);
             copy.setOnClickListener(view -> {
                 ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (clipboard == null) return;
-                clipboard.setPrimaryClip(ClipData.newPlainText("隧道连接凭据", value));
-                if (android.os.Build.VERSION.SDK_INT < 33) Toast.makeText(activity, "已复制", Toast.LENGTH_SHORT).show();
+                clipboard.setPrimaryClip(ClipData.newPlainText(I18n.text("m_a8933dc6d806"), value));
+                if (android.os.Build.VERSION.SDK_INT < 33) Toast.makeText(activity, I18n.text("m_8f6f8d979c98"), Toast.LENGTH_SHORT).show();
             });
             content.addView(copy);
         }
         String warning = result.optString("warning", "");
-        if (command.isEmpty() && warning.isEmpty()) warning = "未收到运行命令或连接令牌，请检查 Cloudflare 隧道配置。不要重复创建。";
+        if (command.isEmpty() && warning.isEmpty()) warning = I18n.text("m_d0b9e70b0e09");
         if (!warning.isEmpty()) {
             TextView message = UI.banner(activity, warning, true);
             UI.margin(message, 0, UI.MD, 0, 0);
@@ -176,7 +176,7 @@ public final class TunnelCreateSheet {
         }
         String id = result.optString("id", "");
         if (!id.isEmpty()) {
-            TextView detail = UI.button(activity, "查看隧道详情", UI.BTN_GHOST);
+            TextView detail = UI.button(activity, I18n.text("m_f2ce3be31088"), UI.BTN_GHOST);
             UI.margin(detail, 0, UI.SM, 0, 0);
             detail.setOnClickListener(view -> {
                 sheet.dismiss();
@@ -207,7 +207,7 @@ public final class TunnelCreateSheet {
             if (busy || result != null || !Session.hasPerm("tunnels")) return;
             String submittedName = name.trim();
             if (submittedName.isEmpty()) {
-                error = "请填写隧道名称";
+                error = I18n.text("m_d34e09f1e95f");
                 changed();
                 return;
             }
@@ -224,7 +224,7 @@ public final class TunnelCreateSheet {
                 if (cleared) return;
                 busy = false;
                 error = failure.getMessage();
-                if (failure.code == 0) error += "\n结果可能未确认，请先检查隧道列表，避免重复创建。";
+                if (failure.code == 0) error += I18n.text("m_f24ff46c10ce");
                 changed();
             });
         }

@@ -93,8 +93,8 @@ public class MainActivity extends Activity {
     private Button btnBackToLogin;
     private Button btnPasskeyLogin;
     private Button btnPasskeyVerify;
-    private static final String PASSKEY_LOGIN_LABEL = "使用通行密钥登录";
-    private static final String PASSKEY_VERIFY_LABEL = "使用通行密钥验证";
+    private final String PASSKEY_LOGIN_LABEL = I18n.text("m_e984682db258");
+    private final String PASSKEY_VERIFY_LABEL = I18n.text("m_28c3158cdf27");
     /** True when the challenged account has a passkey, so the 2FA step can offer it. */
     private boolean passkeysAvailable;
     private ProgressBar progress;
@@ -138,6 +138,15 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(palette.canvas);
         getWindow().setNavigationBarColor(palette.canvas);
         setContentView(R.layout.activity_main);
+        findViewById(R.id.language_button).setOnClickListener(view ->
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle(I18n.text("language.switch"))
+                        .setSingleChoiceItems(new String[]{I18n.text("language.system"), "简体中文", "English"},
+                                "zh-CN".equals(I18n.preference()) ? 1 : "en".equals(I18n.preference()) ? 2 : 0,
+                                (dialog, index) -> {
+                                    dialog.dismiss();
+                                    I18n.setLanguage(new String[]{"system", "zh-CN", "en"}[index]);
+                                }).show());
 
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
 
@@ -224,9 +233,26 @@ public class MainActivity extends Activity {
         // form the operator is about to use.
         if (getIntent() != null && NOTICE_EXPIRED.equals(getIntent().getStringExtra(EXTRA_NOTICE))) {
             getIntent().removeExtra(EXTRA_NOTICE);
-            showError(textError, "登录状态已失效，请重新登录");
+            showError(textError, I18n.text("m_aa2943a75de2"));
+        }
+        if (savedInstanceState != null) {
+            inputPassword.setText(savedInstanceState.getString("loginPassword", ""));
+            challengeToken = savedInstanceState.getString("loginChallenge", "");
+            pendingPath = savedInstanceState.getString("loginPath", pendingPath);
+            if (!challengeToken.isEmpty()) {
+                stepLogin.setVisibility(View.GONE);
+                stepTwoFactor.setVisibility(View.VISIBLE);
+            }
         }
         playSplash(signedIn ? this::launchConsole : null);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle saved) {
+        saved.putString("loginPassword", inputPassword.getText().toString());
+        saved.putString("loginChallenge", challengeToken);
+        saved.putString("loginPath", pendingPath);
+        super.onSaveInstanceState(saved);
     }
 
     // ------------------------------------------------------------------- splash
@@ -405,7 +431,7 @@ public class MainActivity extends Activity {
         turnstileSiteKey = siteKey;
         turnstileToken = "";
         turnstileBox.setVisibility(View.VISIBLE);
-        setTurnstileHint("正在加载人机验证…");
+        setTurnstileHint(I18n.text("m_1d5756f3dbb8"));
         turnstileView.loadDataWithBaseURL(server + "/", turnstileHtml(siteKey, Theme.isDark()),
                 "text/html", "utf-8", null);
     }
@@ -437,7 +463,7 @@ public class MainActivity extends Activity {
     private void onTurnstileFailed(String reason) {
         turnstileToken = "";
         pendingPassword = null;
-        setBusy(btnLogin, false, "登录");
+        setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
         // A solved widget goes stale after five minutes; that is routine, not an
         // error, so quietly ask for a new one.
         if ("expired".equals(reason) && stepLogin.getVisibility() == View.VISIBLE
@@ -445,7 +471,7 @@ public class MainActivity extends Activity {
             loadTurnstile(turnstileServer, turnstileSiteKey);
             return;
         }
-        setTurnstileHint("人机验证加载失败，请改用网页版登录");
+        setTurnstileHint(I18n.text("m_5d64fa32d858"));
     }
 
     /**
@@ -552,18 +578,18 @@ public class MainActivity extends Activity {
         final String password = inputPassword.getText().toString();
 
         if (server.isEmpty()) {
-            showError(textError, "请填写服务器地址");
+            showError(textError, I18n.text("m_3747211e81ee"));
             inputServer.requestFocus();
             return;
         }
         if (account.isEmpty() || password.isEmpty()) {
-            showError(textError, "请填写用户名和密码");
+            showError(textError, I18n.text("m_e72dfb96ac68"));
             return;
         }
         hide(textError);
         prefs.edit().putString(KEY_SERVER, server).apply();
 
-        setBusy(btnLogin, true, "连接中…");
+        setBusy(btnLogin, true, I18n.text("m_ee9ebe523d42"));
         new Thread(() -> {
             try {
                 // Ask the server first: this both proves the address is right and
@@ -586,9 +612,9 @@ public class MainActivity extends Activity {
                     // Hold the credentials and let the widget finish; the token
                     // callback resumes the sign-in.
                     pendingPassword = password;
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     hide(textError);
-                    setTurnstileHint("请先完成人机验证");
+                    setTurnstileHint(I18n.text("m_21a059099d9f"));
                     // Restarting a widget that is already mid-solve would throw
                     // away the work it has done so far.
                     boolean up = siteKey.equals(turnstileSiteKey) && server.equals(turnstileServer)
@@ -597,7 +623,7 @@ public class MainActivity extends Activity {
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     showError(textError, networkError(e));
                 });
             }
@@ -607,7 +633,7 @@ public class MainActivity extends Activity {
     /** POSTs the credentials, attaching a Turnstile token when the server wants one. */
     private void postLogin(String server, String account, String password, String turnstile) {
         if (isFinishing()) return;
-        setBusy(btnLogin, true, "登录中…");
+        setBusy(btnLogin, true, I18n.text("m_3f06ed8f8c38"));
         new Thread(() -> {
             try {
                 JSONObject body = new JSONObject();
@@ -618,12 +644,12 @@ public class MainActivity extends Activity {
                 }
                 final Resp r = postJson(server + "/api/admin/login", body.toString(), null);
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     onLoginResponse(r, server, account);
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     showError(textError, networkError(e));
                 });
             }
@@ -644,7 +670,7 @@ public class MainActivity extends Activity {
                 launchConsole();
                 return;
             } catch (Exception e) {
-                showError(textError, "响应解析失败");
+                showError(textError, I18n.text("m_9a8a0b39f334"));
                 return;
             }
         }
@@ -682,15 +708,15 @@ public class MainActivity extends Activity {
         final String code = inputCode.getText().toString().trim();
         final String server = prefs.getString(KEY_SERVER, "");
         if (code.isEmpty()) {
-            showError(textError2fa, "请输入验证码");
+            showError(textError2fa, I18n.text("m_ba9192e1bb7a"));
             return;
         }
         if (challengeToken.isEmpty() || server.isEmpty()) {
-            showError(textError2fa, "验证会话已失效，请重新登录");
+            showError(textError2fa, I18n.text("m_70c236200902"));
             return;
         }
         hide(textError2fa);
-        setBusy(btnVerify, true, "验证中…");
+        setBusy(btnVerify, true, I18n.text("m_7f2d0739a240"));
 
         new Thread(() -> {
             try {
@@ -699,7 +725,7 @@ public class MainActivity extends Activity {
                 body.put("code", code);
                 final Resp r = postJson(server + "/api/admin/login/2fa", body.toString(), null);
                 ui.post(() -> {
-                    setBusy(btnVerify, false, "验证");
+                    setBusy(btnVerify, false, I18n.text("m_154723a1aa0a"));
                     if (r.code == 200) {
                         try {
                             JSONObject o = new JSONObject(r.body);
@@ -719,7 +745,7 @@ public class MainActivity extends Activity {
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnVerify, false, "验证");
+                    setBusy(btnVerify, false, I18n.text("m_154723a1aa0a"));
                     showError(textError2fa, networkError(e));
                 });
             }
@@ -739,13 +765,13 @@ public class MainActivity extends Activity {
         final String server = normalizeServer(inputServer.getText().toString());
         final String account = inputAccount.getText().toString().trim();
         if (server.isEmpty()) {
-            showError(textError, "请填写服务器地址");
+            showError(textError, I18n.text("m_3747211e81ee"));
             inputServer.requestFocus();
             return;
         }
         hide(textError);
         prefs.edit().putString(KEY_SERVER, server).apply();
-        setBusy(btnPasskeyLogin, true, "等待验证…");
+        setBusy(btnPasskeyLogin, true, I18n.text("m_05be4873d29d"));
 
         new Thread(() -> {
             try {
@@ -806,11 +832,11 @@ public class MainActivity extends Activity {
     private void doPasskeyVerify() {
         final String server = prefs.getString(KEY_SERVER, "");
         if (challengeToken.isEmpty() || server.isEmpty()) {
-            showError(textError2fa, "验证会话已失效，请重新登录");
+            showError(textError2fa, I18n.text("m_70c236200902"));
             return;
         }
         hide(textError2fa);
-        setBusy(btnPasskeyVerify, true, "等待验证…");
+        setBusy(btnPasskeyVerify, true, I18n.text("m_05be4873d29d"));
 
         new Thread(() -> {
             try {
@@ -883,7 +909,7 @@ public class MainActivity extends Activity {
                     .putString(KEY_ROLE, o.optString("role", ""))
                     .apply();
         } catch (Exception e) {
-            showError(errorView, "响应解析失败");
+            showError(errorView, I18n.text("m_9a8a0b39f334"));
             return;
         }
         challengeToken = "";
@@ -911,7 +937,7 @@ public class MainActivity extends Activity {
         final String server = prefs.getString(KEY_SERVER, "");
         if (server.isEmpty()) {
             backToLogin();
-            showError(textError, "请先填写服务器地址");
+            showError(textError, I18n.text("m_2aa9d59b6a73"));
             return;
         }
         // In web-login mode there is no token handshake to perform, so the first
@@ -951,7 +977,7 @@ public class MainActivity extends Activity {
                 return;
             }
             prefs.edit().remove(KEY_TOKEN).apply();
-            showLogin("登录状态已失效，请重新登录");
+            showLogin(I18n.text("m_aa2943a75de2"));
             return;
         }
         progress.setVisibility(View.GONE);
@@ -1043,7 +1069,7 @@ public class MainActivity extends Activity {
                     // token makes this path transient.
                     if (bounced) {
                         prefs.edit().remove(KEY_TOKEN).apply();
-                        showLogin("已退出登录");
+                        showLogin(I18n.text("m_d0b8f27a7116"));
                     }
                     return;
                 }
@@ -1128,7 +1154,7 @@ public class MainActivity extends Activity {
             startForegroundService(i);
             prefs.edit().putBoolean(AlertService.KEY_ENABLED, true).apply();
         } catch (Exception e) {
-            showError(textError, "无法启动后台告警：" + e.getMessage());
+            showError(textError, I18n.text("m_7be22be3c536") + e.getMessage());
         }
         pushHostState();
     }
@@ -1354,33 +1380,33 @@ public class MainActivity extends Activity {
             raw = new JSONObject(r.body).optString("error", "");
         } catch (Exception ignored) {
         }
-        if (raw.contains("invalid credentials")) return "用户名或密码错误";
-        if (raw.contains("account is disabled")) return "账号已被禁用";
-        if (raw.contains("required")) return "请填写用户名和密码";
+        if (raw.contains("invalid credentials")) return I18n.text("m_a9a6a83a7d22");
+        if (raw.contains("account is disabled")) return I18n.text("m_64ed6f0e5104");
+        if (raw.contains("required")) return I18n.text("m_e72dfb96ac68");
         if (raw.contains("turnstile") || raw.contains("verification")) {
-            return "人机验证未通过，请重新验证后再试";
+            return I18n.text("m_b015cf1c82ac");
         }
-        if (raw.contains("temporarily unavailable")) return "服务暂时不可用，请稍后再试";
-        if (raw.contains("challenge") || raw.contains("expired")) return "验证码已失效，请重新登录";
+        if (raw.contains("temporarily unavailable")) return I18n.text("m_f4e91b601f9b");
+        if (raw.contains("challenge") || raw.contains("expired")) return I18n.text("m_aa9df380b6ae");
         if (!raw.isEmpty()) return raw;
-        return "请求失败（HTTP " + r.code + "）";
+        return I18n.text("m_99841da5202b") + r.code + "）";
     }
 
     private static String networkError(Exception e) {
         String message = e.getMessage() == null ? "" : e.getMessage();
         if (message.contains("ECONNREFUSED") || message.contains("Failed to connect")) {
-            return "连不上服务器，请检查地址和端口";
+            return I18n.text("m_ff8da88893d7");
         }
         if (message.contains("timed out") || message.contains("timeout")) {
-            return "连接超时，请检查网络";
+            return I18n.text("m_a3fceccd6229");
         }
         if (message.contains("Unable to resolve host")) {
-            return "域名解析失败，请检查地址";
+            return I18n.text("m_417a14c8aae9");
         }
         if (message.contains("CLEARTEXT")) {
-            return "该地址不允许明文 HTTP 访问";
+            return I18n.text("m_27d0f8469bb1");
         }
-        return "网络错误：" + (message.isEmpty() ? e.getClass().getSimpleName() : message);
+        return I18n.text("m_4a5f658ed9ae") + (message.isEmpty() ? e.getClass().getSimpleName() : message);
     }
 
     private void setBusy(Button button, boolean busy, String label) {

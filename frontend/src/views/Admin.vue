@@ -1,8 +1,8 @@
 <template>
   <div class="page-container admin-page">
     <div class="page-header">
-      <h2>管理后台</h2>
-      <p>管理用户、用户组、邀请码与注册策略</p>
+      <h2>{{ tr('m_87354adb1c31') }}</h2>
+      <p>{{ tr('m_74420630cb1f') }}</p>
     </div>
 
     <div class="admin-tabs">
@@ -16,46 +16,46 @@
     <section v-show="activeTab === 'users'" class="admin-section">
       <div class="admin-card">
         <div class="admin-card-head">
-          <h3>用户列表</h3>
-          <button class="btn btn-secondary" type="button" @click="showCreateUser = !showCreateUser">{{ showCreateUser ? '收起' : '新建用户' }}</button>
+          <h3>{{ tr('m_a4660b1813b3') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="showCreateUser = !showCreateUser">{{ showCreateUser ? tr('m_afd4b783536b') : tr('m_3ae9a33489d7') }}</button>
         </div>
         <form v-if="showCreateUser" class="admin-form" @submit.prevent="submitCreateUser">
-          <input v-model="newUser.username" type="text" placeholder="用户名" class="vercel-input" required />
-          <input v-model="newUser.email" type="email" placeholder="邮箱（可留空）" class="vercel-input" />
-          <input v-model="newUser.password" type="password" placeholder="初始密码（≥6 位）" class="vercel-input" required />
+          <input v-model="newUser.username" type="text" :placeholder="tr('m_1a3f0617d6de')" class="vercel-input" required />
+          <input v-model="newUser.email" type="email" :placeholder="tr('m_504ebd6e7929')" class="vercel-input" />
+          <input v-model="newUser.password" type="password" :placeholder="tr('m_f155bd296642')" class="vercel-input" required />
           <select v-model="newUser.groupId" class="vercel-input">
-            <option value="">默认用户组</option>
+            <option value="">{{ tr('m_e69c528d68a8') }}</option>
             <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
           </select>
-          <label class="admin-check"><input v-model="newUser.admin" type="checkbox" /> 管理员</label>
-          <button class="btn btn-primary" type="submit" :disabled="busy">创建</button>
+          <label class="admin-check"><input v-model="newUser.admin" type="checkbox" /> {{ tr('m_e19796712f1c') }}</label>
+          <button class="btn btn-primary" type="submit" :disabled="busy">{{ tr('m_cde2cd071d25') }}</button>
         </form>
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>用户名</th><th>邮箱</th><th>角色</th><th>用户组</th><th>状态</th><th>登录方式</th><th>最近登录</th><th>操作</th></tr>
+              <tr><th>{{ tr('m_1a3f0617d6de') }}</th><th>{{ tr('m_73075237fd0f') }}</th><th>{{ tr('m_c47b54e84e79') }}</th><th>{{ tr('m_963ead08d78d') }}</th><th>{{ tr('m_6320b4a8722a') }}</th><th>{{ tr('m_80527b7d0f96') }}</th><th>{{ tr('m_c85b3a16f0c8') }}</th><th>{{ tr('m_ed31fbb483ee') }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td class="mono">{{ user.username }}</td>
                 <td>{{ user.email || '—' }}</td>
-                <td><span class="tag" :class="user.role === 'admin' ? 'tag-admin' : ''">{{ user.role === 'admin' ? '管理员' : '用户' }}</span></td>
+                <td><span class="tag" :class="user.role === 'admin' ? 'tag-admin' : ''">{{ user.role === 'admin' ? tr('m_e19796712f1c') : tr('m_0d0e1a86b3aa') }}</span></td>
                 <td>{{ groupName(user.group_id) }}</td>
-                <td><span class="tag" :class="user.status === 'active' ? 'tag-ok' : 'tag-down'">{{ user.status === 'active' ? '正常' : '已禁用' }}</span></td>
+                <td><span class="tag" :class="user.status === 'active' ? 'tag-ok' : 'tag-down'">{{ user.status === 'active' ? tr('m_296de0e31f8c') : tr('m_bc5a87a757a5') }}</span></td>
                 <td>
-                  <span v-if="user.has_password !== false" class="tag">密码</span>
-                  <span v-if="user.passkeys > 0" class="tag tag-ok">{{ user.passkeys }} 个通行密钥</span>
-                  <span v-if="user.oidc_identities" class="tag tag-ok">{{ user.oidc_identities }} 个 OIDC 身份</span>
-                  <span v-if="user.has_password === false && !user.passkeys && !user.oidc_identities" class="tag tag-down">未设置登录方式</span>
-                  <span v-if="user.password_login_disabled" class="tag tag-down">已禁用密码</span>
+                  <span v-if="user.has_password !== false" class="tag">{{ tr('m_a621ab606db2') }}</span>
+                  <span v-if="user.passkeys > 0" class="tag tag-ok">{{ user.passkeys }} {{ tr('m_a02cb2dac784') }}</span>
+                  <span v-if="user.oidc_identities" class="tag tag-ok">{{ user.oidc_identities }} {{ tr('m_5c38a4a7fe36') }}</span>
+                  <span v-if="user.has_password === false && !user.passkeys && !user.oidc_identities" class="tag tag-down">{{ tr('m_046a2463d762') }}</span>
+                  <span v-if="user.password_login_disabled" class="tag tag-down">{{ tr('m_b7a378e767eb') }}</span>
                 </td>
                 <td>{{ formatTime(user.last_login_at) }}</td>
                 <td class="actions">
-                  <button class="btn btn-ghost" type="button" @click="toggleUserStatus(user)">{{ user.status === 'active' ? '禁用' : '启用' }}</button>
-                  <button class="btn btn-ghost" type="button" @click="changeGroup(user)">改组</button>
-                  <button v-if="user.password_login_disabled" class="btn btn-ghost" type="button" @click="restorePasswordLogin(user)">恢复密码登录</button>
-                  <button class="btn btn-ghost" type="button" @click="resetPassword(user)">重置密码</button>
-                  <button class="btn btn-ghost danger" type="button" @click="removeUser(user)">删除</button>
+                  <button class="btn btn-ghost" type="button" @click="toggleUserStatus(user)">{{ user.status === 'active' ? tr('m_7df5c456c765') : tr('m_f4f0ead1116b') }}</button>
+                  <button class="btn btn-ghost" type="button" @click="changeGroup(user)">{{ tr('m_8dc3036181be') }}</button>
+                  <button v-if="user.password_login_disabled" class="btn btn-ghost" type="button" @click="restorePasswordLogin(user)">{{ tr('m_466c8603a96a') }}</button>
+                  <button class="btn btn-ghost" type="button" @click="resetPassword(user)">{{ tr('m_d70928debc2e') }}</button>
+                  <button class="btn btn-ghost danger" type="button" @click="removeUser(user)">{{ tr('m_2f9daa828907') }}</button>
                 </td>
               </tr>
             </tbody>
@@ -67,18 +67,18 @@
     <section v-show="activeTab === 'groups'" class="admin-section">
       <div class="admin-card">
         <div class="admin-card-head">
-          <h3>用户组</h3>
-          <button class="btn btn-secondary" type="button" @click="showCreateGroup = !showCreateGroup">{{ showCreateGroup ? '收起' : '新建用户组' }}</button>
+          <h3>{{ tr('m_963ead08d78d') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="showCreateGroup = !showCreateGroup">{{ showCreateGroup ? tr('m_afd4b783536b') : tr('m_e05eb0ea9c94') }}</button>
         </div>
         <form v-if="showCreateGroup" class="admin-form" @submit.prevent="submitCreateGroup">
-          <input v-model="newGroupName" type="text" placeholder="用户组名称" class="vercel-input" required />
-          <button class="btn btn-primary" type="submit" :disabled="busy">创建</button>
+          <input v-model="newGroupName" type="text" :placeholder="tr('m_744e71a6afc1')" class="vercel-input" required />
+          <button class="btn btn-primary" type="submit" :disabled="busy">{{ tr('m_cde2cd071d25') }}</button>
         </form>
         <div v-for="group in groups" :key="group.id" class="group-row">
           <div class="group-title">
             <strong>{{ group.name }}</strong>
-            <span v-if="group.builtin" class="tag">内置</span>
-            <span class="group-count">{{ groupMemberCount(group.id) }} 名成员</span>
+            <span v-if="group.builtin" class="tag">{{ tr('m_95e35aabd9a9') }}</span>
+            <span class="group-count">{{ groupMemberCount(group.id) }} {{ tr('m_6f2f43e7dace') }}</span>
           </div>
           <div class="perm-list">
             <label v-for="perm in allPermissions" :key="perm" class="admin-check">
@@ -87,8 +87,8 @@
             </label>
           </div>
           <div class="group-actions">
-            <button class="btn btn-ghost" type="button" @click="renameGroup(group)">重命名</button>
-            <button v-if="!group.builtin" class="btn btn-ghost danger" type="button" @click="removeGroup(group)">删除</button>
+            <button class="btn btn-ghost" type="button" @click="renameGroup(group)">{{ tr('m_0d0cbac2eee5') }}</button>
+            <button v-if="!group.builtin" class="btn btn-ghost danger" type="button" @click="removeGroup(group)">{{ tr('m_2f9daa828907') }}</button>
           </div>
         </div>
       </div>
@@ -97,33 +97,33 @@
     <section v-show="activeTab === 'invites'" class="admin-section">
       <div class="admin-card">
         <div class="admin-card-head">
-          <h3>邀请码</h3>
-          <button class="btn btn-secondary" type="button" @click="showCreateInvite = !showCreateInvite">{{ showCreateInvite ? '收起' : '生成邀请码' }}</button>
+          <h3>{{ tr('m_c8b56dca7aed') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="showCreateInvite = !showCreateInvite">{{ showCreateInvite ? tr('m_afd4b783536b') : tr('m_5f6a55e484cc') }}</button>
         </div>
         <form v-if="showCreateInvite" class="admin-form" @submit.prevent="submitCreateInvite">
           <select v-model="newInvite.groupId" class="vercel-input">
-            <option value="">默认用户组</option>
+            <option value="">{{ tr('m_e69c528d68a8') }}</option>
             <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
           </select>
-          <input v-model.number="newInvite.maxUses" type="number" min="0" placeholder="可用次数（0 = 不限）" class="vercel-input" />
-          <input v-model.number="newInvite.expireDays" type="number" min="0" placeholder="有效天数（0 = 永久）" class="vercel-input" />
-          <button class="btn btn-primary" type="submit" :disabled="busy">生成</button>
+          <input v-model.number="newInvite.maxUses" type="number" min="0" :placeholder="tr('m_62162c91428a')" class="vercel-input" />
+          <input v-model.number="newInvite.expireDays" type="number" min="0" :placeholder="tr('m_5a52b819b316')" class="vercel-input" />
+          <button class="btn btn-primary" type="submit" :disabled="busy">{{ tr('m_1ad1463fe16f') }}</button>
         </form>
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>邀请码</th><th>用户组</th><th>已用 / 上限</th><th>过期时间</th><th>状态</th><th>操作</th></tr>
+              <tr><th>{{ tr('m_c8b56dca7aed') }}</th><th>{{ tr('m_963ead08d78d') }}</th><th>{{ tr('m_1e1fa1cd1221') }}</th><th>{{ tr('m_a8e5f1716600') }}</th><th>{{ tr('m_6320b4a8722a') }}</th><th>{{ tr('m_ed31fbb483ee') }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="invite in invites" :key="invite.code">
                 <td class="mono">{{ invite.code }}</td>
-                <td>{{ groupName(invite.group_id) || '默认' }}</td>
+                <td>{{ groupName(invite.group_id) || tr('m_844b8cc8dff7') }}</td>
                 <td>{{ invite.used_count }} / {{ invite.max_uses > 0 ? invite.max_uses : '∞' }}</td>
-                <td>{{ invite.expires_at > 0 ? formatTime(invite.expires_at) : '永久' }}</td>
-                <td><span class="tag" :class="invite.enabled ? 'tag-ok' : 'tag-down'">{{ invite.enabled ? '启用' : '停用' }}</span></td>
+                <td>{{ invite.expires_at > 0 ? formatTime(invite.expires_at) : tr('m_3e71ccc89a43') }}</td>
+                <td><span class="tag" :class="invite.enabled ? 'tag-ok' : 'tag-down'">{{ invite.enabled ? tr('m_f4f0ead1116b') : tr('m_4e6fd0e28c55') }}</span></td>
                 <td class="actions">
-                  <button class="btn btn-ghost" type="button" @click="toggleInvite(invite)">{{ invite.enabled ? '停用' : '启用' }}</button>
-                  <button class="btn btn-ghost danger" type="button" @click="removeInvite(invite)">删除</button>
+                  <button class="btn btn-ghost" type="button" @click="toggleInvite(invite)">{{ invite.enabled ? tr('m_4e6fd0e28c55') : tr('m_f4f0ead1116b') }}</button>
+                  <button class="btn btn-ghost danger" type="button" @click="removeInvite(invite)">{{ tr('m_2f9daa828907') }}</button>
                 </td>
               </tr>
             </tbody>
@@ -134,153 +134,153 @@
 
     <section v-show="activeTab === 'settings'" class="admin-section">
       <div class="admin-card">
-        <h3>IP 优选</h3>
+        <h3>{{ tr('m_b145d5c1a57b') }}</h3>
         <div class="setting-row">
-          <span class="setting-label">实验性功能（IP 优选）</span>
+          <span class="setting-label">{{ tr('m_58476be189a1') }}</span>
           <n-switch v-model:value="settings.experimental_features_enabled" size="small" :disabled="busy" @update:value="saveSettings" />
         </div>
         <label class="setting-row">
-          <span class="setting-label">每日请求预算（UTC）</span>
+          <span class="setting-label">{{ tr('m_8b57f87fb23a') }}</span>
           <input v-model.number="settings.lab_daily_request_limit" class="vercel-input narrow" type="number" min="1" max="10000000" step="1" :disabled="busy" />
         </label>
         <label class="setting-row">
-          <span class="setting-label">每秒请求数</span>
+          <span class="setting-label">{{ tr('m_b8f8cb247e4d') }}</span>
           <input v-model.number="settings.lab_requests_per_second" class="vercel-input narrow" type="number" min="1" max="1000" step="1" :disabled="busy" />
         </label>
         <label class="setting-row">
-          <span class="setting-label">并发上限</span>
+          <span class="setting-label">{{ tr('m_652a6f861b6d') }}</span>
           <input v-model.number="settings.lab_max_workers" class="vercel-input narrow" type="number" min="1" max="256" step="1" :disabled="busy" />
         </label>
-        <p class="text-muted">实例共享预算，不是云平台额度。按候选 IP 预留，取消不退；修改从下一轮生效。</p>
-        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">保存优选限制</button>
+        <p class="text-muted">{{ tr('m_8e24fd96b54f') }}</p>
+        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">{{ tr('m_eedfd7ecc753') }}</button>
       </div>
       <div class="admin-card">
-        <h3>注册策略</h3>
+        <h3>{{ tr('m_5c4ef9d52d09') }}</h3>
         <div class="setting-row">
-          <span class="setting-label">开放注册</span>
+          <span class="setting-label">{{ tr('m_04f83ab519b2') }}</span>
           <n-switch v-model:value="regOpen" size="small" @update:value="saveSettings">
-            <template #checked>开放</template>
-            <template #unchecked>关闭</template>
+            <template #checked>{{ tr('m_c14c915da5fb') }}</template>
+            <template #unchecked>{{ tr('m_3fd47edce45b') }}</template>
           </n-switch>
         </div>
         <div class="setting-row">
-          <span class="setting-label">注册邮箱验证</span>
+          <span class="setting-label">{{ tr('m_25cece360c1c') }}</span>
           <n-switch v-model:value="emailVerify" size="small" :disabled="!smtpReady || !regOpen" @update:value="saveSettings">
-            <template #checked>需要验证码</template>
-            <template #unchecked>不需要</template>
+            <template #checked>{{ tr('m_59a37a575fd7') }}</template>
+            <template #unchecked>{{ tr('m_c6ca814dc1e4') }}</template>
           </n-switch>
-          <small v-if="!smtpReady" class="text-muted">未配置邮件服务，验证码无法发送</small>
+          <small v-if="!smtpReady" class="text-muted">{{ tr('m_d63dc99a4520') }}</small>
         </div>
         <div class="setting-row">
-          <span class="setting-label">邀请码</span>
-          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="off" @change="saveSettings" /> 关闭</label>
-          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="optional" @change="saveSettings" /> 选填</label>
-          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="required" @change="saveSettings" /> 必填</label>
+          <span class="setting-label">{{ tr('m_c8b56dca7aed') }}</span>
+          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="off" @change="saveSettings" /> {{ tr('m_3fd47edce45b') }}</label>
+          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="optional" @change="saveSettings" /> {{ tr('m_ebdcbdcf9c99') }}</label>
+          <label class="admin-check"><input v-model="settings.invite_mode" type="radio" value="required" @change="saveSettings" /> {{ tr('m_11da9dc44285') }}</label>
         </div>
         <div class="setting-row">
-          <span class="setting-label">默认用户组</span>
+          <span class="setting-label">{{ tr('m_e69c528d68a8') }}</span>
           <select v-model="settings.default_group_id" class="vercel-input narrow" @change="saveSettings">
-            <option value="">（未设置）</option>
+            <option value="">{{ tr('m_ccb91ce53df9') }}</option>
             <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
           </select>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>审计日志</h3>
-        <p class="admin-hint">记录管理后台与业务变更操作：登录与登出、用户与用户组、邀请码、系统设置、隧道、域名绑定、DNS 记录与服务监控。只读浏览不计入，可在「审计日志」标签页按用户、操作类型与时间范围筛选。</p>
+        <h3>{{ tr('m_a0f79e91f13f') }}</h3>
+        <p class="admin-hint">{{ tr('m_b3e7709d53fd') }}</p>
         <div class="setting-row">
-          <span class="setting-label">保留时长</span>
+          <span class="setting-label">{{ tr('m_5c4c49a2ae6b') }}</span>
           <select v-model.number="settings.audit_retention_days" class="vercel-input narrow" @change="saveSettings">
-            <option :value="30">30 天</option>
-            <option :value="90">90 天</option>
-            <option :value="180">180 天</option>
-            <option :value="365">365 天</option>
-            <option :value="-1">永久保留</option>
+            <option :value="30">{{ tr('m_84ad2952a308') }}</option>
+            <option :value="90">{{ tr('m_cb82f419192b') }}</option>
+            <option :value="180">{{ tr('m_81a524216893') }}</option>
+            <option :value="365">{{ tr('m_ef95232cba01') }}</option>
+            <option :value="-1">{{ tr('m_14b99ee953f8') }}</option>
           </select>
-          <small class="text-muted">超期日志每小时自动清理一次</small>
+          <small class="text-muted">{{ tr('m_43b7c1573e9d') }}</small>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>通行密钥</h3>
-        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同一个域下的所有子域都能用。只有在需要限定来源（同一依赖方下只放开某几个子域）时才填「允许的来源」，它必须与依赖方 ID 同域或为其子域——一个依赖方 ID 覆盖不了两个不同的域名，换域名后已绑定的通行密钥会失效，需要重新绑定。</p>
+        <h3>{{ tr('m_102824e51a9d') }}</h3>
+        <p class="admin-hint">{{ tr('m_7cb7b8eda6aa') }}</p>
         <div class="admin-form">
-          <input v-model="settings.passkey_rp_id" type="text" placeholder="依赖方 ID，如 panel.example.com" class="vercel-input" />
-          <input v-model="settings.passkey_origins" type="text" placeholder="允许的来源，逗号分隔，如 https://panel.example.com" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+          <input v-model="settings.passkey_rp_id" type="text" :placeholder="tr('m_9b9ca2069036')" class="vercel-input" />
+          <input v-model="settings.passkey_origins" type="text" :placeholder="tr('m_15b1847e23f3')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">{{ tr('m_a3030bf8f16d') }}</button>
         </div>
         <div class="setting-row">
-          <span class="setting-label">禁用密码登录</span>
+          <span class="setting-label">{{ tr('m_3a027241650b') }}</span>
           <n-switch v-model:value="passwordLoginOff" size="small" :disabled="!settings.passkey_admin_ready" @update:value="saveSettings">
-            <template #checked>仅通行密钥</template>
-            <template #unchecked>允许密码</template>
+            <template #checked>{{ tr('m_bea6fbd73a4a') }}</template>
+            <template #unchecked>{{ tr('m_3c54e6e2ef5d') }}</template>
           </n-switch>
-          <small v-if="!settings.passkey_admin_ready" class="text-muted">需至少一名启用的管理员已绑定通行密钥，避免面板被锁死</small>
+          <small v-if="!settings.passkey_admin_ready" class="text-muted">{{ tr('m_cbfc19c348ad') }}</small>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>登录保护</h3>
-        <p class="admin-hint">登录、二次验证、注册、验证码、找回与重置密码都受此限制。账号额度是真正的防线——换 IP 绕不过去；IP 额度用来挡住一台机器横扫多个账号。任一触发即返回 429 并附带解锁时间。</p>
+        <h3>{{ tr('m_37c24b911b27') }}</h3>
+        <p class="admin-hint">{{ tr('m_924475a68b09') }}</p>
         <div class="setting-row">
-          <span class="setting-label">启用登录限流</span>
+          <span class="setting-label">{{ tr('m_829140bedce5') }}</span>
           <n-switch v-model:value="settings.rate_limit_enabled" size="small" @update:value="saveSettings" />
         </div>
         <div class="admin-form">
-          <label class="field-label">每账号失败次数<small>0 = 默认 5 次，填负数表示不限</small></label>
+          <label class="field-label">{{ tr('m_671a08f4e738') }}<small>{{ tr('m_6728255e4bdb') }}</small></label>
           <input v-model.number="settings.rate_limit_per_account" type="number" class="vercel-input" />
-          <label class="field-label">每 IP 失败次数<small>0 = 默认 20 次，填负数表示不限</small></label>
+          <label class="field-label">{{ tr('m_cf5a28cff90f') }}<small>{{ tr('m_f1d1405b8d84') }}</small></label>
           <input v-model.number="settings.rate_limit_per_ip" type="number" class="vercel-input" />
-          <label class="field-label">统计窗口（分钟）<small>0 = 默认 15 分钟</small></label>
+          <label class="field-label">{{ tr('m_088598d743e5') }}<small>{{ tr('m_5f566691080a') }}</small></label>
           <input v-model.number="settings.rate_limit_window_minutes" type="number" class="vercel-input" />
-          <label class="field-label">熟悉来源的额度倍数<small>90 天内登录过的网段给更宽的额度。0 = 默认 3 倍，1 = 不放宽</small></label>
+          <label class="field-label">{{ tr('m_b9ca02da2aa9') }}<small>{{ tr('m_0fc65b562a9c') }}</small></label>
           <input v-model.number="settings.rate_limit_familiar_multiplier" type="number" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">{{ tr('m_a3030bf8f16d') }}</button>
         </div>
         <div class="setting-row">
-          <span class="setting-label">锁定时通知管理员</span>
+          <span class="setting-label">{{ tr('m_ab5fdea0b36d') }}</span>
           <n-switch v-model:value="settings.rate_limit_notify" size="small" @update:value="saveSettings" />
-          <small class="text-muted">走各管理员自己配置的通知渠道（TG / 邮件），并沿用「登录通知」开关</small>
+          <small class="text-muted">{{ tr('m_832ce410f6e7') }}</small>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>人机验证（Cloudflare Turnstile）</h3>
-        <p class="admin-hint">可选防护：开启后登录、注册与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
+        <h3>{{ tr('m_e4f6aa5a185d') }}</h3>
+        <p class="admin-hint">{{ tr('m_7eb357ebb73a') }}</p>
         <div class="setting-row">
-          <span class="setting-label">启用人机验证</span>
+          <span class="setting-label">{{ tr('m_b05703226c5e') }}</span>
           <n-switch v-model:value="turnstile.enabled" size="small" />
         </div>
         <div class="admin-form">
           <input v-model="turnstile.site_key" type="text" placeholder="Site Key（0x4A…）" class="vercel-input" />
-          <input v-model="turnstileSecret" type="password" placeholder="Secret Key（留空保持不变）" class="vercel-input" autocomplete="off" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">保存</button>
-          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+          <input v-model="turnstileSecret" type="password" :placeholder="tr('m_96656dd2d25f')" class="vercel-input" autocomplete="off" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">{{ tr('m_a3030bf8f16d') }}</button>
+          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? tr('m_c0ee21a90d7b') : tr('m_5061a4ea571c') }}</span>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>Cloudflare OAuth 客户端</h3>
-        <p class="admin-hint">留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET。此处填写后优先于环境变量；密钥留空表示保持不变。</p>
-        <p class="admin-hint">OAuth 客户端需在 Cloudflare 控制台勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit</p>
+        <h3>{{ tr('m_a44454e9d95a') }}</h3>
+        <p class="admin-hint">{{ tr('m_c32b4ee1a818') }}</p>
+        <p class="admin-hint">{{ tr('m_7a9d0bac635c') }}</p>
         <div class="admin-form">
           <input v-model="oauthCfg.client_id" type="text" placeholder="Client ID" class="vercel-input" />
-          <input v-model="oauthCfg.client_secret" type="password" placeholder="Client Secret（留空保持不变）" class="vercel-input" />
-          <input v-model="oauthCfg.redirect_uri" type="text" placeholder="回调地址（留空自动按访问域名推导）" class="vercel-input" />
-          <input v-model="oauthCfg.scopes" type="text" placeholder="Scopes（留空用客户端已配置的）" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveOAuth">保存</button>
-          <span class="tag" :class="oauthHasSecret ? 'tag-ok' : 'tag-down'">{{ oauthHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+          <input v-model="oauthCfg.client_secret" type="password" :placeholder="tr('m_be5f73c5b889')" class="vercel-input" />
+          <input v-model="oauthCfg.redirect_uri" type="text" :placeholder="tr('m_9df3fe96b710')" class="vercel-input" />
+          <input v-model="oauthCfg.scopes" type="text" :placeholder="tr('m_b813dbaced7d')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveOAuth">{{ tr('m_a3030bf8f16d') }}</button>
+          <span class="tag" :class="oauthHasSecret ? 'tag-ok' : 'tag-down'">{{ oauthHasSecret ? tr('m_c0ee21a90d7b') : tr('m_5061a4ea571c') }}</span>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>应用加密密钥</h3>
-        <p class="admin-hint">用于加密 SMTP 密码、Cloudflare 授权令牌与 2FA 密文。未设置时自动生成并保存在数据库；环境变量 APP_ENCRYPTION_KEY 优先。更换后需重启服务，且会使已保存的密文失效。</p>
+        <h3>{{ tr('m_dbf3b43ce49a') }}</h3>
+        <p class="admin-hint">{{ tr('m_39a974380a04') }}</p>
         <div class="admin-form">
-          <input v-model="encKeyInput" type="text" placeholder="64 位十六进制密钥（留空保持不变）" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy || !encKeyInput" @click="saveEncKey">保存密钥</button>
-          <span class="tag">当前来源：{{ encKeySource === 'env' ? '环境变量' : encKeySource === 'stored' ? '数据库' : '未设置' }}</span>
+          <input v-model="encKeyInput" type="text" :placeholder="tr('m_6171d4f4500d')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy || !encKeyInput" @click="saveEncKey">{{ tr('m_a334bb468aba') }}</button>
+          <span class="tag">{{ tr('m_1f45e225299d') }}{{ encKeySource === 'env' ? tr('m_ae27b474ea4d') : encKeySource === 'stored' ? tr('m_263200d7d529') : tr('m_2f5f1d6fbfb0') }}</span>
         </div>
       </div>
     </section>
@@ -288,23 +288,23 @@
     <section v-if="activeTab === 'oidc'" class="admin-section"><OIDCProviders /></section>
     <section v-show="activeTab === 'smtp'" class="admin-section">
       <div class="admin-card">
-        <h3>SMTP 邮件服务</h3>
-        <p class="admin-hint">用于注册验证码与监控告警邮件。密码留空表示保持原值不变。</p>
+        <h3>{{ tr('m_dd15bdd9da5a') }}</h3>
+        <p class="admin-hint">{{ tr('m_25ed71be1ba5') }}</p>
         <div class="admin-form smtp-form">
-          <input v-model="smtp.host" type="text" placeholder="SMTP 主机，如 smtp.example.com" class="vercel-input" />
-          <input v-model.number="smtp.port" type="number" placeholder="端口（465 或 587）" class="vercel-input narrow" />
-          <input v-model="smtp.username" type="text" placeholder="用户名（通常为邮箱）" class="vercel-input" />
-          <input v-model="smtp.password" type="password" placeholder="密码 / 授权码（留空保持不变）" class="vercel-input" />
-          <input v-model="smtp.from" type="text" placeholder="发件人，如 panel@example.com" class="vercel-input" />
+          <input v-model="smtp.host" type="text" :placeholder="tr('m_546012b06a1a')" class="vercel-input" />
+          <input v-model.number="smtp.port" type="number" :placeholder="tr('m_857bf0d4750f')" class="vercel-input narrow" />
+          <input v-model="smtp.username" type="text" :placeholder="tr('m_6a432ca72cc9')" class="vercel-input" />
+          <input v-model="smtp.password" type="password" :placeholder="tr('m_077af8674c6a')" class="vercel-input" />
+          <input v-model="smtp.from" type="text" :placeholder="tr('m_f070a921c850')" class="vercel-input" />
           <select v-model="smtp.tlsMode" class="vercel-input narrow">
-            <option value="ssl">加密</option>
-            <option value="plain">不加密</option>
+            <option value="ssl">{{ tr('m_320c254572c4') }}</option>
+            <option value="plain">{{ tr('m_69f3b744f3f2') }}</option>
           </select>
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">保存设置</button>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">{{ tr('m_c8550237ba70') }}</button>
         </div>
         <div class="admin-form">
-          <input v-model="testMailTo" type="email" placeholder="发送测试邮件到：你的邮箱" class="vercel-input" />
-          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? '发送中…' : '发送测试邮件' }}</button>
+          <input v-model="testMailTo" type="email" :placeholder="tr('m_bed1e40c6cbe')" class="vercel-input" />
+          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? tr('m_364970d8168c') : tr('m_f9ae1a31638d') }}</button>
         </div>
       </div>
     </section>
@@ -312,45 +312,45 @@
     <section v-show="activeTab === 'audit'" class="admin-section">
       <div class="admin-card">
         <div class="admin-card-head">
-          <h3>审计日志</h3>
-          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="loadAudit">刷新</button>
+          <h3>{{ tr('m_a0f79e91f13f') }}</h3>
+          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="loadAudit">{{ tr('m_aee887434131') }}</button>
         </div>
         <div class="audit-stats">
           <div class="audit-stat">
             <span class="audit-stat-value">{{ auditStats.total }}</span>
-            <span class="audit-stat-label">近 7 天操作</span>
+            <span class="audit-stat-label">{{ tr('m_fac4970dabd7') }}</span>
           </div>
           <div class="audit-stat">
             <span class="audit-stat-value" :class="{ danger: auditStats.failed > 0 }">{{ auditStats.failed }}</span>
-            <span class="audit-stat-label">近 7 天失败</span>
+            <span class="audit-stat-label">{{ tr('m_abcce0f9904a') }}</span>
           </div>
           <div class="audit-stat">
             <span class="audit-stat-value">{{ auditStats.today }}</span>
-            <span class="audit-stat-label">今日操作</span>
+            <span class="audit-stat-label">{{ tr('m_39def77a5416') }}</span>
           </div>
           <div class="audit-stat">
             <span class="audit-stat-value">{{ auditStats.actors }}</span>
-            <span class="audit-stat-label">近 7 天活跃账号</span>
+            <span class="audit-stat-label">{{ tr('m_2f4406f304fa') }}</span>
           </div>
         </div>
         <form class="admin-form audit-filters" @submit.prevent="applyAuditFilters">
-          <input v-model="auditFilters.actor" type="text" placeholder="搜索用户（用户名）" class="vercel-input" />
+          <input v-model="auditFilters.actor" type="text" :placeholder="tr('m_e412e5321b6d')" class="vercel-input" />
           <select v-model="auditFilters.action" class="vercel-input">
-            <option value="">全部操作</option>
+            <option value="">{{ tr('m_7e093a4e23d8') }}</option>
             <optgroup v-for="group in auditActionGroups" :key="group.category" :label="group.label">
               <option v-for="item in group.items" :key="item.action" :value="item.action">{{ item.label }}</option>
             </optgroup>
           </select>
-          <input v-model="auditFilters.fromDate" type="date" class="vercel-input narrow" aria-label="开始日期" />
-          <span class="text-muted">至</span>
-          <input v-model="auditFilters.toDate" type="date" class="vercel-input narrow" aria-label="结束日期" />
-          <button class="btn btn-primary" type="submit" :disabled="auditLoading">查询</button>
-          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="resetAuditFilters">重置</button>
+          <input v-model="auditFilters.fromDate" type="date" class="vercel-input narrow" :aria-label="tr('m_760506491eef')" />
+          <span class="text-muted">{{ tr('m_65edbf9f1c67') }}</span>
+          <input v-model="auditFilters.toDate" type="date" class="vercel-input narrow" :aria-label="tr('m_895cd52fbbb6')" />
+          <button class="btn btn-primary" type="submit" :disabled="auditLoading">{{ tr('m_bcd6771e08ec') }}</button>
+          <button class="btn btn-secondary" type="button" :disabled="auditLoading" @click="resetAuditFilters">{{ tr('m_cb5d682bac3d') }}</button>
         </form>
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>时间</th><th>操作人</th><th>操作</th><th>对象</th><th>来源 IP</th><th>结果</th></tr>
+              <tr><th>{{ tr('m_8b6ff498515b') }}</th><th>{{ tr('m_9689906e74a1') }}</th><th>{{ tr('m_ed31fbb483ee') }}</th><th>{{ tr('m_53f92c063963') }}</th><th>{{ tr('m_4bf0843a4518') }}</th><th>{{ tr('m_bb7ef73495dd') }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="log in auditLogs" :key="log.id">
@@ -359,19 +359,19 @@
                 <td>{{ auditActionLabel(log) }}</td>
                 <td>{{ log.target || '—' }}</td>
                 <td class="mono">{{ log.ip || '—' }}</td>
-                <td><span class="tag" :class="log.success ? 'tag-ok' : 'tag-down'">{{ log.success ? '成功' : '失败' }}</span></td>
+                <td><span class="tag" :class="log.success ? 'tag-ok' : 'tag-down'">{{ log.success ? tr('m_053461ce86d2') : tr('m_28384d7afd2e') }}</span></td>
               </tr>
               <tr v-if="!auditLoading && !auditLogs.length">
-                <td colspan="6" class="text-muted">没有符合条件的日志</td>
+                <td colspan="6" class="text-muted">{{ tr('m_da3a855ef2ea') }}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div class="audit-pager">
-          <span class="text-muted">共 {{ auditTotal }} 条</span>
-          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage <= 1" @click="changeAuditPage(auditPage - 1)">上一页</button>
-          <span class="text-muted">第 {{ auditPage }} / {{ auditPageCount }} 页</span>
-          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage >= auditPageCount" @click="changeAuditPage(auditPage + 1)">下一页</button>
+          <span class="text-muted">{{ tr('m_76e547a8fa54') }} {{ auditTotal }} {{ tr('m_f004f1d84cf9') }}</span>
+          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage <= 1" @click="changeAuditPage(auditPage - 1)">{{ tr('m_c9b9ae7a6144') }}</button>
+          <span class="text-muted">{{ tr('m_af50a0fe2a50') }} {{ auditPage }} / {{ auditPageCount }} {{ tr('m_d24d3c99460c') }}</span>
+          <button class="btn btn-ghost" type="button" :disabled="auditLoading || auditPage >= auditPageCount" @click="changeAuditPage(auditPage + 1)">{{ tr('m_8a8542f69648') }}</button>
         </div>
       </div>
     </section>
@@ -379,6 +379,10 @@
 </template>
 
 <script setup lang="ts">
+import { usePanelDialogs } from '../composables/usePanelDialogs'
+const panel = usePanelDialogs()
+import { locale, t as tr, localized } from '../i18n'
+
 import { computed, onMounted, ref, watch } from 'vue'
 import { useMessage, NSwitch } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
@@ -398,15 +402,15 @@ import {
   type AuditLog, type AuditStats, type AuditQuery,
 } from '../api/admin'
 
-const tabs = [
-  { key: 'users', label: '用户' },
-  { key: 'groups', label: '用户组' },
-  { key: 'invites', label: '邀请码' },
-  { key: 'settings', label: '系统设置' },
-  { key: 'oidc', label: 'OIDC 认证' },
-  { key: 'smtp', label: '邮件服务' },
-  { key: 'audit', label: '审计日志' },
-]
+const tabs = localized(() => ([
+  { key: 'users', label: tr('m_0d0e1a86b3aa') },
+  { key: 'groups', label: tr('m_963ead08d78d') },
+  { key: 'invites', label: tr('m_c8b56dca7aed') },
+  { key: 'settings', label: tr('m_68ea5dd4d7af') },
+  { key: 'oidc', label: tr('m_0896be102d49') },
+  { key: 'smtp', label: tr('m_0ac53099a515') },
+  { key: 'audit', label: tr('m_a0f79e91f13f') },
+]))
 const activeTab = ref('users')
 const busy = ref(false)
 const message = ref('')
@@ -468,7 +472,7 @@ function groupMemberCount(id: string) {
 
 function formatTime(seconds: number) {
   if (!seconds) return '—'
-  return new Date(seconds * 1000).toLocaleString()
+  return new Date(seconds * 1000).toLocaleString(locale.value)
 }
 
 const auditLogs = ref<AuditLog[]>([])
@@ -511,7 +515,7 @@ async function loadAudit() {
     auditPage.value = page.data.page
     auditStats.value = stats.data
   } catch (e: any) {
-    notify('加载审计日志失败: ' + (e.response?.data?.error || e.message), true)
+    notify(tr('m_df08a37fb547') + (e.response?.data?.error || e.message), true)
   } finally {
     auditLoading.value = false
   }
@@ -551,7 +555,7 @@ async function loadAll() {
     turnstileHasSecret.value = !!s.data.turnstile_has_secret
     turnstileSecret.value = ''
   } catch (e: any) {
-    notify('加载失败: ' + (e.response?.data?.error || e.message), true)
+    notify(tr('m_08417baa06d4') + (e.response?.data?.error || e.message), true)
   } finally {
     busy.value = false
   }
@@ -564,7 +568,7 @@ async function run(action: () => Promise<unknown>, success: string) {
     notify(success)
     await loadAll()
   } catch (e: any) {
-    notify(e.response?.data?.error || '操作失败', true)
+    notify(e.response?.data?.error || tr('m_0c3b4cf7aa25'), true)
   } finally {
     busy.value = false
   }
@@ -582,34 +586,34 @@ function submitCreateUser() {
     await createUser(payload)
     newUser.value = { username: '', email: '', password: '', groupId: '', admin: false }
     showCreateUser.value = false
-  }, '用户已创建')
+  }, tr('m_d4f7d0bf6262'))
 }
 
 function toggleUserStatus(user: UserView) {
   const target = user.status === 'active' ? 'disabled' : 'active'
-  void run(() => setUserStatus(user.id, target), target === 'active' ? '已启用' : '已禁用')
+  void run(() => setUserStatus(user.id, target), target === 'active' ? tr('m_dfb802238b38') : tr('m_bc5a87a757a5'))
 }
 
-function changeGroup(user: UserView) {
+async function changeGroup(user: UserView) {
   const options = groups.value.map((g) => g.name + ':' + g.id).join('  ')
-  const picked = window.prompt('输入目标用户组的编号：\n' + options + '\n留空 = 默认用户组', user.group_id)
+  const picked = await panel.prompt(tr('m_1596494489dd') + options + tr('m_f7f694838c28'), user.group_id)
   if (picked === null) return
-  void run(() => setUserGroup(user.id, picked.trim()), '用户组已更新')
+  void run(() => setUserGroup(user.id, picked.trim()), tr('m_9afb25dec846'))
 }
 
 function restorePasswordLogin(user: UserView) {
-  void run(() => setUserPasswordLogin(user.id, false), '已恢复 ' + user.username + ' 的密码登录')
+  void run(() => setUserPasswordLogin(user.id, false), tr('m_744b48e64720') + user.username + tr('m_32a8b6e621a5'))
 }
 
-function resetPassword(user: UserView) {
-  const password = window.prompt('为 ' + user.username + ' 设置新密码（≥6 位）')
+async function resetPassword(user: UserView) {
+  const password = await panel.prompt(tr('m_49c073f4fa15') + user.username + tr('m_be823aab4fc0'), '', true)
   if (!password) return
-  void run(() => resetUserPassword(user.id, password), '密码已重置，该用户已被登出')
+  void run(() => resetUserPassword(user.id, password), tr('m_4c5c1892de86'))
 }
 
-function removeUser(user: UserView) {
-  if (!window.confirm('确定删除用户 ' + user.username + '？该操作不可恢复。')) return
-  void run(() => deleteUser(user.id), '用户已删除')
+async function removeUser(user: UserView) {
+  if (!await panel.confirm(tr('m_511770d654f5') + user.username + tr('m_26ff3d7383ae'))) return
+  void run(() => deleteUser(user.id), tr('m_7ad39d9c27ab'))
 }
 
 function submitCreateGroup() {
@@ -619,27 +623,27 @@ function submitCreateGroup() {
     await createGroup(name, [])
     newGroupName.value = ''
     showCreateGroup.value = false
-  }, '用户组已创建')
+  }, tr('m_a44fb45d0f39'))
 }
 
 function toggleGroupPerm(group: UserGroup, perm: string, on: boolean) {
   const next = on ? group.permissions.concat(perm) : group.permissions.filter((p) => p !== perm)
-  void run(() => updateGroup(group.id, group.name, next), '权限已更新')
+  void run(() => updateGroup(group.id, group.name, next), tr('m_d72fbc805af9'))
 }
 
-function renameGroup(group: UserGroup) {
+async function renameGroup(group: UserGroup) {
   if (group.builtin) {
-    notify('内置用户组不可重命名', true)
+    notify(tr('m_e29e29f7c5d3'), true)
     return
   }
-  const name = window.prompt('新的用户组名称', group.name)
+  const name = await panel.prompt(tr('m_e08ae7e4a8bf'), group.name)
   if (!name || name === group.name) return
-  void run(() => updateGroup(group.id, name, group.permissions), '名称已更新')
+  void run(() => updateGroup(group.id, name, group.permissions), tr('m_06afd1f0352e'))
 }
 
-function removeGroup(group: UserGroup) {
-  if (!window.confirm('确定删除用户组 ' + group.name + '？')) return
-  void run(() => deleteGroup(group.id), '用户组已删除')
+async function removeGroup(group: UserGroup) {
+  if (!await panel.confirm(tr('m_5a398d79b24c') + group.name + '？')) return
+  void run(() => deleteGroup(group.id), tr('m_2194537e8be2'))
 }
 
 function submitCreateInvite() {
@@ -650,23 +654,23 @@ function submitCreateInvite() {
       expires_at: Number(newInvite.value.expireDays) > 0 ? Math.floor(Date.now() / 1000) + Number(newInvite.value.expireDays) * 86400 : 0,
     })
     showCreateInvite.value = false
-  }, '邀请码已生成')
+  }, tr('m_67021bc43cbd'))
 }
 
 function toggleInvite(invite: Invite) {
-  void run(() => updateInvite(invite.code, !invite.enabled), invite.enabled ? '已停用' : '已启用')
+  void run(() => updateInvite(invite.code, !invite.enabled), invite.enabled ? tr('m_a8c3698b5b8c') : tr('m_dfb802238b38'))
 }
 
-function removeInvite(invite: Invite) {
-  if (!window.confirm('确定删除邀请码 ' + invite.code + '？')) return
-  void run(() => deleteInvite(invite.code), '邀请码已删除')
+async function removeInvite(invite: Invite) {
+  if (!await panel.confirm(tr('m_759aeb16d395') + invite.code + '？')) return
+  void run(() => deleteInvite(invite.code), tr('m_c714402bd321'))
 }
 
 function saveSettings() {
   void run(async () => {
     await updateAppSettings(settings.value)
     configStore.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
-  }, '设置已保存')
+  }, tr('m_bd03c0aad701'))
 }
 
 function saveLabLimits() {
@@ -687,7 +691,7 @@ function saveTurnstile() {
     turnstile_site_key: turnstile.value.site_key.trim(),
   }
   if (turnstileSecret.value) payload.turnstile_secret = turnstileSecret.value
-  void run(() => updateAppSettings(payload), '人机验证设置已保存')
+  void run(() => updateAppSettings(payload), tr('m_763363acbbeb'))
 }
 
 // 审计日志按需加载：切到该标签页时才请求，避免每次进入后台都多两次查询。
@@ -721,12 +725,12 @@ async function saveEncKey() {
   busy.value = true
   try {
     const { data } = await saveEncryptionKey(encKeyInput.value.trim())
-    toast.success(data.message || '已保存')
+    toast.success(data.message || tr('m_1bd91a7d0c53'))
     encKeyInput.value = ''
     const status = await getEncryptionKeyStatus()
     encKeySource.value = status.data.source
   } catch (e: any) {
-    toast.error(e.response?.data?.error || '保存失败')
+    toast.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -745,9 +749,9 @@ async function saveOAuth() {
     oauthCfg.value.client_secret = ''
     const cfg = await getOAuthConfig()
     oauthHasSecret.value = cfg.data.has_client_secret
-    toast.success('OAuth 客户端配置已保存')
+    toast.success(tr('m_12c3bd5c0eeb'))
   } catch (e: any) {
-    toast.error(e.response?.data?.error || '保存失败')
+    toast.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -765,10 +769,10 @@ async function saveSmtp() {
       from: smtp.value.from.trim(),
       tls_mode: smtp.value.tlsMode,
     })
-    toast.success(data.configured ? 'SMTP 设置已保存' : 'SMTP 设置已保存（尚未完整配置）')
+    toast.success(data.configured ? tr('m_dddcb690d105') : tr('m_7afbd323b652'))
     smtp.value.password = ''
   } catch (e: any) {
-    toast.error(e.response?.data?.error || '保存失败')
+    toast.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -776,15 +780,15 @@ async function saveSmtp() {
 
 async function sendTestMail() {
   if (!testMailTo.value.trim()) {
-    toast.error('请先填写收件邮箱')
+    toast.error(tr('m_e3f39ac6f6c9'))
     return
   }
   testingMail.value = true
   try {
     const { data } = await testSMTP(testMailTo.value.trim())
-    toast.success(data.message || '测试邮件已发送')
+    toast.success(data.message || tr('m_cfb7989b7a73'))
   } catch (e: any) {
-    toast.error(e.response?.data?.error || '发送失败')
+    toast.error(e.response?.data?.error || tr('m_ac77953a1e06'))
   } finally {
     testingMail.value = false
   }

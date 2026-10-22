@@ -74,16 +74,16 @@ final class DNSValues {
 
     static String contentError(String type, String raw) {
         String content = raw.trim();
-        if (content.isEmpty()) return "解析值不能为空";
-        if (raw.getBytes(StandardCharsets.UTF_8).length > 4096 || raw.indexOf('\0') >= 0) return "解析值最多 4096 字节，不能包含空字符";
+        if (content.isEmpty()) return I18n.text("m_95ad513207d6");
+        if (raw.getBytes(StandardCharsets.UTF_8).length > 4096 || raw.indexOf('\0') >= 0) return I18n.text("m_0d8414fecd29");
         switch (type) {
-            case "A": return ipv4(content) ? null : "A 记录必须填写有效的 IPv4 地址";
-            case "AAAA": return ipv6(content) != null ? null : "AAAA 记录必须填写有效的 IPv6 地址";
-            case "CNAME": return hostname(content) ? null : "CNAME 记录必须填写域名目标，不能填写 IP 地址";
-            case "MX": return content.equals(".") || hostname(content) ? null : "MX 记录必须填写邮件服务器域名";
-            case "NS": case "PTR": return hostname(content) ? null : type + " 记录必须填写域名目标";
+            case "A": return ipv4(content) ? null : I18n.text("m_658bc75675bb");
+            case "AAAA": return ipv6(content) != null ? null : I18n.text("m_27651148a1a7");
+            case "CNAME": return hostname(content) ? null : I18n.text("m_57a3d93cff1e");
+            case "MX": return content.equals(".") || hostname(content) ? null : I18n.text("m_941a243f03d1");
+            case "NS": case "PTR": return hostname(content) ? null : type + I18n.text("m_5f48b3165e32");
             case "TXT": return null;
-            default: return "此类型请使用结构化字段";
+            default: return I18n.text("m_dfa4a7b3892e");
         }
     }
 
@@ -98,26 +98,26 @@ final class DNSValues {
         boolean proxied;
 
         String validate() {
-            if (!editable(type)) return "不支持的记录类型，只读保护";
+            if (!editable(type)) return I18n.text("m_7afbb9648b38");
             String recordName = trimDot(name.trim());
-            if (!recordName.equals("@") && !recordName.equals("*") && !hostname(recordName.replaceFirst("^\\*\\.", ""))) return "请输入有效记录名称（国际域名用 Punycode）";
+            if (!recordName.equals("@") && !recordName.equals("*") && !hostname(recordName.replaceFirst("^\\*\\.", ""))) return I18n.text("m_6a5b387c36db");
             int time = number(ttl);
-            if (time != 1 && (time < 60 || time > 86400)) return "TTL 必须为 1（自动）或 60–86400 秒";
+            if (time != 1 && (time < 60 || time > 86400)) return I18n.text("m_9f70f743f754");
             if (type.equals("SRV")) {
-                if (!recordName.matches("_[^.]+\\._[^.]+\\..+")) return "SRV 名称应为 _服务._协议.域名";
+                if (!recordName.matches("_[^.]+\\._[^.]+\\..+")) return I18n.text("m_459a6d6b5c52");
                 for (String field : new String[]{priority, weight, port}) {
-                    if (number(field) < 0 || number(field) > 65535) return "SRV 优先级、权重和端口必须为 0–65535 的整数";
+                    if (number(field) < 0 || number(field) > 65535) return I18n.text("m_a6dc72c28ce8");
                 }
-                if (!target.trim().equals(".") && !hostname(target.trim())) return "SRV 目标必须为域名或 .";
+                if (!target.trim().equals(".") && !hostname(target.trim())) return I18n.text("m_a137ec3f71b5");
                 return null;
             }
             if (type.equals("CAA")) {
-                if (number(flags) < 0 || number(flags) > 255) return "CAA flags 必须为 0–255 的整数";
-                if (!tag.matches("[A-Za-z0-9]{1,15}")) return "CAA tag 必须为 1–15 个字母或数字";
-                if (value.getBytes(StandardCharsets.UTF_8).length > 4096 || value.indexOf('\0') >= 0 || value.contains("\n") || value.contains("\r")) return "CAA value 必须为单行文本，最多 4096 字节";
+                if (number(flags) < 0 || number(flags) > 255) return I18n.text("m_0ece41cc39ac");
+                if (!tag.matches("[A-Za-z0-9]{1,15}")) return I18n.text("m_1c49e7ee8c85");
+                if (value.getBytes(StandardCharsets.UTF_8).length > 4096 || value.indexOf('\0') >= 0 || value.contains("\n") || value.contains("\r")) return I18n.text("m_8f5aab64a61a");
                 return null;
             }
-            if (type.equals("MX") && (number(priority) < 0 || number(priority) > 65535 || (content.trim().equals(".") && number(priority) != 0))) return "MX 优先级必须为 0–65535 的整数（空 MX 为 0）";
+            if (type.equals("MX") && (number(priority) < 0 || number(priority) > 65535 || (content.trim().equals(".") && number(priority) != 0))) return I18n.text("m_b19238527e95");
             return contentError(type, content);
         }
     }
@@ -148,8 +148,8 @@ final class DNSValues {
 
     static Preview parse(String type, String text, List<String> existing) {
         Preview result = new Preview();
-        if (!Arrays.asList(BATCH_TYPES).contains(type)) { result.error = "批量新增仅支持 A / AAAA / TXT / MX / NS / PTR"; return result; }
-        if (text.length() > 512000) { result.error = "粘贴内容过大，请拆分批次"; return result; }
+        if (!Arrays.asList(BATCH_TYPES).contains(type)) { result.error = I18n.text("m_1bc27410630a"); return result; }
+        if (text.length() > 512000) { result.error = I18n.text("m_7ba14fc9e64c"); return result; }
         Map<String, Integer> seen = new HashMap<>();
         Set<String> known = new HashSet<>();
         for (String value : existing) known.add(key(type, value));
@@ -158,12 +158,12 @@ final class DNSValues {
             if (lines[index].trim().isEmpty()) continue;
             String content = type.equals("TXT") ? lines[index] : lines[index].trim();
             String error = contentError(type, content), identity = key(type, content);
-            String skipped = known.contains(identity) ? "已存在，跳过" : seen.containsKey(identity) ? "与第 " + seen.get(identity) + " 行重复，跳过" : null;
+            String skipped = known.contains(identity) ? I18n.text("m_24a0a2486445") : seen.containsKey(identity) ? I18n.text("m_28bd9e6f0951") + seen.get(identity) + I18n.text("m_304d882808a9") : null;
             result.rows.add(new Row(index + 1, content, error, skipped));
             if (error == null && skipped == null) seen.put(identity, index + 1);
-            if (error != null) result.error = "请先修正标注行，整个批次尚未提交";
+            if (error != null) result.error = I18n.text("m_f32916472225");
         }
-        if (result.rows.size() > LIMIT) result.error = "每批最多 100 条非空行（含重复行）";
+        if (result.rows.size() > LIMIT) result.error = I18n.text("m_6127fb2e9e4a");
         return result;
     }
 
@@ -183,24 +183,24 @@ final class DNSValues {
     }
 
     static List<Result> send(List<Row> rows, Sender sender, Progress progress) {
-        if (rows.size() > LIMIT) throw new IllegalArgumentException("超过数量上限");
-        for (Row row : rows) if (row.error != null) throw new IllegalArgumentException("请先修正校验错误");
+        if (rows.size() > LIMIT) throw new IllegalArgumentException(I18n.text("m_422c2577fc23"));
+        for (Row row : rows) if (row.error != null) throw new IllegalArgumentException(I18n.text("m_f3ada95156bd"));
         List<Result> results = new ArrayList<>();
         String stopped = null;
         for (Row row : rows) {
             if (row.skipped != null) continue;
             Result result;
-            if (stopped != null) result = new Result(row, false, false, true, "未发送：" + stopped);
+            if (stopped != null) result = new Result(row, false, false, true, I18n.text("m_a3d2652b6a51") + stopped);
             else {
-                try { sender.send(row); result = new Result(row, true, false, false, "已新增"); }
+                try { sender.send(row); result = new Result(row, true, false, false, I18n.text("m_1bcd31e0174a")); }
                 catch (RequestScope.Stopped failure) {
                     stopped = failure.getMessage();
-                    result = new Result(row, false, false, true, "未发送：" + stopped);
+                    result = new Result(row, false, false, true, I18n.text("m_a3d2652b6a51") + stopped);
                 }
                 catch (Exception failure) {
                     boolean uncertain = !(failure instanceof SendFailure) || ((SendFailure) failure).uncertain;
-                    if (uncertain) stopped = "前一请求结果未知，队列已停止";
-                    result = new Result(row, false, uncertain, false, (uncertain ? "结果未知，请核对后再重试：" : "") + failure.getMessage());
+                    if (uncertain) stopped = I18n.text("m_f3e63077b975");
+                    result = new Result(row, false, uncertain, false, (uncertain ? I18n.text("m_f983631f6687") : "") + failure.getMessage());
                 }
             }
             results.add(result);

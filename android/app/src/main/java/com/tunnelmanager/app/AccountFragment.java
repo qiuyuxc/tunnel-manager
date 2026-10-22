@@ -147,7 +147,7 @@ public class AccountFragment extends PageFragment {
             loadAvatar();
         }, failure -> {
             loading = false;
-            statusMessage = "加载失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_01de8216e0d0") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -175,13 +175,13 @@ public class AccountFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "账户设置"));
-        TextView subtitle = UI.muted(requireContext(), "管理登录凭据、Cloudflare 账户连接与账户安全");
+        body.addView(UI.pageTitle(requireContext(), I18n.text("m_a720b4000be6")));
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_d86f5c72c33e"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -238,7 +238,7 @@ public class AccountFragment extends PageFragment {
     // ------------------------------------------------------------ profile card
 
     private View profileCard() {
-        LinearLayout card = card("个人主页", "设置展示名称与自定义头像，并管理账户邮箱。");
+        LinearLayout card = card(I18n.text("m_227eef9cd7b1"), I18n.text("m_c9ce2f44a713"));
 
         LinearLayout row = UI.row(requireContext());
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -248,36 +248,36 @@ public class AccountFragment extends PageFragment {
         LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         textLp.leftMargin = UI.dp(UI.LG);
         text.addView(UI.strong(requireContext(), Session.nickname()));
-        TextView user = UI.muted(requireContext(), "登录用户名：" + me.optString("username", Session.username()));
+        TextView user = UI.muted(requireContext(), I18n.text("m_6bee6bc667d2") + me.optString("username", Session.username()));
         UI.margin(user, 0, UI.XS, 0, 0);
         text.addView(user);
         row.addView(text, textLp);
         card.addView(row);
 
         LinearLayout actions = UI.row(requireContext());
-        TextView upload = UI.button(requireContext(), "上传头像", UI.BTN_SECONDARY);
+        TextView upload = UI.button(requireContext(), I18n.text("m_d7d2344d545d"), UI.BTN_SECONDARY);
         upload.setOnClickListener(v -> avatarPicker.launch("image/*"));
         actions.addView(upload);
         if (!avatarUrl.isEmpty()) {
-            TextView remove = UI.button(requireContext(), "移除", UI.BTN_GHOST);
+            TextView remove = UI.button(requireContext(), I18n.text("m_6135d4159e89"), UI.BTN_GHOST);
             remove.setOnClickListener(v -> updateProfile(nicknameDraft.trim(), ""));
             UI.margin(remove, UI.SM, 0, 0, 0);
             actions.addView(remove);
         }
         UI.margin(actions, 0, UI.MD, 0, 0);
         card.addView(actions);
-        note(card, "PNG / JPG / GIF / WebP，最大 4 MiB。", UI.SM);
+        note(card, I18n.text("m_489bb505af13"), UI.SM);
 
-        nicknameInput = UI.input(requireContext(), "输入展示名称（留空则显示用户名）");
+        nicknameInput = UI.input(requireContext(), I18n.text("m_9e366ced887c"));
         nicknameInput.setText(nicknameDraft);
-        card.addView(UI.field(requireContext(), "自定义名称", nicknameInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_bf3b4816f16e"), nicknameInput, UI.MD));
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存资料", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_c0a70fcb56f0"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> {
             String value = nicknameInput.getText().toString().trim();
             if (value.length() > 64) {
-                statusMessage = "自定义名称不能超过 64 个字符";
+                statusMessage = I18n.text("m_dae4662865e0");
                 statusOk = false;
                 render();
                 return;
@@ -325,15 +325,15 @@ public class AccountFragment extends PageFragment {
                 avatarUrl = "";
                 avatarBitmap = null;
                 avatarBitmapUrl = "";
-                statusMessage = "头像已移除";
+                statusMessage = I18n.text("m_eca726423f04");
             } else {
-                statusMessage = "个人资料已更新";
+                statusMessage = I18n.text("m_b844ea2e13f3");
             }
             statusOk = true;
             reloadIdentity();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -362,27 +362,27 @@ public class AccountFragment extends PageFragment {
         try {
             String mime = requireContext().getContentResolver().getType(uri);
             if (mime != null && !isAllowedType(mime)) {
-                statusMessage = "仅支持 PNG / JPG / GIF / WebP 格式";
+                statusMessage = I18n.text("m_24a3b2d5136c");
                 statusOk = false;
                 render();
                 return;
             }
             byte[] bytes = readAll(uri);
             if (bytes.length == 0) {
-                statusMessage = "读取图片失败";
+                statusMessage = I18n.text("m_c72ad3f4aa4e");
                 statusOk = false;
                 render();
                 return;
             }
             if (bytes.length > MAX_AVATAR_BYTES) {
-                statusMessage = "图片不能超过 4 MiB";
+                statusMessage = I18n.text("m_9d0b8bbb7900");
                 statusOk = false;
                 render();
                 return;
             }
             uploadAvatar(bytes, mime == null ? "image/png" : mime);
         } catch (Exception e) {
-            statusMessage = "读取图片失败：" + e.getMessage();
+            statusMessage = I18n.text("m_b1feeac12438") + e.getMessage();
             statusOk = false;
             render();
         }
@@ -415,7 +415,7 @@ public class AccountFragment extends PageFragment {
                 : mime.contains("webp") ? ".webp" : ".jpg");
         Api.async(() -> Api.postFile("/api/account/avatar", data, name, mime), result -> {
             busy = false;
-            statusMessage = "头像已更新";
+            statusMessage = I18n.text("m_a938ed15b3e5");
             statusOk = true;
             String url = result.optString("url", "");
             if (!url.isEmpty()) {
@@ -426,7 +426,7 @@ public class AccountFragment extends PageFragment {
             reloadIdentity();
         }, failure -> {
             busy = false;
-            statusMessage = "上传失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_72e1fdcf8b37") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -439,29 +439,29 @@ public class AccountFragment extends PageFragment {
         String email = me.optString("email", "");
 
         LinearLayout head = UI.row(requireContext());
-        head.addView(UI.tag(requireContext(), email.isEmpty() ? "未绑定" : "已绑定", !email.isEmpty()));
-        TextView title = UI.cardTitle(requireContext(), "账户邮箱");
+        head.addView(UI.tag(requireContext(), email.isEmpty() ? I18n.text("m_e026c6693dc5") : I18n.text("m_f70c0007f30f"), !email.isEmpty()));
+        TextView title = UI.cardTitle(requireContext(), I18n.text("m_f8f1b032f460"));
         UI.margin(title, UI.SM, 0, 0, 0);
         head.addView(title);
         card.addView(head);
 
         note(card, email.isEmpty()
-                ? "绑定邮箱后可用于找回密码与接收服务告警。"
-                : "当前邮箱：" + email, UI.SM);
+                ? I18n.text("m_e6bddbeaa97b")
+                : I18n.text("m_af4dddc3c14e") + email, UI.SM);
 
         emailInput = UI.input(requireContext(), "name@example.com");
         emailInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        card.addView(UI.field(requireContext(), email.isEmpty() ? "邮箱地址" : "新邮箱", emailInput, UI.MD));
+        card.addView(UI.field(requireContext(), email.isEmpty() ? I18n.text("m_2e412e03837f") : I18n.text("m_3067c39fa4b2"), emailInput, UI.MD));
 
-        emailPasswordInput = passwordInput("输入当前密码确认");
-        card.addView(UI.field(requireContext(), "当前密码确认", emailPasswordInput, UI.MD));
+        emailPasswordInput = passwordInput(I18n.text("m_632da57acf53"));
+        card.addView(UI.field(requireContext(), I18n.text("m_ab48ee83149b"), emailPasswordInput, UI.MD));
 
-        TextView save = UI.button(requireContext(), email.isEmpty() ? "绑定邮箱" : "修改邮箱", UI.BTN_SECONDARY);
+        TextView save = UI.button(requireContext(), email.isEmpty() ? I18n.text("m_6d4b7dce1ee6") : I18n.text("m_da0f5e37e88b"), UI.BTN_SECONDARY);
         save.setOnClickListener(v -> {
             String value = emailInput.getText().toString().trim();
             String password = emailPasswordInput.getText().toString();
             if (value.isEmpty() || password.isEmpty()) {
-                statusMessage = "请填写邮箱和当前密码";
+                statusMessage = I18n.text("m_bdb626f8b359");
                 statusOk = false;
                 render();
                 return;
@@ -484,14 +484,14 @@ public class AccountFragment extends PageFragment {
             return Api.put("/api/admin/email", payload);
         }, result -> {
             busy = false;
-            statusMessage = "邮箱已更新";
+            statusMessage = I18n.text("m_0870a627daa8");
             statusOk = true;
             emailInput = null;
             emailPasswordInput = null;
             reloadIdentity();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -504,15 +504,15 @@ public class AccountFragment extends PageFragment {
         boolean enabled = tf.optBoolean("enabled", false);
 
         LinearLayout head = UI.row(requireContext());
-        head.addView(UI.tag(requireContext(), enabled ? "已启用" : "未启用", enabled));
-        TextView title = UI.cardTitle(requireContext(), "双重身份验证");
+        head.addView(UI.tag(requireContext(), enabled ? I18n.text("m_dfb802238b38") : I18n.text("m_f95ea7f4c063"), enabled));
+        TextView title = UI.cardTitle(requireContext(), I18n.text("m_cb5e99d1a4d8"));
         UI.margin(title, UI.SM, 0, 0, 0);
         head.addView(title);
         card.addView(head);
 
         note(card, enabled
-                ? "验证器动态口令已开启；剩余恢复代码 " + tf.optInt("recovery_codes_remaining", 0) + " 个。"
-                : "使用验证器动态口令保护管理操作，即使密码泄露也能阻止直接登录。", UI.SM);
+                ? I18n.text("m_cf4ef07e86b4") + tf.optInt("recovery_codes_remaining", 0) + I18n.text("m_ed4515a71f08")
+                : I18n.text("m_303aeceaf321"), UI.SM);
 
         if (!recoveryCodes.isEmpty()) {
             card.addView(UI.divider(requireContext()));
@@ -534,10 +534,10 @@ public class AccountFragment extends PageFragment {
     private View startBlock() {
         LinearLayout box = UI.column(requireContext());
         if (!tf.optBoolean("setup_available", true)) {
-            box.addView(UI.muted(requireContext(), "服务器未配置加密密钥，暂时无法开启双重验证。"));
+            box.addView(UI.muted(requireContext(), I18n.text("m_28ea3904e014")));
             return box;
         }
-        TextView start = UI.button(requireContext(), "开始设置", UI.BTN_PRIMARY);
+        TextView start = UI.button(requireContext(), I18n.text("m_feccf6563bd7"), UI.BTN_PRIMARY);
         start.setOnClickListener(v -> startSetup());
         box.addView(start);
         return box;
@@ -548,7 +548,7 @@ public class AccountFragment extends PageFragment {
         String secret = tfSetup.optString("secret", "");
         String uri = tfSetup.optString("otpauth_uri", "");
 
-        box.addView(UI.muted(requireContext(), "在验证器 App 里添加以下密钥，然后输入它生成的 6 位动态口令。"));
+        box.addView(UI.muted(requireContext(), I18n.text("m_e2e92bf46cd5")));
         TextView key = UI.mono(requireContext(), secret, Theme.p().ink);
         key.setTextSize(15);
         key.setTextIsSelectable(true);
@@ -558,29 +558,29 @@ public class AccountFragment extends PageFragment {
         box.addView(key);
 
         LinearLayout actions = UI.row(requireContext());
-        TextView add = UI.button(requireContext(), "添加到验证器", UI.BTN_SECONDARY);
+        TextView add = UI.button(requireContext(), I18n.text("m_0f63b4519aa9"), UI.BTN_SECONDARY);
         add.setOnClickListener(v -> openAuthenticator(uri, secret));
         UI.weight(add, 1f);
         actions.addView(add);
-        TextView copy = UI.button(requireContext(), "复制密钥", UI.BTN_SECONDARY);
-        copy.setOnClickListener(v -> copyText(secret, "密钥已复制"));
+        TextView copy = UI.button(requireContext(), I18n.text("m_d22d5fd54ca0"), UI.BTN_SECONDARY);
+        copy.setOnClickListener(v -> copyText(secret, I18n.text("m_7bd34f6f2054")));
         UI.weight(copy, 1f);
         UI.margin(copy, UI.SM, 0, 0, 0);
         actions.addView(copy);
         UI.margin(actions, 0, UI.MD, 0, 0);
         box.addView(actions);
 
-        tfCodeInput = UI.input(requireContext(), "6 位动态口令");
+        tfCodeInput = UI.input(requireContext(), I18n.text("m_97b339ba13ec"));
         tfCodeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        box.addView(UI.field(requireContext(), "动态口令", tfCodeInput, UI.MD));
+        box.addView(UI.field(requireContext(), I18n.text("m_52517b6304de"), tfCodeInput, UI.MD));
 
-        TextView confirm = UI.button(requireContext(), busy ? "验证中…" : "确认并启用", UI.BTN_PRIMARY);
+        TextView confirm = UI.button(requireContext(), busy ? I18n.text("m_7f2d0739a240") : I18n.text("m_1e1a5e14d128"), UI.BTN_PRIMARY);
         confirm.setEnabled(!busy);
         confirm.setOnClickListener(v -> confirmSetup(tfCodeInput.getText().toString().trim()));
         UI.margin(confirm, 0, UI.MD, 0, 0);
         box.addView(confirm);
 
-        TextView cancel = UI.button(requireContext(), "取消设置", UI.BTN_GHOST);
+        TextView cancel = UI.button(requireContext(), I18n.text("m_3709bc9325e8"), UI.BTN_GHOST);
         cancel.setOnClickListener(v -> {
             tfSetup = null;
             tfNotice = "";
@@ -593,9 +593,9 @@ public class AccountFragment extends PageFragment {
 
     private View recoveryPanel() {
         LinearLayout box = UI.column(requireContext());
-        box.addView(UI.strong(requireContext(), "保存恢复代码"));
+        box.addView(UI.strong(requireContext(), I18n.text("m_faa3e777003d")));
         box.addView(UI.muted(requireContext(),
-                "验证器不可用时，每个代码可用于一次登录。离开此页面前请复制保存，之后无法再次查看。"));
+                I18n.text("m_472373797aa6")));
 
         TextView codes = UI.mono(requireContext(), String.join("\n", recoveryCodes), Theme.p().ink);
         codes.setTextSize(15);
@@ -606,13 +606,13 @@ public class AccountFragment extends PageFragment {
         UI.margin(codes, 0, UI.MD, 0, 0);
         box.addView(codes);
 
-        TextView copy = UI.button(requireContext(), "复制全部", UI.BTN_SECONDARY);
-        copy.setOnClickListener(v -> copyText(String.join("\n", recoveryCodes), "恢复代码已复制"));
+        TextView copy = UI.button(requireContext(), I18n.text("m_75c393923f87"), UI.BTN_SECONDARY);
+        copy.setOnClickListener(v -> copyText(String.join("\n", recoveryCodes), I18n.text("m_6f47d1a74036")));
         UI.margin(copy, 0, UI.MD, 0, 0);
         box.addView(copy);
 
-        TextView done = UI.button(requireContext(), "完成并重新登录", UI.BTN_PRIMARY);
-        done.setOnClickListener(v -> signOut("双重验证已启用，请重新登录"));
+        TextView done = UI.button(requireContext(), I18n.text("m_581139134404"), UI.BTN_PRIMARY);
+        done.setOnClickListener(v -> signOut(I18n.text("m_20217ed0a7a5")));
         UI.margin(done, 0, UI.SM, 0, 0);
         box.addView(done);
         return box;
@@ -620,30 +620,30 @@ public class AccountFragment extends PageFragment {
 
     private View disableTwoFactorBlock() {
         LinearLayout box = UI.column(requireContext());
-        box.addView(UI.strong(requireContext(), "停用双重身份验证"));
-        note(box, "需要当前密码与一次动态口令。", UI.XS);
+        box.addView(UI.strong(requireContext(), I18n.text("m_2d971783b5af")));
+        note(box, I18n.text("m_5fe4317c5b79"), UI.XS);
 
-        tfPasswordInput = passwordInput("当前密码");
-        box.addView(UI.field(requireContext(), "当前密码", tfPasswordInput, UI.MD));
-        tfCodeInput = UI.input(requireContext(), "6 位动态口令");
+        tfPasswordInput = passwordInput(I18n.text("m_a114cfb687e6"));
+        box.addView(UI.field(requireContext(), I18n.text("m_a114cfb687e6"), tfPasswordInput, UI.MD));
+        tfCodeInput = UI.input(requireContext(), I18n.text("m_97b339ba13ec"));
         tfCodeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        box.addView(UI.field(requireContext(), "动态口令", tfCodeInput, UI.MD));
+        box.addView(UI.field(requireContext(), I18n.text("m_52517b6304de"), tfCodeInput, UI.MD));
 
-        TextView off = UI.button(requireContext(), busy ? "停用中…" : "停用", UI.BTN_DANGER);
+        TextView off = UI.button(requireContext(), busy ? I18n.text("m_5afb5adc5295") : I18n.text("m_4e6fd0e28c55"), UI.BTN_DANGER);
         off.setEnabled(!busy);
         off.setOnClickListener(v -> {
             String password = tfPasswordInput.getText().toString();
             String code = tfCodeInput.getText().toString().trim();
             if (password.isEmpty() || code.isEmpty()) {
-                statusMessage = "请填写当前密码和动态口令";
+                statusMessage = I18n.text("m_256ad4b67d22");
                 statusOk = false;
                 render();
                 return;
             }
-            Modal.of(requireContext(), "停用双重验证")
-                    .message("停用后仅凭密码即可登录，确定继续吗？")
-                    .cancel("取消")
-                    .confirm("停用", true, () -> disableTwoFactor(password, code))
+            Modal.of(requireContext(), I18n.text("m_4997b109f406"))
+                    .message(I18n.text("m_5a37fd588ae2"))
+                    .cancel(I18n.text("m_2cd0f3be8738"))
+                    .confirm(I18n.text("m_4e6fd0e28c55"), true, () -> disableTwoFactor(password, code))
                     .show();
         });
         UI.margin(off, 0, UI.MD, 0, 0);
@@ -662,7 +662,7 @@ public class AccountFragment extends PageFragment {
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "无法开始设置：" + failure.getMessage();
+            statusMessage = I18n.text("m_5309145db3c9") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -670,7 +670,7 @@ public class AccountFragment extends PageFragment {
 
     private void confirmSetup(String code) {
         if (!code.matches("\\d{6}")) {
-            statusMessage = "请输入 6 位动态口令";
+            statusMessage = I18n.text("m_ce74946c1891");
             statusOk = false;
             render();
             return;
@@ -696,7 +696,7 @@ public class AccountFragment extends PageFragment {
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "验证失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_41ed9c653648") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -718,12 +718,12 @@ public class AccountFragment extends PageFragment {
         }, payload -> {
             busy = false;
             tf = payload;
-            statusMessage = "双重验证已停用";
+            statusMessage = I18n.text("m_6d26d492839c");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "停用失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_a62af649e44f") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -738,7 +738,7 @@ public class AccountFragment extends PageFragment {
                 // No authenticator registered for otpauth:// — fall through.
             }
         }
-        copyText(secret, "没有找到可用的验证器 App，密钥已复制");
+        copyText(secret, I18n.text("m_153e5e230c12"));
     }
 
     // ------------------------------------------------------------- cloudflare
@@ -749,11 +749,11 @@ public class AccountFragment extends PageFragment {
         String source = cf.optString("source", "");
 
         LinearLayout head = UI.row(requireContext());
-        TextView title = UI.cardTitle(requireContext(), "Cloudflare 账户连接");
+        TextView title = UI.cardTitle(requireContext(), I18n.text("m_c3ee7f86565f"));
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        head.addView(UI.tag(requireContext(), connected ? "已连接" : "未连接", connected));
+        head.addView(UI.tag(requireContext(), connected ? I18n.text("m_5be0323e8adc") : I18n.text("m_3d52574ce150"), connected));
         card.addView(head);
-        note(card, "OAuth 连接存在时始终优先用于账户、隧道与 Zone 请求。", UI.XS);
+        note(card, I18n.text("m_ee436ca7436d"), UI.XS);
 
         if (!cfError.isEmpty()) {
             TextView error = UI.banner(requireContext(), cfError, true);
@@ -763,10 +763,10 @@ public class AccountFragment extends PageFragment {
         }
 
         card.addView(UI.divider(requireContext()));
-        card.addView(statusRow("凭据来源", "oauth".equals(source) ? "OAuth 授权" : "环境变量 API Token"));
+        card.addView(statusRow(I18n.text("m_46cab3bd6fb3"), "oauth".equals(source) ? I18n.text("m_f26b8c653d56") : I18n.text("m_c57b367a8b76")));
         String accountName = cf.optString("account_name", "");
         String accountId = cf.optString("account_id", "");
-        card.addView(statusRow("当前账户", accountName.isEmpty() ? (accountId.isEmpty() ? "尚未选择" : accountId) : accountName));
+        card.addView(statusRow(I18n.text("m_2997f476d9bc"), accountName.isEmpty() ? (accountId.isEmpty() ? I18n.text("m_c5768ca9726c") : accountId) : accountName));
 
         JSONArray connections = cf.optJSONArray("connections");
         String activeId = cf.optString("active_connection_id", "");
@@ -780,12 +780,12 @@ public class AccountFragment extends PageFragment {
         }
 
         if (cf.optBoolean("configured", false)) {
-            TextView start = UI.button(requireContext(), "oauth".equals(source) ? "新增账户授权" : "连接 Cloudflare", UI.BTN_PRIMARY);
+            TextView start = UI.button(requireContext(), "oauth".equals(source) ? I18n.text("m_978fa225040c") : I18n.text("m_70c33ec4f5aa"), UI.BTN_PRIMARY);
             start.setOnClickListener(v -> startOAuth());
             UI.margin(start, 0, UI.MD, 0, 0);
             card.addView(start);
         } else {
-            note(card, "服务器尚未配置 OAuth 客户端，当前使用环境变量 API Token。", UI.MD);
+            note(card, I18n.text("m_1eb80f7b3b41"), UI.MD);
         }
         return card;
     }
@@ -810,7 +810,7 @@ public class AccountFragment extends PageFragment {
 
         LinearLayout text = UI.column(requireContext());
         String name = conn.optString("account_name", "");
-        if (name.isEmpty()) name = conn.optString("label", "连接");
+        if (name.isEmpty()) name = conn.optString("label", I18n.text("m_a5574109f020"));
         text.addView(UI.strong(requireContext(), name));
         String accountId = conn.optString("account_id", "");
         if (!accountId.isEmpty()) {
@@ -820,18 +820,18 @@ public class AccountFragment extends PageFragment {
 
         String id = conn.optString("id", "");
         if (active) {
-            row.addView(UI.tag(requireContext(), "使用中", true));
+            row.addView(UI.tag(requireContext(), I18n.text("m_fa48e8938940"), true));
         } else {
-            TextView use = UI.button(requireContext(), "设为当前", UI.BTN_GHOST);
+            TextView use = UI.button(requireContext(), I18n.text("m_21c86745003a"), UI.BTN_GHOST);
             use.setOnClickListener(v -> activateConnection(id));
             row.addView(use);
         }
-        TextView remove = UI.button(requireContext(), "删除", UI.BTN_GHOST);
+        TextView remove = UI.button(requireContext(), I18n.text("m_2f9daa828907"), UI.BTN_GHOST);
         remove.setTextColor(Theme.p().error);
-        remove.setOnClickListener(v -> Modal.of(requireContext(), "删除连接")
-                .message("删除后将撤销该 OAuth 凭据，已选择的账户与隧道也会被清除。")
-                .cancel("取消")
-                .confirm("删除", true, () -> disconnectConnection(id))
+        remove.setOnClickListener(v -> Modal.of(requireContext(), I18n.text("m_92e11347ed70"))
+                .message(I18n.text("m_6240abcd928b"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_2f9daa828907"), true, () -> disconnectConnection(id))
                 .show());
         row.addView(remove);
 
@@ -847,24 +847,24 @@ public class AccountFragment extends PageFragment {
             render();
             String url = payload.optString("authorization_url", "");
             if (url.isEmpty()) {
-                statusMessage = "服务器未返回授权地址";
+                statusMessage = I18n.text("m_149201bb7459");
                 statusOk = false;
                 render();
                 return;
             }
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                statusMessage = "已打开浏览器，完成授权后回到这里刷新";
+                statusMessage = I18n.text("m_08ab7cea1c23");
                 statusOk = true;
             } catch (Exception e) {
-                copyText(url, "没有可用浏览器，授权地址已复制");
-                statusMessage = "没有可用浏览器，授权地址已复制到剪贴板";
+                copyText(url, I18n.text("m_12646e7d0d65"));
+                statusMessage = I18n.text("m_b88961dbbe8e");
                 statusOk = true;
             }
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "无法开始授权：" + failure.getMessage();
+            statusMessage = I18n.text("m_b860104232b6") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -879,12 +879,12 @@ public class AccountFragment extends PageFragment {
             return Api.put("/api/cloudflare/oauth/connection", payload);
         }, payload -> {
             busy = false;
-            statusMessage = "已切换当前连接";
+            statusMessage = I18n.text("m_20cb517c36ac");
             statusOk = true;
             reloadCloudflare();
         }, failure -> {
             busy = false;
-            statusMessage = "切换失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_0c16f8364dbd") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -896,12 +896,12 @@ public class AccountFragment extends PageFragment {
         Api.async(() -> Api.delete("/api/cloudflare/oauth" + (id.isEmpty() ? "" : "?connection_id=" + id)),
                 payload -> {
                     busy = false;
-                    statusMessage = payload.optString("warning", "连接已删除");
+                    statusMessage = payload.optString("warning", I18n.text("m_bcb4b0b8810c"));
                     statusOk = true;
                     reloadCloudflare();
                 }, failure -> {
                     busy = false;
-                    statusMessage = "删除失败：" + failure.getMessage();
+                    statusMessage = I18n.text("m_0580fcee37e0") + failure.getMessage();
                     statusOk = false;
                     render();
                 });
@@ -921,19 +921,19 @@ public class AccountFragment extends PageFragment {
     // --------------------------------------------------------- username & pwd
 
     private View usernameCard() {
-        LinearLayout card = card("修改用户名", "当前用户名：" + me.optString("username", Session.username()));
-        usernameInput = UI.input(requireContext(), "输入新用户名");
-        card.addView(UI.field(requireContext(), "新用户名", usernameInput));
-        usernamePasswordInput = passwordInput("输入当前密码确认");
-        card.addView(UI.field(requireContext(), "当前密码确认", usernamePasswordInput, UI.MD));
+        LinearLayout card = card(I18n.text("m_2309fd06dbb1"), I18n.text("m_98fa19ba6d85") + me.optString("username", Session.username()));
+        usernameInput = UI.input(requireContext(), I18n.text("m_87de734107bf"));
+        card.addView(UI.field(requireContext(), I18n.text("m_0ccf18acc1c8"), usernameInput));
+        usernamePasswordInput = passwordInput(I18n.text("m_632da57acf53"));
+        card.addView(UI.field(requireContext(), I18n.text("m_ab48ee83149b"), usernamePasswordInput, UI.MD));
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "更新用户名", UI.BTN_SECONDARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_dbf86ad13caf"), UI.BTN_SECONDARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> {
             String value = usernameInput.getText().toString().trim();
             String password = usernamePasswordInput.getText().toString();
             if (value.isEmpty() || password.isEmpty()) {
-                statusMessage = "请填写新用户名和当前密码";
+                statusMessage = I18n.text("m_18de25f0d593");
                 statusOk = false;
                 render();
                 return;
@@ -946,25 +946,25 @@ public class AccountFragment extends PageFragment {
     }
 
     private View passwordCard() {
-        LinearLayout card = card("修改密码", "密码长度不少于 6 位。");
-        currentPasswordInput = passwordInput("当前密码");
-        card.addView(UI.field(requireContext(), "当前密码", currentPasswordInput));
-        newPasswordInput = passwordInput("新密码");
-        card.addView(UI.field(requireContext(), "新密码", newPasswordInput, UI.MD));
+        LinearLayout card = card(I18n.text("m_08d008062411"), I18n.text("m_cd4dc30f1318"));
+        currentPasswordInput = passwordInput(I18n.text("m_a114cfb687e6"));
+        card.addView(UI.field(requireContext(), I18n.text("m_a114cfb687e6"), currentPasswordInput));
+        newPasswordInput = passwordInput(I18n.text("m_515e9c7cf7b2"));
+        card.addView(UI.field(requireContext(), I18n.text("m_515e9c7cf7b2"), newPasswordInput, UI.MD));
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "更新密码", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_828170843089"), UI.BTN_PRIMARY);
         save.setEnabled(!busy);
         save.setOnClickListener(v -> {
             String current = currentPasswordInput.getText().toString();
             String next = newPasswordInput.getText().toString();
             if (current.isEmpty() || next.isEmpty()) {
-                statusMessage = "请填写当前密码和新密码";
+                statusMessage = I18n.text("m_824cc55354e0");
                 statusOk = false;
                 render();
                 return;
             }
             if (next.length() < 6) {
-                statusMessage = "新密码长度不能少于 6 位";
+                statusMessage = I18n.text("m_56e015fc995a");
                 statusOk = false;
                 render();
                 return;
@@ -985,9 +985,9 @@ public class AccountFragment extends PageFragment {
             payload.put("current_password", password);
             payload.put("new_username", username);
             return Api.put("/api/admin/username", payload);
-        }, payload -> signOut("用户名已更新，请重新登录"), failure -> {
+        }, payload -> signOut(I18n.text("m_dc6cae76cd7a")), failure -> {
             busy = false;
-            statusMessage = "更新失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_4f2e8a8d4cb3") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -1002,9 +1002,9 @@ public class AccountFragment extends PageFragment {
             payload.put("current_password", current);
             payload.put("new_password", next);
             return Api.put("/api/admin/password", payload);
-        }, payload -> signOut("密码已更新，请重新登录"), failure -> {
+        }, payload -> signOut(I18n.text("m_e559ccc5f437")), failure -> {
             busy = false;
-            statusMessage = "更新失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_4f2e8a8d4cb3") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -1022,21 +1022,21 @@ public class AccountFragment extends PageFragment {
      */
     private View passkeyCard() {
         Context ctx = requireContext();
-        LinearLayout card = card("通行密钥", "用指纹、面容或安全硬件密钥登录，不必输入密码；绑定后还可以关闭本账户的密码登录。");
+        LinearLayout card = card(I18n.text("m_102824e51a9d"), I18n.text("m_9ed4805b36b1"));
 
         if (!Passkey.supported()) {
-            card.addView(UI.banner(ctx, "本机 Android 版本过低（需 Android 9 及以上），无法使用通行密钥。", true));
+            card.addView(UI.banner(ctx, I18n.text("m_b47a9b615baf"), true));
             return card;
         }
         if (!pk.optBoolean("available", false)) {
             card.addView(UI.banner(ctx,
-                    "当前域名无法使用通行密钥：通行密钥要求 HTTPS，且依赖方 ID 必须与访问域名一致。请先在管理后台「系统设置 → 通行密钥」配置。", true));
+                    I18n.text("m_8d480e7296c1"), true));
             return card;
         }
 
         JSONArray list = pk.optJSONArray("passkeys");
         if (list == null || list.length() == 0) {
-            card.addView(UI.muted(ctx, "尚未绑定通行密钥。依赖方：" + pk.optString("rp_id", "—")));
+            card.addView(UI.muted(ctx, I18n.text("m_709aa2bbba49") + pk.optString("rp_id", "—")));
         } else {
             for (int i = 0; i < list.length(); i++) {
                 JSONObject item = list.optJSONObject(i);
@@ -1046,14 +1046,14 @@ public class AccountFragment extends PageFragment {
             }
         }
 
-        pkNameInput = UI.input(ctx, "名称，如 MacBook 指纹");
-        card.addView(UI.field(ctx, "新通行密钥名称", pkNameInput, UI.MD));
-        pkPasswordInput = UI.input(ctx, "当前密码");
+        pkNameInput = UI.input(ctx, I18n.text("m_dddb4afac36b"));
+        card.addView(UI.field(ctx, I18n.text("m_7c21d524aa00"), pkNameInput, UI.MD));
+        pkPasswordInput = UI.input(ctx, I18n.text("m_a114cfb687e6"));
         pkPasswordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        card.addView(UI.field(ctx, "当前密码", pkPasswordInput, UI.SM));
-        card.addView(UI.muted(ctx, "添加、删除通行密钥或切换密码登录都需要验证当前密码。"));
+        card.addView(UI.field(ctx, I18n.text("m_a114cfb687e6"), pkPasswordInput, UI.SM));
+        card.addView(UI.muted(ctx, I18n.text("m_25c2dceabf57")));
 
-        TextView add = UI.button(ctx, pkBusy ? "处理中…" : "添加通行密钥", UI.BTN_PRIMARY);
+        TextView add = UI.button(ctx, pkBusy ? I18n.text("m_d3d21191f32e") : I18n.text("m_a24e4cc96fdc"), UI.BTN_PRIMARY);
         add.setEnabled(!pkBusy);
         add.setOnClickListener(v -> addPasskey());
         UI.margin(add, 0, UI.MD, 0, 0);
@@ -1065,21 +1065,21 @@ public class AccountFragment extends PageFragment {
         LinearLayout switchRow = UI.row(ctx);
         switchRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout copy = UI.column(ctx);
-        copy.addView(UI.strong(ctx, "禁用密码登录"));
+        copy.addView(UI.strong(ctx, I18n.text("m_3a027241650b")));
         TextView hint = UI.muted(ctx, off
-                ? "本账户只能用通行密钥登录，请保留至少一个可用的通行密钥。"
-                : "开启后本账户只能用通行密钥登录。");
+                ? I18n.text("m_ca044638c719")
+                : I18n.text("m_7ec5421a8ae6"));
         UI.margin(hint, 0, 2, 0, 0);
         copy.addView(hint);
         if (pk.optBoolean("password_login_disabled_globally", false)) {
-            TextView global = UI.muted(ctx, "面板已全局禁用密码登录，所有账户都必须使用通行密钥。");
+            TextView global = UI.muted(ctx, I18n.text("m_9b7d052ac30d"));
             UI.margin(global, 0, 2, 0, 0);
             copy.addView(global);
         }
         UI.weight(copy, 1f);
         switchRow.addView(copy);
 
-        TextView toggle = UI.button(ctx, off ? "恢复密码登录" : "禁用密码登录",
+        TextView toggle = UI.button(ctx, off ? I18n.text("m_466c8603a96a") : I18n.text("m_3a027241650b"),
                 off ? UI.BTN_SECONDARY : UI.BTN_DANGER);
         toggle.setEnabled(!pkBusy);
         toggle.setOnClickListener(v -> togglePasswordLogin());
@@ -1098,9 +1098,9 @@ public class AccountFragment extends PageFragment {
         LinearLayout info = UI.column(ctx);
         LinearLayout nameRow = UI.row(ctx);
         nameRow.setGravity(Gravity.CENTER_VERTICAL);
-        nameRow.addView(UI.strong(ctx, item.optString("name", "通行密钥")));
+        nameRow.addView(UI.strong(ctx, item.optString("name", I18n.text("m_102824e51a9d"))));
         if (item.optBoolean("backup_eligible", false)) {
-            TextView tag = UI.tag(ctx, item.optBoolean("backup_state", false) ? "已同步" : "可同步", true);
+            TextView tag = UI.tag(ctx, item.optBoolean("backup_state", false) ? I18n.text("m_04062edb583b") : I18n.text("m_f450fddb8f2f"), true);
             UI.margin(tag, UI.SM, 0, 0, 0);
             nameRow.addView(tag);
         }
@@ -1109,12 +1109,12 @@ public class AccountFragment extends PageFragment {
         UI.weight(info, 1f);
         row.addView(info);
 
-        TextView rename = UI.button(ctx, "重命名", UI.BTN_GHOST);
+        TextView rename = UI.button(ctx, I18n.text("m_0d0cbac2eee5"), UI.BTN_GHOST);
         rename.setEnabled(!pkBusy);
         rename.setOnClickListener(v -> renamePasskey(item));
         row.addView(rename);
 
-        TextView remove = UI.button(ctx, "删除", UI.BTN_GHOST);
+        TextView remove = UI.button(ctx, I18n.text("m_2f9daa828907"), UI.BTN_GHOST);
         remove.setTextColor(Theme.p().error);
         remove.setEnabled(!pkBusy);
         remove.setOnClickListener(v -> confirmRemovePasskey(item));
@@ -1126,9 +1126,9 @@ public class AccountFragment extends PageFragment {
 
     /** "添加于 … · 最近使用 …", in the console's local time. */
     private String passkeyMeta(JSONObject item) {
-        StringBuilder meta = new StringBuilder("添加于 ").append(stamp(item.optLong("created_at", 0)));
+        StringBuilder meta = new StringBuilder(I18n.text("m_749cc5f884d6")).append(stamp(item.optLong("created_at", 0)));
         long used = item.optLong("last_used_at", 0);
-        if (used > 0) meta.append(" · 最近使用 ").append(stamp(used));
+        if (used > 0) meta.append(I18n.text("m_3219f9714d97")).append(stamp(used));
         return meta.toString();
     }
 
@@ -1142,7 +1142,7 @@ public class AccountFragment extends PageFragment {
     private void addPasskey() {
         String password = pkPassword();
         if (password.isEmpty()) {
-            statusMessage = "请先填写当前密码";
+            statusMessage = I18n.text("m_05b1298143b6");
             statusOk = false;
             render();
             return;
@@ -1170,7 +1170,7 @@ public class AccountFragment extends PageFragment {
             }
         }), failure -> {
             pkBusy = false;
-            statusMessage = "绑定失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_4efd22ea6489") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -1185,12 +1185,12 @@ public class AccountFragment extends PageFragment {
             return Api.post("/api/account/passkeys/finish", body);
         }, payload -> {
             pkBusy = false;
-            statusMessage = "通行密钥已绑定";
+            statusMessage = I18n.text("m_716a1862dd06");
             statusOk = true;
             reloadPasskeys();
         }, failure -> {
             pkBusy = false;
-            statusMessage = "绑定失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_4efd22ea6489") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -1198,12 +1198,12 @@ public class AccountFragment extends PageFragment {
 
     private void renamePasskey(JSONObject item) {
         final String id = item.optString("id", "");
-        EditText input = UI.input(requireContext(), "通行密钥名称");
+        EditText input = UI.input(requireContext(), I18n.text("m_e8e46cb47287"));
         input.setText(item.optString("name", ""));
-        Modal.of(requireContext(), "重命名通行密钥")
+        Modal.of(requireContext(), I18n.text("m_c384f03c2393"))
                 .content(input)
-                .cancel("取消")
-                .confirm("保存", false, () -> {
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_a3030bf8f16d"), false, () -> {
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) return;
                     pkBusy = true;
@@ -1214,12 +1214,12 @@ public class AccountFragment extends PageFragment {
                         return Api.put("/api/account/passkeys/" + id, body);
                     }, payload -> {
                         pkBusy = false;
-                        statusMessage = "名称已更新";
+                        statusMessage = I18n.text("m_06afd1f0352e");
                         statusOk = true;
                         reloadPasskeys();
                     }, failure -> {
                         pkBusy = false;
-                        statusMessage = "重命名失败：" + failure.getMessage();
+                        statusMessage = I18n.text("m_0ab10c33f462") + failure.getMessage();
                         statusOk = false;
                         render();
                     });
@@ -1228,17 +1228,17 @@ public class AccountFragment extends PageFragment {
     }
 
     private void confirmRemovePasskey(JSONObject item) {
-        Modal.of(requireContext(), "删除通行密钥")
-                .message("确定删除「" + item.optString("name", "通行密钥") + "」？删除后该设备将无法再用于登录。")
-                .cancel("取消")
-                .confirm("删除", true, () -> removePasskey(item.optString("id", "")))
+        Modal.of(requireContext(), I18n.text("m_fc3f78b499e1"))
+                .message(I18n.text("m_72f49a525798") + item.optString("name", I18n.text("m_102824e51a9d")) + I18n.text("m_139f37a3ae7c"))
+                .cancel(I18n.text("m_2cd0f3be8738"))
+                .confirm(I18n.text("m_2f9daa828907"), true, () -> removePasskey(item.optString("id", "")))
                 .show();
     }
 
     private void removePasskey(String id) {
         String password = pkPassword();
         if (password.isEmpty()) {
-            statusMessage = "请先填写当前密码";
+            statusMessage = I18n.text("m_05b1298143b6");
             statusOk = false;
             render();
             return;
@@ -1252,7 +1252,7 @@ public class AccountFragment extends PageFragment {
             return Api.delete("/api/account/passkeys/" + id, body);
         }, payload -> {
             pkBusy = false;
-            statusMessage = "通行密钥已删除";
+            statusMessage = I18n.text("m_dbef251d5058");
             statusOk = true;
             reloadPasskeys();
         }, failure -> {
@@ -1266,7 +1266,7 @@ public class AccountFragment extends PageFragment {
     private void togglePasswordLogin() {
         String password = pkPassword();
         if (password.isEmpty()) {
-            statusMessage = "请先填写当前密码";
+            statusMessage = I18n.text("m_05b1298143b6");
             statusOk = false;
             render();
             return;
@@ -1283,7 +1283,7 @@ public class AccountFragment extends PageFragment {
         }, payload -> {
             pkBusy = false;
             pk = payload;
-            statusMessage = disabled ? "已禁用密码登录，请使用通行密钥登录" : "已恢复密码登录";
+            statusMessage = disabled ? I18n.text("m_7cda7e6a2511") : I18n.text("m_40ea52edefce");
             statusOk = true;
             pkPasswordInput = null;
             render();
@@ -1306,7 +1306,7 @@ public class AccountFragment extends PageFragment {
             render();
         }, failure -> {
             pkBusy = false;
-            statusMessage = "读取通行密钥失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_38da6e5f2d40") + failure.getMessage();
             statusOk = false;
             render();
         });

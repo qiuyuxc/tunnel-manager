@@ -9,7 +9,7 @@
     <button
       type="button"
       class="avatar-btn"
-      :aria-label="`账户菜单（${configStore.displayName}）`"
+      :aria-label="tr('m_7b1c3d4be6d4', { p0: configStore.displayName })"
       :aria-expanded="menuOpen"
       @click="menuOpen = !menuOpen"
     >
@@ -36,35 +36,36 @@
         </span>
       </div>
       <div class="menu-sep" />
+      <LanguageSelect />
       <router-link to="/account" class="menu-row" role="menuitem" @click="menuOpen = false">
         <span class="menu-icon" v-html="icons.account" />
-        <span class="menu-label">账户信息</span>
+        <span class="menu-label">{{ tr('m_34e5636c63cc') }}</span>
         <span class="menu-chevron" v-html="icons.chevron" />
       </router-link>
       <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleVisualTheme()">
         <span class="menu-icon" v-html="icons.palette" />
-        <span class="menu-label">视觉主题</span>
+        <span class="menu-label">{{ tr('m_5acca162e7f6') }}</span>
         <span class="menu-tail">{{ themeLabel }}</span>
       </button>
       <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleDarkMode()">
         <span class="menu-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
-        <span class="menu-label">暗色模式</span>
+        <span class="menu-label">{{ tr('m_0426e084560f') }}</span>
         <span class="switch" :class="{ on: configStore.darkMode }" />
       </button>
       <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleLightEffects()">
         <span class="menu-icon" v-html="icons.palette" />
-        <span class="menu-label">轻量效果</span>
+        <span class="menu-label">{{ tr('m_10cfd03a12b9') }}</span>
         <span class="switch" :class="{ on: configStore.lightEffects }" />
       </button>
       <div class="menu-sep" />
       <button type="button" class="menu-row danger" role="menuitem" @click="handleLogout">
         <span class="menu-icon" v-html="icons.logout" />
-        <span class="menu-label">退出登录</span>
+        <span class="menu-label">{{ tr('m_3ab8cc15939f') }}</span>
       </button>
     </div>
   </Transition>
 
-  <nav class="tabbar" aria-label="移动端导航">
+  <nav class="tabbar" :aria-label="tr('m_2cb18aff9803')">
     <template v-for="(entry, index) in tabEntries" :key="index">
       <router-link
         v-if="entry.kind === 'link'"
@@ -79,19 +80,19 @@
         v-else-if="entry.kind === 'fab'"
         type="button"
         class="tab-fab"
-        aria-label="新建"
+        :aria-label="tr('m_50ef2f4cf6a4')"
         @click="createOpen = true"
       >
         <span class="fab" v-html="icons.plus" />
       </button>
       <button v-else type="button" class="tab" @click="moreOpen = true">
         <span class="tab-icon" v-html="icons.more" />
-        <span class="tab-label">更多</span>
+        <span class="tab-label">{{ tr('m_38844b135cf7') }}</span>
       </button>
     </template>
   </nav>
 
-  <SheetPanel :open="createOpen" title="新建" @close="createOpen = false">
+  <SheetPanel :open="createOpen" :title="tr('m_50ef2f4cf6a4')" @close="createOpen = false">
     <router-link
       v-for="action in CREATE_ACTIONS"
       :key="action.path"
@@ -108,7 +109,7 @@
     </router-link>
   </SheetPanel>
 
-  <SheetPanel :open="moreOpen" title="更多" @close="moreOpen = false">
+  <SheetPanel :open="moreOpen" :title="tr('m_38844b135cf7')" @close="moreOpen = false">
     <template v-for="group in moreGroups" :key="group.label">
       <div class="group-label">{{ group.label }}</div>
       <div class="group-list">
@@ -130,6 +131,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logout as logoutApi } from '../api'
@@ -145,6 +148,7 @@ import {
 } from '../navigation'
 import { useConfigStore } from '../stores/config'
 import SheetPanel from './SheetPanel.vue'
+import LanguageSelect from './LanguageSelect.vue'
 
 type TabEntry =
   | { kind: 'link'; item: NavItem }
@@ -161,8 +165,8 @@ const createOpen = ref(false)
 const moreOpen = ref(false)
 
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
-const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? '暖色' : '默认'))
-const roleLabel = computed(() => (configStore.isAdmin() ? '管理员' : '用户'))
+const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? tr('m_1a407ccbb6dc') : tr('m_844b8cc8dff7')))
+const roleLabel = computed(() => (configStore.isAdmin() ? tr('m_e19796712f1c') : tr('m_0d0e1a86b3aa')))
 
 // 概览 · 监控 · [+] · DNS 管理 · 更多, with any entry the account cannot see
 // dropped rather than left as a dead slot.
