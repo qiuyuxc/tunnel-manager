@@ -58,6 +58,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
+          flavor: latest=false
           images: ${{ steps.images.outputs.images }}
           # Slim tags only — no `latest`, no bare version numbers (those belong
           # to the full edition built from main and would collide here).

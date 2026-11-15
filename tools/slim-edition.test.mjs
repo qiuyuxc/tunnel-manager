@@ -59,6 +59,14 @@ test('slim publishing keeps the existing image paths and never tags latest', () 
   assert.match(build, /branches: \[slim\/single-user\]/)
   assert.match(build, /tags: \['v\*-slim'\]/)
   assert.match(build, /GHCR_IMAGE: ghcr\.io\/\$\{\{ github\.repository_owner \}\}\/tunnel-manager\n/)
+  const metadata = build.split('uses: docker/metadata-action@v5')[1]?.split(/\n      - /)[0]
+  assert.ok(metadata, 'Docker metadata step is missing')
+  // v5 generates latest automatically for type=ref,event=tag, including
+  // vX.Y.Z-slim. Restricting raw tags alone does not isolate release tags.
+  assert.match(metadata, /^\s+flavor:\s*latest=false\s*$/m,
+    'Slim release tags must disable metadata-action automatic latest generation')
+  assert.match(metadata, /type=ref,event=tag/)
+  assert.match(metadata, /type=sha,prefix=slim-sha-/)
   assert.match(build, /type=raw,value=slim,/)
   assert.doesNotMatch(build, /type=raw,value=latest|type=semver/)
   assert.match(release, /tags: \['v\*-slim'\]/)
