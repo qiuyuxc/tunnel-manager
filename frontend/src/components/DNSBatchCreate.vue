@@ -1,33 +1,35 @@
 <template>
-  <n-modal :show="show" :mask-closable="!running" :close-on-esc="!running" :closable="!running" preset="card" title="批量新增 DNS 记录" class="dns-create-modal" @update:show="emit('update:show', $event)">
+  <n-modal :show="show" :mask-closable="!running" :close-on-esc="!running" :closable="!running" preset="card" :title="tr('m_8c63234bfc31')" class="dns-create-modal" @update:show="emit('update:show', $event)">
     <div class="batch-create">
-      <p class="hint">区域：<strong>{{ zoneName }}</strong>。每批最多 {{ DNS_BATCH_LIMIT }} 条非空行，逐条串行新增。仅支持 A / AAAA / TXT / MX / NS / PTR；CNAME、SRV、CAA 请单条添加。</p>
+      <p class="hint">{{ tr('m_cfad1e9ab75f') }}<strong>{{ zoneName }}</strong>{{ tr('m_0c1053a7c74d') }} {{ DNS_BATCH_LIMIT }} {{ tr('m_f367f1f8d0e7') }}</p>
       <div class="fields">
-        <label><span>记录类型</span><n-select v-model:value="form.type" :options="typeOptions" :disabled="running || locked" @update:value="changeType" /></label>
-        <label><span>名称</span><n-input v-model:value="form.name" :disabled="running || locked" placeholder="www 或 example.com" /></label>
-        <label><span>TTL（1 为自动）</span><n-input-number v-model:value="form.ttl" :disabled="running || locked" :min="1" :max="86400" /></label>
-        <label v-if="form.type === 'MX'"><span>MX 优先级（共用）</span><n-input-number v-model:value="form.priority" :disabled="running || locked" :min="0" :max="65535" /></label>
-        <label v-if="proxyEligible(form.type)"><span>代理状态</span><n-switch v-model:value="form.proxied" :disabled="running || locked" /></label>
+        <label><span>{{ tr('m_8f6363220575') }}</span><n-select v-model:value="form.type" :options="typeOptions" :disabled="running || locked" @update:value="changeType" /></label>
+        <label><span>{{ tr('m_d44e9b3d3b31') }}</span><n-input v-model:value="form.name" :disabled="running || locked" :placeholder="tr('m_8be91866ed29')" /></label>
+        <label><span>{{ tr('m_5fada8da5e20') }}</span><n-input-number v-model:value="form.ttl" :disabled="running || locked" :min="1" :max="86400" /></label>
+        <label v-if="form.type === 'MX'"><span>{{ tr('m_774642733b2d') }}</span><n-input-number v-model:value="form.priority" :disabled="running || locked" :min="0" :max="65535" /></label>
+        <label v-if="proxyEligible(form.type)"><span>{{ tr('m_b90665e74c01') }}</span><n-switch v-model:value="form.proxied" :disabled="running || locked" /></label>
       </div>
-      <label class="values"><span>解析值，每行一条</span><n-input v-model:value="text" :disabled="running" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" placeholder="192.0.2.1&#10;192.0.2.2" /></label>
-      <p class="hint">空行忽略，重复值及已加载的同名同类型值跳过。TXT 保留空格，不按逗号拆分；一行是一个完整值。跨行 TXT 请单条添加。</p>
+      <label class="values"><span>{{ tr('m_c72c82545f49') }}</span><n-input v-model:value="text" :disabled="running" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" placeholder="192.0.2.1&#10;192.0.2.2" /></label>
+      <p class="hint">{{ tr('m_c7ab7396d63c') }}</p>
       <p v-if="validationError" class="error" role="alert">{{ validationError }}</p>
-      <section class="preview" aria-label="逐行预览">
-        <strong>预览：{{ pending.length }} 条待新增</strong>
-        <ol><li v-for="row in preview.rows" :key="row.line"><span>第 {{ row.line }} 行</span><code>{{ row.content }}</code><span :class="{ error: row.error }">{{ row.error || row.skipped || '待新增' }}</span></li></ol>
+      <section class="preview" :aria-label="tr('m_608e8e278c60')">
+        <strong>{{ tr('m_e628f1c80e48') }}{{ pending.length }} {{ tr('m_68fc37cbb496') }}</strong>
+        <ol><li v-for="row in preview.rows" :key="row.line"><span>{{ tr('m_af50a0fe2a50') }} {{ row.line }} {{ tr('m_4cc7b00050cb') }}</span><code>{{ row.content }}</code><span :class="{ error: row.error }">{{ row.error || row.skipped || tr('m_b2d9abb23920') }}</span></li></ol>
       </section>
-      <section v-if="results.length" class="preview" aria-live="polite" aria-label="逐条结果">
-        <strong>本次结果：成功 {{ results.filter(row => row.success).length }}，失败 {{ results.filter(row => !row.success && !row.uncertain && !row.notSent).length }}，未知 {{ results.filter(row => row.uncertain).length }}，未发送 {{ results.filter(row => row.notSent).length }}</strong>
-        <ol><li v-for="row in results" :key="row.line"><span>第 {{ row.line }} 行</span><code>{{ row.content }}</code><span :class="{ error: !row.success }">{{ row.message }}</span></li></ol>
-        <p class="hint">输入框仅保留失败、未知和未发送项；不会自动重发成功行。结果未知时队列立即停止，请在 Cloudflare 或刷新记录核对，删掉实际已创建的行后再重试。关闭窗口会清空本批输入。</p>
-        <n-checkbox v-if="reviewRequired" v-model:checked="reviewed" :disabled="running">我已核对未知结果，并从输入框移除实际已创建的行</n-checkbox>
+      <section v-if="results.length" class="preview" aria-live="polite" :aria-label="tr('m_b2a5aace9969')">
+        <strong>{{ tr('m_cd9a30658205') }} {{ results.filter(row => row.success).length }}{{ tr('m_d064e2db58fc') }} {{ results.filter(row => !row.success && !row.uncertain && !row.notSent).length }}{{ tr('m_028d360b8187') }} {{ results.filter(row => row.uncertain).length }}{{ tr('m_754fd44ce51f') }} {{ results.filter(row => row.notSent).length }}</strong>
+        <ol><li v-for="row in results" :key="row.line"><span>{{ tr('m_af50a0fe2a50') }} {{ row.line }} {{ tr('m_4cc7b00050cb') }}</span><code>{{ row.content }}</code><span :class="{ error: !row.success }">{{ row.message }}</span></li></ol>
+        <p class="hint">{{ tr('m_659bde320fc0') }}</p>
+        <n-checkbox v-if="reviewRequired" v-model:checked="reviewed" :disabled="running">{{ tr('m_6d1e1798dfa9') }}</n-checkbox>
       </section>
     </div>
-    <template #footer><div class="actions"><button class="btn btn-secondary" :disabled="running" @click="emit('update:show', false)">关闭</button><button class="btn btn-primary" :disabled="running || !!validationError || !pending.length || (reviewRequired && !reviewed)" @click="submit">{{ running ? `正在新增 ${results.length}/${total}` : locked ? '重试剩余项' : `新增 ${pending.length} 条记录` }}</button></div></template>
+    <template #footer><div class="actions"><button class="btn btn-secondary" :disabled="running" @click="emit('update:show', false)">{{ tr('m_3fd47edce45b') }}</button><button class="btn btn-primary" :disabled="running || !!validationError || !pending.length || (reviewRequired && !reviewed)" @click="submit">{{ running ? tr('m_bf7811d28e0e', { p0: results.length, p1: total }) : locked ? tr('m_a055dcc4abd8') : tr('m_cdc55080127d', { p0: pending.length }) }}</button></div></template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { NCheckbox, NInput, NInputNumber, NModal, NSelect, NSwitch } from 'naive-ui'
 import { createDNSRecord, type DNSRecord, type DNSRecordInput } from '../api'
@@ -43,8 +45,8 @@ const contextError = ref('')
 let active = true, batchToken: string | null = null, batchZone = ''
 onBeforeUnmount(() => { active = false })
 function validateSession(token: string | null) {
-  if (!active || !props.show || props.zoneID !== batchZone) contextError.value ||= '页面或区域已变更，请重新打开批量新增'
-  if (!token || token !== batchToken) contextError.value ||= '登录会话已变更，请关闭窗口并刷新后重试'
+  if (!active || !props.show || props.zoneID !== batchZone) contextError.value ||= tr('m_10b992ea213a')
+  if (!token || token !== batchToken) contextError.value ||= tr('m_93dff9b1b92b')
   if (contextError.value) throw new DNSBatchStoppedError(contextError.value)
 }
 const typeOptions = DNS_BATCH_TYPES.map(value => ({ label: value, value }))
@@ -62,7 +64,7 @@ const preview = computed(() => {
   return parsed
 })
 const pending = computed(() => preview.value.rows.filter(row => !row.skipped && !row.error))
-const validationError = computed(() => contextError.value || preview.value.error || (preview.value.rows.some(row => row.error) ? '请先修正标注行，整个批次尚未提交' : '') || (pending.value.length ? validateDNSRecord({ ...form.value, content: pending.value[0].content }) : ''))
+const validationError = computed(() => contextError.value || preview.value.error || (preview.value.rows.some(row => row.error) ? tr('m_f32916472225') : '') || (pending.value.length ? validateDNSRecord({ ...form.value, content: pending.value[0].content }) : ''))
 function changeType() { form.value.proxied = false; form.value.priority = form.value.type === 'MX' ? 0 : undefined }
 watch(() => props.show, show => { if (show) { form.value = blank(); text.value = ''; results.value = []; successfulValues.value = []; locked.value = false; reviewRequired.value = false; reviewed.value = false; contextError.value = ''; batchToken = localStorage.getItem('auth_token'); batchZone = props.zoneID } })
 async function submit() {
@@ -73,7 +75,7 @@ async function submit() {
   try {
     const completed = await runDNSBatch(rows, async row => {
       const response = await createDNSRecord(zone, normalizeDNSInput({ ...base, content: row.content }), validateSession)
-      if (!response.data?.id) throw new Error('parse response failed: 缺少创建记录确认')
+      if (!response.data?.id) throw new Error(tr('m_b488b6db4579'))
     }, result => {
       results.value.push(result)
       if (result.success) successfulValues.value.push(result.content)

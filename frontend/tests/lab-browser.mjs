@@ -26,8 +26,7 @@ let statusRequests = 0
 let labRequests = 0
 let runs = []
 let adminSaves = 0
-let releaseListRequested = false
-let appSettings = { experimental_features_enabled: true,
+let appSettings = { registration_enabled: true, invite_mode: 'off', experimental_features_enabled: true,
   lab_daily_request_limit: 100000, lab_requests_per_second: 10, lab_max_workers: 32 }
 let settings = {
   host: 'probe.example.com', sni: 'probe.example.com', path: '/ip-check.txt', statuses: '200',
@@ -67,17 +66,6 @@ socket.addEventListener('message', async event => {
   if (message.method !== 'Fetch.requestPaused') return
   const { requestId, request } = message.params
   const url = new URL(request.url)
-  if (url.href === 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases?per_page=100') {
-    releaseListRequested = true
-    await command('Fetch.fulfillRequest', { requestId, responseCode: 200,
-      responseHeaders: [{ name: 'Content-Type', value: 'application/json' },
-        { name: 'Access-Control-Allow-Origin', value: origin }],
-      body: Buffer.from(JSON.stringify([
-        { tag_name: 'v9.0.0', body: 'Full edition', draft: false },
-        { tag_name: 'v2.8.0-slim', body: 'Slim edition', draft: false, prerelease: true },
-      ])).toString('base64') })
-    return
-  }
   if (url.origin !== origin) {
     failures.push(`Blocked external request: ${url.origin}`)
     await command('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' })
@@ -91,11 +79,13 @@ socket.addEventListener('message', async event => {
   let result = {}
   const body = request.postData ? JSON.parse(request.postData) : {}
   if (url.pathname === '/api/setup/status') status = 404
-  else if (url.pathname === '/api/health') result = { version: '2.8.0-slim' }
   else if (url.pathname === '/api/site') result = { name: 'Tunnel Manager', icon: '', landing_enabled: false, experimental_features_enabled: enabled }
   else if (url.pathname === '/api/auth/me') result = { id: 'test-admin', username: 'reviewer', role, permissions: [] }
   else if (url.pathname === '/api/config') result = { site_name: 'Tunnel Manager', experimental_features_enabled: enabled, cname_presets: [] }
   else if (url.pathname === '/api/monitors' || url.pathname === '/api/tunnels') result = []
+  else if (url.pathname === '/api/admin/users') result = { users: [] }
+  else if (url.pathname === '/api/admin/groups') result = { groups: [] }
+  else if (url.pathname === '/api/admin/invites') result = { invites: [] }
   else if (url.pathname === '/api/admin/settings') {
     if (request.method === 'PUT') {
       adminSaves++
@@ -205,9 +195,10 @@ try {
   await command('Fetch.enable', { patterns: [{ urlPattern: '*' }] })
   const identityScript = await command('Page.addScriptToEvaluateOnNewDocument', { source: "localStorage.setItem('auth_token','lab-test');localStorage.setItem('auth_role','admin')" })
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
-  await command('Page.navigate', { url: `${origin}/settings` })
+  await command('Page.navigate', { url: `${origin}/admin` })
+  await waitFor(`!!${button('系统设置')}`)
+  await click('系统设置')
   await waitFor(`!!${button('保存优选限制')} && !${button('保存优选限制')}.disabled`)
-  assert.equal(await evaluate("!!document.querySelector('a[href=\"/admin\"], a[href=\"/telegram\"]')"), false, 'slim must not restore removed navigation')
   await input('input[max="256"]', '0')
   await click('保存优选限制')
   await waitFor("document.body.textContent.includes('并发上限须为')")
@@ -224,7 +215,7 @@ try {
   await waitFor("!document.querySelector('.n-message')")
   for (const width of [1440, 375, 320]) {
     await command('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false })
-    await evaluate("document.querySelector('input[max=\"256\"]').closest('.admin-card').scrollIntoView({block:'center'})")
+    await evaluate('window.scrollTo(0, 0)')
     await delay(200)
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, `admin limits overflow at ${width}`)
     const screenshot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
@@ -383,20 +374,15 @@ try {
   enabled = false
   await click('刷新状态')
   await waitFor("location.pathname === '/dashboard' && !document.querySelector('.lab-page')")
-  await command('Page.navigate', { url: `${origin}/about` })
-  await waitFor("document.querySelector('.release-body')?.textContent.includes('Slim edition') && document.querySelector('.feature-grid')")
-  assert.equal(await evaluate("document.querySelectorAll('.version-row strong')[1].textContent"), 'v2.8.0-slim')
-  assert.ok(releaseListRequested, 'slim update checks must use the release list rather than full-edition latest')
-  assert.equal(await evaluate("document.querySelector('.feature-grid').textContent.includes('多用户与管理后台')"), false)
-  assert.ok(await evaluate("document.querySelector('.feature-grid').textContent.includes('AI 助手') && document.querySelector('.feature-grid').textContent.includes('IP 优选实验室')"))
-  assert.equal(await evaluate("document.body.textContent.includes('v9.0.0')"), false, 'full-edition version must not appear as a slim update')
   enabled = true
+  role = 'user'
   await command('Page.removeScriptToEvaluateOnNewDocument', { identifier: identityScript.identifier })
-  await evaluate("localStorage.removeItem('auth_token'); localStorage.removeItem('auth_role')")
+  await command('Page.addScriptToEvaluateOnNewDocument', { source: "localStorage.setItem('auth_token','lab-test');localStorage.setItem('auth_role','user')" })
+  await evaluate("localStorage.setItem('auth_role', 'user')")
   const beforeDenied = labRequests
   await command('Page.navigate', { url: `${origin}/lab/ip-selector` })
-  await waitFor("location.pathname === '/login' && !document.querySelector('.lab-page')")
-  assert.equal(labRequests, beforeDenied, 'logged-out route must not query lab data')
+  await waitFor("location.pathname === '/dashboard' && !document.querySelector('.lab-page')")
+  assert.equal(labRequests, beforeDenied, 'non-admin route must not query lab data')
   assert.equal(mutations.filter(item => item.path.endsWith('/run')).length, 1)
   assert.equal(mutations.filter(item => item.path.endsWith('/stop')).length, 1)
   assert.deepEqual(failures, [])

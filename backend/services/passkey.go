@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,9 +39,12 @@ const maxPasskeyCeremonies = 256
 // passkeyCeremony is the server-side state of one in-flight ceremony. The
 // library hands it back on begin and expects it on finish.
 type passkeyCeremony struct {
-	session   webauthn.SessionData
-	userID    string
-	expiresAt time.Time
+	session        webauthn.SessionData
+	userID         string
+	ownerKey       string
+	challengeToken string
+	kind           string
+	expiresAt      time.Time
 }
 
 // RelyingParty is the WebAuthn scope resolved for one request.
@@ -239,7 +243,7 @@ func (s *PasskeyService) BeginRegistration(r *http.Request, userID string) (*pro
 	if err != nil {
 		return nil, "", rp, fmt.Errorf("开始通行密钥注册失败: %w", err)
 	}
-	token, err := s.storeCeremony(session, userID)
+	token, err := s.storeCeremony(session, userID, ClientIP(r), "registration", "")
 	if err != nil {
 		return nil, "", rp, err
 	}
@@ -254,7 +258,7 @@ func (s *PasskeyService) FinishRegistration(r *http.Request, token, userID strin
 		return nil, rp, err
 	}
 	ceremony, ok := s.claimCeremony(token)
-	if !ok || ceremony.userID != userID {
+	if !ok || ceremony.userID != userID || ceremony.kind != "registration" {
 		return nil, rp, ErrPasskeyCeremonyExpired
 	}
 	user, err := s.loadPasskeyUser(userID)
@@ -273,7 +277,7 @@ func (s *PasskeyService) FinishRegistration(r *http.Request, token, userID strin
 }
 
 // BeginLogin starts an assertion for a known account.
-func (s *PasskeyService) BeginLogin(r *http.Request, userID string) (*protocol.CredentialAssertion, string, RelyingParty, error) {
+func (s *PasskeyService) BeginLogin(r *http.Request, userID string, challengeToken ...string) (*protocol.CredentialAssertion, string, RelyingParty, error) {
 	instance, rp, err := s.webauthnFor(r)
 	if err != nil {
 		return nil, "", rp, err
@@ -289,7 +293,7 @@ func (s *PasskeyService) BeginLogin(r *http.Request, userID string) (*protocol.C
 	if err != nil {
 		return nil, "", rp, fmt.Errorf("开始通行密钥登录失败: %w", err)
 	}
-	token, err := s.storeCeremony(session, userID)
+	token, err := s.storeCeremony(session, userID, ClientIP(r), "login", firstPasskeyBinding(challengeToken))
 	if err != nil {
 		return nil, "", rp, err
 	}
@@ -307,7 +311,7 @@ func (s *PasskeyService) BeginDiscoverableLogin(r *http.Request) (*protocol.Cred
 	if err != nil {
 		return nil, "", rp, fmt.Errorf("开始通行密钥登录失败: %w", err)
 	}
-	token, err := s.storeCeremony(session, "")
+	token, err := s.storeCeremony(session, "", ClientIP(r), "login", "")
 	if err != nil {
 		return nil, "", rp, err
 	}
@@ -322,13 +326,13 @@ func (s *PasskeyService) BeginDiscoverableLogin(r *http.Request) (*protocol.Cred
 // therefore only a cross-check for flows that already know who they expect —
 // passing it as the switch instead made every named-account sign-in fail with
 // "Session was not initiated as a client-side discoverable login".
-func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID string, raw []byte) (string, *webauthn.Credential, RelyingParty, error) {
+func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID string, raw []byte, challengeToken ...string) (string, *webauthn.Credential, RelyingParty, error) {
 	instance, rp, err := s.webauthnFor(r)
 	if err != nil {
 		return "", nil, rp, err
 	}
 	ceremony, ok := s.claimCeremony(token)
-	if !ok {
+	if !ok || ceremony.kind != "login" || ceremony.challengeToken != firstPasskeyBinding(challengeToken) {
 		return "", nil, rp, ErrPasskeyCeremonyExpired
 	}
 	if expectedUserID != "" && ceremony.userID != "" && ceremony.userID != expectedUserID {
@@ -370,7 +374,7 @@ func (s *PasskeyService) FinishLogin(r *http.Request, token, expectedUserID stri
 
 // storeCeremony keeps one ceremony and returns the single-use token the browser
 // sends back on finish.
-func (s *PasskeyService) storeCeremony(session *webauthn.SessionData, userID string) (string, error) {
+func (s *PasskeyService) storeCeremony(session *webauthn.SessionData, userID string, binding ...string) (string, error) {
 	token, err := randomPasskeyToken()
 	if err != nil {
 		return "", fmt.Errorf("生成通行密钥会话失败: %w", err)
@@ -378,10 +382,31 @@ func (s *PasskeyService) storeCeremony(session *webauthn.SessionData, userID str
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pruneLocked()
+	ownerKey, kind, challenge := "", "login", ""
+	if len(binding) == 3 {
+		ownerKey, kind, challenge = binding[0], binding[1], binding[2]
+	}
+	if host, _, err := net.SplitHostPort(ownerKey); err == nil {
+		ownerKey = host
+	}
+	// Per-source and per-account caps leave room for other users even when
+	// optional rate limits are disabled. Expired state is pruned above.
+	sourceCount, userCount := 0, 0
+	for _, c := range s.ceremonies {
+		if c.ownerKey == ownerKey {
+			sourceCount++
+		}
+		if userID != "" && c.userID == userID {
+			userCount++
+		}
+	}
+	if sourceCount >= 8 || userCount >= 8 {
+		return "", errors.New("通行密钥请求过多，请稍后重试")
+	}
 	if len(s.ceremonies) >= maxPasskeyCeremonies {
 		return "", errors.New("通行密钥请求过多，请稍后重试")
 	}
-	s.ceremonies[token] = passkeyCeremony{session: *session, userID: userID, expiresAt: s.now().Add(passkeyCeremonyTTL)}
+	s.ceremonies[token] = passkeyCeremony{session: *session, userID: userID, ownerKey: ownerKey, kind: kind, challengeToken: challenge, expiresAt: s.now().Add(passkeyCeremonyTTL)}
 	return token, nil
 }
 
@@ -487,4 +512,11 @@ func passkeyHost(host string) string {
 // where WebAuthn also accepts an insecure origin.
 func isLocalhost(host string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasSuffix(host, ".localhost")
+}
+
+func firstPasskeyBinding(values []string) string {
+	if len(values) > 0 {
+		return values[0]
+	}
+	return ""
 }

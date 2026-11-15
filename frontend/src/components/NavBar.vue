@@ -4,8 +4,8 @@
        Nav is grouped with captions (工作空间 / 网络 / 管理); 个人 is pinned to
        the footer. Theme, effects and sign-out live in the top bar's avatar menu
        (ConsoleHeader), not here. -->
-  <aside class="sidebar" :class="{ collapsed }" aria-label="主导航">
-    <router-link to="/dashboard" class="brand" :aria-label="`${configStore.config.site_name} 控制面板`">
+  <aside class="sidebar" :class="{ collapsed }" :aria-label="tr('m_9bae68040509')">
+    <router-link to="/dashboard" class="brand" :aria-label="tr('m_31b5eeeb4bbd', { p0: configStore.config.site_name })">
       <BrandMark :size="36" />
       <span class="brand-text">
         <span class="brand-name">{{ configStore.config.site_name }}</span>
@@ -48,21 +48,23 @@
       <button
         type="button"
         class="collapse-btn"
-        :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
-        :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
+        :aria-label="collapsed ? tr('m_eea954b92548') : tr('m_ce1d67c2703c')"
+        :title="collapsed ? tr('m_eea954b92548') : tr('m_ce1d67c2703c')"
         @click="collapsed = !collapsed"
       >
         <span class="nav-icon" aria-hidden="true" v-html="collapsed ? icons.expand : icons.collapse" />
-        <span class="nav-label">收起侧边栏</span>
+        <span class="nav-label">{{ tr('m_ce1d67c2703c') }}</span>
       </button>
       <div class="sidebar-foot">
-        <span class="foot-status"><span class="dot" aria-hidden="true" />{{ configStore.displayName || '当前实例' }}</span>
+        <span class="foot-status"><span class="dot" aria-hidden="true" />{{ configStore.displayName || tr('m_5e96c8ea4820') }}</span>
       </div>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { GROUP_LABELS, SIDEBAR_GROUPS, icons, isActivePath, useNavItems } from '../navigation'
@@ -100,15 +102,16 @@ function isActive(path: string) {
 <style scoped>
 .sidebar {
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
   width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  padding: 22px 16px 16px;
-  background: var(--color-sidebar);
-  border-right: 1px solid var(--color-hairline);
+  padding: 26px 12px 16px;
+  background: color-mix(in srgb, var(--color-canvas-raised) 80%, var(--color-sidebar));
+  border: 1px solid var(--color-hairline);
+  border-radius: 22px;
   z-index: 100;
 }
 
@@ -149,10 +152,10 @@ function isActive(path: string) {
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 42px;
+  min-height: 40px;
   margin: 3px 0;
   padding: 9px 14px;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   color: var(--color-sidebar-text);
   font-size: 13px;
   font-weight: 500;
@@ -181,7 +184,7 @@ function isActive(path: string) {
   font-weight: 600;
 }
 
-.nav-link.active .nav-count { background: var(--color-status-degraded-bg); color: var(--color-status-degraded-text); }
+.nav-link.active .nav-count { background: var(--color-canvas-soft-2); color: var(--color-ink); }
 
 .sidebar-bottom {
   margin-top: auto;
@@ -199,7 +202,7 @@ function isActive(path: string) {
 }
 
 .foot-status { display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-success); flex-shrink: 0; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-ink); flex-shrink: 0; }
 
 .collapse-btn {
   display: flex;

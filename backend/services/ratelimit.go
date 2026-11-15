@@ -31,11 +31,41 @@ type rateEntry struct {
 	failures []int64
 	// lastSeen orders eviction once the map is full.
 	lastSeen int64
+	// Take uses a fixed-window counter so high configured budgets stay bounded.
+	taken       int
+	takeResetAt int64
 }
 
 // NewRateLimiter creates an empty limiter.
 func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{entries: map[string]*rateEntry{}, now: time.Now}
+}
+
+// Take checks and charges a request under one lock, before state is allocated.
+func (l *RateLimiter) Take(key string, limit int, window time.Duration) (bool, time.Duration) {
+	if l == nil || limit <= 0 || window <= 0 {
+		return true, 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now().Unix()
+	seconds := int64(window / time.Second)
+	entry := l.entries[key]
+	if entry == nil {
+		l.evictOldestLocked()
+		entry = &rateEntry{}
+		l.entries[key] = entry
+	}
+	entry.lastSeen = now
+	if entry.takeResetAt <= now {
+		entry.taken = 0
+		entry.takeResetAt = now + seconds
+	}
+	if entry.taken >= limit {
+		return false, time.Duration(entry.takeResetAt-now) * time.Second
+	}
+	entry.taken++
+	return true, 0
 }
 
 // Allow reports whether key still has budget and, when it does not, how long

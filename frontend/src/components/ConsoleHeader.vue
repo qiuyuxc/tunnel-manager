@@ -4,10 +4,9 @@
        where MobileNav carries identity and navigation instead. Every control
        here maps to a real route or a real preference — nothing decorative. -->
   <header class="topbar">
-    <nav class="breadcrumb" aria-label="面包屑">
-      <span class="crumb-root">{{ configStore.config.site_name }}</span>
+    <nav class="breadcrumb" :aria-label="tr('m_6770d01e7d15')">
       <template v-for="(crumb, i) in crumbs" :key="i">
-        <span class="sep" aria-hidden="true">/</span>
+        <span v-if="i > 0" class="sep" aria-hidden="true">/</span>
         <router-link v-if="crumb.path" :to="crumb.path" class="crumb-link">{{ crumb.label }}</router-link>
         <span v-else class="crumb-current">{{ crumb.label }}</span>
       </template>
@@ -16,24 +15,24 @@
     <div class="topbar-actions">
       <button type="button" class="search-trigger" @click="openJump">
         <span class="nav-icon" aria-hidden="true" v-html="icons.search" />
-        快速前往
+        {{ tr('m_27268090a840') }}
         <kbd>{{ shortcutLabel }}</kbd>
       </button>
       <button
         type="button"
         class="icon-btn"
-        :aria-label="configStore.darkMode ? '切换亮色模式' : '切换暗色模式'"
+        :aria-label="configStore.darkMode ? tr('m_21aed8552b72') : tr('m_ce80e5ddfedc')"
         @click="configStore.toggleDarkMode()"
       >
         <span class="nav-icon" aria-hidden="true" v-html="configStore.darkMode ? icons.sun : icons.moon" />
       </button>
-      <router-link class="icon-btn" to="/notifications" aria-label="通知设置">
+      <router-link class="icon-btn" to="/notifications" :aria-label="tr('m_247ca01ae280')">
         <span class="nav-icon" aria-hidden="true" v-html="icons.bell" />
       </router-link>
       <button
         type="button"
         class="avatar"
-        :aria-label="`账户菜单（${configStore.displayName}）`"
+        :aria-label="tr('m_7b1c3d4be6d4', { p0: configStore.displayName })"
         :aria-expanded="menuOpen"
         @click="menuOpen = !menuOpen"
       >
@@ -58,30 +57,27 @@
           </span>
         </div>
         <div class="menu-sep" />
+        <LanguageSelect />
         <router-link to="/account" class="menu-row" role="menuitem">
           <span class="menu-icon" v-html="icons.account" />
-          <span class="menu-label">账户设置</span>
+          <span class="menu-label">{{ tr('m_a720b4000be6') }}</span>
           <span class="menu-chevron" v-html="icons.chevron" />
         </router-link>
-        <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleVisualTheme()">
-          <span class="menu-icon" v-html="icons.palette" />
-          <span class="menu-label">视觉主题</span>
-          <span class="menu-tail">{{ themeLabel }}</span>
-        </button>
+
         <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleDarkMode()">
           <span class="menu-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
-          <span class="menu-label">暗色模式</span>
+          <span class="menu-label">{{ tr('m_0426e084560f') }}</span>
           <span class="switch" :class="{ on: configStore.darkMode }" />
         </button>
         <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleLightEffects()">
           <span class="menu-icon" v-html="icons.palette" />
-          <span class="menu-label">轻量效果</span>
+          <span class="menu-label">{{ tr('m_10cfd03a12b9') }}</span>
           <span class="switch" :class="{ on: configStore.lightEffects }" />
         </button>
         <div class="menu-sep" />
         <button type="button" class="menu-row danger" role="menuitem" @click="handleLogout">
           <span class="menu-icon" v-html="icons.logout" />
-          <span class="menu-label">退出登录</span>
+          <span class="menu-label">{{ tr('m_3ab8cc15939f') }}</span>
         </button>
       </div>
     </Transition>
@@ -90,12 +86,15 @@
   </header>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logout as logoutApi } from '../api'
 import { breadcrumbFor, icons } from '../navigation'
 import { useConfigStore } from '../stores/config'
 import JumpPalette from './JumpPalette.vue'
+import LanguageSelect from './LanguageSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,8 +105,7 @@ const jumpOpen = ref(false)
 
 const crumbs = computed(() => breadcrumbFor(route.path))
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
-const roleLabel = computed(() => (configStore.isAdmin() ? '管理员' : '用户'))
-const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? '暖色' : '默认'))
+const roleLabel = computed(() => (configStore.isAdmin() ? tr('m_e19796712f1c') : tr('m_0d0e1a86b3aa')))
 
 // ⌘K on macOS, Ctrl+K elsewhere — the label follows the platform.
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -154,7 +152,8 @@ async function handleLogout() {
   justify-content: space-between;
   gap: 16px;
   height: var(--header-height);
-  padding: 0 36px;
+  margin: 0 32px;
+  padding: 0 2px;
   background: var(--color-header-bg);
   border-bottom: 1px solid var(--color-header-border);
 }
@@ -169,7 +168,6 @@ async function handleLogout() {
 }
 
 .breadcrumb .sep { color: var(--color-hairline-strong); }
-.crumb-root { color: var(--color-mute); }
 .crumb-link { color: var(--color-body); text-decoration: none; }
 .crumb-link:hover { color: var(--color-ink); }
 .crumb-current { color: var(--color-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -183,7 +181,7 @@ async function handleLogout() {
   min-height: 36px;
   padding: 7px 13px;
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   background: transparent;
   color: var(--color-mute);
   font-size: 12px;

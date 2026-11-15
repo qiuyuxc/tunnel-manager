@@ -18,6 +18,7 @@ services:
       - CF_OAUTH_REDIRECT_URI=${CF_OAUTH_REDIRECT_URI}
       - CF_OAUTH_SCOPES=${CF_OAUTH_SCOPES}
       - API_KEY=${API_KEY}
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-}
       # Optional: creates the administrator account at boot. Leave it empty
       # and the first visit to the panel opens the install wizard instead.
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}

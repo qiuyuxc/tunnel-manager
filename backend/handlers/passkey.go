@@ -59,6 +59,27 @@ func (h *PasskeyHandler) chargePasskey(r *http.Request, userID string) {
 	}
 }
 
+func (h *PasskeyHandler) takeBegin(w http.ResponseWriter, r *http.Request) bool {
+	if !h.guardPasskey(w, r) {
+		return false
+	}
+	if h.admin == nil || h.admin.throttle == nil {
+		return true
+	}
+	t := h.admin.throttle
+	limits := t.store.GetAppSettings().RateLimits()
+	if !limits.Enabled {
+		return true
+	}
+	// Begin has its own request budget: spending its last slot must still
+	// permit the already-started ceremony to finish successfully.
+	if ok, wait := t.limiter.Take("passkey-begin:"+clientIP(r), limits.PerIP, time.Duration(limits.WindowMinutes)*time.Minute); !ok {
+		writeTooManyAttempts(w, wait)
+		return false
+	}
+	return true
+}
+
 // ---------------------------------------------------------------------------
 // Account management (session required)
 
@@ -296,7 +317,7 @@ func (h *PasskeyHandler) AssetLinks(w http.ResponseWriter, r *http.Request) {
 
 // LoginBegin handles POST /api/auth/passkey/login/begin.
 func (h *PasskeyHandler) LoginBegin(w http.ResponseWriter, r *http.Request) {
-	if !h.guardPasskey(w, r) {
+	if !h.takeBegin(w, r) {
 		return
 	}
 	var req models.PasskeyLoginBeginRequest
@@ -364,7 +385,7 @@ func (h *PasskeyHandler) LoginFinish(w http.ResponseWriter, r *http.Request) {
 // TwoFactorBegin handles POST /api/admin/login/2fa/passkey/begin: the password
 // step already succeeded, so this only proves possession of a passkey.
 func (h *PasskeyHandler) TwoFactorBegin(w http.ResponseWriter, r *http.Request) {
-	if !h.guardPasskey(w, r) {
+	if !h.takeBegin(w, r) {
 		return
 	}
 	var req models.PasskeyTwoFactorBeginRequest
@@ -377,9 +398,9 @@ func (h *PasskeyHandler) TwoFactorBegin(w http.ResponseWriter, r *http.Request) 
 		writeInvalidFactor(w)
 		return
 	}
-	options, token, _, err := h.passkeys.BeginLogin(r, challenge.userID)
+	defer h.admin.releaseChallenge(req.ChallengeToken, challenge)
+	options, token, _, err := h.passkeys.BeginLogin(r, challenge.userID, req.ChallengeToken)
 	if err != nil {
-		h.admin.releaseChallenge(req.ChallengeToken, challenge)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
@@ -401,7 +422,7 @@ func (h *PasskeyHandler) TwoFactorFinish(w http.ResponseWriter, r *http.Request)
 		writeInvalidFactor(w)
 		return
 	}
-	userID, credential, _, err := h.passkeys.FinishLogin(r, strings.TrimSpace(req.CeremonyToken), challenge.userID, req.Credential)
+	userID, credential, _, err := h.passkeys.FinishLogin(r, strings.TrimSpace(req.CeremonyToken), challenge.userID, req.Credential, req.ChallengeToken)
 	if err != nil {
 		h.admin.failChallenge(req.ChallengeToken, challenge)
 		h.failPasskeyLogin(r, challenge.userID, err)

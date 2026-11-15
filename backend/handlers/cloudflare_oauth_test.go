@@ -17,6 +17,29 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
+func TestDisconnectRejectsUnknownExplicitConnection(t *testing.T) {
+	st := newTestStore(t)
+	admin := NewAdminHandler(st, bytes.Repeat([]byte{1}, 32))
+	oauth := services.NewCloudflareOAuth(st, bytes.Repeat([]byte{1}, 32), services.CloudflareOAuthConfig{})
+	id, err := st.CreateCFConnection(models.CFConnection{UserID: st.AdminUserID(), AccessToken: "encrypted"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetActiveCFConnection(st.AdminUserID(), id); err != nil {
+		t.Fatal(err)
+	}
+	h := NewCloudflareOAuthHandler(st, oauth, services.NewCloudflareClient("", ""), admin)
+	req := withUser(httptest.NewRequest(http.MethodDelete, "/api/cloudflare/oauth?connection_id=missing", nil), models.SessionUser{ID: st.AdminUserID(), Role: models.RoleAdmin})
+	w := httptest.NewRecorder()
+	h.Disconnect(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("unknown connection: %d %s", w.Code, w.Body.String())
+	}
+	if conn, ok := st.ActiveCFConnection(st.AdminUserID()); !ok || conn.ID != id {
+		t.Fatal("unknown id removed active connection")
+	}
+}
+
 func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return f(request)
 }

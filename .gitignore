@@ -50,3 +50,6 @@ design-review.md
 design-todo.md
 app-design-preview.html
 website/
+
+# Local dependency link used for release validation.
+/frontend/node_modules

@@ -67,7 +67,7 @@ jobs:
             # 打 v*-slim 标签 -> 保留完整标签，例如 v2.6.0-slim
             type=ref,event=tag
             # 任意提交 -> 短哈希，便于回溯精确代码位置
-            type=sha
+            type=sha,prefix=slim-sha-
 
       - uses: docker/build-push-action@v6
         with:

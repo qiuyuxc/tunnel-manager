@@ -75,7 +75,7 @@ func (h *CloudflareOAuthHandler) Status(w http.ResponseWriter, r *http.Request) 
 		if activeConn.ExpiresAt > 0 {
 			status.ExpiresAt = time.Unix(activeConn.ExpiresAt, 0).Format(time.RFC3339)
 		}
-		if client := UserCF(r); client != nil {
+		if client := h.cf.ForUser(uid).WithContext(r.Context()); client != nil {
 			accounts, err := client.ListAccounts()
 			if err != nil {
 				status.Error = err.Error()
@@ -177,7 +177,7 @@ func (h *CloudflareOAuthHandler) Callback(w http.ResponseWriter, r *http.Request
 		h.redirectResult(w, r, "error", err.Error())
 		return
 	}
-	client := h.cf.WithConnection(conn)
+	client := h.cf.WithConnection(conn).WithContext(r.Context())
 	accounts, err := client.ListAccounts()
 	if err != nil {
 		h.redirectResult(w, r, "error", "授权成功，但读取账户失败: "+err.Error())
@@ -216,7 +216,7 @@ func (h *CloudflareOAuthHandler) SelectAccount(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "尚未授权 Cloudflare 账户"})
 		return
 	}
-	client := h.cf.ForUser(uid)
+	client := h.cf.ForUser(uid).WithContext(r.Context())
 	accounts, err := client.ListAccounts()
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
@@ -260,12 +260,7 @@ func (h *CloudflareOAuthHandler) Disconnect(w http.ResponseWriter, r *http.Reque
 	connID := r.URL.Query().Get("connection_id")
 	target, ok := h.store.ActiveCFConnection(uid)
 	if connID != "" {
-		target, ok = h.store.ActiveCFConnection(uid)
-		for _, conn := range h.store.ListCFConnections(uid) {
-			if conn.ID == connID {
-				target, ok = conn, true
-			}
-		}
+		target, ok = h.store.CFConnection(uid, connID)
 	} else if !ok {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return

@@ -47,8 +47,8 @@ aapt2 link \
   --java "$OUT/gen" \
   --min-sdk-version "$MIN_SDK" \
   --target-sdk-version "$TARGET_SDK" \
-  --version-code 280 \
-  --version-name 2.8.0-slim \
+  --version-code 310 \
+  --version-name 3.1.0-slim \
   --no-static-lib-packages \
   "$OUT/res.zip"
 

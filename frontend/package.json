@@ -1,13 +1,14 @@
 {
   "name": "tunnel-manager",
   "private": true,
-  "version": "2.8.0",
+  "version": "3.1.0-slim",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "test": "node --test src/utils/*.test.ts",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:runtime": "node tools/runtime-check.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",

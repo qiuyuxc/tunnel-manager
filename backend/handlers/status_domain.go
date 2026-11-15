@@ -80,7 +80,8 @@ func statusDomainPublicPath(requestPath, target string) bool {
 		return true
 	default:
 		return strings.HasPrefix(requestPath, "/assets/") ||
-			strings.HasPrefix(requestPath, "/uploads/")
+			strings.HasPrefix(requestPath, "/uploads/") ||
+			strings.HasPrefix(requestPath, "/fonts/")
 	}
 }
 

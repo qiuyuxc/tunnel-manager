@@ -16,14 +16,18 @@ import (
 // SMTP relay, Cloudflare OAuth client, encryption key and login hardening
 // (passkey relying party, Turnstile, rate limits).
 type ManagementHandler struct {
-	store         *store.Store
-	encryptionKey []byte
+	store          *store.Store
+	encryptionKey  []byte
+	accountChanged func()
 }
 
 // NewManagementHandler creates the admin backend handler.
 func NewManagementHandler(st *store.Store, encryptionKey []byte) *ManagementHandler {
 	return &ManagementHandler{store: st, encryptionKey: append([]byte(nil), encryptionKey...)}
 }
+
+// SetAccountChangeHook reconciles services after account disablement/deletion.
+func (h *ManagementHandler) SetAccountChangeHook(fn func()) { h.accountChanged = fn }
 
 // ---------------------------------------------------------------------------
 // Panel settings

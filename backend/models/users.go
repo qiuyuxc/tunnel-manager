@@ -30,6 +30,7 @@ type User struct {
 	Avatar                 string
 	Email                  string
 	PasswordHash           string
+	AuthVersion            uint64
 	Role                   string
 	GroupID                string
 	Status                 string
@@ -66,6 +67,7 @@ type UserView struct {
 	// the account can still sign in with a password.
 	Passkeys              int  `json:"passkeys"`
 	PasswordLoginDisabled bool `json:"password_login_disabled"`
+	HasPassword           bool `json:"has_password"`
 }
 
 // UserGroup bundles a set of permissions granted to invited users.

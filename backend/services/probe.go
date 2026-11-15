@@ -21,11 +21,17 @@ type ProbeResult struct {
 }
 
 // ProbeHTTPClient performs health-check requests across the app.
-var ProbeHTTPClient = &http.Client{Timeout: 8 * time.Second}
+var ProbeHTTPClient = newProbeHTTPClient()
 
 // probeHTTP fetches rawURL (prefixing https:// when the scheme is missing)
 // with the given HTTP method and classifies the outcome.
 func probeHTTP(ctx context.Context, rawURL, method string) ProbeResult {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if !acquireProbe(ctx) {
+		return ProbeResult{State: "down", Err: ctx.Err()}
+	}
+	defer func() { <-probeSlots }()
 	url := strings.TrimSpace(rawURL)
 	if url == "" {
 		return ProbeResult{State: "down", Err: errEmptyURL}
@@ -36,6 +42,9 @@ func probeHTTP(ctx context.Context, rawURL, method string) ProbeResult {
 	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return ProbeResult{State: "down", Err: err}
+	}
+	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") || req.URL.User != nil {
+		return ProbeResult{State: "down", Err: ErrProbeAddressDenied}
 	}
 	req.Header.Set("User-Agent", "tunnel-manager-healthcheck")
 	start := time.Now()
@@ -61,9 +70,9 @@ func ProbeURL(ctx context.Context, rawURL string) ProbeResult {
 func ProbeTarget(ctx context.Context, targetType, rawURL, method string) ProbeResult {
 	switch targetType {
 	case "tcp":
-		return ProbeTCP(rawURL)
+		return probeTCP(ctx, rawURL)
 	case "icmp":
-		return ProbeICMP(rawURL)
+		return probeICMP(ctx, rawURL)
 	default:
 		m := strings.ToUpper(strings.TrimSpace(method))
 		if m != http.MethodPost {
@@ -74,7 +83,15 @@ func ProbeTarget(ctx context.Context, targetType, rawURL, method string) ProbeRe
 }
 
 // ProbeTCP checks a host:port endpoint by completing the TCP handshake.
-func ProbeTCP(hostPort string) ProbeResult {
+func ProbeTCP(hostPort string) ProbeResult { return probeTCP(context.Background(), hostPort) }
+
+func probeTCP(ctx context.Context, hostPort string) ProbeResult {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if !acquireProbe(ctx) {
+		return ProbeResult{State: "down", Err: ctx.Err()}
+	}
+	defer func() { <-probeSlots }()
 	hostPort = strings.TrimSpace(hostPort)
 	if hostPort == "" {
 		return ProbeResult{State: "down", Err: errEmptyURL}
@@ -83,7 +100,7 @@ func ProbeTCP(hostPort string) ProbeResult {
 		hostPort = net.JoinHostPort(strings.Trim(hostPort, "[]"), "80")
 	}
 	start := time.Now()
-	conn, err := net.DialTimeout("tcp", hostPort, 8*time.Second)
+	conn, err := dialProbe(ctx, "tcp", hostPort)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return ProbeResult{State: "down", LatencyMs: latency, Err: err}
@@ -94,18 +111,33 @@ func ProbeTCP(hostPort string) ProbeResult {
 
 // ProbeICMP shells out to the system ping binary; raw ICMP sockets are
 // typically unavailable to unprivileged users.
-func ProbeICMP(host string) ProbeResult {
+func ProbeICMP(host string) ProbeResult { return probeICMP(context.Background(), host) }
+
+func probeICMP(ctx context.Context, host string) ProbeResult {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if !acquireProbe(ctx) {
+		return ProbeResult{State: "down", Err: ctx.Err()}
+	}
+	defer func() { <-probeSlots }()
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return ProbeResult{State: "down", Err: errEmptyURL}
 	}
 	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
-	if i := strings.IndexAny(host, "/:"); i >= 0 {
-		host = host[:i]
+	if strings.Contains(host, "/") {
+		host = strings.SplitN(host, "/", 2)[0]
 	}
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	ips, resolveErr := resolveProbeHost(ctx, host)
+	if resolveErr != nil {
+		return ProbeResult{State: "down", Err: resolveErr}
+	}
+	host = ips[0].String()
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
 	cmd := exec.CommandContext(ctx, "ping", "-c", "1", "-W", "5", host)
 	out, err := cmd.Output()
 	latency := time.Since(start).Milliseconds()

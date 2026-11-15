@@ -49,7 +49,7 @@ public final class MonitorDetailState extends ViewModel {
         }, failure -> {
             if (cleared || request != generation) return;
             loading = false;
-            error = failure.getMessage() == null ? "加载失败，请重试" : failure.getMessage();
+            error = failure.getMessage() == null ? I18n.text("m_caa47445ca65") : failure.getMessage();
             changed();
         });
     }
@@ -83,21 +83,21 @@ public final class MonitorDetailState extends ViewModel {
                 try {
                     seconds = Integer.parseInt(interval.trim());
                 } catch (NumberFormatException failure) {
-                    formError = "请输入有效的检测间隔";
+                    formError = I18n.text("m_bf7bdc2c0f03");
                     changed();
                     return;
                 }
                 if (seconds < 30) {
-                    formError = "检测间隔至少为 30 秒";
+                    formError = I18n.text("m_2fd839bd0851");
                     changed();
                     return;
                 }
                 payload.put("interval_sec", seconds);
-                perform("保存设置", () -> Api.put(path(), payload), "检测间隔已保存", true);
+                perform(I18n.text("m_c8550237ba70"), () -> Api.put(path(), payload), I18n.text("m_a839443abe79"), true);
                 return;
             }
             if (name.trim().isEmpty() || url.trim().isEmpty()) {
-                formError = "请填写服务名称和地址";
+                formError = I18n.text("m_4625525ea66d");
                 changed();
                 return;
             }
@@ -106,36 +106,36 @@ public final class MonitorDetailState extends ViewModel {
             if ("add".equals(form)) {
                 payload.put("type", new String[]{"http", "tcp", "icmp"}[type]);
                 if (type == 0) payload.put("method", method == 0 ? "GET" : "POST");
-                perform("添加服务", () -> Api.post(path() + "/targets", payload), "服务已添加", false);
+                perform(I18n.text("m_6f760cbd09bb"), () -> Api.post(path() + "/targets", payload), I18n.text("m_26b6635cb0cc"), false);
             } else {
                 String targetPath = path() + "/targets/" + targetId;
-                perform("保存服务", () -> Api.put(targetPath, payload), "服务已更新", false);
+                perform(I18n.text("m_467100deb296"), () -> Api.put(targetPath, payload), I18n.text("m_27a7be5b46ff"), false);
             }
         } catch (org.json.JSONException failure) {
-            formError = "无法生成请求，请检查输入";
+            formError = I18n.text("m_2fb4b8c2ceb4");
             changed();
         }
     }
 
     void checkNow() {
-        perform("立即检测", () -> {
+        perform(I18n.text("m_14ca09ce1fd2"), () -> {
             JSONObject result = Api.post(path() + "/check", new JSONObject());
             return result.getJSONObject("monitor");
-        }, "检测完成", false);
+        }, I18n.text("m_37888055c912"), false);
     }
 
     void setPublish(boolean enabled) {
-        perform("更新公开设置", () -> Api.put(path(), new JSONObject().put("publish_enabled", enabled)),
-                enabled ? "公开状态页已开启" : "公开状态页已关闭", true);
+        perform(I18n.text("m_72c075860c03"), () -> Api.put(path(), new JSONObject().put("publish_enabled", enabled)),
+                enabled ? I18n.text("m_99d49e881233") : I18n.text("m_3e95219eea69"), true);
     }
 
     void removeTarget() {
         String targetPath = path() + "/targets/" + targetId;
-        perform("移除服务", () -> Api.delete(targetPath), "服务已移除", false);
+        perform(I18n.text("m_70f2105700a9"), () -> Api.delete(targetPath), I18n.text("m_dc29c275d718"), false);
     }
 
     void deleteMonitor() {
-        perform("删除项目", () -> Api.delete(path()), "监控项目已删除", false);
+        perform(I18n.text("m_f6dc6a110d09"), () -> Api.delete(path()), I18n.text("m_99d16dfc942e"), false);
     }
 
     private String path() {
@@ -154,7 +154,7 @@ public final class MonitorDetailState extends ViewModel {
         Api.async(request, updated -> {
             if (cleared || requestId != generation) return;
             busy = false;
-            deleted = "删除项目".equals(action);
+            deleted = I18n.text("m_f6dc6a110d09").equals(action);
             if (!deleted) monitor = updated;
             form = "";
             notice = success;
@@ -163,8 +163,8 @@ public final class MonitorDetailState extends ViewModel {
         }, failure -> {
             if (cleared || requestId != generation) return;
             busy = false;
-            String message = failure.getMessage() == null ? "请求失败，请重试" : failure.getMessage();
-            if ("添加服务".equals(action)) message += "。若网络中断，请先刷新核对，避免重复添加。";
+            String message = failure.getMessage() == null ? I18n.text("m_d8348d59c4bd") : failure.getMessage();
+            if (I18n.text("m_6f760cbd09bb").equals(action)) message += I18n.text("m_af20806c4d4f");
             if (form.isEmpty()) error = message;
             else formError = message;
             changed();

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { writeI18nStub } from './i18n-stub.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const directory = mkdtempSync(join(tmpdir(), 'tunnel-filter-'))
@@ -12,6 +13,7 @@ const executable = name => process.env.JAVA_HOME ? join(process.env.JAVA_HOME, '
 
 before(() => {
   const result = spawnSync(executable('javac'), ['-encoding', 'UTF-8', '-d', directory,
+    writeI18nStub(directory),
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/TunnelFilter.java'),
     resolve(root, 'tools/java/com/tunnelmanager/app/TunnelFilterTest.java'),
   ], { encoding: 'utf8' })

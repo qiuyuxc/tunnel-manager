@@ -260,7 +260,7 @@ void setOnColumnTap(OnColumnTap listener) {
         if (bucketSec >= 86400) {
             return (calendar.get(Calendar.MONTH) + 1) + "/" + calendar.get(Calendar.DAY_OF_MONTH);
         }
-        return calendar.get(Calendar.HOUR_OF_DAY) + "时";
+        return calendar.get(Calendar.HOUR_OF_DAY) + I18n.text("m_7d58b6422cac");
     }
 
     private static int alpha(int color, float value) {

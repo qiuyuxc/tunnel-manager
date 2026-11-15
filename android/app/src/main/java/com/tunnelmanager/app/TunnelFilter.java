@@ -4,14 +4,15 @@ import java.util.Locale;
 
 final class TunnelFilter {
     enum State {
-        HEALTHY("正常", "ok"), DEGRADED("降级", "warn"), DOWN("离线", "down"),
-        INACTIVE("未连接", ""), UNKNOWN("未知", "");
+        HEALTHY("m_296de0e31f8c", "ok"), DEGRADED("m_9f22b41cf5d7", "warn"), DOWN("m_be1b4f3c6c1c", "down"),
+        INACTIVE("m_3d52574ce150", ""), UNKNOWN("m_4d8c1c5b4283", "");
 
-        final String label;
+        final String labelKey;
+        String label() { return I18n.text(labelKey); }
         final String style;
 
         State(String label, String style) {
-            this.label = label;
+            this.labelKey = label;
             this.style = style;
         }
     }

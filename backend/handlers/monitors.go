@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -35,11 +36,12 @@ type MonitorsHandler struct {
 	hb       *services.HeartbeatLog
 	runner   *services.Runner
 	domains  statusDomainProvisioner
+	checks   *services.RateLimiter
 }
 
 // NewMonitorsHandler wires the handler with its collaborators.
 func NewMonitorsHandler(st *store.Store, hb *services.HeartbeatLog, runner *services.Runner, domains statusDomainProvisioner) *MonitorsHandler {
-	return &MonitorsHandler{st: st, hb: hb, runner: runner, domains: domains}
+	return &MonitorsHandler{st: st, hb: hb, runner: runner, domains: domains, checks: services.NewRateLimiter()}
 }
 
 func newAPIToken() string { return services.NewMonitorID() }
@@ -111,15 +113,25 @@ func (h *MonitorsHandler) enrich(m models.Monitor, withBars bool) monitorView {
 	}
 	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
 	for _, t := range m.Targets {
-		list := h.hb.Recent(m.ID, t.ID, 0)
+		since := int64(0)
+		if !withBars {
+			// The list only needs today's statistics, not a copy of every
+			// retained sample. Detail pages keep their existing history.
+			since = dayAgo
+		}
+		list := h.hb.Recent(m.ID, t.ID, since)
 		st := targetStatus{ID: t.ID, Name: t.Name, URL: t.URL, Type: t.Type, Method: t.Method, LinkEnabled: t.LinkEnabled}
 		if len(list) > 0 {
 			last := list[len(list)-1]
 			st.State = last.S
 			st.LatencyMs = last.M
 			st.HTTPCode = last.C
-			st.Error = publicErrorText(last.E)
-			st.Uptime24h = services.UptimePct(filterSince(list, dayAgo))
+			st.Error = last.E
+			dayHistory := list
+			if withBars {
+				dayHistory = filterSince(list, dayAgo)
+			}
+			st.Uptime24h = services.UptimePct(dayHistory)
 			if withBars {
 				raw := services.Downsample(list, barsPerTarget)
 				bars := make([]monitorBar, 0, len(raw))
@@ -224,12 +236,13 @@ func (h *MonitorsHandler) Create(w http.ResponseWriter, r *http.Request) {
 // List handles GET /api/monitors.
 func (h *MonitorsHandler) List(w http.ResponseWriter, r *http.Request) {
 	all := h.st.GetConfig().Monitors
+	withBars := r.URL.Query().Get("summary") != "1"
 	out := make([]monitorView, 0, len(all))
 	for _, m := range all {
 		if !h.visibleTo(r, m) {
 			continue
 		}
-		out = append(out, h.enrich(m, true))
+		out = append(out, h.enrich(m, withBars))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -645,6 +658,14 @@ func (h *MonitorsHandler) CheckNow(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "monitor not found"})
 		return
 	}
+	ownerID := sessionUID(r)
+	if ownerID == "" {
+		ownerID = h.st.AdminUserID()
+	}
+	if allowed, wait := h.checks.Take("monitor-check:"+ownerID, 5, time.Minute); !allowed {
+		writeTooManyAttempts(w, wait)
+		return
+	}
 	outcomes := h.runner.RunNow(r.Context(), m)
 	okCount := 0
 	for _, o := range outcomes {
@@ -1003,6 +1024,9 @@ type publicStatus struct {
 	Name         string         `json:"name"`
 	UpdatedAt    int64          `json:"updated_at"`
 	IntervalSec  int            `json:"interval_sec"`
+	WindowStart  int64          `json:"window_start"`
+	WindowEnd    int64          `json:"window_end"`
+	BucketSec    int            `json:"bucket_sec"`
 	PublicTitle  string         `json:"public_title,omitempty"`
 	PublicIcon   string         `json:"public_icon,omitempty"`
 	PublicSlug   string         `json:"public_slug,omitempty"`
@@ -1012,21 +1036,78 @@ type publicStatus struct {
 }
 
 type publicTarget struct {
-	Name      string      `json:"name"`
-	State     string      `json:"state"`
-	LatencyMs int64       `json:"latency_ms"`
-	HTTPCode  int         `json:"http_code,omitempty"`
-	Error     string      `json:"error,omitempty"`
-	Uptime24h float64     `json:"uptime_24h"`
-	Link      string      `json:"link,omitempty"`
-	Bars      []publicBar `json:"bars"`
+	Name          string      `json:"name"`
+	State         string      `json:"state"`
+	LatencyMs     int64       `json:"latency_ms"`
+	HTTPCode      int         `json:"http_code,omitempty"`
+	Error         string      `json:"error,omitempty"`
+	Uptime24h     float64     `json:"uptime_24h"`
+	ObservedCount int         `json:"observed_count"`
+	Link          string      `json:"link,omitempty"`
+	Bars          []publicBar `json:"bars"`
 }
 
 type publicBar struct {
-	T int64  `json:"t"`
-	S string `json:"s"`
-	M int64  `json:"ms,omitempty"`
-	C int    `json:"c,omitempty"`
+	T       int64  `json:"t"`
+	S       string `json:"s"`
+	M       int64  `json:"ms,omitempty"`
+	C       int    `json:"c,omitempty"`
+	Samples int    `json:"samples"`
+	OK      int    `json:"ok"`
+	Warn    int    `json:"warn"`
+	Down    int    `json:"down"`
+}
+
+const publicBucketSec = 30 * 60
+
+// publicHistory uses 48 equal half-hour windows, rather than sampling 48
+// individual probes from an arbitrary amount of retained history. Empty
+// windows stay unknown and each window retains its worst observed state.
+func publicHistory(list []services.Heartbeat, start, end int64) ([]publicBar, []services.Heartbeat) {
+	bars := make([]publicBar, barsPerTarget)
+	latencyCounts := make([]int, barsPerTarget)
+	observed := make([]services.Heartbeat, 0, len(list))
+	for i := range bars {
+		bars[i] = publicBar{T: start + int64(i*publicBucketSec)*1000, S: "unknown"}
+	}
+	for _, hb := range list {
+		if hb.T < start || hb.T > end || (hb.S != "ok" && hb.S != "warn" && hb.S != "down") {
+			continue
+		}
+		i := int((hb.T - start) / (publicBucketSec * 1000))
+		if i >= len(bars) {
+			i = len(bars) - 1 // A probe at exactly the window end belongs to the latest bar.
+		}
+		b := &bars[i]
+		b.Samples++
+		switch hb.S {
+		case "down":
+			b.Down++
+			b.S = "down"
+		case "warn":
+			b.Warn++
+			if b.S != "down" {
+				b.S = "warn"
+			}
+		case "ok":
+			b.OK++
+			if b.S == "unknown" {
+				b.S = "ok"
+			}
+		}
+		if hb.S != "down" && hb.M >= 0 {
+			b.M += hb.M
+			latencyCounts[i]++
+		}
+		b.C = hb.C
+		observed = append(observed, hb)
+	}
+	for i := range bars {
+		if latencyCounts[i] > 0 {
+			bars[i].M /= int64(latencyCounts[i])
+		}
+	}
+	return bars, observed
 }
 
 // AlertLogs handles GET /api/monitors/{monitorID}/alerts and returns the
@@ -1048,9 +1129,14 @@ func (h *MonitorsHandler) PublicStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 		return
 	}
+	now := time.Now().UnixMilli()
+	start := now - int64(24*time.Hour/time.Millisecond)
 	payload := publicStatus{
 		Name:         m.Name,
 		IntervalSec:  services.MonitorInterval(m.IntervalSec),
+		WindowStart:  start,
+		WindowEnd:    now,
+		BucketSec:    publicBucketSec,
 		PublicTitle:  m.PublicTitle,
 		PublicIcon:   m.PublicIcon,
 		PublicSlug:   m.PublicSlug,
@@ -1058,23 +1144,22 @@ func (h *MonitorsHandler) PublicStatus(w http.ResponseWriter, r *http.Request) {
 		Announcement: m.Announcement,
 		Targets:      []publicTarget{},
 	}
-	dayAgo := time.Now().Add(-24 * time.Hour).UnixMilli()
 	for _, t := range m.Targets {
-		list := h.hb.Recent(m.ID, t.ID, 0)
-		pt := publicTarget{Name: t.Name, State: "unknown", Bars: []publicBar{}}
+		list := h.hb.Recent(m.ID, t.ID, start)
+		bars, observed := publicHistory(list, start, now)
+		pt := publicTarget{Name: t.Name, State: "unknown", Bars: bars, ObservedCount: len(observed)}
 		pt.Link = linkURL(t)
-		if len(list) > 0 {
-			last := list[len(list)-1]
-			pt.State = last.S
-			pt.LatencyMs = last.M
-			pt.HTTPCode = last.C
-			pt.Error = publicErrorText(last.E)
-			pt.Uptime24h = services.UptimePct(filterSince(list, dayAgo))
-			raw := services.Downsample(list, barsPerTarget)
-			pt.Bars = make([]publicBar, len(raw))
-			for i, b := range raw {
-				pt.Bars[i] = publicBar{T: b.T, S: b.S, M: b.M, C: b.C}
+		if len(observed) > 0 {
+			last := observed[len(observed)-1]
+			// A stopped probe runner must not look healthy indefinitely.
+			freshMS := int64(max(payload.IntervalSec*3, 120)) * 1000
+			if now-last.T <= freshMS {
+				pt.State = last.S
+				pt.LatencyMs = last.M
+				pt.HTTPCode = last.C
+				pt.Error = publicErrorText(last.E)
 			}
+			pt.Uptime24h = services.UptimePct(observed)
 			if last.T > payload.UpdatedAt {
 				payload.UpdatedAt = last.T
 			}
@@ -1097,20 +1182,19 @@ func linkURL(t models.MonitorTarget) string {
 	if !strings.Contains(u, "://") {
 		u = "https://" + u
 	}
-	return u
-}
-
-// publicErrorText shortens transport failures for the unauthenticated page.
-func publicErrorText(e string) string {
-	e = strings.TrimSpace(e)
-	if e == "" {
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Hostname() == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return ""
 	}
-	if i := strings.LastIndex(e, ":"); i > 0 {
-		candidate := strings.TrimSpace(e[:i])
-		if candidate != "" {
-			e = candidate
-		}
+	// Probe credentials are never included in the public link.
+	parsed.User = nil
+	return parsed.String()
+}
+
+// Public pages never expose transport diagnostics, including historical errors.
+func publicErrorText(e string) string {
+	if strings.TrimSpace(e) == "" {
+		return ""
 	}
-	return e
+	return "探测失败"
 }

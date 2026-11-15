@@ -104,8 +104,8 @@ public class AlertService extends Service {
     private void startInForeground() {
         Notification.Builder b = new Notification.Builder(this, MainActivity.CH_SERVICE)
                 .setSmallIcon(R.drawable.ic_stat_tm)
-                .setContentTitle("告警推送已开启")
-                .setContentText("正在等待监控状态变化")
+                .setContentTitle(I18n.text("m_ca8aaf1bf49a"))
+                .setContentText(I18n.text("m_03bf1c9565c3"))
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setContentIntent(openConsole(null));
@@ -248,7 +248,7 @@ public class AlertService extends Service {
         boolean recovered = "ok".equals(alert.optString("state", ""));
         String monitor = alert.optString("monitor_name", "");
         String target = alert.optString("target_name", "");
-        if (monitor.isEmpty()) monitor = "监控项目";
+        if (monitor.isEmpty()) monitor = I18n.text("m_ce0d1c8bffa4");
 
         String detail = alert.optString("error", "");
         if (detail.isEmpty()) {
@@ -256,9 +256,9 @@ public class AlertService extends Service {
             if (httpCode > 0) detail = "HTTP " + httpCode;
         }
 
-        String title = recovered ? monitor + " 已恢复" : monitor + " 状态异常";
+        String title = recovered ? monitor + I18n.text("m_448c957c3544") : monitor + I18n.text("m_bb98a9f5f83d");
         String text = target.isEmpty() ? detail : target + (detail.isEmpty() ? "" : " · " + detail);
-        if (text.isEmpty()) text = recovered ? "探测已恢复正常" : "探测失败";
+        if (text.isEmpty()) text = recovered ? I18n.text("m_3cfa97af008e") : I18n.text("m_c318cf5f0af4");
 
         Notification.Builder b = new Notification.Builder(this, recovered ? MainActivity.CH_UP : MainActivity.CH_DOWN)
                 .setSmallIcon(R.drawable.ic_stat_tm)
@@ -280,9 +280,9 @@ public class AlertService extends Service {
     private void postSessionExpired() {
         Notification n = new Notification.Builder(this, MainActivity.CH_UP)
                 .setSmallIcon(R.drawable.ic_stat_tm)
-                .setContentTitle("登录已失效，告警推送已停止")
-                .setContentText("点按回到 App 重新登录后，再到通知设置里开启")
-                .setStyle(new Notification.BigTextStyle().bigText("登录已失效，告警推送已停止。点按回到 App 重新登录后，再到通知设置里开启。"))
+                .setContentTitle(I18n.text("m_93e486423042"))
+                .setContentText(I18n.text("m_523443347d2b"))
+                .setStyle(new Notification.BigTextStyle().bigText(I18n.text("m_d90b69922048")))
                 .setAutoCancel(true)
                 .setContentIntent(openConsole(null))
                 .build();
@@ -294,9 +294,9 @@ public class AlertService extends Service {
         createChannels(ctx);
         Notification n = new Notification.Builder(ctx, MainActivity.CH_UP)
                 .setSmallIcon(R.drawable.ic_stat_tm)
-                .setContentTitle("测试通知")
-                .setContentText("这条通知来自本机 App，与浏览器无关")
-                .setStyle(new Notification.BigTextStyle().bigText("测试通知：这条通知来自本机 App，与浏览器无关。"))
+                .setContentTitle(I18n.text("m_b1fd2e3dbb36"))
+                .setContentText(I18n.text("m_88aca5e1ff8e"))
+                .setStyle(new Notification.BigTextStyle().bigText(I18n.text("m_a43131f2b9bb")))
                 .setAutoCancel(true)
                 .setContentIntent(openConsole(ctx, null))
                 .build();

@@ -1,6 +1,7 @@
 package com.tunnelmanager.app;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
@@ -42,6 +43,8 @@ import java.util.List;
  * the operator sees is the value that gets stored.
  */
 public class SettingsFragment extends PageFragment {
+    @Override boolean canRefresh() { return !busy && !loading && !sysLoading; }
+    @Override void refreshPage() { if (canRefresh()) load(); }
 
     private static final long MAX_ICON_BYTES = 512L * 1024;
     private static final int MAX_PRESETS = 20;
@@ -78,8 +81,13 @@ public class SettingsFragment extends PageFragment {
     private final List<EditText> presetNameInputs = new ArrayList<>();
     private final List<EditText> presetValueInputs = new ArrayList<>();
 
-    private boolean loading = true;
+    private boolean loading = false;
+    private boolean configLoaded = false;
+    private boolean sysLoaded = false;
+    private boolean sysLoading = false;
+    private JSONObject sysSnapshot = new JSONObject();
     private boolean busy = false;
+    private int readGeneration;
     private String statusMessage = "";
     private boolean statusOk = true;
 
@@ -168,24 +176,132 @@ public class SettingsFragment extends PageFragment {
         UI.pagePadding(body);
         scroll.addView(body);
         render();
-        load();
+        if (!configLoaded) load();
+        else {
+            loadIcon();
+            if (!sysLoaded) loadSys();
+        }
         return scroll;
+    }
+
+    @Override public void onCreate(Bundle saved) {
+        super.onCreate(saved);
+        if (saved == null || !saved.containsKey("settingsConfig")) return;
+        try {
+            JSONObject restored = new JSONObject(saved.getString("settingsConfig"));
+            if (!restored.has("site_name")) return;
+            applyConfig(restored);
+            if (saved.containsKey("settingsSystem")) {
+                JSONObject restoredSystem = new JSONObject(saved.getString("settingsSystem"));
+                if (restoredSystem.has("settings")) applySysPayload(restoredSystem);
+            }
+        } catch (Exception ignored) { return; }
+        nameDraft = saved.getString("settingsName", nameDraft);
+        descriptionDraft = saved.getString("settingsDescription", descriptionDraft);
+        iconDraft = saved.getString("settingsIcon", iconDraft);
+        panelHostDraft = saved.getString("settingsHost", panelHostDraft);
+        preferredDraft = saved.getString("settingsPreferred", preferredDraft);
+        fallbackDraft = saved.getString("settingsFallback", fallbackDraft);
+        landingEnabled = saved.getBoolean("settingsLanding", landingEnabled);
+        java.util.ArrayList<String> names = saved.getStringArrayList("settingsPresetNames");
+        java.util.ArrayList<String> values = saved.getStringArrayList("settingsPresetValues");
+        if (names != null && values != null && names.size() == values.size()) {
+            presets.clear();
+            for (int i = 0; i < names.size(); i++) presets.add(new String[]{names.get(i), values.get(i)});
+        }
+        turnstileSiteKey = saved.getString("settingsSys_turnstileSiteKey", turnstileSiteKey);
+        passkeyRPID = saved.getString("settingsSys_passkeyRPID", passkeyRPID);
+        passkeyOrigins = saved.getString("settingsSys_passkeyOrigins", passkeyOrigins);
+        androidPackage = saved.getString("settingsSys_androidPackage", androidPackage);
+        androidFingerprints = saved.getString("settingsSys_androidFingerprints", androidFingerprints);
+        rateLimitPerAccount = saved.getString("settingsSys_rateLimitPerAccount", rateLimitPerAccount);
+        rateLimitPerIP = saved.getString("settingsSys_rateLimitPerIP", rateLimitPerIP);
+        rateLimitWindow = saved.getString("settingsSys_rateLimitWindow", rateLimitWindow);
+        rateLimitFamiliar = saved.getString("settingsSys_rateLimitFamiliar", rateLimitFamiliar);
+        oauthClientId = saved.getString("settingsSys_oauthClientId", oauthClientId);
+        oauthRedirect = saved.getString("settingsSys_oauthRedirect", oauthRedirect);
+        oauthScopes = saved.getString("settingsSys_oauthScopes", oauthScopes);
+        smtpHost = saved.getString("settingsSys_smtpHost", smtpHost);
+        smtpPort = saved.getString("settingsSys_smtpPort", smtpPort);
+        smtpUsername = saved.getString("settingsSys_smtpUsername", smtpUsername);
+        smtpFrom = saved.getString("settingsSys_smtpFrom", smtpFrom);
+        testMailTo = saved.getString("settingsSys_testMailTo", testMailTo);
+        turnstileEnabled = saved.getBoolean("settingsSys_turnstileEnabled", turnstileEnabled);
+        experimentalEnabled = saved.getBoolean("settingsSys_experimentalEnabled", experimentalEnabled);
+        passwordLoginDisabled = saved.getBoolean("settingsSys_passwordLoginDisabled", passwordLoginDisabled);
+        rateLimitEnabled = saved.getBoolean("settingsSys_rateLimitEnabled", rateLimitEnabled);
+        rateLimitNotify = saved.getBoolean("settingsSys_rateLimitNotify", rateLimitNotify);
+        smtpTls = saved.getInt("settingsSys_smtpTls", smtpTls);
+        labDailyRequestLimit = saved.getInt("settingsSys_labDailyRequestLimit", labDailyRequestLimit);
+        labRequestsPerSecond = saved.getInt("settingsSys_labRequestsPerSecond", labRequestsPerSecond);
+        labMaxWorkers = saved.getInt("settingsSys_labMaxWorkers", labMaxWorkers);
+        loading = false;
+    }
+
+    @Override public void onSaveInstanceState(@NonNull Bundle saved) {
+        capture();
+        if (configLoaded) saved.putString("settingsConfig", config.toString());
+        if (sysLoaded) saved.putString("settingsSystem", sysSnapshot.toString());
+        saved.putString("settingsName", nameDraft);
+        saved.putString("settingsDescription", descriptionDraft);
+        saved.putString("settingsIcon", iconDraft);
+        saved.putString("settingsHost", panelHostDraft);
+        saved.putString("settingsPreferred", preferredDraft);
+        saved.putString("settingsFallback", fallbackDraft);
+        saved.putBoolean("settingsLanding", landingEnabled);
+        java.util.ArrayList<String> names = new java.util.ArrayList<>(), values = new java.util.ArrayList<>();
+        for (String[] preset : presets) { names.add(preset[0]); values.add(preset[1]); }
+        saved.putStringArrayList("settingsPresetNames", names);
+        saved.putStringArrayList("settingsPresetValues", values);
+        saved.putString("settingsSys_turnstileSiteKey", turnstileSiteKey);
+        saved.putString("settingsSys_passkeyRPID", passkeyRPID);
+        saved.putString("settingsSys_passkeyOrigins", passkeyOrigins);
+        saved.putString("settingsSys_androidPackage", androidPackage);
+        saved.putString("settingsSys_androidFingerprints", androidFingerprints);
+        saved.putString("settingsSys_rateLimitPerAccount", rateLimitPerAccount);
+        saved.putString("settingsSys_rateLimitPerIP", rateLimitPerIP);
+        saved.putString("settingsSys_rateLimitWindow", rateLimitWindow);
+        saved.putString("settingsSys_rateLimitFamiliar", rateLimitFamiliar);
+        saved.putString("settingsSys_oauthClientId", oauthClientId);
+        saved.putString("settingsSys_oauthRedirect", oauthRedirect);
+        saved.putString("settingsSys_oauthScopes", oauthScopes);
+        saved.putString("settingsSys_smtpHost", smtpHost);
+        saved.putString("settingsSys_smtpPort", smtpPort);
+        saved.putString("settingsSys_smtpUsername", smtpUsername);
+        saved.putString("settingsSys_smtpFrom", smtpFrom);
+        saved.putString("settingsSys_testMailTo", testMailTo);
+        saved.putBoolean("settingsSys_turnstileEnabled", turnstileEnabled);
+        saved.putBoolean("settingsSys_experimentalEnabled", experimentalEnabled);
+        saved.putBoolean("settingsSys_passwordLoginDisabled", passwordLoginDisabled);
+        saved.putBoolean("settingsSys_rateLimitEnabled", rateLimitEnabled);
+        saved.putBoolean("settingsSys_rateLimitNotify", rateLimitNotify);
+        saved.putInt("settingsSys_smtpTls", smtpTls);
+        saved.putInt("settingsSys_labDailyRequestLimit", labDailyRequestLimit);
+        saved.putInt("settingsSys_labRequestsPerSecond", labRequestsPerSecond);
+        saved.putInt("settingsSys_labMaxWorkers", labMaxWorkers);
+        super.onSaveInstanceState(saved);
+    }
+
+    @Override public void onDestroyView() {
+        readGeneration++;
+        loading = false;
+        sysLoading = false;
+        scroll = null;
+        body = null;
+        super.onDestroyView();
     }
 
     // ------------------------------------------------------------------- data
 
     private void load() {
+        if (!alive() || loading || sysLoading || busy) return;
+        final int request = ++readGeneration;
         loading = true;
         render();
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("config", Api.get("/api/config"));
-            payload.put("settings", Api.get("/api/admin/settings"));
-            payload.put("smtp", Api.get("/api/admin/smtp"));
-            payload.put("oauth", Api.get("/api/admin/oauth"));
-            payload.put("key", Api.get("/api/admin/encryption-key"));
-            return payload;
-        }, payload -> {
+        Api.async(() -> Api.batch(Api.query("config", "/api/config"), Api.query("settings", "/api/admin/settings"),
+                Api.query("smtp", "/api/admin/smtp"), Api.query("oauth", "/api/admin/oauth"),
+                Api.query("key", "/api/admin/encryption-key")), payload -> {
+            if (!alive() || request != readGeneration) return;
             loading = false;
             applyConfig(orEmpty(payload.optJSONObject("config")));
             applySysPayload(payload);
@@ -193,8 +309,9 @@ public class SettingsFragment extends PageFragment {
             render();
             loadIcon();
         }, failure -> {
+            if (!alive() || request != readGeneration) return;
             loading = false;
-            statusMessage = "加载失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_01de8216e0d0") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -207,20 +324,29 @@ public class SettingsFragment extends PageFragment {
     /** Reloads only the relocated system/security settings, so a save on one of
      *  those cards does not discard unsaved site/CNAME/fallback drafts. */
     private void loadSys() {
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("settings", Api.get("/api/admin/settings"));
-            payload.put("smtp", Api.get("/api/admin/smtp"));
-            payload.put("oauth", Api.get("/api/admin/oauth"));
-            payload.put("key", Api.get("/api/admin/encryption-key"));
-            return payload;
-        }, payload -> {
+        if (!alive() || sysLoading || loading || busy) return;
+        final int request = ++readGeneration;
+        sysLoading = true;
+        Api.async(() -> Api.batch(Api.query("settings", "/api/admin/settings"), Api.query("smtp", "/api/admin/smtp"),
+                Api.query("oauth", "/api/admin/oauth"), Api.query("key", "/api/admin/encryption-key")), payload -> {
+            if (!alive() || request != readGeneration) return;
+            sysLoading = false;
             applySysPayload(payload);
             render();
-        }, failure -> render());
+        }, failure -> { if (!alive() || request != readGeneration) return; sysLoading = false; render(); });
     }
 
     private void applySysPayload(JSONObject payload) {
+        sysLoaded = true;
+        try {
+            JSONObject safeSettings = new JSONObject(orEmpty(payload.optJSONObject("settings")).toString());
+            safeSettings.remove("turnstile_secret_key"); safeSettings.remove("turnstile_secret");
+            JSONObject safeSMTP = new JSONObject(orEmpty(payload.optJSONObject("smtp")).toString()); safeSMTP.remove("password");
+            JSONObject safeOAuth = new JSONObject(orEmpty(payload.optJSONObject("oauth")).toString()); safeOAuth.remove("client_secret");
+            JSONObject keyMetadata = orEmpty(payload.optJSONObject("key"));
+            sysSnapshot = new JSONObject().put("settings", safeSettings).put("smtp", safeSMTP).put("oauth", safeOAuth)
+                    .put("key", new JSONObject().put("source", keyMetadata.optString("source", "none")));
+        } catch (Exception ignored) { sysSnapshot = new JSONObject(); }
         sysSettings = orEmpty(payload.optJSONObject("settings"));
         applySmtp(payload.optJSONObject("smtp"));
         applyOauth(payload.optJSONObject("oauth"));
@@ -275,6 +401,7 @@ public class SettingsFragment extends PageFragment {
     }
 
     private void applyConfig(JSONObject payload) {
+        configLoaded = true;
         config = payload;
         nameDraft = payload.optString("site_name", "");
         descriptionDraft = payload.optString("site_description", "");
@@ -372,13 +499,12 @@ public class SettingsFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), "全局设置"));
-        TextView subtitle = UI.muted(requireContext(), "站点品牌、域名绑定偏好、回退源、隧道，以及人机验证、OAuth、加密密钥、通行密钥、登录保护与邮件服务");
+        TextView subtitle = UI.muted(requireContext(), I18n.text("m_304845c555ff") + "。" + I18n.text("slim_8523c968bd2b"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
 
         if (loading) {
-            body.addView(UI.muted(requireContext(), "加载中…"));
+            body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
 
@@ -393,6 +519,9 @@ public class SettingsFragment extends PageFragment {
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(tunnelCard());
 
+        if (!sysLoaded) {
+            UI.addRow(body, UI.muted(requireContext(), I18n.text("m_4927a53bcc88")), UI.MD);
+        } else {
         // Relocated system & security section.
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(turnstileCard());
@@ -410,6 +539,8 @@ public class SettingsFragment extends PageFragment {
         body.addView(smtpCard());
         body.addView(UI.spacer(requireContext(), UI.MD));
         body.addView(smtpTestCard());
+
+        }
 
         if (!statusMessage.isEmpty()) {
             TextView banner = UI.banner(requireContext(), statusMessage, !statusOk);
@@ -438,7 +569,7 @@ public class SettingsFragment extends PageFragment {
     }
 
     private TextView primaryAction(String label, Runnable action) {
-        TextView button = UI.button(requireContext(), busy ? "处理中…" : label, UI.BTN_PRIMARY);
+        TextView button = UI.button(requireContext(), busy ? I18n.text("m_d3d21191f32e") : label, UI.BTN_PRIMARY);
         button.setEnabled(!busy);
         button.setOnClickListener(v -> action.run());
         return button;
@@ -448,9 +579,9 @@ public class SettingsFragment extends PageFragment {
 
     private View siteCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("站点信息", "自定义浏览器标题、导航品牌、登录页名称、描述与站点图标。"));
+        card.addView(cardHead(I18n.text("m_a719b867f3fc"), I18n.text("m_22196a1072dc")));
 
-        TextView previewLabel = UI.label(requireContext(), "实时预览");
+        TextView previewLabel = UI.label(requireContext(), I18n.text("m_a76fdaad7519"));
         UI.margin(previewLabel, 0, 0, 0, UI.SM);
         card.addView(previewLabel);
 
@@ -463,7 +594,7 @@ public class SettingsFragment extends PageFragment {
         previewText.addView(UI.strong(requireContext(),
                 nameDraft.trim().isEmpty() ? "Tunnel Manager" : nameDraft.trim()));
         TextView previewDesc = UI.muted(requireContext(),
-                descriptionDraft.trim().isEmpty() ? "Cloudflare 隧道管理中心" : descriptionDraft.trim());
+                descriptionDraft.trim().isEmpty() ? I18n.text("m_c2c8982623de") : descriptionDraft.trim());
         UI.margin(previewDesc, 0, 1, 0, 0);
         previewText.addView(previewDesc);
         LinearLayout.LayoutParams previewTextLp = new LinearLayout.LayoutParams(
@@ -475,28 +606,28 @@ public class SettingsFragment extends PageFragment {
         nameInput = UI.input(requireContext(), "Tunnel Manager");
         nameInput.setText(nameDraft);
         nameInput.addTextChangedListener(new SimpleWatcher(this::refreshPreview));
-        card.addView(UI.field(requireContext(), "站点名称", nameInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_8ac4f0447b99"), nameInput, UI.MD));
 
-        descriptionInput = UI.input(requireContext(), "Cloudflare 隧道管理中心");
+        descriptionInput = UI.input(requireContext(), I18n.text("m_c2c8982623de"));
         descriptionInput.setText(descriptionDraft);
         descriptionInput.addTextChangedListener(new SimpleWatcher(this::refreshPreview));
-        card.addView(UI.field(requireContext(), "站点描述", descriptionInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_9ddde2b92952"), descriptionInput, UI.MD));
 
-        iconInput = UI.input(requireContext(), "https://example.com/icon.png，或上传本地图片");
+        iconInput = UI.input(requireContext(), I18n.text("m_22f956aa4f06"));
         iconInput.setText(iconDraft);
         iconInput.addTextChangedListener(new SimpleWatcher(() -> {
             iconDraft = iconInput.getText().toString().trim();
             ui.removeCallbacks(iconReload);
             ui.postDelayed(iconReload, 450);
         }));
-        card.addView(UI.field(requireContext(), "站点图标", iconInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_e220e37bbb93"), iconInput, UI.MD));
 
         LinearLayout iconActions = UI.row(requireContext());
-        TextView upload = UI.button(requireContext(), "上传图片", UI.BTN_SECONDARY);
+        TextView upload = UI.button(requireContext(), I18n.text("m_9fbb4750bb39"), UI.BTN_SECONDARY);
         upload.setOnClickListener(v -> iconPicker.launch("image/*"));
         iconActions.addView(upload);
         if (!iconDraft.isEmpty()) {
-            TextView clear = UI.button(requireContext(), "清除图标", UI.BTN_GHOST);
+            TextView clear = UI.button(requireContext(), I18n.text("m_10e0fd099bd2"), UI.BTN_GHOST);
             clear.setOnClickListener(v -> {
                 capture();
                 iconDraft = "";
@@ -508,19 +639,19 @@ public class SettingsFragment extends PageFragment {
             iconActions.addView(clear);
         }
         UI.addRow(card, iconActions, UI.SM);
-        note(card, "建议使用 1:1 图片，文件不超过 512 KB。", UI.SM);
+        note(card, I18n.text("m_8647947e6b61"), UI.SM);
 
         panelHostInput = UI.input(requireContext(), "panel.example.com");
         panelHostInput.setText(panelHostDraft);
-        card.addView(UI.field(requireContext(), "面板域名", panelHostInput, UI.MD));
-        note(card, "状态页自定义域名会复制该域名 ingress 的服务与源站参数。留空时自动使用管理员首次登录时的访问域名。", UI.SM);
+        card.addView(UI.field(requireContext(), I18n.text("m_d22b7b6d0776"), panelHostInput, UI.MD));
+        note(card, I18n.text("m_51b4048beb35"), UI.SM);
 
         UI.Toggle landing = new UI.Toggle(requireContext(), landingEnabled);
         LinearLayout landingRow = UI.row(requireContext());
         LinearLayout landingText = UI.column(requireContext());
-        landingText.addView(UI.strong(requireContext(), "启用首页（落地页）"));
+        landingText.addView(UI.strong(requireContext(), I18n.text("m_87b31918524a")));
         TextView landingHint = UI.muted(requireContext(),
-                "开启后，未登录用户访问站点将先看到首页，而不是直接进入登录页。");
+                I18n.text("m_287303a83357"));
         UI.margin(landingHint, 0, UI.XS, 0, 0);
         landingText.addView(landingHint);
         landingRow.addView(landingText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -535,7 +666,7 @@ public class SettingsFragment extends PageFragment {
         UI.addRow(card, landingRow, UI.MD);
 
         card.addView(UI.spacer(requireContext(), UI.MD));
-        card.addView(primaryAction("保存站点信息", this::saveSite));
+        card.addView(primaryAction(I18n.text("m_bcf1ace464e5"), this::saveSite));
         return card;
     }
 
@@ -550,13 +681,13 @@ public class SettingsFragment extends PageFragment {
         String name = nameInput == null ? "" : nameInput.getText().toString().trim();
         String desc = descriptionInput == null ? "" : descriptionInput.getText().toString().trim();
         ((TextView) text.getChildAt(0)).setText(name.isEmpty() ? "Tunnel Manager" : name);
-        ((TextView) text.getChildAt(1)).setText(desc.isEmpty() ? "Cloudflare 隧道管理中心" : desc);
+        ((TextView) text.getChildAt(1)).setText(desc.isEmpty() ? I18n.text("m_c2c8982623de") : desc);
     }
 
     /**
      * Finds the preview row by its shape rather than by index.
      *
-     * The card grew a "实时预览" label above it, and anything else added later
+     * The card grew a I18n.text("m_a76fdaad7519") label above it, and anything else added later
      * would shift the index again — matching on structure keeps the lookup from
      * silently pointing at the wrong child.
      */
@@ -623,14 +754,14 @@ public class SettingsFragment extends PageFragment {
 
     private View presetsCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("常用 CNAME 组", "维护常用优选线路。域名绑定时可以直接选择，也可以继续手动输入。"));
+        card.addView(cardHead(I18n.text("m_f60a2d511962"), I18n.text("m_7e7f12cf948f")));
 
         preferredInput = UI.input(requireContext(), "cf.090227.xyz");
         preferredInput.setText(preferredDraft);
-        card.addView(UI.field(requireContext(), "默认优选 CNAME", preferredInput));
-        note(card, "未指定线路时自动使用此值。", UI.SM);
+        card.addView(UI.field(requireContext(), I18n.text("m_71b3aeb8f73c"), preferredInput));
+        note(card, I18n.text("m_bb8bd65fc13f"), UI.SM);
 
-        TextView savePreferred = UI.button(requireContext(), "保存默认值", UI.BTN_SECONDARY);
+        TextView savePreferred = UI.button(requireContext(), I18n.text("m_9e9ef2c6a1ec"), UI.BTN_SECONDARY);
         savePreferred.setOnClickListener(v -> savePreferredCNAME(preferredInput.getText().toString().trim()));
         UI.addRow(card, savePreferred, UI.SM);
 
@@ -640,7 +771,7 @@ public class SettingsFragment extends PageFragment {
             card.addView(presetRow(i));
         }
 
-        TextView add = UI.button(requireContext(), "添加常用 CNAME", UI.BTN_SECONDARY);
+        TextView add = UI.button(requireContext(), I18n.text("m_f47cac452640"), UI.BTN_SECONDARY);
         add.setEnabled(presets.size() < MAX_PRESETS);
         add.setOnClickListener(v -> {
             capture();
@@ -651,7 +782,7 @@ public class SettingsFragment extends PageFragment {
         UI.addRow(card, add, UI.MD);
 
         card.addView(UI.spacer(requireContext(), UI.MD));
-        card.addView(primaryAction("保存 CNAME 组", this::savePresets));
+        card.addView(primaryAction(I18n.text("m_801a8daafa2e"), this::savePresets));
         return card;
     }
 
@@ -673,15 +804,15 @@ public class SettingsFragment extends PageFragment {
         head.addView(remove);
         box.addView(head);
 
-        EditText name = UI.input(requireContext(), "例如：移动优选");
+        EditText name = UI.input(requireContext(), I18n.text("m_93bc08a447ce"));
         name.setText(presets.get(index)[0]);
         presetNameInputs.add(name);
-        box.addView(UI.field(requireContext(), "线路名称", name, UI.SM));
+        box.addView(UI.field(requireContext(), I18n.text("m_2035432e8a18"), name, UI.SM));
 
-        EditText value = UI.input(requireContext(), "例如：cdn.example.com");
+        EditText value = UI.input(requireContext(), I18n.text("m_91d03241c65a"));
         value.setText(presets.get(index)[1]);
         presetValueInputs.add(value);
-        box.addView(UI.field(requireContext(), "CNAME 地址", value, UI.SM));
+        box.addView(UI.field(requireContext(), I18n.text("m_ce05579d19d5"), value, UI.SM));
 
         LinearLayout wrap = UI.column(requireContext());
         wrap.addView(box);
@@ -694,13 +825,13 @@ public class SettingsFragment extends PageFragment {
 
     private View fallbackCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("回退源设置", "设置 Custom Hostnames 的 Fallback Origin。"));
+        card.addView(cardHead(I18n.text("m_119e1fd67f70"), I18n.text("m_855cdae806a9")));
 
-        fallbackInput = UI.input(requireContext(), "例如: fallback.example.com");
+        fallbackInput = UI.input(requireContext(), I18n.text("m_078389cf3046"));
         fallbackInput.setText(fallbackDraft);
         card.addView(fallbackInput);
 
-        TextView save = UI.button(requireContext(), "设置回退源", UI.BTN_SECONDARY);
+        TextView save = UI.button(requireContext(), I18n.text("m_0bb58707f90c"), UI.BTN_SECONDARY);
         save.setOnClickListener(v -> saveFallback(fallbackInput.getText().toString().trim()));
         UI.addRow(card, save, UI.MD);
         return card;
@@ -708,19 +839,19 @@ public class SettingsFragment extends PageFragment {
 
     private View tunnelCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(cardHead("当前隧道", "隧道选择统一在隧道管理页完成，避免误填 ID。"));
+        card.addView(cardHead(I18n.text("m_b903d203f70a"), I18n.text("m_8401fe7d0746")));
 
         String tunnelId = config.optString("tunnel_id", "");
         String tunnelName = config.optString("tunnel_name", "");
         LinearLayout row = UI.row(requireContext());
         LinearLayout text = UI.column(requireContext());
-        text.addView(UI.strong(requireContext(), tunnelId.isEmpty() ? "尚未选择隧道"
-                : (tunnelName.isEmpty() ? "已选隧道" : tunnelName)));
+        text.addView(UI.strong(requireContext(), tunnelId.isEmpty() ? I18n.text("m_0e2cf15a2702")
+                : (tunnelName.isEmpty() ? I18n.text("m_8ce5320404d5") : tunnelName)));
         if (!tunnelId.isEmpty()) {
             text.addView(UI.mono(requireContext(), tunnelId, Theme.p().mute));
         }
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView go = UI.button(requireContext(), tunnelId.isEmpty() ? "选择隧道" : "切换隧道",
+        TextView go = UI.button(requireContext(), tunnelId.isEmpty() ? I18n.text("m_acfb8f32676c") : I18n.text("m_42b8762044e2"),
                 tunnelId.isEmpty() ? UI.BTN_PRIMARY : UI.BTN_SECONDARY);
         go.setOnClickListener(v -> openRoute("/tunnels"));
         row.addView(go);
@@ -733,12 +864,12 @@ public class SettingsFragment extends PageFragment {
     private void saveSite() {
         capture();
         if (nameDraft.trim().isEmpty()) {
-            statusMessage = "请输入站点名称";
+            statusMessage = I18n.text("m_85c2f8365c82");
             statusOk = false;
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -756,13 +887,13 @@ public class SettingsFragment extends PageFragment {
             iconDraft = result.optString("icon", iconDraft);
             landingEnabled = result.optBoolean("landing_enabled", landingEnabled);
             Session.applyConfig(siteIdentity(result));
-            statusMessage = "站点信息已更新";
+            statusMessage = I18n.text("m_1964b400b352");
             statusOk = true;
             render();
             loadIcon();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -780,12 +911,12 @@ public class SettingsFragment extends PageFragment {
 
     private void savePreferredCNAME(String value) {
         if (value.isEmpty()) {
-            statusMessage = "请输入默认优选 CNAME";
+            statusMessage = I18n.text("m_5799ba3fe8dc");
             statusOk = false;
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -794,12 +925,12 @@ public class SettingsFragment extends PageFragment {
         }, result -> {
             busy = false;
             preferredDraft = value;
-            statusMessage = "默认优选 CNAME 已更新";
+            statusMessage = I18n.text("m_20737048a527");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -809,13 +940,13 @@ public class SettingsFragment extends PageFragment {
         capture();
         for (String[] preset : presets) {
             if (preset[0].trim().isEmpty() || preset[1].trim().isEmpty()) {
-                statusMessage = "请补全所有线路名称和 CNAME 地址";
+                statusMessage = I18n.text("m_ea92a5f61f83");
                 statusOk = false;
                 render();
                 return;
             }
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONArray items = new JSONArray();
@@ -839,12 +970,12 @@ public class SettingsFragment extends PageFragment {
                     presets.add(new String[]{item.optString("name", ""), item.optString("value", "")});
                 }
             }
-            statusMessage = "常用 CNAME 组已更新";
+            statusMessage = I18n.text("m_d12fd29ea414");
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -852,12 +983,12 @@ public class SettingsFragment extends PageFragment {
 
     private void saveFallback(String domain) {
         if (domain.isEmpty()) {
-            statusMessage = "请输入回退源域名";
+            statusMessage = I18n.text("m_6301facafab9");
             statusOk = false;
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -866,12 +997,12 @@ public class SettingsFragment extends PageFragment {
         }, result -> {
             busy = false;
             fallbackDraft = domain;
-            statusMessage = result.optString("message", "回退源已设置");
+            statusMessage = result.optString("message", I18n.text("m_b9ed9651aa57"));
             statusOk = true;
             render();
         }, failure -> {
             busy = false;
-            statusMessage = "设置失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_a3614e8103ec") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -884,14 +1015,14 @@ public class SettingsFragment extends PageFragment {
         try {
             String mime = requireContext().getContentResolver().getType(uri);
             if (mime == null || !mime.startsWith("image/")) {
-                statusMessage = "请选择图片文件";
+                statusMessage = I18n.text("m_35fc560913c0");
                 statusOk = false;
                 render();
                 return;
             }
             byte[] bytes = readAll(uri);
             if (bytes.length > MAX_ICON_BYTES) {
-                statusMessage = "图片不能超过 512 KB";
+                statusMessage = I18n.text("m_78c1f649e77d");
                 statusOk = false;
                 render();
                 return;
@@ -900,11 +1031,11 @@ public class SettingsFragment extends PageFragment {
             iconDraft = "data:" + mime + ";base64," + Base64.encodeToString(bytes, Base64.NO_WRAP);
             iconBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             iconBitmapKey = iconDraft;
-            statusMessage = "图片已载入，保存站点信息后生效";
+            statusMessage = I18n.text("m_5bda44454e75");
             statusOk = true;
             render();
         } catch (Exception e) {
-            statusMessage = "读取图片失败：" + e.getMessage();
+            statusMessage = I18n.text("m_b1feeac12438") + e.getMessage();
             statusOk = false;
             render();
         }
@@ -944,6 +1075,7 @@ public class SettingsFragment extends PageFragment {
     private View toggleRow(String label, boolean on, boolean enabled, ToggleListener listener) {
         LinearLayout row = UI.row(requireContext());
         UI.Toggle toggle = new UI.Toggle(requireContext(), on);
+        enabled = enabled && !busy && !loading && !sysLoading;
         toggle.setEnabled(enabled);
         toggle.setAlpha(enabled ? 1f : 0.5f);
         if (enabled) toggle.setOnClickListener(v -> listener.onChange(!toggle.isOn()));
@@ -962,6 +1094,8 @@ public class SettingsFragment extends PageFragment {
     private EditText passwordInput(String hint) {
         EditText input = UI.input(requireContext(), hint);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setSaveEnabled(false);
+        input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         return input;
     }
 
@@ -999,9 +1133,19 @@ public class SettingsFragment extends PageFragment {
         JSONObject call() throws Exception;
     }
 
+    /** Invalidates any earlier read before submitting a configuration change. */
+    private boolean beginWrite() {
+        if (!alive() || busy) return false;
+        readGeneration++;
+        loading = false;
+        sysLoading = false;
+        busy = true;
+        return true;
+    }
+
     /** Runs a write, reloads the system settings, and reports the outcome. */
     private void run(Callable call, String success) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(call::call, result -> {
@@ -1011,7 +1155,7 @@ public class SettingsFragment extends PageFragment {
             loadSys();
         }, failure -> {
             busy = false;
-            statusMessage = "保存失败：" + failure.getMessage();
+            statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
         });
@@ -1058,44 +1202,44 @@ public class SettingsFragment extends PageFragment {
 
     private View turnstileCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "人机验证（Cloudflare Turnstile）"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_e4f6aa5a185d")));
         TextView hint = UI.muted(requireContext(),
                 "可选防护：开启后登录、找回密码需要完成 Cloudflare 人机验证。"
-                        + "先在 Cloudflare 控制台创建 Turnstile widget（把本站域名加入允许域名），再填写 Site Key 与 Secret Key。");
+                        + I18n.text("m_078ba7491c8b"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
-        UI.addRow(card, toggleRow("启用人机验证", turnstileEnabled, true, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_b05703226c5e"), turnstileEnabled, true, next -> {
             capture();
             turnstileEnabled = next;
-            saveAppSettings("人机验证设置已保存");
+            saveAppSettings(I18n.text("m_763363acbbeb"));
         }), 0);
 
         siteKeyInput = UI.input(requireContext(), "Site Key（0x4A…）");
         siteKeyInput.setText(turnstileSiteKey);
         card.addView(UI.field(requireContext(), "Site Key", siteKeyInput, UI.MD));
 
-        secretKeyInput = passwordInput("Secret Key（留空保持不变）");
+        secretKeyInput = passwordInput(I18n.text("m_96656dd2d25f"));
         secretKeyInput.setText(turnstileSecret);
         card.addView(UI.field(requireContext(), "Secret Key", secretKeyInput, UI.MD));
 
-        TextView state = tag(turnstileHasSecret ? "密钥：已设置" : "密钥：未设置", turnstileHasSecret);
+        TextView state = tag(turnstileHasSecret ? I18n.text("m_c0ee21a90d7b") : I18n.text("m_5061a4ea571c"), turnstileHasSecret);
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
-        save.setOnClickListener(v -> saveAppSettings("人机验证设置已保存"));
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a3030bf8f16d"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
+        save.setOnClickListener(v -> saveAppSettings(I18n.text("m_763363acbbeb")));
         UI.addRow(card, save, 0);
         return card;
     }
 
     private View oauthCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "Cloudflare OAuth 客户端"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_a44454e9d95a")));
         TextView hint = UI.muted(requireContext(),
-                "留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET；此处填写后优先于环境变量，密钥留空表示保持不变。\n"
-                        + "OAuth 客户端需勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit。");
+                I18n.text("m_c634788aa628")
+                        + I18n.text("m_5e27d6849810"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
@@ -1103,24 +1247,24 @@ public class SettingsFragment extends PageFragment {
         oauthIdInput.setText(oauthClientId);
         card.addView(UI.field(requireContext(), "Client ID", oauthIdInput));
 
-        oauthSecretInput = passwordInput("Client Secret（留空保持不变）");
+        oauthSecretInput = passwordInput(I18n.text("m_be5f73c5b889"));
         oauthSecretInput.setText(oauthClientSecret);
         card.addView(UI.field(requireContext(), "Client Secret", oauthSecretInput, UI.MD));
 
-        oauthRedirectInput = UI.input(requireContext(), "回调地址（留空自动按访问域名推导）");
+        oauthRedirectInput = UI.input(requireContext(), I18n.text("m_9df3fe96b710"));
         oauthRedirectInput.setText(oauthRedirect);
-        card.addView(UI.field(requireContext(), "回调地址", oauthRedirectInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_9ca160d65985"), oauthRedirectInput, UI.MD));
 
-        oauthScopesInput = UI.input(requireContext(), "Scopes（留空用客户端已配置的）");
+        oauthScopesInput = UI.input(requireContext(), I18n.text("m_b813dbaced7d"));
         oauthScopesInput.setText(oauthScopes);
         card.addView(UI.field(requireContext(), "Scopes", oauthScopesInput, UI.MD));
 
-        TextView state = tag(oauthHasSecret ? "密钥：已设置" : "密钥：未设置", oauthHasSecret);
+        TextView state = tag(oauthHasSecret ? I18n.text("m_c0ee21a90d7b") : I18n.text("m_5061a4ea571c"), oauthHasSecret);
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a3030bf8f16d"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
         save.setOnClickListener(v -> saveOauth());
         UI.addRow(card, save, 0);
         return card;
@@ -1137,28 +1281,28 @@ public class SettingsFragment extends PageFragment {
             payload.put("scopes", oauthScopes);
             if (!secret.isEmpty()) payload.put("client_secret", secret);
             return Api.put("/api/admin/oauth", payload);
-        }, "OAuth 客户端配置已保存");
+        }, I18n.text("m_12c3bd5c0eeb"));
     }
 
     private View encryptionCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "应用加密密钥"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_dbf3b43ce49a")));
         TextView hint = UI.muted(requireContext(),
-                "用于加密 SMTP 密码、Cloudflare 授权令牌与 2FA 密文。未设置时自动生成并保存在数据库；"
-                        + "环境变量 APP_ENCRYPTION_KEY 优先。更换后需重启服务，且会使已保存的密文失效。");
+                I18n.text("m_319cbe979eb9")
+                        + I18n.text("m_a65c3f6bb334"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
-        encKeyField = UI.input(requireContext(), "64 位十六进制密钥（留空保持不变）");
+        encKeyField = UI.input(requireContext(), I18n.text("m_6171d4f4500d"));
         encKeyField.setText(encKeyInput);
         card.addView(encKeyField);
 
-        String source = "env".equals(encKeySource) ? "环境变量" : "stored".equals(encKeySource) ? "数据库" : "未设置";
-        TextView state = tag("当前来源：" + source, !"none".equals(encKeySource));
+        String source = "env".equals(encKeySource) ? I18n.text("m_ae27b474ea4d") : "stored".equals(encKeySource) ? I18n.text("m_263200d7d529") : I18n.text("m_2f5f1d6fbfb0");
+        TextView state = tag(I18n.text("m_1f45e225299d") + source, !"none".equals(encKeySource));
         UI.margin(state, 0, UI.SM, 0, UI.MD);
         card.addView(state);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存密钥", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a334bb468aba"), UI.BTN_PRIMARY);
         save.setEnabled(!busy && !encKeyInput.trim().isEmpty());
         save.setOnClickListener(v -> saveEncKey());
         UI.addRow(card, save, 0);
@@ -1168,50 +1312,50 @@ public class SettingsFragment extends PageFragment {
     private void saveEncKey() {
         capture();
         if (encKeyInput.isEmpty()) {
-            statusMessage = "请输入 64 位十六进制密钥";
+            statusMessage = I18n.text("m_24d0752eb75d");
             statusOk = false;
             render();
             return;
         }
         String key = encKeyInput;
         encKeyInput = "";
-        run(() -> Api.put("/api/admin/encryption-key", new JSONObject().put("key", key)), "加密密钥已保存");
+        run(() -> Api.put("/api/admin/encryption-key", new JSONObject().put("key", key)), I18n.text("m_764e8c4abd92"));
     }
 
     private View passkeySettingsCard() {
-        LinearLayout card = titledCard("通行密钥",
-                "通行密钥要求 HTTPS，依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同域下的子域都能用。「允许的来源」只在需要限定同一依赖方下放开哪几个子域时才填，须与依赖方 ID 同域或为其子域；一个依赖方 ID 覆盖不了两个不同的域名。");
+        LinearLayout card = titledCard(I18n.text("m_102824e51a9d"),
+                I18n.text("m_714c69b463c4"));
 
-        passkeyRPIDInput = UI.input(requireContext(), "依赖方 ID，如 panel.example.com");
+        passkeyRPIDInput = UI.input(requireContext(), I18n.text("m_9b9ca2069036"));
         passkeyRPIDInput.setText(passkeyRPID);
-        card.addView(UI.field(requireContext(), "依赖方 ID", passkeyRPIDInput, UI.SM));
+        card.addView(UI.field(requireContext(), I18n.text("m_041601fcfdb9"), passkeyRPIDInput, UI.SM));
 
-        passkeyOriginsInput = UI.input(requireContext(), "允许的来源，逗号分隔");
+        passkeyOriginsInput = UI.input(requireContext(), I18n.text("m_9fefc8c169c3"));
         passkeyOriginsInput.setText(passkeyOrigins);
-        card.addView(UI.field(requireContext(), "允许的来源", passkeyOriginsInput, UI.SM));
+        card.addView(UI.field(requireContext(), I18n.text("m_08976c1b5998"), passkeyOriginsInput, UI.SM));
 
         androidPackageInput = UI.input(requireContext(), "com.tunnelmanager.app");
         androidPackageInput.setText(androidPackage);
-        card.addView(UI.field(requireContext(), "Android 包名", androidPackageInput, UI.SM));
+        card.addView(UI.field(requireContext(), I18n.text("m_fdc7245f3cb7"), androidPackageInput, UI.SM));
 
-        androidFingerprintsInput = UI.textArea(requireContext(), "SHA-256 指纹，逗号或换行分隔");
+        androidFingerprintsInput = UI.textArea(requireContext(), I18n.text("m_d83849747d4b"));
         androidFingerprintsInput.setText(androidFingerprints);
-        card.addView(UI.field(requireContext(), "Android 签名指纹", androidFingerprintsInput, UI.SM));
+        card.addView(UI.field(requireContext(), I18n.text("m_0f65f682db8f"), androidFingerprintsInput, UI.SM));
         card.addView(UI.muted(requireContext(), androidFingerprintsEffective.isEmpty()
-                ? "当前没有生效的签名指纹，App 无法使用通行密钥。"
-                : "当前生效：" + androidFingerprintsEffective));
-        card.addView(UI.muted(requireContext(), "App 通过 /.well-known/assetlinks.json 校验域名归属，指纹取自签名证书（keytool 或 apksigner 的 SHA-256）。"));
+                ? I18n.text("m_bd29f1abcca3")
+                : I18n.text("m_04f2b844522a") + androidFingerprintsEffective));
+        card.addView(UI.muted(requireContext(), I18n.text("m_eba5f2cf8804")));
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存通行密钥设置", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
-        save.setOnClickListener(v -> saveAppSettings("通行密钥设置已保存"));
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_bbf51c405246"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
+        save.setOnClickListener(v -> saveAppSettings(I18n.text("m_a50d4226fe2e")));
         UI.margin(save, 0, UI.MD, 0, 0);
         card.addView(save);
 
         card.addView(UI.divider(requireContext()));
-        UI.addRow(card, toggleRow("禁用密码登录（全站）", passwordLoginDisabled, passkeyAdminReady, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_f1d371db2841"), passwordLoginDisabled, passkeyAdminReady, next -> {
             passwordLoginDisabled = next;
-            saveAppSettings(next ? "已禁用密码登录（全站）" : "已恢复密码登录（全站）");
+            saveAppSettings(next ? I18n.text("m_01b240b5fcfd") : I18n.text("m_f5844ba700c6"));
         }), UI.MD);
         card.addView(UI.muted(requireContext(), passkeyAdminReady
                 ? "开启后所有账户都只能用通行密钥登录；账户丢失通行密钥时，可用 CLI 的 --allow-password-login 恢复。"
@@ -1220,36 +1364,36 @@ public class SettingsFragment extends PageFragment {
     }
 
     private View rateLimitCard() {
-        LinearLayout card = titledCard("登录保护",
+        LinearLayout card = titledCard(I18n.text("m_37c24b911b27"),
                 "登录、二次验证、找回与重置密码都受此限制。账号额度是真正的防线，换 IP 绕不过去；IP 额度用来挡住一台机器横扫多个账号。任一触发即返回 429 并附带解锁时间。");
 
-        UI.addRow(card, toggleRow("启用登录限流", rateLimitEnabled, true, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_829140bedce5"), rateLimitEnabled, true, next -> {
             rateLimitEnabled = next;
-            saveAppSettings("登录保护设置已保存");
+            saveAppSettings(I18n.text("m_ae654df5d8e1"));
         }), UI.SM);
 
-        rateLimitPerAccountInput = signedInput("0 = 默认 5 次，负数 = 不限", rateLimitPerAccount);
-        card.addView(UI.field(requireContext(), "每账号失败次数", rateLimitPerAccountInput, UI.SM));
+        rateLimitPerAccountInput = signedInput(I18n.text("m_455c4401e923"), rateLimitPerAccount);
+        card.addView(UI.field(requireContext(), I18n.text("m_671a08f4e738"), rateLimitPerAccountInput, UI.SM));
 
-        rateLimitPerIPInput = signedInput("0 = 默认 20 次，负数 = 不限", rateLimitPerIP);
-        card.addView(UI.field(requireContext(), "每 IP 失败次数", rateLimitPerIPInput, UI.SM));
+        rateLimitPerIPInput = signedInput(I18n.text("m_697a0edd8846"), rateLimitPerIP);
+        card.addView(UI.field(requireContext(), I18n.text("m_cf5a28cff90f"), rateLimitPerIPInput, UI.SM));
 
-        rateLimitWindowInput = signedInput("0 = 默认 15 分钟", rateLimitWindow);
-        card.addView(UI.field(requireContext(), "统计窗口（分钟）", rateLimitWindowInput, UI.SM));
+        rateLimitWindowInput = signedInput(I18n.text("m_5f566691080a"), rateLimitWindow);
+        card.addView(UI.field(requireContext(), I18n.text("m_088598d743e5"), rateLimitWindowInput, UI.SM));
 
-        rateLimitFamiliarInput = signedInput("0 = 默认 3 倍，1 = 不放宽", rateLimitFamiliar);
-        card.addView(UI.field(requireContext(), "熟悉来源的额度倍数", rateLimitFamiliarInput, UI.SM));
-        card.addView(UI.muted(requireContext(), "90 天内登录过的网段（IPv4 记 /24，IPv6 记 /64）会给更宽的账号额度。放宽是倍数而不是放行，所以熟悉的网段也会用完。"));
+        rateLimitFamiliarInput = signedInput(I18n.text("m_e93cb34571fb"), rateLimitFamiliar);
+        card.addView(UI.field(requireContext(), I18n.text("m_b9ca02da2aa9"), rateLimitFamiliarInput, UI.SM));
+        card.addView(UI.muted(requireContext(), I18n.text("m_8a3dd29e76b4")));
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存限流设置", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
-        save.setOnClickListener(v -> saveAppSettings("登录保护设置已保存"));
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_a23922612975"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
+        save.setOnClickListener(v -> saveAppSettings(I18n.text("m_ae654df5d8e1")));
         UI.margin(save, 0, UI.MD, 0, 0);
         card.addView(save);
 
-        UI.addRow(card, toggleRow("锁定时通知管理员", rateLimitNotify, true, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_ab5fdea0b36d"), rateLimitNotify, true, next -> {
             rateLimitNotify = next;
-            saveAppSettings("登录保护设置已保存");
+            saveAppSettings(I18n.text("m_ae654df5d8e1"));
         }), UI.MD);
         card.addView(UI.muted(requireContext(), "走管理员配置的通知渠道（TG / 邮件），并沿用「登录通知」开关。"));
         return card;
@@ -1257,33 +1401,33 @@ public class SettingsFragment extends PageFragment {
 
     private View experimentalCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "IP 优选"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_b145d5c1a57b")));
         TextView hint = UI.muted(requireContext(),
-                "实例共享预算，非云平台额度。UTC 重置，取消不退；修改从下一轮生效。");
+                I18n.text("m_53053a487f1f"));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
-        UI.addRow(card, toggleRow("开启实验性功能", experimentalEnabled, !busy, next -> {
+        UI.addRow(card, toggleRow(I18n.text("m_06566a8c40f2"), experimentalEnabled, !busy, next -> {
             experimentalEnabled = next;
             saveAppSettings("实验性功能设置已保存");
         }), 0);
-        EditText daily = numberInput("1 至 10000000", String.valueOf(labDailyRequestLimit));
-        EditText rate = numberInput("1 至 1000", String.valueOf(labRequestsPerSecond));
-        EditText maximum = numberInput("1 至 256", String.valueOf(labMaxWorkers));
+        EditText daily = numberInput(I18n.text("m_43daf24d5cfd"), String.valueOf(labDailyRequestLimit));
+        EditText rate = numberInput(I18n.text("m_5ed8f4d1306b"), String.valueOf(labRequestsPerSecond));
+        EditText maximum = numberInput(I18n.text("m_a071ff7b7d10"), String.valueOf(labMaxWorkers));
         daily.setEnabled(!busy);
         rate.setEnabled(!busy);
         maximum.setEnabled(!busy);
-        card.addView(UI.field(requireContext(), "每日请求预算（UTC）", daily, UI.MD));
-        card.addView(UI.field(requireContext(), "每秒请求数", rate, UI.MD));
-        card.addView(UI.field(requireContext(), "并发上限", maximum, UI.MD));
-        TextView save = UI.button(requireContext(), "保存优选限制", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
+        card.addView(UI.field(requireContext(), I18n.text("m_8b57f87fb23a"), daily, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_b8f8cb247e4d"), rate, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_652a6f861b6d"), maximum, UI.MD));
+        TextView save = UI.button(requireContext(), I18n.text("m_eedfd7ecc753"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
         save.setOnClickListener(view -> {
             int dailyValue = parseInt(daily.getText().toString());
             int rateValue = parseInt(rate.getText().toString());
             int maximumValue = parseInt(maximum.getText().toString());
             if (dailyValue < 1 || dailyValue > 10000000 || rateValue < 1 || rateValue > 1000 || maximumValue < 1 || maximumValue > 256) {
-                new AlertDialog.Builder(requireContext()).setMessage("预算须为 1 至 10000000、每秒请求数为 1 至 1000、并发上限为 1 至 256 的整数。")
-                        .setPositiveButton("知道了", null).show();
+                new AlertDialog.Builder(requireContext()).setMessage(I18n.text("m_c2d9dd20948b"))
+                        .setPositiveButton(I18n.text("m_de32e20193ad"), null).show();
                 return;
             }
             labDailyRequestLimit = dailyValue;
@@ -1297,43 +1441,43 @@ public class SettingsFragment extends PageFragment {
 
     private View smtpCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "SMTP 邮件服务"));
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_dd15bdd9da5a")));
         TextView hint = UI.muted(requireContext(),
-                "用于监控告警邮件与找回密码验证码。密码留空表示保持原值不变。"
-                        + (smtpReady ? "" : " 当前尚未完整配置。"));
+                I18n.text("slim_75c52d958508")
+                        + (smtpReady ? "" : I18n.text("m_f7b32edf785b")));
         UI.margin(hint, 0, UI.XS, 0, UI.MD);
         card.addView(hint);
 
         smtpHostInput = UI.input(requireContext(), "smtp.example.com");
         smtpHostInput.setText(smtpHost);
-        card.addView(UI.field(requireContext(), "SMTP 主机", smtpHostInput));
+        card.addView(UI.field(requireContext(), I18n.text("m_5344a59d11c5"), smtpHostInput));
 
-        smtpPortInput = numberInput("465 或 587", smtpPort);
-        card.addView(UI.field(requireContext(), "端口", smtpPortInput, UI.MD));
+        smtpPortInput = numberInput(I18n.text("m_7a9d079c1fb3"), smtpPort);
+        card.addView(UI.field(requireContext(), I18n.text("m_e71ac32b544b"), smtpPortInput, UI.MD));
 
-        smtpUserInput = UI.input(requireContext(), "用户名（通常为邮箱）");
+        smtpUserInput = UI.input(requireContext(), I18n.text("m_6a432ca72cc9"));
         smtpUserInput.setText(smtpUsername);
-        card.addView(UI.field(requireContext(), "用户名", smtpUserInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_1a3f0617d6de"), smtpUserInput, UI.MD));
 
-        smtpPasswordInput = passwordInput("密码 / 授权码（留空保持不变）");
+        smtpPasswordInput = passwordInput(I18n.text("m_077af8674c6a"));
         smtpPasswordInput.setText(smtpPassword);
-        card.addView(UI.field(requireContext(), "密码 / 授权码", smtpPasswordInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_32676619bb95"), smtpPasswordInput, UI.MD));
 
         smtpFromInput = UI.input(requireContext(), "panel@example.com");
         smtpFromInput.setText(smtpFrom);
-        card.addView(UI.field(requireContext(), "发件人", smtpFromInput, UI.MD));
+        card.addView(UI.field(requireContext(), I18n.text("m_bae32961a3b5"), smtpFromInput, UI.MD));
 
-        TextView tlsLabel = UI.label(requireContext(), "传输加密");
+        TextView tlsLabel = UI.label(requireContext(), I18n.text("m_b31967d52c23"));
         UI.margin(tlsLabel, 0, UI.MD, 0, UI.SM);
         card.addView(tlsLabel);
-        UI.addRow(card, UI.segmented(requireContext(), new String[]{"加密", "不加密"}, smtpTls, index -> {
+        UI.addRow(card, UI.segmented(requireContext(), new String[]{I18n.text("m_320c254572c4"), I18n.text("m_69f3b744f3f2")}, smtpTls, index -> {
             capture();
             smtpTls = index;
             render();
         }), 0);
 
-        TextView save = UI.button(requireContext(), busy ? "保存中…" : "保存设置", UI.BTN_PRIMARY);
-        save.setEnabled(!busy);
+        TextView save = UI.button(requireContext(), busy ? I18n.text("m_ff509c9ba052") : I18n.text("m_c8550237ba70"), UI.BTN_PRIMARY);
+        save.setEnabled(!busy && !loading && !sysLoading);
         save.setOnClickListener(v -> saveSmtp());
         UI.addRow(card, save, UI.MD);
         return card;
@@ -1341,23 +1485,23 @@ public class SettingsFragment extends PageFragment {
 
     private View smtpTestCard() {
         LinearLayout card = UI.card(requireContext());
-        card.addView(UI.cardTitle(requireContext(), "发送测试邮件"));
-        testMailInput = UI.input(requireContext(), "你的邮箱");
+        card.addView(UI.cardTitle(requireContext(), I18n.text("m_f9ae1a31638d")));
+        testMailInput = UI.input(requireContext(), I18n.text("m_27558ddc9803"));
         testMailInput.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         testMailInput.setText(testMailTo);
-        card.addView(UI.field(requireContext(), "收件地址", testMailInput));
-        TextView send = UI.button(requireContext(), busy ? "发送中…" : "发送测试邮件", UI.BTN_SECONDARY);
+        card.addView(UI.field(requireContext(), I18n.text("m_b84b2b30c3d1"), testMailInput));
+        TextView send = UI.button(requireContext(), busy ? I18n.text("m_364970d8168c") : I18n.text("m_f9ae1a31638d"), UI.BTN_SECONDARY);
         send.setEnabled(!busy);
         send.setOnClickListener(v -> {
             capture();
             if (testMailTo.isEmpty()) {
-                statusMessage = "请输入收件邮箱";
+                statusMessage = I18n.text("m_2da3d7207b44");
                 statusOk = false;
                 render();
                 return;
             }
             String to = testMailTo;
-            run(() -> Api.post("/api/admin/smtp/test", new JSONObject().put("to", to)), "测试邮件已发送");
+            run(() -> Api.post("/api/admin/smtp/test", new JSONObject().put("to", to)), I18n.text("m_cfb7989b7a73"));
         });
         UI.addRow(card, send, UI.MD);
         return card;
@@ -1376,6 +1520,6 @@ public class SettingsFragment extends PageFragment {
             payload.put("tls_mode", smtpTls == 1 ? "plain" : "ssl");
             if (!password.isEmpty()) payload.put("password", password);
             return Api.put("/api/admin/smtp", payload);
-        }, "SMTP 设置已保存");
+        }, I18n.text("m_dddcb690d105"));
     }
 }

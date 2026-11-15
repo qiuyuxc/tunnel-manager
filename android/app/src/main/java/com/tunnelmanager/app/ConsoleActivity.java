@@ -55,6 +55,8 @@ public class ConsoleActivity extends AppCompatActivity {
     private boolean keyboardVisible;
     private View shell;
     private ImageView themeButton;
+    private ImageView refreshButton;
+    private TextView locationLabel;
     private ImageView navigationButton;
     private final List<String> bottomPaths = new ArrayList<>();
     /** The scrolling sidebar, or null on narrow screens. */
@@ -74,11 +76,15 @@ public class ConsoleActivity extends AppCompatActivity {
     private TunnelCreateSheet tunnelCreateSheet;
     AssistantFragment.State assistantState;
 
+    public static final class AssistantState extends androidx.lifecycle.ViewModel {
+        final AssistantFragment.State value = new AssistantFragment.State();
+    }
+
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         Session.init(this);
-        assistantState = new AssistantFragment.State();
+        assistantState = new androidx.lifecycle.ViewModelProvider(this).get(AssistantState.class).value;
         if (Session.token().isEmpty()) {
             backToLogin(null);
             return;
@@ -166,7 +172,9 @@ public class ConsoleActivity extends AppCompatActivity {
         LinearLayout body = UI.row(this);
         if (wide) {
             sidebar = buildSidebar();
-            body.addView(sidebar, new LinearLayout.LayoutParams(UI.dp(UI.SIDEBAR_W), ViewGroup.LayoutParams.MATCH_PARENT));
+            LinearLayout.LayoutParams sidebarParams = new LinearLayout.LayoutParams(UI.dp(UI.SIDEBAR_W), ViewGroup.LayoutParams.MATCH_PARENT);
+            sidebarParams.setMargins(UI.dp(12), UI.dp(12), 0, UI.dp(12));
+            body.addView(sidebar, sidebarParams);
         }
         content = new FrameLayout(this);
         content.setId(R.id.tm_content);
@@ -211,19 +219,26 @@ public class ConsoleActivity extends AppCompatActivity {
             if (isDetailRoute()) getOnBackPressedDispatcher().onBackPressed();
             else open("/dashboard");
         });
-        navigationButton.setContentDescription("控制面板");
+        navigationButton.setContentDescription(I18n.text("m_69e7a943ab4e"));
         bar.addView(navigationButton);
-        TextView brand = UI.text(this, Session.siteName(), 18, p.ink, Typeface.BOLD);
-        brand.setSingleLine(true);
-        brand.setEllipsize(TextUtils.TruncateAt.END);
-        bar.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        locationLabel = UI.text(this, I18n.text("m_69e7a943ab4e"), 16, p.ink, Typeface.BOLD);
+        locationLabel.setSingleLine(true);
+        locationLabel.setEllipsize(TextUtils.TruncateAt.END);
+        bar.addView(locationLabel, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        refreshButton = (ImageView) iconButton(R.drawable.ic_nav_refresh, p.body, view -> {
+            Fragment active = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+            if (active instanceof PageFragment) ((PageFragment) active).requestRefresh();
+        });
+        refreshButton.setContentDescription(I18n.text("m_5f79b57ee40f"));
+        refreshButton.setTooltipText(I18n.text("m_5f79b57ee40f"));
+        bar.addView(refreshButton);
 
         // Day/night is one tap. There is a single visual theme, so a palette
         // menu would have exactly two entries and no reason to exist; going
         // back is the system gesture, so the bar carries no back arrow either.
         themeButton = (ImageView) iconButton(Theme.isDark() ? R.drawable.ic_nav_sun : R.drawable.ic_nav_moon,
                 p.body, v -> toggleDark());
-        themeButton.setContentDescription("切换深浅主题");
+        themeButton.setContentDescription(I18n.text("m_ba09b42d4fc9"));
         bar.addView(themeButton);
         bar.addView(avatarButton());
         return bar;
@@ -232,7 +247,9 @@ public class ConsoleActivity extends AppCompatActivity {
     private ScrollView buildSidebar() {
         Palette p = Theme.p();
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(p.sidebar);
+        scroll.setBackground(UI.roundedStroke(p.canvasRaised, UI.RADIUS_LG, p.hairline, 1));
+        scroll.setClipToOutline(true);
+        scroll.setVerticalScrollBarEnabled(false);
         LinearLayout column = UI.column(this);
         int pad = UI.dp(UI.SM);
         column.setPadding(pad, UI.dp(UI.SM), pad, UI.dp(UI.SM));
@@ -242,6 +259,12 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void fillSidebar(LinearLayout column) {
+        LinearLayout scope = UI.column(this);
+        scope.setPadding(UI.dp(12), UI.dp(16), UI.dp(12), UI.dp(12));
+        scope.addView(UI.text(this, Session.siteName(), 17, Theme.p().ink, Typeface.BOLD));
+        UI.addRow(scope, UI.muted(this, Session.nickname()), UI.XS);
+        column.addView(scope);
+        column.addView(UI.divider(this));
         Nav.Group lastGroup = null;
         for (Nav.Item item : Nav.visible()) {
             if (item.group != lastGroup) {
@@ -267,7 +290,7 @@ public class ConsoleActivity extends AppCompatActivity {
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
 
-        row.addView(UI.text(this, item.label, 14,
+        row.addView(UI.text(this, item.label(), 14,
                 active ? p.sidebarTextActive : p.sidebarText,
                 active ? Typeface.BOLD : Typeface.NORMAL));
 
@@ -277,13 +300,16 @@ public class ConsoleActivity extends AppCompatActivity {
                 active ? p.sidebarDivider : p.sidebar,
                 1), p.btnGhostHover));
         row.setClickable(true);
+        row.setFocusable(true);
+        row.setSelected(active);
+        row.setMinimumHeight(UI.dp(44));
         row.setOnClickListener(v -> open(item.path));
         return row;
     }
 
     private LinearLayout buildBottomBar() {
         LinearLayout bar = UI.row(this);
-        bar.setBackground(new GlassDrawable(UI.RADIUS_PILL, false));
+        bar.setBackground(new GlassDrawable(22, false));
         bar.setPadding(UI.dp(6), UI.dp(6), UI.dp(6), UI.dp(6));
         bar.setElevation(UI.dp(Theme.reducedEffects() ? 0 : 6));
         fillBottomBar(bar);
@@ -311,10 +337,10 @@ public class ConsoleActivity extends AppCompatActivity {
                     slot.addView(fabButton(), new FrameLayout.LayoutParams(UI.dp(44), UI.dp(44), Gravity.CENTER));
                     bar.addView(slot, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
                 } else if ("more".equals(path)) {
-                    bar.addView(tabButton(R.drawable.ic_nav_more, "更多", false, this::showMoreMenu));
+                    bar.addView(tabButton(R.drawable.ic_nav_more, I18n.text("m_38844b135cf7"), false, this::showMoreMenu));
                 } else {
                     Nav.Item item = Nav.byPath(path);
-                    bar.addView(tabButton(item.icon, "/dns".equals(path) ? "DNS" : item.tabLabel,
+                    bar.addView(tabButton(item.icon, "/dns".equals(path) ? "DNS" : item.tabLabel(),
                             false, view -> open(path)));
                 }
             }
@@ -353,7 +379,7 @@ public class ConsoleActivity extends AppCompatActivity {
         }
         int padding = UI.dp(assistant ? 4 : 6);
         bottomBar.setPadding(padding, padding, padding, padding);
-        bottomBar.setBackground(assistant ? UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_MD, Theme.p().hairline, 1) : new GlassDrawable(UI.RADIUS_PILL, false));
+        bottomBar.setBackground(assistant ? UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_MD, Theme.p().hairline, 1) : new GlassDrawable(22, false));
         bottomBar.setElevation(UI.dp(assistant || Theme.reducedEffects() ? 0 : 6));
     }
 
@@ -366,7 +392,7 @@ public class ConsoleActivity extends AppCompatActivity {
         int tint = active ? palette.success : palette.mute;
         if (box.isSelected() != active) {
             box.setSelected(active);
-            box.setBackground(active ? new GlassDrawable(UI.RADIUS_PILL, true) : null);
+            box.setBackground(active ? new GlassDrawable(16, true) : null);
         }
         UI.tint((ImageView) box.getChildAt(0), tint);
         if (box.getChildCount() > 1) ((TextView) box.getChildAt(1)).setTextColor(tint);
@@ -409,7 +435,7 @@ public class ConsoleActivity extends AppCompatActivity {
         fab.setBackground(UI.pressable(UI.circle(p.btnPrimaryBg, 0, 0), p.btnGhostHover));
         fab.setClickable(true);
         fab.setFocusable(true);
-        fab.setContentDescription("新建隧道或绑定域名");
+        fab.setContentDescription(I18n.text("m_9e795f086eb8"));
         UI.pressFeedback(fab);
         fab.setOnClickListener(this::showCreateMenu);
         return fab;
@@ -434,13 +460,15 @@ public class ConsoleActivity extends AppCompatActivity {
     private View avatarButton() {
         Palette p = Theme.p();
         avatarSlot = new FrameLayout(this);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(UI.dp(32), UI.dp(32));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(UI.dp(44), UI.dp(44));
         lp.leftMargin = UI.dp(UI.XS);
         avatarSlot.setLayoutParams(lp);
         avatarSlot.setBackground(UI.pressable(
                 UI.roundedStroke(p.btnPrimaryBg, UI.RADIUS_PILL, p.hairline, 1), p.btnGhostHover));
         clipToPill(avatarSlot);
         avatarSlot.setClickable(true);
+        avatarSlot.setFocusable(true);
+        avatarSlot.setContentDescription(I18n.text("m_34e5636c63cc"));
         avatarSlot.setOnClickListener(this::showAccountMenu);
         paintAvatar(avatarSlot, 14, p.btnPrimaryText);
         return avatarSlot;
@@ -528,14 +556,15 @@ public class ConsoleActivity extends AppCompatActivity {
 
         card.addView(identityHead());
         card.addView(menuSeparator());
-        card.addView(menuRow(R.drawable.ic_nav_account, "账户信息", false, () -> {
+        card.addView(menuRow(R.drawable.ic_nav_account, I18n.text("m_34e5636c63cc"), false, () -> {
             closeAccountMenu();
             open("/account");
         }));
         card.addView(darkModeRow());
+        card.addView(menuRow(R.drawable.ic_nav_account, I18n.text("language.label"), false, this::showLanguageMenu));
         card.addView(reducedEffectsRow());
         card.addView(menuSeparator());
-        card.addView(menuRow(R.drawable.ic_nav_logout, "退出登录", true, () -> {
+        card.addView(menuRow(R.drawable.ic_nav_logout, I18n.text("m_3ab8cc15939f"), true, () -> {
             Session.logout(this);
             backToLogin(null);
         }));
@@ -552,13 +581,18 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showCreateMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, "新建连接");
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_2cb204a57873"), SheetSizing.Tier.COMPACT);
         if (Session.hasPerm("tunnels")) sheet.action(R.drawable.ic_nav_tunnels,
-                "新建隧道", "创建 Cloudflare Tunnel 并获取连接命令", this::showCreateTunnel);
+                I18n.text("m_ee6527b22aaf"), I18n.text("m_e2fc83a2fc84"), this::showCreateTunnel);
         if (Session.hasPerm("domain_bind")) sheet.action(R.drawable.ic_nav_domain,
-                "绑定域名", "为当前服务配置访问地址", () -> open("/domain"));
-        sheet.action(R.drawable.ic_nav_assistant, "AI 助手", "描述目标，核对并执行配置任务", () -> open("/assistant"));
+                I18n.text("m_dd799f925f94"), I18n.text("m_88360030ad5d"), () -> open("/domain"));
+        sheet.action(R.drawable.ic_nav_assistant, I18n.text("m_1b0049fcfd41"), I18n.text("m_6eeb9aae30ef"), () -> open("/assistant"));
         sheet.show();
+    }
+
+    private void showLanguageMenu() {
+        closeAccountMenu();
+        LanguageSelect.show(this, null);
     }
 
     void showCreateTunnel() {
@@ -571,7 +605,7 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showMoreMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, "你的工作空间");
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_38844b135cf7"), SheetSizing.Tier.MEDIUM);
         sheet.content(identityHead());
         List<Nav.Item> visible = Nav.visible();
         List<Nav.Item> network = new ArrayList<>();
@@ -581,9 +615,9 @@ public class ConsoleActivity extends AppCompatActivity {
                 if (path.equals(item.path)) network.add(item);
             }
         }
-        if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "批量绑定", null,
+        if (Session.hasPerm("domain_bind")) network.add(new Nav.Item("/domain/batch", "m_6f7ce20a6c76", null,
                 R.drawable.ic_nav_plus, Nav.Group.NETWORK, "domain_bind", false, true));
-        if (!network.isEmpty()) sheet.label("网络与解析").content(moreGrid(sheet, network));
+        if (!network.isEmpty()) sheet.label(I18n.text("m_ee29a9f2fcb2")).content(moreGrid(sheet, network));
         for (Nav.Group group : new Nav.Group[]{Nav.Group.SYSTEM, Nav.Group.PERSONAL}) {
             boolean labelled = false;
             for (Nav.Item item : visible) {
@@ -592,7 +626,7 @@ public class ConsoleActivity extends AppCompatActivity {
                     sheet.label(groupLabel(group));
                     labelled = true;
                 }
-                sheet.action(item.icon, item.label, routeDescription(item.path), () -> open(item.path));
+                sheet.action(item.icon, item.label(), routeDescription(item.path), () -> open(item.path));
             }
         }
         sheet.show();
@@ -627,11 +661,11 @@ public class ConsoleActivity extends AppCompatActivity {
                 icon.setImageResource(item.icon);
                 UI.tint(icon, Theme.p().success);
                 tile.addView(icon, new LinearLayout.LayoutParams(UI.dp(24), UI.dp(24)));
-                TextView title = UI.text(this, item.label, 13, Theme.p().ink, Typeface.NORMAL);
+                TextView title = UI.text(this, item.label(), 13, Theme.p().ink, Typeface.NORMAL);
                 title.setGravity(Gravity.CENTER);
                 UI.margin(title, 0, UI.SM, 0, 0);
                 tile.addView(title);
-                tile.setContentDescription(item.label);
+                tile.setContentDescription(item.label());
                 tile.setClickable(true);
                 tile.setFocusable(true);
                 UI.pressFeedback(tile);
@@ -647,11 +681,13 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private static String routeDescription(String path) {
         switch (path) {
-            case "/settings": return "站点品牌、网络与全局配置";
-            case "/notifications": return "通知渠道、事件与设备告警";
-            case "/account": return "个人资料、通行密钥与账户授权";
-            case "/about": return "版本、更新与项目文档";
-            default: return "打开工具";
+            case "/settings": return I18n.text("m_55f414b419f9");
+            case "/telegram": return I18n.text("m_3a90edc850ae");
+            case "/admin": return I18n.text("m_6b1aa75dab8f");
+            case "/notifications": return I18n.text("m_173b8a1ecf3e");
+            case "/account": return I18n.text("m_9690e608dc37");
+            case "/about": return I18n.text("m_cf93501671a7");
+            default: return I18n.text("m_0101bc1c6e1e");
         }
     }
 
@@ -674,7 +710,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
         LinearLayout ident = UI.column(this);
         ident.addView(UI.text(this, name, 14, p.ink, Typeface.BOLD));
-        ident.addView(UI.text(this, "管理员", 12, p.mute, Typeface.NORMAL));
+        ident.addView(UI.text(this, Session.isAdmin() ? I18n.text("m_e19796712f1c") : I18n.text("m_0d0e1a86b3aa"), 12, p.mute, Typeface.NORMAL));
         head.addView(ident);
         return head;
     }
@@ -730,7 +766,7 @@ public class ConsoleActivity extends AppCompatActivity {
         iconLp.rightMargin = UI.dp(10);
         row.addView(icon, iconLp);
 
-        row.addView(UI.text(this, "暗色模式", 14, p.ink, Typeface.NORMAL),
+        row.addView(UI.text(this, I18n.text("m_0426e084560f"), 14, p.ink, Typeface.NORMAL),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         UI.Toggle toggle = new UI.Toggle(this, Theme.isDark());
@@ -746,6 +782,7 @@ public class ConsoleActivity extends AppCompatActivity {
     // ------------------------------------------------------------- navigation
 
     void open(String path) {
+        if (path.equals("/admin") || path.startsWith("/admin/") || path.equals("/telegram") || path.startsWith("/telegram/")) return;
         if (content == null) return;
         if (path.startsWith("/lab/") && (!Session.isAdmin() || !Session.experimental())) {
             path = "/dashboard";
@@ -807,9 +844,16 @@ public class ConsoleActivity extends AppCompatActivity {
 
     /** Rebuilds the navigation so the active row follows the current page. */
     private void refreshChrome() {
+        if (locationLabel != null) {
+            String label = currentPath == null ? "" : currentPath;
+            for (Nav.Item item : Nav.visible()) if (Nav.isActive(currentPath, item.path)) { label = item.label(); break; }
+            locationLabel.setText(label);
+        }
+        Fragment active = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+        if (refreshButton != null) refreshButton.setVisibility(active instanceof PageFragment && ((PageFragment) active).canRefresh() ? View.VISIBLE : View.GONE);
         if (navigationButton != null) {
             navigationButton.setImageResource(isDetailRoute() ? R.drawable.ic_nav_back : R.drawable.ic_nav_tunnels);
-            navigationButton.setContentDescription(isDetailRoute() ? "返回上一页" : "控制面板");
+            navigationButton.setContentDescription(isDetailRoute() ? I18n.text("m_b6050ccef309") : I18n.text("m_69e7a943ab4e"));
         }
         // A dozen views at most: rebuilding beats tracking which row moved.
         if (sidebar != null) {
@@ -883,12 +927,12 @@ public class ConsoleActivity extends AppCompatActivity {
     private static String groupLabel(Nav.Group group) {
         switch (group) {
             case SYSTEM:
-                return "系统";
+                return I18n.text("m_5b50d7c4b595");
             case PERSONAL:
-                return "个人";
+                return I18n.text("m_15dec507959e");
             case NETWORK:
             default:
-                return "网络与解析";
+                return I18n.text("m_ee29a9f2fcb2");
         }
     }
 
@@ -919,12 +963,12 @@ public class ConsoleActivity extends AppCompatActivity {
     private View reducedEffectsRow() {
         LinearLayout row = UI.row(this);
         row.setPadding(UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD), UI.dp(UI.MD));
-        TextView caption = UI.body(this, "轻量效果");
+        TextView caption = UI.body(this, I18n.text("m_10cfd03a12b9"));
         row.addView(caption, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         UI.Toggle toggle = new UI.Toggle(this, Theme.reducedEffects());
         toggle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         row.addView(toggle);
-        row.setContentDescription("轻量效果，关闭模糊与动效");
+        row.setContentDescription(I18n.text("m_4c29f20d005c"));
         row.setClickable(true);
         row.setFocusable(true);
         row.setOnClickListener(view -> {

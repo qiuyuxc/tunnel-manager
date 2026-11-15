@@ -5,23 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/webp" href="/icon.webp" />
   <title>Cloudflare Tunnel Manager</title>
-  <!-- Body and heading weights are on every screen; start them before the CSS parses. -->
-  <link rel="preload" href="/fonts/misans-400-core.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/fonts/misans-600-core.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <!-- Use the system font immediately; the optional font catalog does not block first paint. -->
+  <link rel="stylesheet" href="/fonts/fonts.css" media="print" onload="this.media='all'" />
   <script>
     (function () {
       var root = document.documentElement
-      var visualTheme = localStorage.getItem('visual_theme')
-      var darkMode = localStorage.getItem('dark_mode') !== 'false'
-      root.setAttribute('data-visual-theme', visualTheme === 'warm' ? 'warm' : 'enterprise')
+      var preference = localStorage.getItem('tm_language')
+      var languages = navigator.languages || [navigator.language]
+      root.lang = preference === 'zh-CN' || preference === 'en' ? preference : (/^zh/i.test(languages[0]) ? 'zh-CN' : 'en')
+      var publicEntry = /^\/status\/[^/]+\/?$/.test(location.pathname)
+      var publicDark = localStorage.getItem('pub_dark_mode')
+      var darkMode = publicEntry
+        ? (publicDark === 'true' || (publicDark === null && matchMedia('(prefers-color-scheme: dark)').matches))
+        : localStorage.getItem('dark_mode') !== 'false'
+      root.setAttribute('data-visual-theme', 'enterprise')
       root.setAttribute('data-theme', darkMode ? 'dark' : '')
       root.setAttribute('data-effects', localStorage.getItem('light_effects') === 'true' ? 'light' : 'normal')
+      root.dataset.entry = publicEntry ? 'status' : 'panel'
     })()
   </script>
+  <style>
+    html { background: #f5f5f5; color: #171717; }
+    html[data-theme="dark"] { background: #0f0f0f; color: #f5f5f5; color-scheme: dark; }
+    .startup { min-height: 100dvh; display: flex; align-items: center; justify-content: center; gap: 12px; font: 14px system-ui, sans-serif; }
+    .startup-indicator { width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; opacity: .55; animation: startup-spin .9s linear infinite; }
+    @keyframes startup-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .startup-indicator { animation: none; } }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app"><div class="startup" role="status"><span class="startup-indicator" aria-hidden="true"></span><span data-startup-message></span></div></div>
+  <script>document.querySelector('[data-startup-message]').textContent = document.documentElement.lang === 'zh-CN' ? '正在加载…' : 'Loading…'</script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

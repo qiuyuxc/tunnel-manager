@@ -66,42 +66,42 @@ final class MonitorViews {
 
     static String stateLabel(String state) {
         switch (MonitorHistory.normalize(state)) {
-            case "ok": return "正常";
-            case "warn": return "降级";
-            case "down": return "异常";
-            default: return "待检测 / 未知";
+            case "ok": return I18n.text("m_296de0e31f8c");
+            case "warn": return I18n.text("m_9f22b41cf5d7");
+            case "down": return I18n.text("m_428fb8bfeecf");
+            default: return I18n.text("m_c7208bddadac");
         }
     }
 
     static String summary(MonitorHistory.Counts counts) {
-        return "正常 " + counts.ok + " · 降级 " + counts.warn + " · 异常 " + counts.down
-                + (counts.unknown > 0 ? " · 未知 " + counts.unknown : "");
+        return I18n.text("m_dcc188d23666") + counts.ok + I18n.text("m_c4fdff8830b6") + counts.warn + I18n.text("m_2d8d945e2794") + counts.down
+                + (counts.unknown > 0 ? I18n.text("m_b09ed38f2d2f") + counts.unknown : "");
     }
 
     static String latency(JSONObject target) {
-        if (target == null) return "暂无数据";
+        if (target == null) return I18n.text("m_497c85690c4c");
         String state = MonitorHistory.normalize(target.optString("state"));
-        if (!"ok".equals(state) && !"warn".equals(state)) return "暂无响应";
+        if (!"ok".equals(state) && !"warn".equals(state)) return I18n.text("m_2c5d6c17493f");
         double latency = target.has("latency_ms") && target.isNull("latency_ms")
                 ? Double.NaN : target.optDouble("latency_ms", 0);
-        return Double.isFinite(latency) && latency >= 0 ? String.format(Locale.US, "%.0f ms", latency) : "暂无数据";
+        return Double.isFinite(latency) && latency >= 0 ? String.format(Locale.US, "%.0f ms", latency) : I18n.text("m_497c85690c4c");
     }
 
     static String uptime(JSONObject target, MonitorHistory history) {
         double value = target.optDouble("uptime_24h", Double.NaN);
         if (!history.hasRecentSamples(System.currentTimeMillis(), 24L * 60 * 60 * 1000)
-                || !Double.isFinite(value) || value < 0 || value > 100) return "暂无近期样本";
+                || !Double.isFinite(value) || value < 0 || value > 100) return I18n.text("m_30bb8dddca7c");
         return String.format(Locale.US, "%.2f%%", value);
     }
 
     static String time(long timestamp) {
-        return timestamp <= 0 ? "暂无样本" : new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(new Date(timestamp));
+        return timestamp <= 0 ? I18n.text("m_853936696310") : new SimpleDateFormat("MM-dd HH:mm", I18n.locale()).format(new Date(timestamp));
     }
 
     static String range(MonitorHistory history) {
-        if (history.samples.isEmpty()) return "等待首次检测";
-        if (history.samples.size() == 1) return "样本时间 " + time(history.firstTime());
-        return time(history.firstTime()) + " 至 " + time(history.lastTime());
+        if (history.samples.isEmpty()) return I18n.text("m_5a868d538005");
+        if (history.samples.size() == 1) return I18n.text("m_2b170a897cce") + time(history.firstTime());
+        return time(history.firstTime()) + I18n.text("m_8727f227e2c6") + time(history.lastTime());
     }
 
     static LinearLayout heading(Context context, String title, View accessory) {

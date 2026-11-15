@@ -34,6 +34,11 @@ import java.util.Map;
 import java.util.Set;
 
 public class AssistantFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
+    static final class LiveTurn {
+        String conversationID, message, content = "", reasoning = "", status = I18n.text("m_22eb0f8779ab"), error = "";
+        boolean active = true, expanded, resources;
+    }
     static final class State {
         final String token = Session.token();
         final String server = Session.server();
@@ -44,6 +49,7 @@ public class AssistantFragment extends PageFragment {
         String currentID = "";
         String error = "";
         boolean sending;
+        final List<LiveTurn> turns = new ArrayList<>();
         boolean includeResources;
         boolean loaded;
     }
@@ -62,6 +68,7 @@ public class AssistantFragment extends PageFragment {
     private String renderedConversationID = "";
     private int renderedTaskCount;
     private final AssistantTaskSelection selection = new AssistantTaskSelection();
+    private boolean streamRenderScheduled;
     private final Handler poller = new Handler(Looper.getMainLooper());
 
     @Override String route() { return "/assistant"; }
@@ -72,20 +79,21 @@ public class AssistantFragment extends PageFragment {
         root.setPadding(UI.dp(12), UI.dp(8), UI.dp(12), UI.dp(8));
         root.setFocusableInTouchMode(true);
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.text(requireContext(), "AI 助手", 22, Theme.p().ink, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        historyButton = compactButton("会话", UI.BTN_GHOST);
+        header.setGravity(Gravity.END);
+
+        historyButton = compactButton(I18n.text("m_a63280253f17"), UI.BTN_GHOST);
         historyButton.setOnClickListener(view -> showHistory());
         header.addView(historyButton);
-        TextView settings = compactButton("连接", UI.BTN_GHOST);
-        settings.setContentDescription("AI 连接配置");
+        TextView settings = compactButton(I18n.text("m_a5574109f020"), UI.BTN_GHOST);
+        settings.setContentDescription(I18n.text("m_036413404922"));
         settings.setOnClickListener(view -> showSettings());
         header.addView(settings);
         root.addView(header);
         LinearLayout summary = UI.row(requireContext());
-        status = UI.muted(requireContext(), "正在读取连接与会话…");
+        status = UI.muted(requireContext(), I18n.text("m_9db4ea0e84ae"));
         status.setTextSize(11);
         summary.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        taskButton = compactButton("任务 0", UI.BTN_GHOST);
+        taskButton = compactButton(I18n.text("m_5ccf82a671d0"), UI.BTN_GHOST);
         taskButton.setOnClickListener(view -> revealTasks());
         summary.addView(taskButton);
         root.addView(summary);
@@ -94,24 +102,24 @@ public class AssistantFragment extends PageFragment {
         scroll.addView(messages);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         LinearLayout options = UI.row(requireContext());
-        CheckBox resources = new CheckBox(requireContext());
-        resources.setText("允许发送资源名称与 ID");
+        CheckBox resources = UI.checkBox(requireContext());
+        resources.setText(I18n.text("m_03e9099ca5f2"));
         resources.setMinHeight(UI.dp(44));
         resources.setTextColor(Theme.p().mute);
         resources.setTextSize(11);
         resources.setChecked(state.includeResources);
         resources.setOnCheckedChangeListener((button, checked) -> state.includeResources = checked);
         options.addView(resources, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView privacy = compactButton("隐私说明", UI.BTN_GHOST);
+        TextView privacy = compactButton(I18n.text("m_9d06d61ee41f"), UI.BTN_GHOST);
         privacy.setTextSize(11);
-        privacy.setOnClickListener(view -> Sheet.of(requireContext(), "隐私与资源授权")
-                .content(UI.muted(requireContext(), "会话仅对你可见。消息会发送给所配置的 AI 服务，请勿填写密码或连接令牌。勾选后还会附带你有权限访问的资源名称与 ID，不包含 Cloudflare 凭据。"))
+        privacy.setOnClickListener(view -> Sheet.of(requireContext(), I18n.text("m_de66e65c470b"), SheetSizing.Tier.MEDIUM)
+                .content(UI.muted(requireContext(), I18n.text("m_6a78a7d91819")))
                 .show());
         options.addView(privacy);
         root.addView(options);
         LinearLayout composer = UI.row(requireContext());
         composer.setGravity(Gravity.BOTTOM);
-        input = UI.textArea(requireContext(), "描述你想完成的配置…");
+        input = UI.textArea(requireContext(), I18n.text("m_c3a37f287970"));
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         input.setMinLines(1);
         input.setMaxLines(4);
@@ -122,7 +130,7 @@ public class AssistantFragment extends PageFragment {
         input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(8000)});
         input.setSaveEnabled(false);
         input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
-        input.setContentDescription("发送给 AI 助手的消息");
+        input.setContentDescription(I18n.text("m_edcac8607f16"));
         input.setText(state.drafts.getOrDefault(draftKey(), ""));
         input.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
@@ -130,7 +138,7 @@ public class AssistantFragment extends PageFragment {
             public void afterTextChanged(Editable value) { updateSend(); }
         });
         composer.addView(input, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        send = compactButton("发送", UI.BTN_PRIMARY);
+        send = compactButton(I18n.text("m_edecf0ae6e51"), UI.BTN_PRIMARY);
         send.setMinHeight(UI.dp(48));
         send.setOnClickListener(view -> sendMessage());
         composer.addView(send);
@@ -163,8 +171,8 @@ public class AssistantFragment extends PageFragment {
     private void load() {
         if (!sameSession()) return;
         Api.async(() -> {
-            if (!sameSession()) throw new IllegalStateException("会话已变更");
-            return new JSONObject().put("settings", Api.get("/api/assistant/settings")).put("history", Api.get("/api/assistant/conversations"));
+            if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79"));
+            return Api.batch(Api.query("settings", "/api/assistant/settings"), Api.query("history", "/api/assistant/conversations"));
         }, result -> {
             if (!sameSession()) return;
             state.settings = result.optJSONObject("settings");
@@ -183,7 +191,7 @@ public class AssistantFragment extends PageFragment {
         boolean reveal = !state.currentID.equals(renderedConversationID) || tasks().length() > renderedTaskCount;
         renderedConversationID = state.currentID;
         renderedTaskCount = tasks().length();
-        status.setText("管理员连接 · 确认后执行" + (state.settings.optBoolean("configured") ? "" : " · 请先配置连接"));
+        status.setText(I18n.text("m_07240a74e246") + I18n.text("m_2e8adec50be7") + (state.settings.optBoolean("configured") ? "" : I18n.text("m_99cad4f6e190")));
         messages.removeAllViews();
         if (!state.error.isEmpty()) {
             TextView error = UI.text(requireContext(), state.error, 13, Theme.p().error, Typeface.NORMAL);
@@ -191,10 +199,11 @@ public class AssistantFragment extends PageFragment {
             messages.addView(error);
         }
         JSONArray history = current().optJSONArray("messages");
-        if (history == null || history.length() == 0) {
-            messages.addView(UI.text(requireContext(), "今天想配置什么？", 22, Theme.p().ink, Typeface.BOLD));
-            messages.addView(UI.muted(requireContext(), "从隧道、DNS 或监控开始，执行前由你确认。"));
-            for (String prompt : new String[]{"查看我现有的隧道与监控项目", "把 NAS 接入域名，先问我所需信息", "创建一个私有监控项目，每 60 秒检查一次"}) {
+        boolean hasLiveTurn = false;
+        for (LiveTurn turn : state.turns) if (turn.conversationID.equals(state.currentID)) hasLiveTurn = true;
+        if ((history == null || history.length() == 0) && !hasLiveTurn) {
+            messages.addView(UI.muted(requireContext(), I18n.text("m_1d096551d401")));
+            for (String prompt : new String[]{I18n.text("m_b1eeed66e829"), I18n.text("m_eb810bee3888"), I18n.text("m_838187f984bc")}) {
                 TextView suggestion = UI.button(requireContext(), prompt, UI.BTN_SECONDARY);
                 suggestion.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                 suggestion.setTextSize(12);
@@ -202,20 +211,40 @@ public class AssistantFragment extends PageFragment {
                 messages.addView(suggestion, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                 UI.margin(suggestion, 0, UI.SM, 0, 0);
             }
-        } else {
+        } else if (history != null) {
             for (int index = 0; index < history.length(); index++) {
                 JSONObject message = history.optJSONObject(index);
                 LinearLayout card = UI.card(requireContext());
-                card.addView(UI.label(requireContext(), "user".equals(message.optString("role")) ? "你" : "AI 助手"));
+                card.addView(UI.label(requireContext(), "user".equals(message.optString("role")) ? I18n.text("m_a0c7716669b5") : I18n.text("m_1b0049fcfd41")));
                 TextView text = UI.text(requireContext(), message.optString("content"), 14, Theme.p().ink, Typeface.NORMAL);
                 text.setTextIsSelectable(true);
+                if ("assistant".equals(message.optString("role")) && !message.optString("reasoning").isEmpty()) addThinking(card, message.optString("reasoning"), "", false, null);
                 card.addView(text);
                 messages.addView(card);
                 UI.margin(card, 0, UI.SM, 0, UI.SM);
             }
         }
+        for (LiveTurn turn : state.turns) {
+            if (!turn.conversationID.equals(state.currentID)) continue;
+            LinearLayout userCard = UI.card(requireContext());
+            userCard.addView(UI.label(requireContext(), I18n.text("m_a0c7716669b5")));
+            userCard.addView(UI.text(requireContext(), turn.message, 14, Theme.p().ink, Typeface.NORMAL));
+            messages.addView(userCard); UI.margin(userCard, 0, UI.SM, 0, UI.SM);
+            LinearLayout reply = UI.card(requireContext());
+            reply.addView(UI.label(requireContext(), I18n.text("m_1b0049fcfd41")));
+            addThinking(reply, turn.reasoning, turn.status, turn.active, turn);
+            if (!turn.content.isEmpty()) reply.addView(UI.text(requireContext(), turn.content, 14, Theme.p().ink, Typeface.NORMAL));
+            if (!turn.error.isEmpty()) {
+                reply.addView(UI.muted(requireContext(), turn.error));
+                TextView retry = UI.button(requireContext(), I18n.text("m_723588bf300c"), UI.BTN_SECONDARY);
+                retry.setEnabled(!state.sending);
+                retry.setOnClickListener(view -> { if (!state.sending) startTurn(turn); });
+                reply.addView(retry);
+            }
+            messages.addView(reply); UI.margin(reply, 0, UI.SM, 0, UI.SM);
+        }
         renderTasks();
-        if (state.sending) messages.addView(UI.muted(requireContext(), "正在准备回复与计划，尚未执行…"));
+        if (state.sending) messages.addView(UI.muted(requireContext(), I18n.text("m_44bb7b76e0d3")));
         historyButton.setEnabled(!state.sending);
         updateSend();
         scroll.post(() -> {
@@ -228,7 +257,7 @@ public class AssistantFragment extends PageFragment {
 
     private void updateSend() {
         if (send == null || input == null || !sameSession()) return;
-        send.setText(state.sending ? "思考中…" : "发送");
+        send.setText(state.sending ? I18n.text("m_64088d8cd78a") : I18n.text("m_edecf0ae6e51"));
         send.setEnabled(!state.sending && state.settings.optBoolean("configured") && !input.getText().toString().trim().isEmpty());
         send.setAlpha(send.isEnabled() ? 1f : .5f);
     }
@@ -242,53 +271,66 @@ public class AssistantFragment extends PageFragment {
         }
     }
 
+    private void addThinking(LinearLayout card, String reasoning, String phase, boolean active, LiveTurn turn) {
+        if (!active && reasoning.isEmpty()) return;
+        TextView toggle = UI.button(requireContext(), (active ? I18n.text("m_dfd317d5828c") : I18n.text("m_c71d5942ebbc")) + "  ⌄", UI.BTN_GHOST);
+        TextView detail = UI.muted(requireContext(), reasoning.isEmpty() ? phase : reasoning);
+        detail.setMaxLines(12); detail.setMovementMethod(new android.text.method.ScrollingMovementMethod());
+        detail.setTextIsSelectable(true);
+        detail.setVisibility(turn != null && turn.expanded ? View.VISIBLE : View.GONE);
+        toggle.setOnClickListener(view -> { boolean expanded = detail.getVisibility() != View.VISIBLE; detail.setVisibility(expanded ? View.VISIBLE : View.GONE); if (turn != null) turn.expanded = expanded; });
+        card.addView(toggle); card.addView(detail);
+    }
+
     private void sendMessage() {
         String text = input.getText().toString().trim();
         if (text.isEmpty() || state.sending || !sameSession() || !state.settings.optBoolean("configured")) return;
-        String conversationID = state.currentID;
-        String oldDraftKey = draftKey();
-        boolean resources = state.includeResources;
-        state.sending = true;
-        state.error = "";
-        render();
-        if (conversationID.isEmpty()) {
-            Api.async(() -> {
-                if (!sameSession()) throw new IllegalStateException("会话已变更");
-                return Api.post("/api/assistant/conversations", new JSONObject());
-            }, created -> {
-                if (!sameSession()) return;
-                merge(created);
-                state.currentID = created.optString("id");
-                state.drafts.put(state.currentID, state.drafts.getOrDefault(oldDraftKey, text));
-                state.drafts.remove(oldDraftKey);
-                performSend(state.currentID, text, resources);
-            }, failure -> { if (sameSession()) { state.sending = false; state.error = failure.getMessage(); render(); } });
-        } else performSend(conversationID, text, resources);
+        LiveTurn turn = new LiveTurn();
+        turn.conversationID = state.currentID; turn.message = text; turn.resources = state.includeResources;
+        state.turns.add(turn);
+        state.drafts.put(draftKey(), "");
+        input.setText("");
+        startTurn(turn);
     }
 
-    private void performSend(String conversationID, String text, boolean resources) {
-        Api.async(() -> {
-            if (!sameSession()) throw new IllegalStateException("会话已变更");
-            return Api.post("/api/assistant/conversations/" + conversationID + "/messages", new JSONObject().put("message", text).put("include_resources", resources));
-        }, conversation -> {
+    private void startTurn(LiveTurn turn) {
+        state.sending = true; state.error = "";
+        turn.active = true; turn.error = ""; turn.content = ""; turn.reasoning = ""; turn.status = I18n.text("m_22eb0f8779ab");
+        render();
+        if (alive() && scroll != null) scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); });
+        if (turn.conversationID.isEmpty()) {
+            Api.async(() -> { if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79")); return Api.post("/api/assistant/conversations", new JSONObject()); }, created -> {
+                if (!sameSession()) return;
+                merge(created); state.currentID = created.optString("id"); turn.conversationID = state.currentID;
+                String draft = state.drafts.remove("new"); if (draft != null) state.drafts.put(state.currentID, draft);
+                performSend(turn);
+            }, failure -> { if (sameSession()) { state.sending = false; turn.active = false; turn.error = failure.getMessage(); render(); } });
+        } else performSend(turn);
+    }
+
+    private void performSend(LiveTurn turn) {
+        RequestScope scope = new RequestScope(Session::snapshot);
+        Api.async(() -> Api.streamAssistant(scope, "/api/assistant/conversations/" + turn.conversationID + "/messages", new JSONObject().put("message", turn.message).put("include_resources", turn.resources).put("stream", true), event -> {
             if (!sameSession()) return;
-            state.sending = false;
-            merge(conversation);
-            if (text.equals(state.drafts.getOrDefault(conversationID, "").trim())) state.drafts.put(conversationID, "");
-            restoreDraft();
-            render();
-            if (alive() && scroll != null) {
-                JSONArray resultTasks = conversation.optJSONArray("tasks");
-                if (resultTasks != null && resultTasks.length() > 0) revealTasks();
-                else scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); });
+            String kind = event.optString("event");
+            if ("text".equals(kind)) { turn.content += event.optString("delta"); turn.status = I18n.text("m_13f41d1066f6"); }
+            if ("reasoning".equals(kind)) turn.reasoning += event.optString("delta");
+            if ("status".equals(kind)) turn.status = event.optString("message");
+            if (!"ping".equals(kind) && !streamRenderScheduled) {
+                streamRenderScheduled = true;
+                poller.postDelayed(() -> { streamRenderScheduled = false; boolean follow = alive() && scroll != null && messages != null && messages.getHeight() - scroll.getScrollY() - scroll.getHeight() < UI.dp(140); render(); if (follow && scroll != null) scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); }); }, 60);
             }
-        }, failure -> { if (sameSession()) { state.sending = false; state.error = failure.getMessage(); render(); } });
+        }), conversation -> {
+            if (!sameSession()) return;
+            state.sending = false; state.turns.remove(turn); merge(conversation); render();
+            if (alive() && scroll != null) { JSONArray tasks = conversation.optJSONArray("tasks"); if (tasks != null && tasks.length() > 0) revealTasks(); else scroll.post(() -> { if (scroll != null) scroll.fullScroll(View.FOCUS_DOWN); }); }
+        }, failure -> { if (sameSession()) { state.sending = false; turn.active = false; turn.error = failure.getMessage(); turn.status = I18n.text("m_a903ba39af8f"); render(); } });
     }
 
     private void showHistory() {
         if (state.sending) return;
-        Sheet.Builder sheet = Sheet.of(requireContext(), "我的会话");
-        sheet.action(R.drawable.ic_nav_plus, "新建会话", "已有会话会保留", () -> {
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ed008a400d30"), SheetSizing.Tier.MEDIUM);
+        sheet.action(R.drawable.ic_nav_plus, I18n.text("m_58e21b8737cc"), I18n.text("m_cfa6cece711c"), () -> {
             if (state.sending) return;
             state.currentID = "";
             restoreDraft();
@@ -297,17 +339,17 @@ public class AssistantFragment extends PageFragment {
         for (int index = 0; index < state.conversations.length(); index++) {
             JSONObject conversation = state.conversations.optJSONObject(index);
             String id = conversation.optString("id");
-            sheet.action(R.drawable.ic_nav_assistant, conversation.optString("title"), "查看会话与任务", () -> {
+            sheet.action(R.drawable.ic_nav_assistant, conversation.optString("title"), I18n.text("m_e978876d1ad6"), () -> {
                 state.currentID = id;
                 restoreDraft();
                 render();
             });
         }
-        if (!state.currentID.isEmpty()) sheet.action(R.drawable.ic_nav_close, "删除当前会话", "不删除已经创建的业务资源", () -> {
+        if (!state.currentID.isEmpty()) sheet.action(R.drawable.ic_nav_close, I18n.text("m_3c50ed52eef5"), I18n.text("m_3bc480a5db25"), () -> {
             String id = state.currentID;
-            Sheet.Builder confirmation = Sheet.of(requireContext(), "删除会话与任务记录？");
-            confirmation.content(UI.muted(requireContext(), "不会删除已创建的隧道、DNS 或监控。"));
-            confirmation.action(R.drawable.ic_nav_close, "确认删除", "此操作无法撤销", () -> Api.async(() -> Api.delete("/api/assistant/conversations/" + id), result -> {
+            Sheet.Builder confirmation = Sheet.of(requireContext(), I18n.text("m_6a825121f6bc"), SheetSizing.Tier.COMPACT);
+            confirmation.content(UI.muted(requireContext(), I18n.text("m_ac27ba239983")));
+            confirmation.action(R.drawable.ic_nav_close, I18n.text("m_a3ea3c17b401"), I18n.text("m_1f1a8e3dece2"), () -> Api.async(() -> Api.delete("/api/assistant/conversations/" + id), result -> {
                 if (sameSession()) { state.currentID = ""; state.drafts.remove(id); load(); }
             }, failure -> { if (sameSession()) { state.error = failure.getMessage(); render(); } }));
             confirmation.show();
@@ -327,28 +369,28 @@ public class AssistantFragment extends PageFragment {
             if (task != null && "pending".equals(task.optString("status"))) pendingIDs.add(task.optString("id"));
         }
         selection.sync(conversationID, pendingIDs);
-        taskButton.setText(pendingIDs.isEmpty() ? "任务 " + tasks.length() : "待确认 " + pendingIDs.size());
+        taskButton.setText(pendingIDs.isEmpty() ? I18n.text("m_caa71bda0f8f") + tasks.length() : I18n.text("m_b95b857b5205") + pendingIDs.size());
         taskButton.setTextColor(pendingIDs.isEmpty() ? Theme.p().mute : Theme.p().success);
         taskButton.setEnabled(tasks.length() > 0);
         if (tasks.length() == 0) return;
         LinearLayout heading = UI.row(requireContext());
-        heading.addView(UI.text(requireContext(), "任务清单 · " + tasks.length(), 16, Theme.p().ink, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView refresh = compactButton("刷新", UI.BTN_GHOST);
+        heading.addView(UI.text(requireContext(), I18n.text("m_7e44c72a7dae") + tasks.length(), 16, Theme.p().ink, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView refresh = compactButton(I18n.text("m_aee887434131"), UI.BTN_GHOST);
         refresh.setOnClickListener(view -> load());
         heading.addView(refresh);
         messages.addView(heading);
         taskSection = heading;
-        messages.addView(UI.muted(requireContext(), "只执行勾选后再次确认的新增操作。不修改或删除现有资源，正在执行的请求无法撤回。"));
+        messages.addView(UI.muted(requireContext(), I18n.text("m_389f2c7a0beb")));
         for (int index = 0; index < tasks.length(); index++) {
             JSONObject task = tasks.optJSONObject(index);
             if (task == null) continue;
             String id = task.optString("id"), taskStatus = task.optString("status");
             LinearLayout card = UI.card(requireContext());
             card.setPadding(UI.dp(14), UI.dp(12), UI.dp(14), UI.dp(12));
-            String title = task.optString("title") + " · " + (state.busy.contains(id) ? "处理中" : statusName(taskStatus));
+            String title = task.optString("title") + " · " + (state.busy.contains(id) ? I18n.text("m_694b71bc8013") : statusName(taskStatus));
             if ("pending".equals(taskStatus)) {
                 if (firstPendingCard == null) firstPendingCard = card;
-                CheckBox check = new CheckBox(requireContext());
+                CheckBox check = UI.checkBox(requireContext());
                 check.setText(title);
                 check.setTextColor(Theme.p().ink);
                 check.setTextSize(14);
@@ -361,37 +403,53 @@ public class AssistantFragment extends PageFragment {
                 card.addView(UI.text(requireContext(), title, 14, Theme.p().ink, Typeface.BOLD));
             }
             JSONObject arguments = task.optJSONObject("arguments");
-            card.addView(UI.muted(requireContext(), "变更前：不修改现有资源\n变更后：新增以下配置"));
+            JSONObject before = task.optJSONObject("before");
+            boolean deleting = task.optString("tool").startsWith("delete_");
+            if (before != null) {
+                card.addView(UI.muted(requireContext(), I18n.text("m_39f615acdc2b")));
+                Iterator<String> beforeKeys = before.keys();
+                while (beforeKeys.hasNext()) {
+                    String key = beforeKeys.next();
+                    Object value = before.opt(key);
+                    String display = value instanceof Boolean ? ((Boolean) value ? I18n.text("m_8da97ddda990") : I18n.text("m_3fd47edce45b")) : String.valueOf(value);
+                    TextView detail = UI.text(requireContext(), AssistantTaskSelection.argumentLabel(key) + "：" + display, 13, Theme.p().ink, Typeface.NORMAL);
+                    detail.setTextIsSelectable(true);
+                    card.addView(detail);
+                }
+            }
+            card.addView(UI.muted(requireContext(), deleting ? I18n.text("m_002c9310d60f") : before != null ? I18n.text("m_5a190cb19502") : I18n.text("m_ea02a85652f7")));
             if (arguments != null) {
                 Iterator<String> keys = arguments.keys();
                 while (keys.hasNext()) {
                     String key = keys.next();
                     Object value = arguments.opt(key);
-                    String display = value instanceof Boolean ? ((Boolean) value ? "开启" : "关闭") : String.valueOf(value);
+                    String display = value instanceof Boolean ? ((Boolean) value ? I18n.text("m_8da97ddda990") : I18n.text("m_3fd47edce45b")) : String.valueOf(value);
                     TextView detail = UI.text(requireContext(), AssistantTaskSelection.argumentLabel(key) + "：" + display, 13, Theme.p().ink, Typeface.NORMAL);
                     detail.setTextIsSelectable(true);
                     card.addView(detail);
                 }
-                if ("bind_domain".equals(task.optString("tool"))) card.addView(UI.muted(requireContext(), "将服务公开到互联网，新增代理 CNAME → " + arguments.optString("tunnel_id") + ".cfargotunnel.com，TTL 自动，并添加源站路由。失败时需同时核对 DNS 与路由。"));
+                if ("bind_domain".equals(task.optString("tool"))) card.addView(UI.muted(requireContext(), I18n.text("m_581906cf0bd4") + arguments.optString("tunnel_id") + I18n.text("m_fb99768f60b1")));
             }
             if (!task.optString("result").isEmpty()) card.addView(UI.muted(requireContext(), task.optString("result")));
             LinearLayout controls = UI.row(requireContext());
-            if ("pending".equals(taskStatus)) addButton(controls, "暂停", () -> taskAction(conversationID, id, "pause", false, null));
-            if ("paused".equals(taskStatus)) addButton(controls, "恢复", () -> taskAction(conversationID, id, "resume", false, null));
-            if ("unknown".equals(taskStatus)) addButton(controls, "核对后重试", () -> {
-                Sheet.Builder retry = Sheet.of(requireContext(), "请先核对实际资源");
-                retry.content(UI.muted(requireContext(), "失败或超时不代表未生效。请先确认没有重复创建，再重试。"));
-                retry.action(R.drawable.ic_nav_assistant, "已核对，确认重新执行", "可能创建资源或启动周期探测", () -> taskAction(conversationID, id, "retry", true, null));
+            if ("pending".equals(taskStatus) && !task.optString("tool").startsWith("delete_")) addButton(controls, I18n.text("m_87615fbf148a"), () -> editTask(conversationID, task));
+            if ("pending".equals(taskStatus)) addButton(controls, I18n.text("m_8d12fc0d4eb2"), () -> taskAction(conversationID, id, "pause", false, null));
+            if ("paused".equals(taskStatus)) addButton(controls, I18n.text("m_e0534b8a4e46"), () -> taskAction(conversationID, id, "resume", false, null));
+            if ("unknown".equals(taskStatus)) addButton(controls, I18n.text("m_276ce6b7b87a"), () -> {
+                int revision = task.optInt("revision", 0);
+                Sheet.Builder retry = Sheet.of(requireContext(), I18n.text("m_261d556d04c1"), SheetSizing.Tier.COMPACT);
+                retry.content(UI.muted(requireContext(), I18n.text("m_403c05a15d9a")));
+                retry.action(R.drawable.ic_nav_assistant, I18n.text("m_d26eea749abf"), I18n.text("m_1b33150543c1"), () -> taskAction(conversationID, id, "retry", true, revision, null));
                 retry.show();
             });
-            if (!"running".equals(taskStatus) && !"succeeded".equals(taskStatus) && !"cancelled".equals(taskStatus)) addButton(controls, "取消任务", () -> taskAction(conversationID, id, "cancel", false, null));
+            if (!"running".equals(taskStatus) && !"succeeded".equals(taskStatus) && !"cancelled".equals(taskStatus)) addButton(controls, I18n.text("m_537d17f1c531"), () -> taskAction(conversationID, id, "cancel", false, null));
             for (int control = 0; control < controls.getChildCount(); control++) controls.getChildAt(control).setEnabled(!state.busy.contains(id));
             if (controls.getChildCount() > 0) card.addView(controls);
             messages.addView(card);
             UI.margin(card, 0, UI.SM, 0, UI.SM);
         }
         if (!pendingIDs.isEmpty()) {
-            executeButton = UI.button(requireContext(), "核对并执行 0 项", UI.BTN_PRIMARY);
+            executeButton = UI.button(requireContext(), I18n.text("m_6800fd12e118"), UI.BTN_PRIMARY);
             executeButton.setOnClickListener(view -> confirmSelected());
             messages.addView(executeButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             UI.margin(executeButton, 0, UI.SM, 0, UI.SM);
@@ -401,7 +459,7 @@ public class AssistantFragment extends PageFragment {
 
     private void updateExecute() {
         if (executeButton == null) return;
-        executeButton.setText("核对并执行 " + selection.size() + " 项");
+        executeButton.setText(I18n.text("m_8eef47626a3e") + selection.size() + I18n.text("m_f9d529eacdf3"));
         executeButton.setEnabled(!selection.snapshot(state.currentID, !state.busy.isEmpty()).isEmpty());
         executeButton.setAlpha(executeButton.isEnabled() ? 1f : .5f);
     }
@@ -410,12 +468,14 @@ public class AssistantFragment extends PageFragment {
         String conversationID = state.currentID;
         List<String> approved = selection.snapshot(conversationID, !state.busy.isEmpty());
         if (approved.isEmpty() || !sameSession()) return;
-        Sheet.Builder confirm = Sheet.of(requireContext(), "确认执行 " + approved.size() + " 项操作？");
-        confirm.content(UI.muted(requireContext(), "域名绑定将把服务公开到互联网。可能创建收费资源；监控目标会开始周期探测。执行中的请求不能撤回。"));
-        confirm.action(R.drawable.ic_nav_assistant, "确认执行", "仅执行已勾选任务", () -> {
+        Map<String, Integer> revisions = new HashMap<>();
+        for (int i = 0; i < tasks().length(); i++) { JSONObject task = tasks().optJSONObject(i); if (task != null) revisions.put(task.optString("id"), task.optInt("revision", 0)); }
+        Sheet.Builder confirm = Sheet.of(requireContext(), I18n.text("m_bab8ac410782") + approved.size() + I18n.text("m_3fbf7b0f5a92"), SheetSizing.Tier.COMPACT);
+        confirm.content(UI.muted(requireContext(), I18n.text("m_28557d2026fc")));
+        confirm.action(R.drawable.ic_nav_assistant, I18n.text("m_68a35e224268"), I18n.text("m_f837f51681bf"), () -> {
             selection.clear();
             updateExecute();
-            executeNext(conversationID, approved);
+            executeNext(conversationID, approved, revisions);
         });
         confirm.show();
     }
@@ -433,11 +493,11 @@ public class AssistantFragment extends PageFragment {
         });
     }
 
-    private void executeNext(String conversationID, List<String> queue) {
+    private void executeNext(String conversationID, List<String> queue, Map<String, Integer> revisions) {
         if (queue.isEmpty() || !sameSession()) return;
         String id = queue.remove(0);
-        if (!isPendingTask(conversationID, id)) { executeNext(conversationID, queue); return; }
-        taskAction(conversationID, id, "execute", true, () -> executeNext(conversationID, queue));
+        if (!isPendingTask(conversationID, id)) { executeNext(conversationID, queue, revisions); return; }
+        taskAction(conversationID, id, "execute", true, revisions.getOrDefault(id, 0), () -> executeNext(conversationID, queue, revisions));
     }
 
     private boolean isPendingTask(String conversationID, String taskID) {
@@ -455,11 +515,15 @@ public class AssistantFragment extends PageFragment {
     }
 
     private void taskAction(String conversationID, String id, String action, boolean confirmed, Runnable complete) {
+        taskAction(conversationID, id, action, confirmed, 0, complete);
+    }
+
+    private void taskAction(String conversationID, String id, String action, boolean confirmed, int revision, Runnable complete) {
         if (!sameSession() || !state.busy.add(id)) return;
         render();
         Api.async(() -> {
-            if (!sameSession()) throw new IllegalStateException("会话已变更");
-            return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, new JSONObject().put("action", action).put("confirmed", confirmed).put("checked_resources", "retry".equals(action)));
+            if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79"));
+            return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, new JSONObject().put("action", action).put("confirmed", confirmed).put("checked_resources", "retry".equals(action)).put("expected_revision", revision));
         }, result -> {
             if (!sameSession()) return;
             state.busy.remove(id);
@@ -474,50 +538,76 @@ public class AssistantFragment extends PageFragment {
             }
             render();
             if (complete != null) complete.run();
-        }, failure -> { if (sameSession()) { state.busy.remove(id); state.error = failure.getMessage() + "；执行结果不确定时请先核对资源。"; render(); load(); } });
+        }, failure -> { if (sameSession()) { state.busy.remove(id); state.error = failure.getMessage() + I18n.text("m_b75bac006d14"); render(); load(); } });
     }
 
-    private void showSettings() { showSettings(state.settings.optBoolean("shared_enabled") && state.settings.optBoolean("is_admin")); }
-    private void showSettings(boolean sharedScope) {
-        Sheet.Builder sheet = Sheet.of(requireContext(), "AI 连接配置");
-        boolean admin = state.settings.optBoolean("is_admin");
-        if (state.settings.optBoolean("shared_enabled") && !admin) {
-            sheet.content(UI.muted(requireContext(), "由管理员提供共享连接。端点与密钥不可查看，会话和任务仍仅属于你。"));
-            sheet.show();
-            return;
-        }
-        JSONObject connection = state.settings.optJSONObject(sharedScope ? "shared" : "personal");
+    private void editTask(String conversationID, JSONObject task) {
+        String id = task.optString("id");
+        int revision = task.optInt("revision", 0);
+        selection.select(id, false);
+        updateExecute();
+        final AssistantTaskEditor editor;
+        try { editor = new AssistantTaskEditor(requireContext(), task); }
+        catch (Exception invalid) { state.error = I18n.text("m_d345e1fe6071"); render(); return; }
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_32b1a87a33e8"), SheetSizing.Tier.EXPANDED);
+        TextView error = UI.muted(requireContext(), "");
+        LinearLayout content = UI.column(requireContext());
+        content.addView(editor.form); content.addView(error);
+        TextView save = UI.button(requireContext(), I18n.text("m_991bb7cfe5a8"), UI.BTN_PRIMARY);
+        save.setOnClickListener(view -> {
+            final JSONObject payload;
+            try { payload = new JSONObject().put("action", "edit").put("expected_revision", revision).put("arguments", new JSONObject(editor.draft.toString())); }
+            catch (Exception invalid) { error.setText(I18n.text("m_161364fcc2b4")); return; }
+            if (!sameSession() || !state.busy.add(id)) return;
+            save.setEnabled(false); editor.setEnabled(false); sheet.setDismissible(false);
+            Api.async(() -> {
+                if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79"));
+                return Api.post("/api/assistant/conversations/" + conversationID + "/tasks/" + id, payload);
+            }, result -> {
+                sheet.setDismissible(true); sheet.dismiss();
+                if (sameSession()) { state.busy.remove(id); state.error = ""; load(); }
+            }, failure -> {
+                sheet.setDismissible(true); save.setEnabled(true); editor.setEnabled(true);
+                if (sameSession()) { state.busy.remove(id); error.setText(failure.getMessage()); }
+            });
+        });
+        sheet.content(content).footer(save).show();
+    }
+
+    private void showSettings() {
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_036413404922"), SheetSizing.Tier.EXPANDED);
+        JSONObject connection = state.settings.optJSONObject("personal");
         if (connection == null) connection = new JSONObject();
         LinearLayout form = UI.column(requireContext());
-        CheckBox shared = new CheckBox(requireContext());
-        shared.setText("启用全站共享");
-        shared.setTextColor(Theme.p().ink);
-        shared.setChecked(state.settings.optBoolean("shared_enabled"));
         EditText endpoint = UI.input(requireContext(), "https://api.example.com/v1");
         endpoint.setText(connection.optString("endpoint"));
-        form.addView(UI.field(requireContext(), "API 端点", endpoint));
-        EditText model = UI.input(requireContext(), "服务商支持的模型 ID");
+        form.addView(UI.field(requireContext(), I18n.text("m_3d1ab62be024"), endpoint));
+        final String[] apiFormat = {connection.optString("api_format", "chat_completions")};
+        form.addView(UI.label(requireContext(), I18n.text("m_77ff2042727b")));
+        form.addView(UI.segmented(requireContext(), new String[]{I18n.text("m_0b1863617b31"), I18n.text("m_b193877d0270")}, "responses".equals(apiFormat[0]) ? 1 : 0, index -> apiFormat[0] = index == 1 ? "responses" : "chat_completions"));
+        CheckBox reasoningSummary = UI.checkBox(requireContext());
+        reasoningSummary.setText(I18n.text("m_abfd70997635")); reasoningSummary.setTextColor(Theme.p().ink); reasoningSummary.setChecked(connection.optBoolean("reasoning_summary")); form.addView(reasoningSummary);
+        EditText model = UI.input(requireContext(), I18n.text("m_5ec4a61c05d5"));
         model.setText(connection.optString("model"));
-        form.addView(UI.field(requireContext(), "模型名称", model));
-        EditText key = UI.input(requireContext(), connection.optBoolean("key_set") ? "已设置，留空保留原密钥" : "API 密钥");
+        form.addView(UI.field(requireContext(), I18n.text("m_cb2f1709f983"), model));
+        EditText key = UI.input(requireContext(), connection.optBoolean("key_set") ? I18n.text("m_a025b0c0b478") : I18n.text("m_5f600b307b4e"));
         key.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         key.setSaveEnabled(false);
         key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
-        form.addView(UI.field(requireContext(), "API 密钥", key));
-        form.addView(UI.muted(requireContext(), "兼容 Chat Completions 与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 按后端所在主机或容器解析。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥服务端加密、不回显；更换端点需重新填写。"));
+        form.addView(UI.field(requireContext(), I18n.text("m_5f600b307b4e"), key));
+        form.addView(UI.muted(requireContext(), I18n.text("m_c03625923b75")));
         TextView error = UI.muted(requireContext(), "");
         form.addView(error);
-        TextView save = UI.button(requireContext(), "保存配置", UI.BTN_PRIMARY);
+        TextView save = UI.button(requireContext(), I18n.text("m_6e584e3d5ce6"), UI.BTN_PRIMARY);
         save.setOnClickListener(view -> {
             JSONObject payload = new JSONObject();
             try {
-                payload.put("scope", sharedScope ? "shared" : "personal").put("endpoint", endpoint.getText().toString().trim()).put("model", model.getText().toString().trim()).put("api_key", key.getText().toString());
-                if (sharedScope) payload.put("shared_enabled", shared.isChecked());
+                payload.put("scope", "personal").put("endpoint", endpoint.getText().toString().trim()).put("model", model.getText().toString().trim()).put("api_key", key.getText().toString()).put("api_format", apiFormat[0]).put("reasoning_summary", reasoningSummary.isChecked());
             } catch (Exception ignored) { return; }
             save.setEnabled(false);
             sheet.setDismissible(false);
             Api.async(() -> {
-                if (!sameSession()) throw new IllegalStateException("会话已变更");
+                if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79"));
                 return Api.put("/api/assistant/settings", payload);
             }, result -> {
                 key.setText("");
@@ -543,15 +633,15 @@ public class AssistantFragment extends PageFragment {
     }
     private static String statusName(String status) {
         switch (status) {
-            case "pending": return "待确认";
-            case "paused": return "已暂停";
-            case "running": return "执行中";
-            case "succeeded": return "已完成";
-            case "unknown": return "需核对";
-            default: return "已取消";
+            case "pending": return I18n.text("m_a8b0bd9c65f7");
+            case "paused": return I18n.text("m_eb0c326b60ae");
+            case "running": return I18n.text("m_5026a63b58cd");
+            case "succeeded": return I18n.text("m_f28461bb49c8");
+            case "unknown": return I18n.text("m_db6343cfca18");
+            default: return I18n.text("m_a37778f17c5f");
         }
     }
-    @Override public void onResume() { super.onResume(); poller.postDelayed(this::poll, 5000); }
+    @Override public void onResume() { super.onResume(); if (sameSession()) render(); poller.postDelayed(this::poll, 5000); }
     private void poll() {
         if (!alive() || !sameSession()) return;
         boolean running = false;
@@ -560,9 +650,10 @@ public class AssistantFragment extends PageFragment {
         if (running && state.busy.isEmpty()) load();
         poller.postDelayed(this::poll, 5000);
     }
-    @Override public void onPause() { poller.removeCallbacksAndMessages(null); super.onPause(); }
+    @Override public void onPause() { poller.removeCallbacksAndMessages(null); streamRenderScheduled = false; super.onPause(); }
     @Override public void onDestroyView() {
         poller.removeCallbacksAndMessages(null);
+        streamRenderScheduled = false;
         selection.clear();
         renderedConversationID = "";
         renderedTaskCount = 0;

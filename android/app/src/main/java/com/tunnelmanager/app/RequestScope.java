@@ -36,7 +36,7 @@ final class RequestScope {
 
     synchronized String reason() {
         if (stopped == null && (session.server.isEmpty() || session.token.isEmpty() || !session.matches(current.get()))) {
-            stopped = "用户会话或服务器已切换，请关闭窗口后重新创建批次";
+            stopped = I18n.text("m_2cd8b46a69cc");
         }
         return stopped;
     }

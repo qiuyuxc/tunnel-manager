@@ -105,11 +105,10 @@
          applied at runtime from Palette.java, so this only has to be a neutral
          window with no frame of its own.
 
-         It stays a *floating* window on purpose: a non-floating dialog window
-         never receives input focus, so BACK would fall through to the activity
-         and close the page instead of the sheet. -->
-    <style name="SheetDialog" parent="Theme.Material3.DayNight.Dialog">
-        <item name="android:windowIsFloating">true</item>
+         Material owns a full-height Coordinator so its three stops can be
+         computed against screen height. The sheet body paints its own surface. -->
+    <style name="SheetDialog" parent="Theme.Material3.DayNight.BottomSheetDialog">
+        <item name="android:windowIsFloating">false</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>

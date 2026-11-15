@@ -1,20 +1,14 @@
-import LabIPSelector from '../views/LabIPSelector.vue'
 import { createRouter, createWebHistory } from 'vue-router'
-import Dashboard from '../views/Dashboard.vue'
-import Login from '../views/Login.vue'
-import Landing from '../views/Landing.vue'
-import { useConfigStore } from '../stores/config'
-import { setupStatus } from '../api/setup'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     // The wizard stands alone: no sidebar, no sign-in, nothing else to reach.
     { path: '/setup', name: 'setup', component: () => import('../views/Setup.vue'), meta: { setup: true, public: true } },
-    { path: '/login', name: 'login', component: Login },
-    { path: '/', name: 'landing', component: Landing, meta: { public: true } },
+    { path: '/login', name: 'login', component: () => import('../views/Login.vue'), meta: { public: true } },
+    { path: '/', name: 'landing', component: () => import('../views/Landing.vue'), meta: { public: true } },
     { path: '/home', redirect: '/' },
-    { path: '/dashboard', name: 'dashboard', component: Dashboard, meta: { requiresAuth: true } },
+    { path: '/dashboard', name: 'dashboard', component: () => import('../views/Dashboard.vue'), meta: { requiresAuth: true } },
     { path: '/tunnels', name: 'tunnels', component: () => import('../views/Tunnels.vue'), meta: { requiresAuth: true } },
     { path: '/tunnels/:id', name: 'tunnel-detail', component: () => import('../views/TunnelDetail.vue'), meta: { requiresAuth: true } },
     { path: '/monitors', name: 'monitors', component: () => import('../views/Monitors.vue'), meta: { requiresAuth: true } },
@@ -23,9 +17,9 @@ const router = createRouter({
     { path: '/domain', name: 'domain', component: () => import('../views/DomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/domain/batch', name: 'domain-batch', component: () => import('../views/BatchDomainBinding.vue'), meta: { requiresAuth: true } },
     { path: '/dns', name: 'dns', component: () => import('../views/DNSManagement.vue'), meta: { requiresAuth: true } },
-    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: LabIPSelector, meta: { requiresAuth: true, requiresExperimental: true } },
     { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue'), meta: { requiresAuth: true } },
     { path: '/assistant', name: 'assistant', component: () => import('../views/Assistant.vue'), meta: { requiresAuth: true } },
+    { path: '/lab/ip-selector', name: 'lab-ip-selector', component: () => import('../views/LabIPSelector.vue'), meta: { requiresAuth: true, experimental: true } },
     { path: '/account', name: 'account', component: () => import('../views/Account.vue'), meta: { requiresAuth: true } },
     { path: '/notifications', name: 'notifications', component: () => import('../views/Notifications.vue'), meta: { requiresAuth: true } },
     { path: '/about', name: 'about', component: () => import('../views/About.vue'), meta: { requiresAuth: true } },
@@ -33,6 +27,15 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from) => {
+  // Shared status pages need only their public endpoint. Panel setup, branding
+  // and account requests would delay this independent entry point.
+  if (to.name === 'public-status') return true
+  const [{ useConfigStore }, { setupStatus }] = await Promise.all([
+    import('../stores/config'), import('../api/setup'), import('../ConsoleApp.vue'),
+  ])
+  const store = useConfigStore()
+  const settings = store.fetchSiteSettings()
+  const session = to.meta.requiresAuth ? store.fetchMe(false) : Promise.resolve()
   // An instance without an administrator serves the install wizard and nothing
   // else; a panel that is already installed answers 404 and never sees /setup.
   let wizard = await setupStatus()
@@ -45,10 +48,8 @@ router.beforeEach(async (to, from) => {
   }
   if (!wizard && to.meta.setup) return '/login'
   if (wizard) return true
-  const store = useConfigStore()
-  if (!store.siteSettingsLoaded) {
-    await store.fetchSiteSettings()
-  }
+  // These requests were started together with the setup check above.
+  await Promise.all([settings, session])
   if (to.path === '/') {
     // Landing page is the front door for everyone when enabled.
     if (store.landingEnabled) return true
@@ -57,12 +58,14 @@ router.beforeEach(async (to, from) => {
   if (to.meta.requiresAuth && !store.isAuthenticated) {
     return store.landingEnabled ? '/' : '/login'
   }
-  if (to.meta.requiresExperimental && !store.experimentalFeatures) {
-    return '/dashboard'
-  }
+  if (to.meta.experimental && !store.experimentalFeatures) return '/dashboard'
   if (to.path === '/login' && store.isAuthenticated) {
     return store.landingEnabled ? '/' : '/dashboard'
   }
+})
+
+router.afterEach((to) => {
+  document.documentElement.dataset.entry = to.name === 'public-status' ? 'status' : 'panel'
 })
 
 export default router

@@ -1,6 +1,6 @@
 <template>
   <!-- The product mark: the site icon when the operator uploaded one, otherwise
-       the tunnel-arch glyph on a mint rounded square (same glyph as the favicon
+       the tunnel-arch glyph on a monochrome rounded square (same glyph as the favicon
        in index.html, so the browser tab and the sidebar agree). Sized through a
        CSS var so callers only pass one number. -->
   <span class="brand-mark" :style="{ '--mark-size': size + 'px' }" aria-hidden="true">

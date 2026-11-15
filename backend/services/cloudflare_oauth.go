@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,14 +50,15 @@ type CloudflareOAuthConfig struct {
 
 // CloudflareOAuth manages authorization code exchange and access token refresh.
 type CloudflareOAuth struct {
-	store          *store.Store
-	encryptionKey  []byte
-	config         CloudflareOAuthConfig
-	httpClient     *http.Client
-	now            func() time.Time
-	mu             sync.Mutex
-	tokenEndpoint  string
-	revokeEndpoint string
+	store           *store.Store
+	encryptionKey   []byte
+	config          CloudflareOAuthConfig
+	httpClient      *http.Client
+	now             func() time.Time
+	mu              sync.Mutex
+	connectionSlots [64]chan struct{}
+	tokenEndpoint   string
+	revokeEndpoint  string
 }
 
 type cloudflareOAuthToken struct {
@@ -71,7 +73,7 @@ type cloudflareOAuthToken struct {
 
 // NewCloudflareOAuth creates the OAuth credential manager.
 func NewCloudflareOAuth(st *store.Store, encryptionKey []byte, config CloudflareOAuthConfig) *CloudflareOAuth {
-	return &CloudflareOAuth{
+	oauth := &CloudflareOAuth{
 		store:          st,
 		encryptionKey:  append([]byte(nil), encryptionKey...),
 		config:         config,
@@ -80,6 +82,10 @@ func NewCloudflareOAuth(st *store.Store, encryptionKey []byte, config Cloudflare
 		tokenEndpoint:  cloudflareTokenEndpoint,
 		revokeEndpoint: cloudflareRevokeEndpoint,
 	}
+	for i := range oauth.connectionSlots {
+		oauth.connectionSlots[i] = make(chan struct{}, 1)
+	}
+	return oauth
 }
 
 // effectiveConfig merges the admin-panel OAuth settings over the environment
@@ -186,8 +192,15 @@ func (o *CloudflareOAuth) ExchangeCode(code, redirectURI, codeVerifier string) e
 
 // AccessToken returns a usable access token, refreshing it when needed.
 func (o *CloudflareOAuth) AccessToken() (string, error) {
+	return o.AccessTokenContext(context.Background())
+}
+
+func (o *CloudflareOAuth) AccessTokenContext(ctx context.Context) (string, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 
 	config := o.store.GetConfig()
 	if config.CFOAuthAccessToken == "" {
@@ -210,7 +223,7 @@ func (o *CloudflareOAuth) AccessToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("decrypt Cloudflare OAuth refresh token: %w", err)
 	}
-	token, err := o.requestToken(url.Values{
+	token, err := o.requestTokenContext(ctx, url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {string(refreshToken)},
 	})
@@ -251,7 +264,11 @@ func (o *CloudflareOAuth) RevokeAndClear() error {
 }
 
 func (o *CloudflareOAuth) requestToken(values url.Values) (cloudflareOAuthToken, error) {
-	req, err := http.NewRequest(http.MethodPost, o.tokenEndpoint, strings.NewReader(values.Encode()))
+	return o.requestTokenContext(context.Background(), values)
+}
+
+func (o *CloudflareOAuth) requestTokenContext(ctx context.Context, values url.Values) (cloudflareOAuthToken, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.tokenEndpoint, strings.NewReader(values.Encode()))
 	if err != nil {
 		return cloudflareOAuthToken{}, err
 	}
@@ -327,8 +344,34 @@ func (o *CloudflareOAuth) revoke(token string) error {
 // AccessTokenFor returns a usable access token for one connection, refreshing
 // and rotating the stored tokens when they are about to expire.
 func (o *CloudflareOAuth) AccessTokenFor(conn models.CFConnection) (string, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
+	return o.AccessTokenForContext(context.Background(), conn)
+}
+
+func (o *CloudflareOAuth) AccessTokenForContext(ctx context.Context, conn models.CFConnection) (string, error) {
+	// A fixed set of gates bounds memory and avoids making every account wait
+	// behind one slow token refresh. Requests for the same grant serialize so a
+	// rotated, single-use refresh token is only exchanged once.
+	var hash uint32 = 2166136261
+	for _, b := range []byte(conn.ID) {
+		hash = (hash ^ uint32(b)) * 16777619
+	}
+	slot := o.connectionSlots[hash%uint32(len(o.connectionSlots))]
+	select {
+	case slot <- struct{}{}:
+		defer func() { <-slot }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if conn.ID != "" {
+		fresh, ok := o.store.CFConnection(conn.UserID, conn.ID)
+		if !ok {
+			return "", ErrCloudflareOAuthNotConnected
+		}
+		conn = fresh
+	}
 
 	if conn.AccessToken == "" {
 		return "", ErrCloudflareOAuthNotConnected
@@ -347,7 +390,7 @@ func (o *CloudflareOAuth) AccessTokenFor(conn models.CFConnection) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("decrypt Cloudflare OAuth refresh token: %w", err)
 	}
-	token, err := o.requestToken(url.Values{
+	token, err := o.requestTokenContext(ctx, url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {string(refreshToken)},
 	})

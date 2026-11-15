@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TunnelManager" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/liquid_dark_canvas</item>
+        <item name="tm_logo">@color/liquid_dark_accent</item>
+        <item name="tm_logo_dim">@color/liquid_dark_mute</item>
+        <item name="colorPrimary">@color/liquid_dark_accent</item>
+        <item name="colorSecondary">@color/liquid_dark_accent</item>
+        <item name="colorOnPrimary">@color/liquid_dark_accent_text</item>
+        <item name="colorSurface">@color/liquid_dark_panel</item>
+        <item name="colorOnSurface">@color/liquid_dark_ink</item>
+        <item name="android:statusBarColor">@color/liquid_dark_canvas</item>
+        <item name="android:navigationBarColor">@color/liquid_dark_canvas</item>
+    </style>
+</resources>

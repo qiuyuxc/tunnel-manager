@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"net"
 	"net/http"
 	"strings"
 
@@ -39,17 +38,4 @@ func verifyTurnstile(st *store.Store, encryptionKey []byte, r *http.Request, tok
 	return true, ""
 }
 
-// clientIP extracts the best available client address for siteverify.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.IndexByte(xff, ','); idx > 0 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
-	}
-	return r.RemoteAddr
-}
+func clientIP(r *http.Request) string { return services.ClientIP(r) }

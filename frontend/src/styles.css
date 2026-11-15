@@ -6,9 +6,9 @@
   --spacing-xl: 24px;
   --spacing-2xl: 32px;
   --spacing-3xl: 48px;
-  --max-width: 1576px;
+  --max-width: 1440px;
   --header-height: 72px;
-  --sidebar-width: 232px;
+  --sidebar-width: 228px;
   --tabbar-height: 0px;
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -79,10 +79,7 @@ select {
 .app-shell {
   display: flex;
   min-height: 100vh;
-  /* Product surfaces take their accent from the theme's own CTA colour rather
-     than {colors.link}: mint for the default graphite theme, coral for the warm
-     theme. The blue link colour only survives in marketing copy, and the
-     landing / public status pages sit outside .app-shell so they keep it. */
+  /* Workspace actions and links share the monochrome primary colour. */
   --color-link: var(--color-btn-primary-bg);
   --color-link-hover: var(--color-btn-primary-hover);
 }
@@ -92,7 +89,7 @@ select {
 .app-area {
   flex: 1;
   min-width: 0;
-  margin-left: var(--sidebar-width);
+  margin-left: calc(var(--sidebar-width) + 24px);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -110,7 +107,7 @@ select {
 .app-area-login { margin-left: 0; }
 
 .page-container {
-  padding: 32px 36px 28px;
+  padding: 32px 32px 40px;
   max-width: var(--max-width);
   margin: 0 auto;
   box-sizing: border-box;
@@ -120,16 +117,18 @@ select {
    bottom margin; 24px is what most of them settled on, so it lives here now.
    The h2 weight and colour come from the typography group above. */
 .page-header {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 28px;
 }
 
 .page-header h2 {
-  font-size: 22px;
+  font-size: clamp(22px, 2vw, 28px);
+  letter-spacing: -.5px;
   margin: 0 0 var(--spacing-sm);
 }
 
 .page-header p {
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.8;
   color: var(--color-body);
   margin: 0;
 }
@@ -156,7 +155,7 @@ select {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
+  min-height: 40px;
   padding: 0 16px;
   border-radius: var(--radius-pill);
   font-size: 13px;
@@ -199,13 +198,13 @@ select {
 }
 .btn-danger:hover:not(:disabled) { opacity: 0.85; }
 
-.btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
+.btn-sm { min-height: 34px; padding: 0 12px; font-size: 12px; }
 .btn-lg { height: 42px; padding: 0 22px; }
 
 /* Form inputs - keep minimal, Naive UI handles most */
 .vercel-input {
   width: 100%;
-  height: 36px;
+  height: 42px;
   padding: 0 12px;
   border: 1px solid var(--color-btn-secondary-border);
   border-radius: var(--radius-md);
@@ -216,7 +215,7 @@ select {
   transition: border-color 120ms ease, box-shadow 120ms ease;
   box-sizing: border-box;
 }
-.vercel-input:focus { border-color: var(--color-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 10%, transparent); }
+.vercel-input:focus { border-color: var(--color-focus); }
 .vercel-input::placeholder { color: var(--color-mute); }
 .vercel-input.input-error { border-color: var(--color-error); }
 
@@ -234,15 +233,19 @@ select {
   letter-spacing: 0.03em;
 }
 .status-tag.healthy {
-  background: var(--color-status-healthy-bg);
-  color: var(--color-status-healthy-text);
-  border: 1px solid var(--color-status-healthy-border);
+  background: var(--color-canvas-soft-2);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
 }
-.status-tag.down,
-.status-tag.inactive {
+.status-tag.down {
   background: var(--color-status-down-bg);
   color: var(--color-status-down-text);
   border: 1px solid var(--color-status-down-border);
+}
+.status-tag.inactive {
+  background: var(--color-canvas-soft-2);
+  color: var(--color-mute);
+  border: 1px solid var(--color-hairline);
 }
 .status-tag.degraded {
   background: var(--color-status-degraded-bg);
@@ -448,7 +451,7 @@ select {
   white-space: nowrap;
 }
 
-.tag-ok { color: var(--color-status-healthy-text); border-color: var(--color-status-healthy-border); background: var(--color-status-healthy-bg); }
+.tag-ok { color: var(--color-ink); border-color: var(--color-hairline); background: var(--color-canvas-soft-2); }
 .tag-warn { color: var(--color-status-degraded-text); border-color: var(--color-status-degraded-border); background: var(--color-status-degraded-bg); }
 .tag-down { color: var(--color-status-down-text); border-color: var(--color-status-down-border); background: var(--color-status-down-bg); }
 
@@ -467,4 +470,27 @@ textarea.vercel-input {
   .settings-card-header { flex-direction: column; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
   .actions-row { justify-content: stretch; }
   .actions-row .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* Shared workspace structure and compact screens. */
+*, *::before, *::after { box-sizing: border-box; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.load-notice { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 16px; color: var(--color-warning); background: var(--color-banner-warning-bg); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); font-size: 13px; }
+.load-notice button { margin-left: auto; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.section-heading h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.section-heading small { color: var(--color-mute); font-size: 12px; }
+.app-shell .settings-card { box-shadow: 0 2px 8px rgb(0 0 0 / 2%); }
+.app-shell :is(.settings-card-header, .card-header) { overflow-wrap: anywhere; }
+.app-shell :is(.metric-card, .settings-card, .card) { min-width: 0; }
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { --sidebar-width: 204px; }
+  .page-container { padding: 28px 24px; }
+}
+@media (max-width: 480px) {
+  .page-container { padding: 24px 16px; }
+  .page-header { margin-bottom: 22px; }
+  .page-header h2 { font-size: 24px; }
+  .app-shell .settings-card { padding: 20px; }
 }

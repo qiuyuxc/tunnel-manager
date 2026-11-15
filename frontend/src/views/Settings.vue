@@ -1,26 +1,31 @@
 <template>
   <div class="page-container">
-    <div class="page-header settings-heading">
-            <h2>全局设置</h2>
-      <p>集中管理站点品牌、域名绑定偏好、回退源与隧道设置。</p>
-    </div>
     <div class="settings-grid section">
+      <section class="settings-card settings-card-wide appearance-card">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">{{ tr('console.appearance') }}</div><div class="settings-card-desc">{{ tr('console.appearance_description') }}</div></div>
+        </div>
+        <div class="appearance-options">
+          <label><span>{{ tr('console.dark_theme') }}</span><n-switch v-model:value="store.darkMode" /></label>
+          <label><span>{{ tr('console.light_effects') }}</span><n-switch v-model:value="store.lightEffects" /></label>
+        </div>
+      </section>
       <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.04s;">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">站点信息</div>
-            <div class="settings-card-desc">自定义浏览器标题、导航品牌、登录页名称、描述与站点图标。</div>
+            <div class="settings-card-title">{{ tr('m_a719b867f3fc') }}</div>
+            <div class="settings-card-desc">{{ tr('m_22196a1072dc') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="savingSite" @click="saveSite">
-            {{ savingSite ? '保存中...' : '保存站点信息' }}
+            {{ savingSite ? tr('m_917b1c1f18d0') : tr('m_bcf1ace464e5') }}
           </button>
         </div>
         <div class="brand-editor">
           <div class="brand-preview">
-            <span class="brand-preview-label caption-mono">实时预览</span>
+            <span class="brand-preview-label caption-mono">{{ tr('m_a76fdaad7519') }}</span>
             <div class="brand-preview-content">
               <span class="brand-preview-icon">
-                <img v-if="site.icon" :src="site.icon" alt="站点图标预览" />
+                <img v-if="site.icon" :src="site.icon" :alt="tr('m_2d68220dd51e')" />
                 <svg v-else width="24" height="24" viewBox="0 0 76 76" fill="none" aria-hidden="true">
                   <path d="M49 26H27v24l22-24z" fill="currentColor"/>
                   <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
@@ -28,38 +33,38 @@
               </span>
               <div>
                 <strong>{{ site.name || 'Tunnel Manager' }}</strong>
-                <p>{{ site.description || 'Cloudflare 隧道管理中心' }}</p>
+                <p>{{ site.description || tr('m_c2c8982623de') }}</p>
               </div>
             </div>
           </div>
           <div class="brand-fields">
             <label class="field">
-              <span class="field-label">站点名称</span>
+              <span class="field-label">{{ tr('m_8ac4f0447b99') }}</span>
               <input v-model="site.name" maxlength="60" class="vercel-input" placeholder="Tunnel Manager" />
             </label>
             <label class="field">
-              <span class="field-label">站点描述</span>
-              <input v-model="site.description" maxlength="160" class="vercel-input" placeholder="Cloudflare 隧道管理中心" />
+              <span class="field-label">{{ tr('m_9ddde2b92952') }}</span>
+              <input v-model="site.description" maxlength="160" class="vercel-input" :placeholder="tr('m_c2c8982623de')" />
             </label>
             <label class="field">
-              <span class="field-label">站点图标</span>
-              <input v-model="site.icon" class="vercel-input" placeholder="https://example.com/icon.png，或上传本地图片" />
+              <span class="field-label">{{ tr('m_e220e37bbb93') }}</span>
+              <input v-model="site.icon" class="vercel-input" :placeholder="tr('m_22f956aa4f06')" />
             </label>
             <div class="icon-actions">
               <input ref="iconInput" type="file" accept="image/*" class="file-input" @change="handleIconUpload" />
-              <button class="btn btn-secondary" type="button" @click="iconInput?.click()">上传图片</button>
-              <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">清除图标</button>
-              <span>建议使用 1:1 图片，文件不超过 512 KB。</span>
+              <button class="btn btn-secondary" type="button" @click="iconInput?.click()">{{ tr('m_9fbb4750bb39') }}</button>
+              <button v-if="site.icon" class="btn btn-ghost" type="button" @click="site.icon = ''">{{ tr('m_10e0fd099bd2') }}</button>
+              <span>{{ tr('m_8647947e6b61') }}</span>
             </div>
             <label class="field">
-              <span class="field-label">面板域名</span>
+              <span class="field-label">{{ tr('m_d22b7b6d0776') }}</span>
               <input v-model="site.panelHost" class="vercel-input" placeholder="panel.example.com" />
-              <span class="field-help">状态页自定义域名会复制该域名 ingress 的服务与源站参数。留空时自动使用管理员首次登录时的访问域名。</span>
+              <span class="field-help">{{ tr('m_51b4048beb35') }}</span>
             </label>
             <div class="landing-toggle">
               <div class="landing-toggle-text">
-                <span class="field-label">启用首页（落地页）</span>
-                <span class="landing-toggle-help">开启后，未登录用户访问站点将先看到首页，而不是直接进入登录页；关闭则保持原来的登录页。</span>
+                <span class="field-label">{{ tr('m_87b31918524a') }}</span>
+                <span class="landing-toggle-help">{{ tr('m_f4746045e90d') }}</span>
               </div>
               <n-switch v-model:value="site.landingEnabled" size="small" :disabled="savingSite" @update:value="saveSite" />
             </div>
@@ -69,215 +74,214 @@
       <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.1s;">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">常用 CNAME 组</div>
-            <div class="settings-card-desc">维护常用优选线路。域名绑定时可以直接选择，也可以继续手动输入。</div>
+            <div class="settings-card-title">{{ tr('m_f60a2d511962') }}</div>
+            <div class="settings-card-desc">{{ tr('m_7e7f12cf948f') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="savingPresets" @click="savePresets">
-            {{ savingPresets ? '保存中...' : '保存 CNAME 组' }}
+            {{ savingPresets ? tr('m_917b1c1f18d0') : tr('m_801a8daafa2e') }}
           </button>
         </div>
         <div class="default-cname-row">
           <div class="field">
-            <span class="field-label">默认优选 CNAME</span>
-            <span class="field-help">未指定线路时自动使用此值。</span>
+            <span class="field-label">{{ tr('m_71b3aeb8f73c') }}</span>
+            <span class="field-help">{{ tr('m_bb8bd65fc13f') }}</span>
             <cname-picker v-model="preferredCNAME" :presets="cnamePresets" placeholder="cf.090227.xyz" />
           </div>
           <button class="btn btn-secondary" :disabled="savingCNAME" @click="savePreferredCNAME">
-            {{ savingCNAME ? '保存中...' : '保存默认值' }}
+            {{ savingCNAME ? tr('m_917b1c1f18d0') : tr('m_9e9ef2c6a1ec') }}
           </button>
         </div>
         <div class="preset-list">
           <div v-for="(item, index) in cnamePresets" :key="index" class="preset-row">
             <span class="preset-index">{{ index + 1 }}</span>
             <label class="field">
-              <span class="field-label">线路名称</span>
-              <input v-model="item.name" maxlength="40" class="vercel-input" placeholder="例如：移动优选" />
+              <span class="field-label">{{ tr('m_2035432e8a18') }}</span>
+              <input v-model="item.name" maxlength="40" class="vercel-input" :placeholder="tr('m_93bc08a447ce')" />
             </label>
             <label class="field preset-value">
-              <span class="field-label">CNAME 地址</span>
-              <input v-model="item.value" class="vercel-input" placeholder="例如：cdn.example.com" />
+              <span class="field-label">{{ tr('m_ce05579d19d5') }}</span>
+              <input v-model="item.value" class="vercel-input" :placeholder="tr('m_91d03241c65a')" />
             </label>
-            <button class="remove-button" type="button" :disabled="cnamePresets.length === 1" aria-label="删除此 CNAME" @click="removePreset(index)">
+            <button class="remove-button" type="button" :disabled="cnamePresets.length === 1" :aria-label="tr('m_cd2e36b1f425')" @click="removePreset(index)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5 5 19"/></svg>
             </button>
           </div>
         </div>
         <button class="add-preset" type="button" :disabled="cnamePresets.length >= 20" @click="addPreset">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          添加常用 CNAME
-        </button>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> {{ tr('m_f47cac452640') }} </button>
       </section>
       <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.16s;">
         <div class="settings-card-header compact">
           <div>
-            <div class="settings-card-title">回退源设置</div>
-            <div class="settings-card-desc">设置 Custom Hostnames 的 Fallback Origin。</div>
+            <div class="settings-card-title">{{ tr('m_119e1fd67f70') }}</div>
+            <div class="settings-card-desc">{{ tr('m_855cdae806a9') }}</div>
           </div>
         </div>
         <div class="settings-input-row">
-          <input v-model="fallbackDomain" placeholder="例如: fallback.example.com" class="vercel-input" />
+          <input v-model="fallbackDomain" :placeholder="tr('m_078389cf3046')" class="vercel-input" />
           <button class="btn btn-secondary" :disabled="savingFallback" @click="saveFallback">
-            {{ savingFallback ? '设置中...' : '设置回退源' }}
+            {{ savingFallback ? tr('m_599be7aa10be') : tr('m_0bb58707f90c') }}
           </button>
         </div>
       </section>
       <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.22s;">
         <div class="settings-card-header compact">
           <div>
-            <div class="settings-card-title">当前隧道</div>
-            <div class="settings-card-desc">隧道选择统一在隧道管理页完成，避免误填 ID。</div>
+            <div class="settings-card-title">{{ tr('m_b903d203f70a') }}</div>
+            <div class="settings-card-desc">{{ tr('m_8401fe7d0746') }}</div>
           </div>
         </div>
         <div v-if="config.tunnel_id" class="tunnel-summary">
           <div>
-            <strong>{{ config.tunnel_name || '已选隧道' }}</strong>
+            <strong>{{ config.tunnel_name || tr('m_8ce5320404d5') }}</strong>
             <code>{{ config.tunnel_id }}</code>
           </div>
-          <router-link to="/tunnels" class="btn btn-secondary">切换隧道</router-link>
+          <router-link to="/tunnels" class="btn btn-secondary">{{ tr('m_42b8762044e2') }}</router-link>
         </div>
         <div v-else class="tunnel-empty">
-          <span>尚未选择隧道</span>
-          <router-link to="/tunnels" class="btn btn-primary">选择隧道</router-link>
+          <span>{{ tr('m_0e2cf15a2702') }}</span>
+          <router-link to="/tunnels" class="btn btn-primary">{{ tr('m_acfb8f32676c') }}</router-link>
         </div>
       </section>
     </div>
 
-    <div class="page-header settings-heading section" style="margin-top: var(--spacing-xl);">
-      <h2>系统与安全</h2>
-      <p>邮件服务、登录保护、通行密钥、人机验证、Cloudflare 授权与加密密钥。</p>
+    <div class="section-heading section">
+      <h3>{{ tr('slim_dea436156cea') }}</h3>
+      <p>{{ tr('slim_8523c968bd2b') }}</p>
     </div>
     <div class="security-grid section">
       <div class="admin-card">
-        <h3>SMTP 邮件服务</h3>
-        <p class="admin-hint">用于监控告警邮件与找回密码验证码。密码留空表示保持原值不变。</p>
+        <h3>{{ tr('m_dd15bdd9da5a') }}</h3>
+        <p class="admin-hint">{{ tr('slim_75c52d958508') }}</p>
         <div class="admin-form smtp-form">
-          <input v-model="smtp.host" type="text" placeholder="SMTP 主机，如 smtp.example.com" class="vercel-input" />
-          <input v-model.number="smtp.port" type="number" placeholder="端口（465 或 587）" class="vercel-input narrow" />
-          <input v-model="smtp.username" type="text" placeholder="用户名（通常为邮箱）" class="vercel-input" />
-          <input v-model="smtp.password" type="password" placeholder="密码 / 授权码（留空保持不变）" class="vercel-input" />
-          <input v-model="smtp.from" type="text" placeholder="发件人，如 panel@example.com" class="vercel-input" />
+          <input v-model="smtp.host" type="text" :placeholder="tr('m_546012b06a1a')" class="vercel-input" />
+          <input v-model.number="smtp.port" type="number" :placeholder="tr('m_857bf0d4750f')" class="vercel-input narrow" />
+          <input v-model="smtp.username" type="text" :placeholder="tr('m_6a432ca72cc9')" class="vercel-input" />
+          <input v-model="smtp.password" type="password" :placeholder="tr('m_077af8674c6a')" class="vercel-input" />
+          <input v-model="smtp.from" type="text" :placeholder="tr('m_f070a921c850')" class="vercel-input" />
           <select v-model="smtp.tlsMode" class="vercel-input narrow">
-            <option value="ssl">加密</option>
-            <option value="plain">不加密</option>
+            <option value="ssl">{{ tr('m_320c254572c4') }}</option>
+            <option value="plain">{{ tr('m_69f3b744f3f2') }}</option>
           </select>
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">保存设置</button>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSmtp">{{ tr('m_c8550237ba70') }}</button>
         </div>
         <div class="admin-form">
-          <input v-model="testMailTo" type="email" placeholder="发送测试邮件到：你的邮箱" class="vercel-input" />
-          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? '发送中…' : '发送测试邮件' }}</button>
+          <input v-model="testMailTo" type="email" :placeholder="tr('m_bed1e40c6cbe')" class="vercel-input" />
+          <button class="btn btn-secondary" type="button" :disabled="busy || testingMail || !smtp.host" @click="sendTestMail">{{ testingMail ? tr('m_364970d8168c') : tr('m_f9ae1a31638d') }}</button>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>登录保护</h3>
-        <p class="admin-hint">登录、二次验证、验证码、找回与重置密码都受此限制。账号额度是真正的防线——换 IP 绕不过去；IP 额度用来挡住一台机器横扫。任一触发即返回 429 并附带解锁时间。</p>
+        <h3>{{ tr('m_37c24b911b27') }}</h3>
+        <p class="admin-hint">{{ tr('slim_606c172de59e') }}</p>
         <div class="setting-row">
-          <span class="setting-label">启用登录限流</span>
+          <span class="setting-label">{{ tr('m_829140bedce5') }}</span>
           <n-switch v-model:value="settings.rate_limit_enabled" size="small" @update:value="saveSettings" />
         </div>
         <div class="admin-form">
-          <label class="field-label2">每账号失败次数<small>0 = 默认 5 次，填负数表示不限</small></label>
+          <label class="field-label2">{{ tr('m_671a08f4e738') }}<small>{{ tr('m_6728255e4bdb') }}</small></label>
           <input v-model.number="settings.rate_limit_per_account" type="number" class="vercel-input" />
-          <label class="field-label2">每 IP 失败次数<small>0 = 默认 20 次，填负数表示不限</small></label>
+          <label class="field-label2">{{ tr('m_cf5a28cff90f') }}<small>{{ tr('m_f1d1405b8d84') }}</small></label>
           <input v-model.number="settings.rate_limit_per_ip" type="number" class="vercel-input" />
-          <label class="field-label2">统计窗口（分钟）<small>0 = 默认 15 分钟</small></label>
+          <label class="field-label2">{{ tr('m_088598d743e5') }}<small>{{ tr('m_5f566691080a') }}</small></label>
           <input v-model.number="settings.rate_limit_window_minutes" type="number" class="vercel-input" />
-          <label class="field-label2">熟悉来源的额度倍数<small>90 天内登录过的网段给更宽的额度。0 = 默认 3 倍，1 = 不放宽</small></label>
+          <label class="field-label2">{{ tr('m_b9ca02da2aa9') }}<small>{{ tr('m_0fc65b562a9c') }}</small></label>
           <input v-model.number="settings.rate_limit_familiar_multiplier" type="number" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">{{ tr('m_a3030bf8f16d') }}</button>
         </div>
         <div class="setting-row">
-          <span class="setting-label">锁定时通知</span>
+          <span class="setting-label">{{ tr('slim_86eed9ba38db') }}</span>
           <n-switch v-model:value="settings.rate_limit_notify" size="small" @update:value="saveSettings" />
-          <small class="text-muted">走已配置的通知渠道（TG / 邮件），并沿用「登录通知」开关</small>
+          <small class="text-muted">{{ tr('slim_828cd0a82eda') }}</small>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>通行密钥</h3>
-        <p class="admin-hint">通行密钥（WebAuthn）要求 HTTPS，且依赖方 ID 只能是访问域名本身或其父域。两个字段都留空时按访问域名自动推导，同一个域下的所有子域都能用。只有在需要限定来源时才填「允许的来源」，它必须与依赖方 ID 同域或为其子域——换域名后已绑定的通行密钥会失效，需要重新绑定。</p>
+        <h3>{{ tr('m_102824e51a9d') }}</h3>
+        <p class="admin-hint">{{ tr('slim_ead7dd2418de') }}</p>
         <div class="admin-form">
-          <input v-model="settings.passkey_rp_id" type="text" placeholder="依赖方 ID，如 panel.example.com" class="vercel-input" />
-          <input v-model="settings.passkey_origins" type="text" placeholder="允许的来源，逗号分隔，如 https://panel.example.com" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">保存</button>
+          <input v-model="settings.passkey_rp_id" type="text" :placeholder="tr('m_9b9ca2069036')" class="vercel-input" />
+          <input v-model="settings.passkey_origins" type="text" :placeholder="tr('m_15b1847e23f3')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveSettings">{{ tr('m_a3030bf8f16d') }}</button>
         </div>
         <div class="setting-row">
-          <span class="setting-label">禁用密码登录</span>
+          <span class="setting-label">{{ tr('m_3a027241650b') }}</span>
           <n-switch v-model:value="passwordLoginOff" size="small" :disabled="!settings.passkey_admin_ready" @update:value="saveSettings">
-            <template #checked>仅通行密钥</template>
-            <template #unchecked>允许密码</template>
+            <template #checked>{{ tr('m_bea6fbd73a4a') }}</template>
+            <template #unchecked>{{ tr('m_3c54e6e2ef5d') }}</template>
           </n-switch>
-          <small v-if="!settings.passkey_admin_ready" class="text-muted">需先绑定至少一个通行密钥，避免面板被锁死</small>
+          <small v-if="!settings.passkey_admin_ready" class="text-muted">{{ tr('slim_5a6b4ebb3db3') }}</small>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>人机验证（Cloudflare Turnstile）</h3>
-        <p class="admin-hint">可选防护：开启后登录与找回密码需要完成 Cloudflare 人机验证。先在 Cloudflare 控制台创建 Turnstile widget（并把本站域名加入允许域名），再填写 Site Key 与 Secret Key。</p>
+        <h3>{{ tr('m_e4f6aa5a185d') }}</h3>
+        <p class="admin-hint">{{ tr('slim_3ae11db137c8') }}</p>
         <div class="setting-row">
-          <span class="setting-label">启用人机验证</span>
+          <span class="setting-label">{{ tr('m_b05703226c5e') }}</span>
           <n-switch v-model:value="turnstile.enabled" size="small" />
         </div>
         <div class="admin-form">
           <input v-model="turnstile.site_key" type="text" placeholder="Site Key（0x4A…）" class="vercel-input" />
-          <input v-model="turnstileSecret" type="password" placeholder="Secret Key（留空保持不变）" class="vercel-input" autocomplete="off" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">保存</button>
-          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+          <input v-model="turnstileSecret" type="password" :placeholder="tr('m_96656dd2d25f')" class="vercel-input" autocomplete="off" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveTurnstile">{{ tr('m_a3030bf8f16d') }}</button>
+          <span class="tag" :class="turnstileHasSecret ? 'tag-ok' : 'tag-down'">{{ turnstileHasSecret ? tr('m_c0ee21a90d7b') : tr('m_5061a4ea571c') }}</span>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>Cloudflare OAuth 客户端</h3>
-        <p class="admin-hint">留空时使用环境变量 CF_OAUTH_CLIENT_ID / CF_OAUTH_CLIENT_SECRET。此处填写后优先于环境变量；密钥留空表示保持不变。</p>
-        <p class="admin-hint">OAuth 客户端需在 Cloudflare 控制台勾选权限：Account Settings:Read、Cloudflare Tunnel:Edit、Zone:Read、DNS:Edit、SSL and Certificates:Edit</p>
+        <h3>{{ tr('m_a44454e9d95a') }}</h3>
+        <p class="admin-hint">{{ tr('m_c32b4ee1a818') }}</p>
+        <p class="admin-hint">{{ tr('m_7a9d0bac635c') }}</p>
         <div class="admin-form">
           <input v-model="oauthCfg.client_id" type="text" placeholder="Client ID" class="vercel-input" />
-          <input v-model="oauthCfg.client_secret" type="password" placeholder="Client Secret（留空保持不变）" class="vercel-input" />
-          <input v-model="oauthCfg.redirect_uri" type="text" placeholder="回调地址（留空自动按访问域名推导）" class="vercel-input" />
-          <input v-model="oauthCfg.scopes" type="text" placeholder="Scopes（留空用客户端已配置的）" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveOAuth">保存</button>
-          <span class="tag" :class="oauthHasSecret ? 'tag-ok' : 'tag-down'">{{ oauthHasSecret ? '密钥：已设置' : '密钥：未设置' }}</span>
+          <input v-model="oauthCfg.client_secret" type="password" :placeholder="tr('m_be5f73c5b889')" class="vercel-input" />
+          <input v-model="oauthCfg.redirect_uri" type="text" :placeholder="tr('m_9df3fe96b710')" class="vercel-input" />
+          <input v-model="oauthCfg.scopes" type="text" :placeholder="tr('m_b813dbaced7d')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy" @click="saveOAuth">{{ tr('m_a3030bf8f16d') }}</button>
+          <span class="tag" :class="oauthHasSecret ? 'tag-ok' : 'tag-down'">{{ oauthHasSecret ? tr('m_c0ee21a90d7b') : tr('m_5061a4ea571c') }}</span>
         </div>
       </div>
 
       <div class="admin-card">
-        <h3>IP 优选</h3>
-        <p class="admin-hint">实例共享预算，不是云平台额度。按候选 IP 预留，取消不退；修改从下一轮生效。</p>
+        <h3>{{ tr('m_b145d5c1a57b') }}</h3>
+        <p class="admin-hint">{{ tr('m_8e24fd96b54f') }}</p>
         <div class="setting-row">
-          <span class="setting-label">开启实验性功能</span>
+          <span class="setting-label">{{ tr('m_06566a8c40f2') }}</span>
           <n-switch v-model:value="experimentalFeatures" size="small" :disabled="busy" @update:value="saveSettings">
-            <template #checked>开启</template>
-            <template #unchecked>关闭</template>
+            <template #checked>{{ tr('m_8da97ddda990') }}</template>
+            <template #unchecked>{{ tr('m_3fd47edce45b') }}</template>
           </n-switch>
         </div>
         <label class="setting-row">
-          <span class="setting-label">每日请求预算（UTC）</span>
+          <span class="setting-label">{{ tr('m_8b57f87fb23a') }}</span>
           <input v-model.number="settings.lab_daily_request_limit" class="vercel-input narrow" type="number" min="1" max="10000000" step="1" :disabled="busy" />
         </label>
         <label class="setting-row">
-          <span class="setting-label">每秒请求数</span>
+          <span class="setting-label">{{ tr('m_b8f8cb247e4d') }}</span>
           <input v-model.number="settings.lab_requests_per_second" class="vercel-input narrow" type="number" min="1" max="1000" step="1" :disabled="busy" />
         </label>
         <label class="setting-row">
-          <span class="setting-label">并发上限</span>
+          <span class="setting-label">{{ tr('m_652a6f861b6d') }}</span>
           <input v-model.number="settings.lab_max_workers" class="vercel-input narrow" type="number" min="1" max="256" step="1" :disabled="busy" />
         </label>
-        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">保存优选限制</button>
+        <button class="btn btn-primary" type="button" :disabled="busy" @click="saveLabLimits">{{ tr('m_eedfd7ecc753') }}</button>
       </div>
 
       <div class="admin-card">
-        <h3>应用加密密钥</h3>
-        <p class="admin-hint">用于加密 SMTP 密码、Cloudflare 授权令牌与 2FA 密文。未设置时自动生成并保存在数据库；环境变量 APP_ENCRYPTION_KEY 优先。更换后需重启服务，且会使已保存的密文失效。</p>
+        <h3>{{ tr('m_dbf3b43ce49a') }}</h3>
+        <p class="admin-hint">{{ tr('m_39a974380a04') }}</p>
         <div class="admin-form">
-          <input v-model="encKeyInput" type="text" placeholder="64 位十六进制密钥（留空保持不变）" class="vercel-input" />
-          <button class="btn btn-primary" type="button" :disabled="busy || !encKeyInput" @click="saveEncKey">保存密钥</button>
-          <span class="tag">当前来源：{{ encKeySource === 'env' ? '环境变量' : encKeySource === 'stored' ? '数据库' : '未设置' }}</span>
+          <input v-model="encKeyInput" type="text" :placeholder="tr('m_6171d4f4500d')" class="vercel-input" />
+          <button class="btn btn-primary" type="button" :disabled="busy || !encKeyInput" @click="saveEncKey">{{ tr('m_a334bb468aba') }}</button>
+          <span class="tag">{{ tr('m_1f45e225299d') }}{{ encKeySource === 'env' ? tr('m_ae27b474ea4d') : encKeySource === 'stored' ? tr('m_263200d7d529') : tr('m_2f5f1d6fbfb0') }}</span>
         </div>
       </div>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { NSwitch, useMessage } from 'naive-ui'
 import {
@@ -337,7 +341,7 @@ async function loadSecurity() {
     turnstileHasSecret.value = !!data.turnstile_has_secret
     turnstileSecret.value = ''
   } catch (e: any) {
-    message.error('加载安全设置失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('slim_442d0d594e16') + (e.response?.data?.error || e.message))
   } finally {
     busy.value = false
   }
@@ -349,9 +353,9 @@ async function saveSettings() {
     const { data } = await updateAppSettings(settings.value)
     settings.value = data
     store.setExperimentalFeatures(!!settings.value.experimental_features_enabled)
-    message.success('设置已保存')
+    message.success(tr('m_bd03c0aad701'))
   } catch (e: any) {
-    message.error(e.response?.data?.error || '保存失败')
+    message.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -376,9 +380,9 @@ async function saveTurnstile() {
     await updateAppSettings(payload)
     turnstileHasSecret.value = turnstileHasSecret.value || !!turnstileSecret.value
     turnstileSecret.value = ''
-    message.success('人机验证设置已保存')
+    message.success(tr('m_763363acbbeb'))
   } catch (e: any) {
-    message.error(e.response?.data?.error || '保存失败')
+    message.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -397,9 +401,9 @@ async function saveOAuth() {
     oauthCfg.value.client_secret = ''
     const cfg = await getOAuthConfig()
     oauthHasSecret.value = cfg.data.has_client_secret
-    message.success('OAuth 客户端配置已保存')
+    message.success(tr('m_12c3bd5c0eeb'))
   } catch (e: any) {
-    message.error(e.response?.data?.error || '保存失败')
+    message.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -410,12 +414,12 @@ async function saveEncKey() {
   busy.value = true
   try {
     const { data } = await saveEncryptionKey(encKeyInput.value.trim())
-    message.success(data.message || '已保存')
+    message.success(data.message || tr('m_1bd91a7d0c53'))
     encKeyInput.value = ''
     const status = await getEncryptionKeyStatus()
     encKeySource.value = status.data.source
   } catch (e: any) {
-    message.error(e.response?.data?.error || '保存失败')
+    message.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -433,10 +437,10 @@ async function saveSmtp() {
       from: smtp.value.from.trim(),
       tls_mode: smtp.value.tlsMode,
     })
-    message.success(data.configured ? 'SMTP 设置已保存' : 'SMTP 设置已保存（尚未完整配置）')
+    message.success(data.configured ? tr('m_dddcb690d105') : tr('m_7afbd323b652'))
     smtp.value.password = ''
   } catch (e: any) {
-    message.error(e.response?.data?.error || '保存失败')
+    message.error(e.response?.data?.error || tr('m_6309a3bb5ba4'))
   } finally {
     busy.value = false
   }
@@ -444,15 +448,15 @@ async function saveSmtp() {
 
 async function sendTestMail() {
   if (!testMailTo.value.trim()) {
-    message.error('请先填写收件邮箱')
+    message.error(tr('m_e3f39ac6f6c9'))
     return
   }
   testingMail.value = true
   try {
     const { data } = await testSMTP(testMailTo.value.trim())
-    message.success(data.message || '测试邮件已发送')
+    message.success(data.message || tr('m_cfb7989b7a73'))
   } catch (e: any) {
-    message.error(e.response?.data?.error || '发送失败')
+    message.error(e.response?.data?.error || tr('m_ac77953a1e06'))
   } finally {
     testingMail.value = false
   }
@@ -477,7 +481,7 @@ function syncFormFromConfig() {
 }
 async function saveSite() {
   if (!site.name.trim()) {
-    message.error('请输入站点名称')
+    message.error(tr('m_85c2f8365c82'))
     return
   }
   savingSite.value = true
@@ -490,9 +494,9 @@ async function saveSite() {
     config.panel_host = site.panelHost.trim()
     store.landingEnabled = data.landing_enabled
     Object.assign(site, data)
-    message.success('站点信息已更新')
+    message.success(tr('m_1964b400b352'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingSite.value = false
   }
@@ -503,22 +507,22 @@ function handleIconUpload(event: Event) {
   input.value = ''
   if (!file) return
   if (!file.type.startsWith('image/')) {
-    message.error('请选择图片文件')
+    message.error(tr('m_35fc560913c0'))
     return
   }
   if (file.size > 512 * 1024) {
-    message.error('图片不能超过 512 KB')
+    message.error(tr('m_78c1f649e77d'))
     return
   }
   const reader = new FileReader()
   reader.onload = () => { site.icon = String(reader.result || '') }
-  reader.onerror = () => message.error('读取图片失败')
+  reader.onerror = () => message.error(tr('m_c72ad3f4aa4e'))
   reader.readAsDataURL(file)
 }
 async function savePreferredCNAME() {
   const value = preferredCNAME.value.trim()
   if (!value) {
-    message.error('请输入默认优选 CNAME')
+    message.error(tr('m_5799ba3fe8dc'))
     return
   }
   savingCNAME.value = true
@@ -526,9 +530,9 @@ async function savePreferredCNAME() {
     await setPreferredCNAME(value)
     preferredCNAME.value = value
     config.preferred_cname = value
-    message.success('默认优选 CNAME 已更新')
+    message.success(tr('m_20737048a527'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingCNAME.value = false
   }
@@ -544,7 +548,7 @@ function removePreset(index: number) {
 async function savePresets() {
   const items = cnamePresets.value.map((item) => ({ name: item.name.trim(), value: item.value.trim() }))
   if (items.some((item) => !item.name || !item.value)) {
-    message.error('请补全所有线路名称和 CNAME 地址')
+    message.error(tr('m_ea92a5f61f83'))
     return
   }
   savingPresets.value = true
@@ -552,9 +556,9 @@ async function savePresets() {
     const { data } = await setCNAMEPresets(items)
     cnamePresets.value = data.cname_presets.map((item) => ({ ...item }))
     config.cname_presets = data.cname_presets
-    message.success('常用 CNAME 组已更新')
+    message.success(tr('m_d12fd29ea414'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_84bd3b614686') + (e.response?.data?.error || e.message))
   } finally {
     savingPresets.value = false
   }
@@ -562,22 +566,21 @@ async function savePresets() {
 async function saveFallback() {
   const domain = fallbackDomain.value.trim()
   if (!domain) {
-    message.error('请输入回退源域名')
+    message.error(tr('m_6301facafab9'))
     return
   }
   savingFallback.value = true
   try {
     const { data } = await setFallbackOrigin(domain)
-    message.success(data.message || '回退源已设置')
+    message.success(data.message || tr('m_b9ed9651aa57'))
   } catch (e: any) {
-    message.error('设置失败: ' + (e.response?.data?.error || e.message))
+    message.error(tr('m_885260b488be') + (e.response?.data?.error || e.message))
   } finally {
     savingFallback.value = false
   }
 }
 onMounted(async () => {
-  await store.fetchConfig()
-  syncFormFromConfig()
+  void store.fetchConfig().then(syncFormFromConfig)
   requestAnimationFrame(() => { visible.value = true })
   void loadSecurity()
   getSMTP().then(({ data }) => {
@@ -599,6 +602,9 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
+.appearance-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.appearance-options label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--color-hairline); border-radius: 14px; color: var(--color-body); font-size: 13px; }
+@media (max-width: 640px) { .appearance-options { grid-template-columns: 1fr; gap: 10px; } }
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

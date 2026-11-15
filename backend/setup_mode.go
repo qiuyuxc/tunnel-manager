@@ -33,8 +33,9 @@ func installedStore(storage setup.Storage) *store.Store {
 func serveSetup(state setup.State, port, staticDir string) {
 	wizard := handlers.NewSetupHandler(state, restartProcess)
 	r := chi.NewRouter()
-	r.Use(chimw.Logger)
+	r.Use(handlers.SafeLogger)
 	r.Use(chimw.Recoverer)
+	r.Use(handlers.SecurityHeaders)
 	r.Use(chimw.Compress(5))
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", healthHandler)
@@ -53,7 +54,7 @@ func serveSetup(state setup.State, port, staticDir string) {
 		log.Printf("  安装配置将写入 %s", setup.File())
 	}
 	log.Printf("========================================")
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	if err := newHTTPServer(":"+port, r).ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

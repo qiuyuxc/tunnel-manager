@@ -22,9 +22,9 @@ final class MonitorHistoryView extends View {
         intervalMillis = (long) intervalSeconds * 1000;
         MonitorHistory.Counts counts = new MonitorHistory.Counts();
         for (MonitorHistory.Sample sample : history.samples) counts.add(sample.state);
-        setContentDescription((chart ? "响应时间趋势，" : "历史健康条，") + history.samples.size()
-                + " 个抽样点，" + MonitorViews.range(history) + "，" + MonitorViews.summary(counts)
-                + (chart ? "。稀疏、异常或缺测区间不连线。" : "。每条代表一个抽样点，不代表完整检查记录。"));
+        setContentDescription((chart ? I18n.text("m_9678bf23c0ca") : I18n.text("m_fdd7eab6188f")) + history.samples.size()
+                + I18n.text("m_ce502035bacc") + MonitorViews.range(history) + "，" + MonitorViews.summary(counts)
+                + (chart ? I18n.text("m_ce8e2991cf69") : I18n.text("m_16c76db0c6ee")));
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 
@@ -93,7 +93,7 @@ final class MonitorHistoryView extends View {
         if (history.samples.isEmpty()) {
             paint.setColor(Theme.p().mute);
             paint.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText("等待检测样本", (left + right) / 2, (top + bottom) / 2, paint);
+            canvas.drawText(I18n.text("m_e7380808d95e"), (left + right) / 2, (top + bottom) / 2, paint);
         }
     }
 

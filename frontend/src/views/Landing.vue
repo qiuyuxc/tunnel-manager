@@ -14,21 +14,10 @@
       </router-link>
       <nav class="lp-nav-actions">
         <div class="lp-toggles">
+
           <button class="lp-icon-btn" type="button"
-            :title="store.visualTheme === 'warm' ? '切换到 Vercel 主题' : '切换到 Claude 主题'"
-            :aria-label="store.visualTheme === 'warm' ? '切换到 Vercel 主题' : '切换到 Claude 主题'"
-            @click="store.toggleVisualTheme()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 2a10 10 0 0 0 0 20h1.7a1.8 1.8 0 0 0 1.3-3l-.5-.5a1.8 1.8 0 0 1 1.3-3H18a4 4 0 0 0 4-4A10 10 0 0 0 12 2z"/>
-              <circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/>
-              <circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/>
-              <circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/>
-              <circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/>
-            </svg>
-          </button>
-          <button class="lp-icon-btn" type="button"
-            :title="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
-            :aria-label="store.darkMode ? '切换亮色模式' : '切换暗色模式'"
+            :title="store.darkMode ? tr('m_21aed8552b72') : tr('m_ce80e5ddfedc')"
+            :aria-label="store.darkMode ? tr('m_21aed8552b72') : tr('m_ce80e5ddfedc')"
             @click="store.toggleDarkMode()">
             <svg v-if="store.darkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"/>
@@ -40,7 +29,7 @@
           </button>
         </div>
         <template v-if="!store.isAuthenticated">
-          <router-link to="/login" class="lp-btn lp-btn-secondary nav-secondary">登录</router-link>
+          <router-link to="/login" class="lp-btn lp-btn-secondary nav-secondary">{{ tr('m_1e2df9c3075a') }}</router-link>
         </template>
       </nav>
     </header>
@@ -48,19 +37,15 @@
     <main class="lp-main">
       <!-- Hero: dark canvas + product screenshot panel as protagonist -->
       <section class="lp-hero">
-        <p class="lp-eyebrow">
-          <span class="lp-eyebrow-dot"></span>
-          Cloudflare Tunnel 管理面板
-        </p>
         <h1 class="lp-h1">{{ store.config.site_name || 'Tunnel Manager' }}</h1>
-        <p class="lp-sub">{{ store.config.site_description || 'Cloudflare 隧道管理中心' }}</p>
+        <p class="lp-sub">{{ store.config.site_description || tr('m_c2c8982623de') }}</p>
         <div class="lp-hero-actions">
           <template v-if="store.isAuthenticated">
-            <router-link to="/dashboard" class="lp-btn lp-btn-primary lp-btn-lg">进入控制台</router-link>
-            <router-link to="/notifications" class="lp-btn lp-btn-secondary lp-btn-lg">通知设置</router-link>
+            <router-link to="/dashboard" class="lp-btn lp-btn-primary lp-btn-lg">{{ tr('m_567b91c0859b') }}</router-link>
+            <router-link to="/notifications" class="lp-btn lp-btn-secondary lp-btn-lg">{{ tr('m_247ca01ae280') }}</router-link>
           </template>
           <template v-else>
-            <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">立即登录</router-link>
+            <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">{{ tr('m_19e976b023c8') }}</router-link>
           </template>
         </div>
 
@@ -70,91 +55,71 @@
             <span class="lp-shot-dot"></span>
             <span class="lp-shot-dot"></span>
             <span class="lp-shot-dot"></span>
-            <span class="lp-shot-title">控制面板 · 概览</span>
+            <span class="lp-shot-title">{{ tr('m_2e68dff43e08') }}</span>
           </div>
           <div class="lp-shot-body">
             <div class="lp-shot-stat">
               <span class="lp-stat-label">tunnel</span>
               <strong>cf-090227</strong>
-              <span class="lp-badge lp-badge-ok">运行中</span>
+              <span class="lp-badge lp-badge-ok">{{ tr('m_1f0eb99b7ed0') }}</span>
             </div>
             <div class="lp-shot-rows">
               <div class="lp-shot-row">
-                <span class="lp-row-label">公网入口</span>
+                <span class="lp-row-label">{{ tr('m_a9551a4e114f') }}</span>
                 <span class="lp-bar w55"></span>
                 <span class="lp-badge">3 ACTIVE</span>
               </div>
               <div class="lp-shot-row">
-                <span class="lp-row-label">DNS 记录</span>
+                <span class="lp-row-label">{{ tr('m_72af91239cad') }}</span>
                 <span class="lp-bar w38"></span>
-                <span class="lp-badge">已同步</span>
+                <span class="lp-badge">{{ tr('m_04062edb583b') }}</span>
               </div>
               <div class="lp-shot-row">
-                <span class="lp-row-label">服务监控</span>
+                <span class="lp-row-label">{{ tr('m_7fab82054a8f') }}</span>
                 <span class="lp-bar w46"></span>
-                <span class="lp-badge lp-badge-ok">健康</span>
+                <span class="lp-badge lp-badge-ok">{{ tr('m_aa18b6dcd893') }}</span>
               </div>
             </div>
-            <div class="lp-shot-foot">
-              <span class="lp-foot-label">telegram bot</span>
-              <span class="lp-badge">CONNECTED</span>
-            </div>
+
           </div>
         </div>
       </section>
 
       <!-- Features: charcoal card grid, 3-up -->
       <section class="lp-section lp-features">
-        <p class="lp-eyebrow">功能</p>
-        <h2 class="lp-h2">一站式隧道管理</h2>
-        <p class="lp-sub">从隧道、DNS 到监控与通知，一个控制台全部搞定。</p>
+        <h2 class="lp-h2">{{ tr('m_25f5ce57a190') }}</h2>
         <div class="lp-feature-grid">
           <div class="lp-feature">
             <span class="lp-feature-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
             </span>
-            <h3>隧道管理</h3>
-            <p>集中管理 Cloudflare Tunnel，随时查看运行状态与公网入口。</p>
+            <h3>{{ tr('m_e920f47d0c05') }}</h3>
+            <p>{{ tr('m_6811d9b40414') }}</p>
           </div>
           <div class="lp-feature">
             <span class="lp-feature-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
             </span>
-            <h3>DNS 解析</h3>
-            <p>可视化管理域名解析记录，批量维护 A、CNAME、TXT 等类型。</p>
+            <h3>{{ tr('m_a6739d3803ef') }}</h3>
+            <p>{{ tr('m_cdaae74afa7d') }}</p>
           </div>
           <div class="lp-feature">
             <span class="lp-feature-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
             </span>
-            <h3>状态监控</h3>
-            <p>探测服务可用性，异常时通过邮件或 Telegram 及时告警。</p>
+            <h3>{{ tr('m_106541fbe3b6') }}</h3>
+            <p>{{ tr('m_3e0d4c2ded3b') }}</p>
           </div>
           <div class="lp-feature">
             <span class="lp-feature-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>
             </span>
-            <h3>通知与远程控制</h3>
-            <p>自定义通知渠道，登录、告警及时送达；支持 Telegram 远程指令。</p>
+            <h3>{{ tr('m_247ca01ae280') }}</h3>
+            <p>{{ tr('m_2c28960b526a') }}</p>
           </div>
         </div>
       </section>
 
-      <!-- CTA banner -->
-      <section class="lp-section lp-cta">
-        <div class="lp-cta-card">
-          <h2 class="lp-h3">准备好了吗？</h2>
-          <p class="lp-sub">立即登录，开始管理你的 Cloudflare 隧道。</p>
-          <div class="lp-hero-actions">
-            <template v-if="store.isAuthenticated">
-              <router-link to="/dashboard" class="lp-btn lp-btn-primary lp-btn-lg">进入控制台</router-link>
-            </template>
-            <template v-else>
-              <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">立即登录</router-link>
-            </template>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="lp-footer">
@@ -173,6 +138,8 @@
 </template>
 
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { onMounted } from 'vue'
 import { useConfigStore } from '../stores/config'
 
@@ -184,6 +151,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.landing-page .lp-nav { width: min(1120px, calc(100% - 32px)); margin: 16px auto 0; top: 12px; border: 1px solid var(--color-hairline); border-radius: 18px; padding: 12px 24px; background: var(--color-canvas-raised); }
+.landing-page .lp-feature { padding: 24px; border: 1px solid var(--color-hairline); border-radius: 20px; background: var(--color-canvas-raised); }
+.landing-page .lp-feature-grid { gap: 16px; }
+.landing-page .lp-hero { padding-top: 80px; }
+@media (max-width: 480px) { .landing-page .lp-nav { padding: 10px 12px; } .landing-page .lp-feature { padding: 20px; } }
+
 /* The landing page rides the app theme instead of carrying its own palette, so
    it follows both the visual theme (vercel.md / Claude.md) and the light/dark
    switch. Local aliases keep the rules below readable. */
@@ -210,8 +183,8 @@ onMounted(() => {
   --lp-primary: var(--color-btn-primary-bg);
   --lp-primary-hover: var(--color-btn-primary-hover);
   --lp-primary-text: var(--color-btn-primary-text);
-  --lp-success-bg: var(--color-result-success-bg);
-  --lp-success-text: var(--color-result-success-text);
+  --lp-success-bg: var(--color-canvas-soft-2);
+  --lp-success-text: var(--color-ink);
   --lp-edge: color-mix(in srgb, var(--color-ink) 6%, transparent);
   min-height: 100vh;
   display: flex;
@@ -600,20 +573,6 @@ onMounted(() => {
   color: var(--lp-ink-subtle);
 }
 
-/* ---------- CTA banner ---------- */
-.lp-cta { padding-bottom: 96px; }
-
-.lp-cta-card {
-  padding: 48px 32px;
-  text-align: center;
-  background: var(--lp-card);
-  border: 1px solid var(--lp-hairline);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 var(--lp-edge);
-}
-
-.lp-cta-card .lp-sub { margin-top: 12px; }
-
 /* ---------- footer ---------- */
 .lp-footer {
   display: flex;
@@ -683,7 +642,6 @@ onMounted(() => {
   .lp-hero-actions { flex-direction: column; align-items: stretch; }
   .lp-hero-actions .lp-btn { width: 100%; }
   .lp-shot { display: none; }
-  .lp-cta-card { padding: 32px 20px; }
   .lp-footer { padding: 32px 20px 48px; }
 }
 </style>

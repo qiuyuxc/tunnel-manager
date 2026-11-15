@@ -1,4 +1,4 @@
-import { api } from './index'
+import { api } from './index.ts'
 
 /** 面板存储的来源：unset 表示还没配置，env 表示环境变量接管，file 表示来自安装引导。 */
 export type SetupSource = 'unset' | 'env' | 'file'
@@ -52,20 +52,30 @@ export interface SetupResult {
 }
 
 let cached: SetupStatus | null | undefined
+let pending: Promise<SetupStatus | null> | undefined
 
 /**
  * setupStatus 读取一次安装状态：已安装的面板没有这个接口（404），会被记成
  * “没有引导”，后续路由守卫不再重复请求。
  */
-export async function setupStatus(refresh = false): Promise<SetupStatus | null> {
-  if (!refresh && cached !== undefined) return cached
-  try {
-    const { data } = await api.get<SetupStatus>('/setup/status')
-    cached = data
-  } catch {
-    cached = null
-  }
-  return cached
+export function setupStatus(refresh = false): Promise<SetupStatus | null> {
+  if (!refresh && cached !== undefined) return Promise.resolve(cached)
+  if (pending) return pending
+  pending = (async () => {
+    try {
+      const { data } = await api.get<SetupStatus>('/setup/status', { anonymous: true, timeout: 5000, skipAuthInvalidation: true })
+      cached = data
+      return data
+    } catch (error: unknown) {
+      // Only 404 establishes that setup is finished. A temporary timeout or
+      // gateway error must remain retryable on the next navigation.
+      if ((error as { response?: { status?: number } }).response?.status === 404) cached = null
+      return null
+    } finally {
+      pending = undefined
+    }
+  })()
+  return pending
 }
 
 export async function testSetupStorage(storage: SetupStoragePayload): Promise<SetupResult> {
@@ -95,7 +105,7 @@ export async function waitForPanelRestart(timeoutMs = 90000): Promise<boolean> {
   while (Date.now() < deadline) {
     try {
       const res = await api.get('/setup/status', { timeout: 4000, validateStatus: () => true })
-      if (res.status !== 200) {
+      if (res.status === 404) {
         cached = null
         return true
       }
@@ -104,6 +114,6 @@ export async function waitForPanelRestart(timeoutMs = 90000): Promise<boolean> {
     }
     await new Promise((resolve) => setTimeout(resolve, 1500))
   }
-  cached = null
+  cached = undefined
   return false
 }

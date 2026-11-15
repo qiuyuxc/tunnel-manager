@@ -1,11 +1,27 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+func TestGenericJSONRequestLimitAndTrailingData(t *testing.T) {
+	for _, body := range []string{`{"name":"valid"}{"name":"extra"}`, `{"name":"` + strings.Repeat("x", 1<<20) + `"}`} {
+		req := httptest.NewRequest(http.MethodPost, "/api/config", strings.NewReader(body))
+		if err := readJSON(req, new(map[string]any)); err == nil {
+			t.Fatal("unbounded or multiple JSON payload accepted")
+		}
+	}
+	// The documented 768 KiB site icon still fits within the generic limit.
+	body, _ := json.Marshal(map[string]string{"icon": strings.Repeat("a", 768<<10)})
+	req := httptest.NewRequest(http.MethodPost, "/api/site", strings.NewReader(string(body)))
+	if err := readJSON(req, new(map[string]string)); err != nil {
+		t.Fatalf("supported icon payload rejected: %v", err)
+	}
+}
 
 func TestSessionOnlyRejectsAPIKeyHeaderAndQuery(t *testing.T) {
 	h := newTestAdminHandler(t)

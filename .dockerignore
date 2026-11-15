@@ -2,6 +2,7 @@
 **/dist
 **/*.log
 backend/tunnel-manager
+backend/experiments/
 docs/
 .git
 frontend/src/assets/fonts

@@ -106,6 +106,16 @@ func (r *Runner) tick(ctx context.Context, now time.Time) {
 // RunNow probes every target of one monitor concurrently and records
 // the outcomes in the heartbeat log.
 func (r *Runner) RunNow(ctx context.Context, m models.Monitor) []ProbeOutcome {
+	owner, active := r.st.SessionUserForAccount(m.UserID)
+	if m.UserID == "" {
+		owner, active = r.st.SessionUserForAccount(r.st.AdminUserID())
+	}
+	if !active || !owner.HasPerm(models.PermMonitors) {
+		return []ProbeOutcome{}
+	}
+	if owner.IsAdmin() {
+		ctx = privateProbeContext(ctx)
+	}
 	if len(m.Targets) == 0 {
 		return []ProbeOutcome{}
 	}

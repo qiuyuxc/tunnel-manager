@@ -1,3 +1,4 @@
+import { t as tr, localized } from './i18n.ts'
 import { computed } from 'vue'
 import { useConfigStore } from './stores/config'
 
@@ -6,7 +7,9 @@ import { useConfigStore } from './stores/config'
 // touched, which is exactly what happened before the phone layout got its own
 // navigation.
 export const icons = {
-  lab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6.5L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>',
+  back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 7 12l7 7"/></svg>',
+  lab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6.5L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M8 2h8M7 15h10"/></svg>',
+
   assistant: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6L12 3Z"/><path d="M20 2v4M18 4h4"/></svg>',
   monitor: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   dashboard: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
@@ -32,7 +35,7 @@ export const icons = {
   check: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
   edit: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   trash: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
-  refresh: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  refresh: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 7a7.5 7.5 0 0 1 12.4-1.2L20 8M4 16l1.9 2.2A7.5 7.5 0 0 0 18.3 17"/></svg>',
   close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
 } as const
@@ -46,31 +49,33 @@ export interface NavItem {
   tabLabel?: string
   icon: string
   group: NavGroup
+  perm?: string
+  admin?: boolean
   experimental?: boolean
-  /** Small pill shown next to the label (e.g. the experimental lab). */
+  /** Listed verbatim in the group's action sheet rather than in the sidebar only. */
   badge?: string
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', label: '控制面板', tabLabel: '概览', icon: icons.dashboard, group: 'workspace' },
-  { path: '/tunnels', label: '隧道管理', icon: icons.tunnels, group: 'workspace' },
-  { path: '/monitors', label: '服务监控', tabLabel: '监控', icon: icons.monitor, group: 'workspace' },
-  { path: '/domain', label: '域名绑定', icon: icons.domain, group: 'network' },
-  { path: '/dns', label: 'DNS 管理', tabLabel: 'DNS 管理', icon: icons.dns, group: 'network' },
-  { path: '/lab/ip-selector', label: 'IP 优选实验室', icon: icons.lab, group: 'network', experimental: true, badge: '实验' },
-  { path: '/settings', label: '全局设置', icon: icons.settings, group: 'management' },
-  { path: '/assistant', label: 'AI 助手', icon: icons.assistant, group: 'workspace' },
-  { path: '/notifications', label: '通知设置', tabLabel: '通知', icon: icons.bell, group: 'management' },
-  { path: '/account', label: '账户设置', tabLabel: '账户', icon: icons.account, group: 'personal' },
-  { path: '/about', label: '关于与更新', tabLabel: '关于', icon: icons.about, group: 'personal' },
-]
+export const NAV_ITEMS: NavItem[] = localized(() => ([
+  { path: '/dashboard', label: tr('m_69e7a943ab4e'), tabLabel: tr('m_fea405f9b01d'), icon: icons.dashboard, group: 'workspace' },
+  { path: '/tunnels', label: tr('m_e920f47d0c05'), icon: icons.tunnels, group: 'workspace', perm: 'tunnels' },
+  { path: '/monitors', label: tr('m_7fab82054a8f'), tabLabel: tr('m_fdc390061698'), icon: icons.monitor, group: 'workspace', perm: 'monitors' },
+  { path: '/domain', label: tr('m_4bf8b66d7390'), icon: icons.domain, group: 'network', perm: 'domain_bind' },
+  { path: '/dns', label: tr('m_474fb6002594'), tabLabel: tr('m_474fb6002594'), icon: icons.dns, group: 'network', perm: 'dns' },
+  { path: '/settings', label: tr('m_3f754f38a654'), icon: icons.settings, group: 'management', admin: true },
+  { path: '/assistant', label: tr('m_1b0049fcfd41'), icon: icons.assistant, group: 'workspace' },
+  { path: '/lab/ip-selector', label: tr('m_3db29474a184'), icon: icons.tunnels, group: 'network', admin: true, experimental: true },
+  { path: '/notifications', label: tr('m_247ca01ae280'), tabLabel: tr('m_4b6ded8a7f18'), icon: icons.bell, group: 'management' },
+  { path: '/account', label: tr('m_a720b4000be6'), tabLabel: tr('m_061246bd31e0'), icon: icons.account, group: 'personal' },
+  { path: '/about', label: tr('m_12e4ccda58d8'), tabLabel: tr('m_52d25a9e30ba'), icon: icons.about, group: 'personal' },
+]))
 
-export const GROUP_LABELS: Record<NavGroup, string> = {
-  workspace: '工作空间',
-  network: '网络',
-  management: '管理',
-  personal: '个人',
-}
+export const GROUP_LABELS: Record<NavGroup, string> = localized(() => ({
+  workspace: tr('m_6fed7e860168'),
+  network: tr('m_97b31b5d63f5'),
+  management: tr('m_bb6d995724f4'),
+  personal: tr('m_15dec507959e'),
+}))
 
 /** Sidebar section order. `personal` is pinned to the sidebar footer, so it is
  *  intentionally absent here and rendered separately. */
@@ -78,11 +83,11 @@ export const SIDEBAR_GROUPS: readonly NavGroup[] = ['workspace', 'network', 'man
 
 /** Detail / nested pages that never appear in the nav but still need a
  *  breadcrumb trail. Maps a route path prefix to its parent nav path + title. */
-export const DETAIL_PAGES: { match: (path: string) => boolean; parent: string; title: string }[] = [
-  { match: (p) => /^\/tunnels\/[^/]+$/.test(p), parent: '/tunnels', title: '隧道详情' },
-  { match: (p) => /^\/monitors\/[^/]+$/.test(p), parent: '/monitors', title: '监控详情' },
-  { match: (p) => p === '/domain/batch', parent: '/domain', title: '批量绑定' },
-]
+export const DETAIL_PAGES: { match: (path: string) => boolean; parent: string; title: string }[] = localized(() => ([
+  { match: (p) => /^\/tunnels\/[^/]+$/.test(p), parent: '/tunnels', title: tr('m_094f104f556a') },
+  { match: (p) => /^\/monitors\/[^/]+$/.test(p), parent: '/monitors', title: tr('m_50b9709ba538') },
+  { match: (p) => p === '/domain/batch', parent: '/domain', title: tr('m_6f7ce20a6c76') },
+]))
 
 export interface Crumb {
   label: string
@@ -108,28 +113,29 @@ export function breadcrumbFor(currentPath: string): Crumb[] {
 export const TAB_PATHS: readonly string[] = ['/dashboard', '/monitors', '/dns']
 
 /** Paths offered by the "+" button. */
-export const CREATE_ACTIONS = [
+export const CREATE_ACTIONS = localized(() => ([
   {
     path: '/tunnels',
-    title: '新建隧道',
-    desc: '创建 Cloudflare Tunnel 并接入主机',
+    title: tr('m_ee6527b22aaf'),
+    desc: tr('m_4412aa6b4937'),
     icon: icons.tunnels,
   },
   {
     path: '/domain',
-    title: '绑定域名',
-    desc: '将域名指向已配置的隧道',
+    title: tr('m_dd799f925f94'),
+    desc: tr('m_c421b425bbab'),
     icon: icons.domain,
   },
-  { path: '/assistant', title: 'AI 助手', desc: '描述目标，核对并执行配置任务', icon: icons.assistant },
-] as const
+  { path: '/assistant', title: tr('m_1b0049fcfd41'), desc: tr('m_6eeb9aae30ef'), icon: icons.assistant },
+] as const))
 
-/** Single-user panel: the only remaining gate hides the experimental lab. */
 export function useNavItems() {
   const configStore = useConfigStore()
   return computed(() =>
     NAV_ITEMS.filter((item) => {
       if (item.experimental && !configStore.experimentalFeatures) return false
+      if (item.admin) return configStore.isAdmin()
+      if (item.perm) return configStore.hasPerm(item.perm)
       return true
     }),
   )

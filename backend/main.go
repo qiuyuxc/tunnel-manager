@@ -19,6 +19,7 @@ import (
 
 	"tunnel-manager/auth"
 	"tunnel-manager/handlers"
+	"tunnel-manager/i18n"
 	"tunnel-manager/services"
 	"tunnel-manager/setup"
 	"tunnel-manager/store"
@@ -26,7 +27,7 @@ import (
 
 // Version is the current application version. The -slim suffix marks the
 // single-user edition so the update check only compares against slim releases.
-const Version = "v2.8.0-slim"
+const Version = "v3.1.0-slim"
 
 func main() {
 	// Pin the process timezone to Asia/Shanghai so every user-facing time
@@ -66,7 +67,7 @@ func main() {
 		if *setPassword != "" {
 			newPassword = *setPassword
 		} else {
-			newPassword = "admin123"
+			newPassword = generateRandomPassword(24)
 		}
 
 		if err := st.SetAdminCredentials(username, store.HashPassword(newPassword)); err != nil {
@@ -218,14 +219,21 @@ func main() {
 	}
 
 	// Setup router
+	clientIPMiddleware, err := services.ClientIPMiddleware(os.Getenv("TRUSTED_PROXY_CIDRS"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	r := chi.NewRouter()
-	r.Use(chimw.Logger)
+	r.Use(clientIPMiddleware)
+	r.Use(handlers.SafeLogger)
 	r.Use(chimw.Recoverer)
+	r.Use(handlers.SecurityHeaders)
 	// The panel ships a ~450 KB JS bundle and the generated font stylesheet
 	// (116 KB of @font-face rules, ~9 KB gzipped); both are text, so compress.
 	r.Use(chimw.Compress(5))
 	r.Use(mw.CORS)
 	r.Use(handlers.StatusDomainRedirect(st))
+	r.Use(i18n.Middleware)
 
 	r.Route("/api", func(r chi.Router) {
 		// Public site branding
@@ -248,7 +256,8 @@ func main() {
 		r.Post("/account/avatar", mw.Auth(uploadsHandler.UploadAvatar))
 		r.Put("/admin/password", mw.Auth(adminHandler.ChangePassword))
 		r.Put("/admin/username", mw.Auth(adminHandler.ChangeUsername))
-		r.Put("/admin/email", mw.Auth(adminHandler.ChangeEmail))
+		r.Post("/admin/email/code", mw.SessionOnly(adminHandler.SendEmailCode))
+		r.Put("/admin/email", mw.SessionOnly(adminHandler.ChangeEmail))
 		r.Post("/admin/2fa/setup", mw.SessionOnly(adminHandler.SetupTOTP))
 		r.Post("/admin/2fa/confirm", mw.SessionOnly(adminHandler.ConfirmTOTP))
 		r.Get("/admin/2fa/status", mw.SessionOnly(adminHandler.TOTPStatus))
@@ -269,13 +278,22 @@ func main() {
 		r.Post("/admin/login/2fa/passkey/finish", passkeyHandler.TwoFactorFinish)
 
 		assistantActions := map[string]http.HandlerFunc{
-			"create_tunnel":      tunnelHandler.CreateTunnel,
-			"create_dns_record":  dnsHandler.Create,
-			"create_monitor":     monitorsHandler.Create,
-			"add_monitor_target": monitorsHandler.AddTarget,
+			"create_tunnel":         tunnelHandler.CreateTunnel,
+			"create_dns_record":     dnsHandler.Create,
+			"create_monitor":        monitorsHandler.Create,
+			"add_monitor_target":    monitorsHandler.AddTarget,
+			"update_dns_record":     dnsHandler.Update,
+			"delete_dns_record":     dnsHandler.Delete,
+			"delete_tunnel":         tunnelHandler.DeleteTunnel,
+			"delete_monitor":        monitorsHandler.Delete,
+			"delete_monitor_target": monitorsHandler.RemoveTarget,
+			"update_site_settings":  configHandler.SetSiteSettings,
+			"set_preferred_cname":   configHandler.SetPreferredCNAME,
+			"set_cname_presets":     configHandler.SetCNAMEPresets,
 		}
 		assistantHandler := handlers.NewAssistantHandler(st, encryptionKey, assistantActions)
 		assistantActions["bind_domain"] = assistantHandler.BindDomain
+		assistantActions["update_app_settings"] = assistantHandler.UpdateAppSettings
 		r.Get("/assistant/settings", mw.Auth(assistantHandler.Settings))
 		r.Put("/assistant/settings", mw.Auth(assistantHandler.SaveSettings))
 		r.Get("/assistant/conversations", mw.Auth(assistantHandler.Conversations))
@@ -288,7 +306,6 @@ func main() {
 		// endpoints back features that remain (SMTP alerts, Cloudflare OAuth
 		// client, encryption key, passkey/Turnstile/rate-limit hardening).
 		r.Route("/admin", func(r chi.Router) {
-			r.Put("/users/{id}/password-login", mw.Auth(passkeyHandler.AdminUpdatePasswordLogin))
 			r.Get("/settings", mw.Auth(managementHandler.GetAppSettings))
 			r.Put("/settings", mw.Auth(managementHandler.UpdateAppSettings))
 			r.Get("/smtp", mw.Auth(managementHandler.GetSMTP))
@@ -395,14 +412,16 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("Server starting on %s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
+	if err := newHTTPServer(addr, r).ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func generateRandomPassword(length int) string {
 	b := make([]byte, length)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("generate password: %v", err)
+	}
 	return hex.EncodeToString(b)[:length]
 }
 

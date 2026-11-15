@@ -1,15 +1,11 @@
 <template>
   <div class="page-container">
-    <div class="page-header about-heading">
-      <h2>关于</h2>
-      <p>版本信息、项目仓库与更新动态。</p>
-    </div>
     <div class="settings-grid section">
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">Tunnel Manager</div>
-            <div class="settings-card-desc">Cloudflare Tunnel 可视化管理面板</div>
+            <div class="settings-card-desc">{{ tr('m_7d603117f21f') }}</div>
           </div>
         </div>
         <div class="about-app">
@@ -20,14 +16,14 @@
             </svg>
           </span>
           <div class="about-app-text">
-            <strong>Cloudflare Tunnel 可视化管理面板</strong>
-            <p>面向单管理员的隧道与 DNS 管理面板，支持 AI 配置助手、IP 优选、服务状态告警、通行密钥和双重身份验证。</p>
+            <strong>{{ tr('m_7d603117f21f') }}</strong>
+            <p>{{ tr('m_b8e95118d3f7') }}</p>
             <a class="about-repo" :href="REPO_URL" target="_blank" rel="noopener">
-              仓库地址：{{ REPO_URL }}
+              {{ tr('m_074aab6d6d27') }}{{ REPO_URL }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
             <a class="about-repo" href="https://docs.kukie.cn" target="_blank" rel="noopener">
-              在线文档：https://docs.kukie.cn
+              {{ tr('m_127285f0135b') }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
           </div>
@@ -36,24 +32,24 @@
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">版本与更新</div>
-            <div class="settings-card-desc">对比 GitHub 上发布的最新版本，查看是否有新内容。</div>
+            <div class="settings-card-title">{{ tr('m_cebbc1f61ca0') }}</div>
+            <div class="settings-card-desc">{{ tr('m_dfe1c1204ded') }}</div>
           </div>
           <button class="btn btn-primary" :disabled="checking" @click="checkUpdate">
-            {{ checking ? '检查中...' : '检查更新' }}
+            {{ checking ? tr('m_2a114c7e95b7') : tr('m_7f68ebad19ba') }}
           </button>
         </div>
         <div class="version-table">
           <div class="version-row">
-            <span>服务端版本</span>
+            <span>{{ tr('m_4e87ee56bf2b') }}</span>
             <strong>{{ currentVersion }}</strong>
           </div>
           <div class="version-row">
-            <span>线上最新</span>
+            <span>{{ tr('m_7f364f52a105') }}</span>
             <strong>{{ latestVersion || '—' }}</strong>
           </div>
           <div class="version-row">
-            <span>更新状态</span>
+            <span>{{ tr('m_57106b8643ca') }}</span>
             <strong :class="statusClass">{{ statusText }}</strong>
           </div>
         </div>
@@ -61,24 +57,24 @@
       <section class="settings-card settings-card-wide changelog-card">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">本版本亮点</div>
-            <div class="settings-card-desc">v2.8.0-slim 的重点变化：AI 助手、DNS 批量操作与 IP 优选增强。</div>
+            <div class="settings-card-title">{{ tr('m_42c169ac53c2') }}</div>
+            <div class="settings-card-desc">{{ tr('m_6808369b92b1') }}</div>
           </div>
         </div>
         <ul class="changelog-list">
-          <li>AI 助手使用管理员连接，支持保存会话，配置任务须明确确认后执行</li>
-          <li>监控默认每 60 秒检查，DNS 默认自动 TTL、关闭代理，执行前展示实际配置</li>
-          <li>DNS 新增 NS / SRV / CAA / PTR，支持结构化编辑、批量新增及逐条结果，成功项不重复发送</li>
-          <li>IP 优选支持独立 TXT 验证和 Cloudflare 一键填写，验证成功后收起记录详情</li>
-          <li>全局设置可配置 IP 优选每日预算、请求速率和并发上限，支持诊断、停止与定时执行</li>
-          <li>域名绑定增加操作进度与失败反馈，页面切换加入过渡效果</li>
+          <li>{{ tr('m_1ae15c6bd1be') }}</li>
+          <li>{{ tr('m_251a77247045') }}</li>
+          <li>{{ tr('m_4c2f23822e3d') }}</li>
+          <li>{{ tr('m_19dff4cfa946') }}</li>
+          <li>{{ tr('m_3c816b7f18b2') }}</li>
+          <li>{{ tr('m_c046ce1f1e92') }}</li>
         </ul>
       </section>
       <section v-if="latestBody || checkError" class="settings-card settings-card-wide release-card">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">最新发布更新内容</div>
-            <div class="settings-card-desc">来自 GitHub Release{{ latestTag ? ` · ${latestTag}` : '' }}。</div>
+            <div class="settings-card-title">{{ tr('m_25b119e0eede') }}</div>
+            <div class="settings-card-desc">{{ tr('m_f9ee97eb4887') }}{{ latestTag ? ` · ${latestTag}` : '' }}。</div>
           </div>
         </div>
         <div v-if="latestBody" class="release-body release-markdown" v-html="latestBodyHtml"></div>
@@ -87,71 +83,68 @@
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">功能特性</div>
-            <div class="settings-card-desc">主要能力一览。</div>
+            <div class="settings-card-title">{{ tr('m_9351fb06ea54') }}</div>
+            <div class="settings-card-desc">{{ tr('m_0e22df176d79') }}</div>
           </div>
         </div>
         <div class="feature-grid">
           <div class="feature-item">
-            <strong>隧道管理</strong>
-            <p>新建、删除、列出与选择 Cloudflare Tunnel，增删改应用路由（Ingress）并可连带清理 DNS</p>
+            <strong>{{ tr('m_e920f47d0c05') }}</strong>
+            <p>{{ tr('m_ff534389da66') }}</p>
           </div>
           <div class="feature-item">
-            <strong>域名绑定</strong>
-            <p>简化直连 / 优选模式，支持批量绑定，自动配置 Tunnel 路由与 DNS</p>
+            <strong>{{ tr('m_4bf8b66d7390') }}</strong>
+            <p>{{ tr('m_b3c3831a9225') }}</p>
           </div>
           <div class="feature-item">
-            <strong>DNS 管理</strong>
-            <p>支持 A / AAAA / CNAME / TXT / MX / NS / SRV / CAA / PTR，提供结构化字段编辑、批量新增与逐条结果</p>
+            <strong>{{ tr('m_474fb6002594') }}</strong>
+            <p>{{ tr('m_8178ecd45796') }}</p>
           </div>
           <div class="feature-item">
-            <strong>AI 助手</strong>
-            <p>描述配置目标，核对生成的任务并明确确认后执行，支持保存会话、暂停与结果核对</p>
+            <strong>{{ tr('m_1b0049fcfd41') }}</strong>
+            <p>{{ tr('m_23efa07a6b81') }}</p>
+          </div>
+          <div class="feature-item">
+            <strong>{{ tr('m_3db29474a184') }}</strong>
+            <p>{{ tr('m_165170c6d7f2') }}</p>
           </div>
           <div class="feature-item">
             <strong>Cloudflare OAuth</strong>
-            <p>授权连接 Cloudflare 账户，支持多账户授权与随时切换，免去手动复制 API Token</p>
+            <p>{{ tr('m_20c9a5fcb58a') }}</p>
           </div>
           <div class="feature-item">
-            <strong>IP 优选实验室</strong>
-            <p>独立 TXT 域名验证、HTTP 探测与诊断、可配置预算和限速，可选定时执行与华为云 DNS 更新</p>
+            <strong>{{ tr('m_384a5d60f314') }}</strong>
+            <p>{{ tr('m_d33996c19397') }}</p>
           </div>
           <div class="feature-item">
-            <strong>状态告警</strong>
-            <p>服务状态变化时发送邮件或 Telegram 通知，仅用于告警推送，不提供远程控制</p>
-          </div>
-          <div class="feature-item">
-            <strong>安全认证</strong>
-            <p>Argon2id 密码哈希、TOTP 双重验证与恢复码，密钥与令牌加密存储</p>
+            <strong>{{ tr('m_53b57f1e9171') }}</strong>
+            <p>{{ tr('m_8716134bee6b') }}</p>
           </div>
         </div>
       </section>
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">技术栈</div>
-            <div class="settings-card-desc">构建本项目使用的技术。</div>
+            <div class="settings-card-title">{{ tr('m_265b45019e65') }}</div>
+            <div class="settings-card-desc">{{ tr('m_3d9b89277530') }}</div>
           </div>
         </div>
-        <div class="stack-row"><span>前端</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
-        <div class="stack-row"><span>后端</span><code>Go · chi · SQLite</code></div>
-        <div class="stack-row"><span>集成</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram 通知 · GitHub Actions</code></div>
+        <div class="stack-row"><span>{{ tr('m_866a4fa82c25') }}</span><code>Vue 3 · TypeScript · Naive UI · Vite · Pinia</code></div>
+        <div class="stack-row"><span>{{ tr('m_9b826346239e') }}</span><code>Go · chi · SQLite</code></div>
+        <div class="stack-row"><span>{{ tr('m_4115d63bd549') }}</span><code>Cloudflare API · Huawei Cloud DNS API · Telegram Bot API · GitHub Actions</code></div>
       </section>
     </div>
   </div>
 </template>
 <script setup lang="ts">
+import { t as tr } from '../i18n'
+
 import { computed, onMounted, ref } from 'vue'
+import { latestSlimRelease, type SlimRelease } from '../utils/slimRelease'
 import MarkdownIt from 'markdown-it'
 
 const REPO_URL = 'https://github.com/qiuyuxc/tunnel-manager'
-const RELEASE_API = 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases/latest'
-// The single-user edition tags releases as vX.Y.Z-slim (published as GitHub
-// pre-releases). Its update check must only ever compare against slim releases,
-// otherwise a full-edition release would look like a newer version to it.
-const RELEASES_API = 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases?per_page=100'
-const SLIM_SUFFIX = '-slim'
-const isSlimEdition = (v: string) => v.toLowerCase().includes(SLIM_SUFFIX)
+const RELEASE_API = 'https://api.github.com/repos/qiuyuxc/tunnel-manager/releases?per_page=100'
 const markdown = new MarkdownIt({
   html: false,
   linkify: true,
@@ -185,15 +178,15 @@ function compareVersion(a: number[], b: number[]): number {
   return 0
 }
 const statusText = computed(() => {
-  if (checking.value) return '检查中...'
-  if (!latestVersion.value) return checkError.value ? '检查失败' : '尚未检查'
+  if (checking.value) return tr('m_2a114c7e95b7')
+  if (!latestVersion.value) return checkError.value ? tr('m_4f6f06254d16') : tr('m_cdbc0434f568')
   const c = parseVersion(currentVersion.value)
   const l = parseVersion(latestVersion.value)
   if (c.length && l.length) {
     const diff = compareVersion(l, c)
-    if (diff > 0) return '发现新版本 ' + latestVersion.value
-    if (diff === 0) return '已是最新版本'
-    return '当前版本领先线上发布'
+    if (diff > 0) return tr('m_596dd46cfde5') + latestVersion.value
+    if (diff === 0) return tr('m_bc310480b4ce')
+    return tr('m_681395cc358f')
   }
   return '—'
 })
@@ -213,33 +206,16 @@ async function checkUpdate() {
   checkError.value = ''
   latestBody.value = ''
   try {
-    if (isSlimEdition(currentVersion.value)) {
-      // Slim edition: scan the release list and keep only slim tags, then pick
-      // the highest so a full-edition release never shows up as an update.
-      const res = await fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } })
-      if (!res.ok) throw new Error('GitHub API ' + res.status)
-      const list = (await res.json()) as Array<{ tag_name?: string; body?: string }>
-      const slim = list.filter((r) => isSlimEdition(r.tag_name || ''))
-      let best: { tag_name?: string; body?: string } | null = null
-      for (const r of slim) {
-        if (!best || compareVersion(parseVersion(r.tag_name || ''), parseVersion(best.tag_name || '')) > 0) {
-          best = r
-        }
-      }
-      latestTag.value = best?.tag_name || ''
-      latestVersion.value = best?.tag_name || ''
-      latestBody.value = (best?.body || '').slice(0, 20_000)
-      if (!best) checkError.value = '尚未发布精简版（slim）版本。'
-    } else {
-      const res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' } })
-      if (!res.ok) throw new Error('GitHub API ' + res.status)
-      const data = await res.json()
-      latestTag.value = data.tag_name || ''
-      latestVersion.value = data.tag_name || ''
-      latestBody.value = (data.body || '').slice(0, 20_000)
-    }
+    const res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' } })
+    if (!res.ok) throw new Error('GitHub API ' + res.status)
+    const releases = await res.json() as SlimRelease[]
+    const data = latestSlimRelease(releases)
+    if (!data) { checkError.value = tr('slim.release.none'); latestTag.value = ''; latestVersion.value = ''; return }
+    latestTag.value = data.tag_name || ''
+    latestVersion.value = data.tag_name || ''
+    latestBody.value = (data.body || '').slice(0, 20_000)
   } catch (_e) {
-    checkError.value = '无法连接 GitHub，请检查网络后重试。'
+    checkError.value = tr('m_ec5a2ccad49c')
   } finally {
     checking.value = false
   }
@@ -307,8 +283,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-lg);
-  background: var(--color-ink);
-  color: #fff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-text);
 }
 
 .about-app-text { min-width: 0; }
@@ -362,8 +338,8 @@ onMounted(async () => {
   text-align: right;
 }
 
-.version-row .status-new { color: var(--color-warning); }
-.version-row .status-ok { color: var(--color-success); }
+.version-row .status-new { color: var(--color-ink); }
+.version-row .status-ok { color: var(--color-ink); }
 .version-row .status-ahead { color: var(--color-link); }
 
 .release-body {

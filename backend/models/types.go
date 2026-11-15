@@ -384,6 +384,7 @@ type ChangeUsernameRequest struct {
 type ChangeEmailRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewEmail        string `json:"new_email"`
+	Code            string `json:"code"`
 }
 
 // ChangeProfileRequest updates the account display name and avatar URL.

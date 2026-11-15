@@ -1,5 +1,5 @@
 import type { GlobalThemeOverrides } from 'naive-ui'
-import { darkPalette, fontMono, fontSans, lightPalette, warmDarkPalette, warmPalette, type Palette } from './design-tokens'
+import { darkPalette, fontMono, fontSans, lightPalette, type Palette } from './design-tokens'
 
 export function createThemeOverrides(palette: Palette): GlobalThemeOverrides {
   return {
@@ -72,5 +72,3 @@ export function createThemeOverrides(palette: Palette): GlobalThemeOverrides {
 
 export const themeOverrides = createThemeOverrides(lightPalette)
 export const darkThemeOverrides = createThemeOverrides(darkPalette)
-export const warmThemeOverrides = createThemeOverrides(warmPalette)
-export const warmDarkThemeOverrides = createThemeOverrides(warmDarkPalette)

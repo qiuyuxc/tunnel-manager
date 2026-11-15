@@ -76,7 +76,7 @@ final class Passkey {
             manager = CredentialManager.create(ctx);
             request = new CreatePublicKeyCredentialRequest(options.toString());
         } catch (Exception e) {
-            callback.onError(new Exception("无法发起通行密钥绑定：" + describe(e, "系统拒绝了请求")));
+            callback.onError(new Exception(I18n.text("m_c372e2203bda") + describe(e, I18n.text("m_47a2243e45b3"))));
             return;
         }
         manager.createCredentialAsync(ctx, request, null, ctx.getMainExecutor(),
@@ -84,14 +84,14 @@ final class Passkey {
                     @Override
                     public void onResult(CreateCredentialResponse result) {
                         if (!(result instanceof CreatePublicKeyCredentialResponse)) {
-                            callback.onError(new Exception("系统返回的凭据类型不正确"));
+                            callback.onError(new Exception(I18n.text("m_945d6aff9026")));
                             return;
                         }
                         try {
                             callback.onResult(new JSONObject(
                                     ((CreatePublicKeyCredentialResponse) result).getRegistrationResponseJson()));
                         } catch (Exception e) {
-                            callback.onError(new Exception("系统返回的凭据无法解析"));
+                            callback.onError(new Exception(I18n.text("m_e10479baa666")));
                         }
                     }
 
@@ -112,7 +112,7 @@ final class Passkey {
                     .addCredentialOption(new GetPublicKeyCredentialOption(options.toString()))
                     .build();
         } catch (Exception e) {
-            callback.onError(new Exception("无法发起通行密钥验证：" + describe(e, "系统拒绝了请求")));
+            callback.onError(new Exception(I18n.text("m_7e2fac887b1c") + describe(e, I18n.text("m_47a2243e45b3"))));
             return;
         }
         manager.getCredentialAsync(ctx, request, null, ctx.getMainExecutor(),
@@ -121,14 +121,14 @@ final class Passkey {
                     public void onResult(GetCredentialResponse result) {
                         Credential credential = result.getCredential();
                         if (!(credential instanceof PublicKeyCredential)) {
-                            callback.onError(new Exception("系统返回的凭据类型不正确"));
+                            callback.onError(new Exception(I18n.text("m_945d6aff9026")));
                             return;
                         }
                         try {
                             callback.onResult(new JSONObject(
                                     ((PublicKeyCredential) credential).getAuthenticationResponseJson()));
                         } catch (Exception e) {
-                            callback.onError(new Exception("系统返回的凭据无法解析"));
+                            callback.onError(new Exception(I18n.text("m_e10479baa666")));
                         }
                     }
 
@@ -140,24 +140,24 @@ final class Passkey {
     }
 
     private static Exception translateCreate(CreateCredentialException e) {
-        if (e instanceof CreateCredentialCancellationException) return new Cancelled("已取消通行密钥绑定");
+        if (e instanceof CreateCredentialCancellationException) return new Cancelled(I18n.text("m_f951ae00348b"));
         if (e instanceof CreateCredentialProviderConfigurationException) {
-            return new Exception("本机缺少 Google Play 服务，无法使用通行密钥");
+            return new Exception(I18n.text("m_64740dcb4882"));
         }
-        if (e instanceof CreateCredentialUnsupportedException) return new Exception("本机不支持通行密钥");
-        if (e instanceof CreateCredentialInterruptedException) return new Exception("通行密钥绑定被中断，请重试");
-        return new Exception(describe(e, "通行密钥绑定失败"));
+        if (e instanceof CreateCredentialUnsupportedException) return new Exception(I18n.text("m_7d33037e3d4f"));
+        if (e instanceof CreateCredentialInterruptedException) return new Exception(I18n.text("m_4fe45e47037a"));
+        return new Exception(describe(e, I18n.text("m_b5624c708f47")));
     }
 
     private static Exception translateGet(GetCredentialException e) {
-        if (e instanceof GetCredentialCancellationException) return new Cancelled("已取消通行密钥验证");
-        if (e instanceof NoCredentialException) return new Exception("没有可用的通行密钥，请先在账户页绑定");
+        if (e instanceof GetCredentialCancellationException) return new Cancelled(I18n.text("m_db900a083e3e"));
+        if (e instanceof NoCredentialException) return new Exception(I18n.text("m_b0c5651bf54f"));
         if (e instanceof GetCredentialProviderConfigurationException) {
-            return new Exception("本机缺少 Google Play 服务，无法使用通行密钥");
+            return new Exception(I18n.text("m_64740dcb4882"));
         }
-        if (e instanceof GetCredentialUnsupportedException) return new Exception("本机不支持通行密钥");
-        if (e instanceof GetCredentialInterruptedException) return new Exception("通行密钥验证被中断，请重试");
-        return new Exception(describe(e, "通行密钥验证失败"));
+        if (e instanceof GetCredentialUnsupportedException) return new Exception(I18n.text("m_7d33037e3d4f"));
+        if (e instanceof GetCredentialInterruptedException) return new Exception(I18n.text("m_434dcc2c864f"));
+        return new Exception(describe(e, I18n.text("m_17c96c45fc4c")));
     }
 
     /**
@@ -169,7 +169,7 @@ final class Passkey {
         String message = e.getMessage() == null ? "" : e.getMessage();
         if (message.contains("rpId") || message.contains("origin") || message.contains("asset")
                 || message.contains("privileged") || message.contains("association")) {
-            return "该域名尚未与本 App 关联：请在面板「系统设置 → 通行密钥」配置 Android 资产链接";
+            return I18n.text("m_058ecbbb9805");
         }
         return message.isEmpty() ? fallback : fallback + "：" + message;
     }

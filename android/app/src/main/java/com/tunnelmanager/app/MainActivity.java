@@ -15,7 +15,6 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.JavascriptInterface;
 import android.webkit.CookieManager;
@@ -23,6 +22,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -93,8 +93,8 @@ public class MainActivity extends Activity {
     private Button btnBackToLogin;
     private Button btnPasskeyLogin;
     private Button btnPasskeyVerify;
-    private static final String PASSKEY_LOGIN_LABEL = "使用通行密钥登录";
-    private static final String PASSKEY_VERIFY_LABEL = "使用通行密钥验证";
+    private final String PASSKEY_LOGIN_LABEL = I18n.text("m_e984682db258");
+    private final String PASSKEY_VERIFY_LABEL = I18n.text("m_28c3158cdf27");
     /** True when the challenged account has a passkey, so the 2FA step can offer it. */
     private boolean passkeysAvailable;
     private ProgressBar progress;
@@ -126,6 +126,13 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- lifecycle
 
     @Override
+    protected void attachBaseContext(android.content.Context context) {
+        android.content.res.Configuration configuration = new android.content.res.Configuration(context.getResources().getConfiguration());
+        configuration.setLocale(I18n.locale());
+        super.attachBaseContext(context.createConfigurationContext(configuration));
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // The form is inflated from XML, so its palette has to arrive through
@@ -138,6 +145,14 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(palette.canvas);
         getWindow().setNavigationBarColor(palette.canvas);
         setContentView(R.layout.activity_main);
+        Button language = findViewById(R.id.language_button);
+        language.setText(I18n.text("language.label") + " · " + LanguageSelect.currentLabel());
+        language.setTextColor(palette.body);
+        language.setAllCaps(false);
+        language.setMinHeight(UI.dp(44));
+        language.setPadding(UI.dp(12), UI.dp(8), UI.dp(12), UI.dp(8));
+        language.setBackground(UI.pressable(UI.rounded(palette.canvasSoft2, UI.RADIUS_MD), palette.btnGhostHover));
+        language.setOnClickListener(view -> LanguageSelect.show(this, this::recreate));
 
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
 
@@ -147,6 +162,7 @@ public class MainActivity extends Activity {
         inputServer = findViewById(R.id.input_server);
         inputAccount = findViewById(R.id.input_account);
         inputPassword = findViewById(R.id.input_password);
+        inputPassword.setSaveEnabled(false);
         inputCode = findViewById(R.id.input_code);
         textError = findViewById(R.id.text_error);
         textError2fa = findViewById(R.id.text_error_2fa);
@@ -224,67 +240,30 @@ public class MainActivity extends Activity {
         // form the operator is about to use.
         if (getIntent() != null && NOTICE_EXPIRED.equals(getIntent().getStringExtra(EXTRA_NOTICE))) {
             getIntent().removeExtra(EXTRA_NOTICE);
-            showError(textError, "登录状态已失效，请重新登录");
+            showError(textError, I18n.text("m_aa2943a75de2"));
+        }
+        if (savedInstanceState != null) {
+            challengeToken = savedInstanceState.getString("loginChallenge", "");
+            pendingPath = savedInstanceState.getString("loginPath", pendingPath);
+            if (!challengeToken.isEmpty()) {
+                stepLogin.setVisibility(View.GONE);
+                stepTwoFactor.setVisibility(View.VISIBLE);
+            }
         }
         playSplash(signedIn ? this::launchConsole : null);
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle saved) {
+        saved.putString("loginChallenge", challengeToken);
+        saved.putString("loginPath", pendingPath);
+        super.onSaveInstanceState(saved);
+    }
+
     // ------------------------------------------------------------------- splash
 
-    /** Once per process: a returning visitor should not sit through it again. */
-    private static boolean splashPlayed = false;
-    /** How long the artwork stays up before it starts handing over. */
-    private static final long SPLASH_HOLD = 300;
-    /** The artwork settles from a slightly tighter crop rather than fading in:
-     *  the window behind it is already its own top colour, so any fade would
-     *  show the sign-in form first. */
-    private static final long SPLASH_SETTLE = 240;
-    private static final long SPLASH_FADE = 180;
-
-    /**
-     * Plays the launch artwork above whatever the activity has already built.
-     *
-     * The illustration's first frame is an even colour field that matches the
-     * window the system painted before this activity existed, so it can fade in
-     * without a seam — and the sign-in form (or the console hand-off) is already
-     * working behind it while it plays.
-     */
     private void playSplash(Runnable after) {
-        if (splashPlayed) {
-            if (after != null) after.run();
-            return;
-        }
-        splashPlayed = true;
-        if (!Theme.motionEnabled()) {
-            if (after != null) after.run();
-            return;
-        }
-
-        final int splashBg = getResources().getColor(
-        Theme.isDark() ? R.color.splash_night_bg : R.color.splash_day_bg, getTheme());
-        getWindow().setStatusBarColor(splashBg);
-
-        FrameLayout root = findViewById(android.R.id.content);
-        final ImageView art = new ImageView(this);
-        art.setImageResource(Theme.isDark() ? R.drawable.splash_night : R.drawable.splash_day);
-        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setScaleX(1.05f);
-        art.setScaleY(1.05f);
-        // Swallow taps while it is up: nothing behind it should react.
-        art.setClickable(true);
-        root.addView(art, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        art.animate().scaleX(1f).scaleY(1f)
-                .setDuration(SPLASH_SETTLE).setInterpolator(new DecelerateInterpolator()).start();
-        art.postDelayed(() -> art.animate().alpha(0f).setDuration(SPLASH_FADE)
-                .withEndAction(() -> {
-                    root.removeView(art);
-                    // Put the window back the way the rest of the app expects it.
-                    Palette p = Theme.p();
-                    getWindow().setStatusBarColor(p.canvas);
-                    if (after != null) after.run();
-                }).start(), SPLASH_HOLD);
+        if (after != null) after.run();
     }
 
     /**
@@ -334,22 +313,58 @@ public class MainActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
         // Self-hosted consoles are routinely reached over plain http on a LAN.
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
         s.setUserAgentString(s.getUserAgentString() + " TunnelManagerApp/1.0");
 
-        web.addJavascriptInterface(new PathBridge(), "TMHost");
         web.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (trustedWebPage(request.getUrl().toString())) return false;
+                if (request.isForMainFrame()) openExternalWebPage(request.getUrl().toString());
+                return true;
+            }
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+                if (!trustedWebPage(url)) { view.stopLoading(); openExternalWebPage(url); }
+            }
+            @Override
             public void onPageFinished(WebView view, String url) {
-                if (injecting) return;
+                if (injecting || !trustedWebPage(url) || !url.equals(view.getUrl())) return;
                 injecting = true;
                 view.evaluateJavascript(sessionScript(), value -> {
                     injecting = false;
-                    onSessionInjected(url);
+                    if (trustedWebPage(view.getUrl()) && url.equals(view.getUrl())) onSessionInjected(url);
                 });
             }
         });
+        ui.post(webPathPoll);
     }
+
+    private boolean trustedWebPage(String url) {
+        return WebOrigin.trusted(prefs.getString(KEY_SERVER, ""), url);
+    }
+
+    private void openExternalWebPage(String url) {
+        WebAuthorization.open(this, web, prefs.getString(KEY_SERVER, ""), url);
+    }
+
+    // Poll the top document instead of exposing a native bridge to every frame.
+    private final Runnable webPathPoll = new Runnable() {
+        @Override public void run() {
+            if (isFinishing() || isDestroyed()) return;
+            if (web != null && web.getVisibility() == View.VISIBLE && trustedWebPage(web.getUrl())) {
+                String page = web.getUrl();
+                web.evaluateJavascript("(function(){if(location.origin!==" + quote(WebOrigin.origin(prefs.getString(KEY_SERVER, ""))) + ")return '';return location.pathname})()", value -> {
+                    if (!trustedWebPage(web.getUrl()) || !page.equals(web.getUrl())) return;
+                    try { Object path = new JSONTokener(value).nextValue(); if (path instanceof String) onWebPath((String) path); }
+                    catch (Exception ignored) { }
+                });
+            }
+            ui.postDelayed(this, 800);
+        }
+    };
 
     // --------------------------------------------------------------- turnstile
     //
@@ -405,7 +420,7 @@ public class MainActivity extends Activity {
         turnstileSiteKey = siteKey;
         turnstileToken = "";
         turnstileBox.setVisibility(View.VISIBLE);
-        setTurnstileHint("正在加载人机验证…");
+        setTurnstileHint(I18n.text("m_1d5756f3dbb8"));
         turnstileView.loadDataWithBaseURL(server + "/", turnstileHtml(siteKey, Theme.isDark()),
                 "text/html", "utf-8", null);
     }
@@ -437,7 +452,7 @@ public class MainActivity extends Activity {
     private void onTurnstileFailed(String reason) {
         turnstileToken = "";
         pendingPassword = null;
-        setBusy(btnLogin, false, "登录");
+        setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
         // A solved widget goes stale after five minutes; that is routine, not an
         // error, so quietly ask for a new one.
         if ("expired".equals(reason) && stepLogin.getVisibility() == View.VISIBLE
@@ -445,7 +460,7 @@ public class MainActivity extends Activity {
             loadTurnstile(turnstileServer, turnstileSiteKey);
             return;
         }
-        setTurnstileHint("人机验证加载失败，请改用网页版登录");
+        setTurnstileHint(I18n.text("m_5d64fa32d858"));
     }
 
     /**
@@ -514,6 +529,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        ui.removeCallbacks(webPathPoll);
         if (web != null) {
             web.removeJavascriptInterface("TMHost");
             web.destroy();
@@ -552,18 +568,18 @@ public class MainActivity extends Activity {
         final String password = inputPassword.getText().toString();
 
         if (server.isEmpty()) {
-            showError(textError, "请填写服务器地址");
+            showError(textError, I18n.text("m_3747211e81ee"));
             inputServer.requestFocus();
             return;
         }
         if (account.isEmpty() || password.isEmpty()) {
-            showError(textError, "请填写用户名和密码");
+            showError(textError, I18n.text("m_e72dfb96ac68"));
             return;
         }
         hide(textError);
         prefs.edit().putString(KEY_SERVER, server).apply();
 
-        setBusy(btnLogin, true, "连接中…");
+        setBusy(btnLogin, true, I18n.text("m_ee9ebe523d42"));
         new Thread(() -> {
             try {
                 // Ask the server first: this both proves the address is right and
@@ -586,9 +602,9 @@ public class MainActivity extends Activity {
                     // Hold the credentials and let the widget finish; the token
                     // callback resumes the sign-in.
                     pendingPassword = password;
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     hide(textError);
-                    setTurnstileHint("请先完成人机验证");
+                    setTurnstileHint(I18n.text("m_21a059099d9f"));
                     // Restarting a widget that is already mid-solve would throw
                     // away the work it has done so far.
                     boolean up = siteKey.equals(turnstileSiteKey) && server.equals(turnstileServer)
@@ -597,7 +613,7 @@ public class MainActivity extends Activity {
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     showError(textError, networkError(e));
                 });
             }
@@ -607,7 +623,7 @@ public class MainActivity extends Activity {
     /** POSTs the credentials, attaching a Turnstile token when the server wants one. */
     private void postLogin(String server, String account, String password, String turnstile) {
         if (isFinishing()) return;
-        setBusy(btnLogin, true, "登录中…");
+        setBusy(btnLogin, true, I18n.text("m_3f06ed8f8c38"));
         new Thread(() -> {
             try {
                 JSONObject body = new JSONObject();
@@ -618,12 +634,12 @@ public class MainActivity extends Activity {
                 }
                 final Resp r = postJson(server + "/api/admin/login", body.toString(), null);
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     onLoginResponse(r, server, account);
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnLogin, false, "登录");
+                    setBusy(btnLogin, false, I18n.text("m_1e2df9c3075a"));
                     showError(textError, networkError(e));
                 });
             }
@@ -644,7 +660,7 @@ public class MainActivity extends Activity {
                 launchConsole();
                 return;
             } catch (Exception e) {
-                showError(textError, "响应解析失败");
+                showError(textError, I18n.text("m_9a8a0b39f334"));
                 return;
             }
         }
@@ -682,15 +698,15 @@ public class MainActivity extends Activity {
         final String code = inputCode.getText().toString().trim();
         final String server = prefs.getString(KEY_SERVER, "");
         if (code.isEmpty()) {
-            showError(textError2fa, "请输入验证码");
+            showError(textError2fa, I18n.text("m_ba9192e1bb7a"));
             return;
         }
         if (challengeToken.isEmpty() || server.isEmpty()) {
-            showError(textError2fa, "验证会话已失效，请重新登录");
+            showError(textError2fa, I18n.text("m_70c236200902"));
             return;
         }
         hide(textError2fa);
-        setBusy(btnVerify, true, "验证中…");
+        setBusy(btnVerify, true, I18n.text("m_7f2d0739a240"));
 
         new Thread(() -> {
             try {
@@ -699,7 +715,7 @@ public class MainActivity extends Activity {
                 body.put("code", code);
                 final Resp r = postJson(server + "/api/admin/login/2fa", body.toString(), null);
                 ui.post(() -> {
-                    setBusy(btnVerify, false, "验证");
+                    setBusy(btnVerify, false, I18n.text("m_154723a1aa0a"));
                     if (r.code == 200) {
                         try {
                             JSONObject o = new JSONObject(r.body);
@@ -719,7 +735,7 @@ public class MainActivity extends Activity {
                 });
             } catch (Exception e) {
                 ui.post(() -> {
-                    setBusy(btnVerify, false, "验证");
+                    setBusy(btnVerify, false, I18n.text("m_154723a1aa0a"));
                     showError(textError2fa, networkError(e));
                 });
             }
@@ -739,13 +755,13 @@ public class MainActivity extends Activity {
         final String server = normalizeServer(inputServer.getText().toString());
         final String account = inputAccount.getText().toString().trim();
         if (server.isEmpty()) {
-            showError(textError, "请填写服务器地址");
+            showError(textError, I18n.text("m_3747211e81ee"));
             inputServer.requestFocus();
             return;
         }
         hide(textError);
         prefs.edit().putString(KEY_SERVER, server).apply();
-        setBusy(btnPasskeyLogin, true, "等待验证…");
+        setBusy(btnPasskeyLogin, true, I18n.text("m_05be4873d29d"));
 
         new Thread(() -> {
             try {
@@ -806,11 +822,11 @@ public class MainActivity extends Activity {
     private void doPasskeyVerify() {
         final String server = prefs.getString(KEY_SERVER, "");
         if (challengeToken.isEmpty() || server.isEmpty()) {
-            showError(textError2fa, "验证会话已失效，请重新登录");
+            showError(textError2fa, I18n.text("m_70c236200902"));
             return;
         }
         hide(textError2fa);
-        setBusy(btnPasskeyVerify, true, "等待验证…");
+        setBusy(btnPasskeyVerify, true, I18n.text("m_05be4873d29d"));
 
         new Thread(() -> {
             try {
@@ -883,7 +899,7 @@ public class MainActivity extends Activity {
                     .putString(KEY_ROLE, o.optString("role", ""))
                     .apply();
         } catch (Exception e) {
-            showError(errorView, "响应解析失败");
+            showError(errorView, I18n.text("m_9a8a0b39f334"));
             return;
         }
         challengeToken = "";
@@ -911,7 +927,7 @@ public class MainActivity extends Activity {
         final String server = prefs.getString(KEY_SERVER, "");
         if (server.isEmpty()) {
             backToLogin();
-            showError(textError, "请先填写服务器地址");
+            showError(textError, I18n.text("m_2aa9d59b6a73"));
             return;
         }
         // In web-login mode there is no token handshake to perform, so the first
@@ -951,7 +967,7 @@ public class MainActivity extends Activity {
                 return;
             }
             prefs.edit().remove(KEY_TOKEN).apply();
-            showLogin("登录状态已失效，请重新登录");
+            showLogin(I18n.text("m_aa2943a75de2"));
             return;
         }
         progress.setVisibility(View.GONE);
@@ -1014,13 +1030,11 @@ public class MainActivity extends Activity {
         prepareTurnstile();
     }
 
-    /** Console-side navigation is client routed, so the page never reloads; this
-     *  bridge is what lets the native layer notice a logout or a session expiry. */
-    private class PathBridge {
-        @JavascriptInterface
-        public void onPath(final String path) {
+    /** Observe navigation without making native methods available to frames. */
+    private void onWebPath(final String path) {
+        if (!trustedWebPage(web.getUrl())) return;
             ui.post(() -> {
-                if (web.getVisibility() != View.VISIBLE) return;
+                if (web.getVisibility() != View.VISIBLE || !trustedWebPage(web.getUrl())) return;
                 boolean signedOut = isSignedOutPath(path);
                 if (webLoginMode) {
                     if (!signedOut) {
@@ -1043,72 +1057,12 @@ public class MainActivity extends Activity {
                     // token makes this path transient.
                     if (bounced) {
                         prefs.edit().remove(KEY_TOKEN).apply();
-                        showLogin("已退出登录");
+                        showLogin(I18n.text("m_d0b8f27a7116"));
                     }
                     return;
                 }
                 captureTokenIfMissing();
             });
-        }
-
-        // -------------------------------------------------- native notifications
-        //
-        // The console page drives these; the app deliberately never enables
-        // alerting on its own, so the operator always knows why a background
-        // service is running.
-
-        @JavascriptInterface
-        public String notifyState() {
-            try {
-                JSONObject o = new JSONObject();
-                o.put("enabled", prefs.getBoolean(AlertService.KEY_ENABLED, false));
-                o.put("permission", notificationsAllowed());
-                o.put("battery", ignoringBatteryOptimizations());
-                return o.toString();
-            } catch (Exception e) {
-                return "{}";
-            }
-        }
-
-        @JavascriptInterface
-        public void notifyEnable() {
-            ui.post(() -> {
-                if (Build.VERSION.SDK_INT < 33 || notificationsAllowed()) {
-                    startAlerts();
-                    return;
-                }
-                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFY);
-            });
-        }
-
-        @JavascriptInterface
-        public void notifyDisable() {
-            ui.post(MainActivity.this::stopAlerts);
-        }
-
-        @JavascriptInterface
-        public void notifyTest() {
-            ui.post(() -> AlertService.postTest(MainActivity.this));
-        }
-
-        @JavascriptInterface
-        public void notifyBattery() {
-            ui.post(() -> {
-                try {
-                    Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    i.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(i);
-                } catch (Exception e) {
-                    // Some OEM builds hide that screen; the app's own settings
-                    // page is the closest thing that always exists.
-                    try {
-                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                Uri.parse("package:" + getPackageName())));
-                    } catch (Exception ignored) {
-                    }
-                }
-            });
-        }
     }
 
     private boolean notificationsAllowed() {
@@ -1128,7 +1082,7 @@ public class MainActivity extends Activity {
             startForegroundService(i);
             prefs.edit().putBoolean(AlertService.KEY_ENABLED, true).apply();
         } catch (Exception e) {
-            showError(textError, "无法启动后台告警：" + e.getMessage());
+            showError(textError, I18n.text("m_7be22be3c536") + e.getMessage());
         }
         pushHostState();
     }
@@ -1152,7 +1106,7 @@ public class MainActivity extends Activity {
 
     /** Lets the console page re-read state after something the page did not do. */
     private void pushHostState() {
-        if (web == null) return;
+        if (web == null || !trustedWebPage(web.getUrl())) return;
         web.evaluateJavascript("window.dispatchEvent(new Event('tmhostchange'))", null);
     }
 
@@ -1179,17 +1133,19 @@ public class MainActivity extends Activity {
     }
 
     private void captureTokenIfMissing(Runnable after) {
+        if (web == null || !trustedWebPage(web.getUrl())) return;
+        String page = web.getUrl();
         if (!prefs.getString(KEY_TOKEN, "").isEmpty()) {
             if (after != null) after.run();
             return;
         }
         web.evaluateJavascript(
-                "(function(){try{return JSON.stringify({"
+                "(function(){if(location.origin!==" + quote(WebOrigin.origin(prefs.getString(KEY_SERVER, ""))) + ")return '';try{return JSON.stringify({"
                         + "t:localStorage.getItem('auth_token')||'',"
                         + "u:localStorage.getItem('auth_username')||'',"
                         + "r:localStorage.getItem('auth_role')||''})}catch(e){return ''}})()",
                 value -> {
-                    if (value == null) return;
+                    if (value == null || !trustedWebPage(web.getUrl()) || !page.equals(web.getUrl())) return;
                     try {
                         // evaluateJavascript hands back a JSON-encoded string, so
                         // unwrap one layer before reading the payload.
@@ -1246,7 +1202,7 @@ public class MainActivity extends Activity {
         String token = prefs.getString(KEY_TOKEN, "");
         String username = prefs.getString(KEY_USERNAME, "");
         String role = prefs.getString(KEY_ROLE, "");
-        return "(function(){"
+        return "(function(){if(location.origin!==" + quote(WebOrigin.origin(prefs.getString(KEY_SERVER, ""))) + ")return;"
                 + "try{"
                 + "if(" + quote(token) + "){"
                 + "localStorage.setItem('auth_token'," + quote(token) + ");"
@@ -1254,17 +1210,6 @@ public class MainActivity extends Activity {
                 + "localStorage.setItem('auth_role'," + quote(role) + ");"
                 + "}"
                 + "}catch(e){}"
-                + "if(!window.__tmHost){"
-                + "window.__tmHost=true;"
-                + "var last='';"
-                + "var report=function(){var p=location.pathname;if(p!==last){last=p;try{TMHost.onPath(p)}catch(e){}}};"
-                + "var ps=history.pushState,rs=history.replaceState;"
-                + "history.pushState=function(){ps.apply(this,arguments);report()};"
-                + "history.replaceState=function(){rs.apply(this,arguments);report()};"
-                + "window.addEventListener('popstate',report);"
-                + "setInterval(report,800);"
-                + "report();"
-                + "}"
                 + "})()";
     }
 
@@ -1354,33 +1299,33 @@ public class MainActivity extends Activity {
             raw = new JSONObject(r.body).optString("error", "");
         } catch (Exception ignored) {
         }
-        if (raw.contains("invalid credentials")) return "用户名或密码错误";
-        if (raw.contains("account is disabled")) return "账号已被禁用";
-        if (raw.contains("required")) return "请填写用户名和密码";
+        if (raw.contains("invalid credentials")) return I18n.text("m_a9a6a83a7d22");
+        if (raw.contains("account is disabled")) return I18n.text("m_64ed6f0e5104");
+        if (raw.contains("required")) return I18n.text("m_e72dfb96ac68");
         if (raw.contains("turnstile") || raw.contains("verification")) {
-            return "人机验证未通过，请重新验证后再试";
+            return I18n.text("m_b015cf1c82ac");
         }
-        if (raw.contains("temporarily unavailable")) return "服务暂时不可用，请稍后再试";
-        if (raw.contains("challenge") || raw.contains("expired")) return "验证码已失效，请重新登录";
+        if (raw.contains("temporarily unavailable")) return I18n.text("m_f4e91b601f9b");
+        if (raw.contains("challenge") || raw.contains("expired")) return I18n.text("m_aa9df380b6ae");
         if (!raw.isEmpty()) return raw;
-        return "请求失败（HTTP " + r.code + "）";
+        return I18n.text("m_99841da5202b") + r.code + "）";
     }
 
     private static String networkError(Exception e) {
         String message = e.getMessage() == null ? "" : e.getMessage();
         if (message.contains("ECONNREFUSED") || message.contains("Failed to connect")) {
-            return "连不上服务器，请检查地址和端口";
+            return I18n.text("m_ff8da88893d7");
         }
         if (message.contains("timed out") || message.contains("timeout")) {
-            return "连接超时，请检查网络";
+            return I18n.text("m_a3fceccd6229");
         }
         if (message.contains("Unable to resolve host")) {
-            return "域名解析失败，请检查地址";
+            return I18n.text("m_417a14c8aae9");
         }
         if (message.contains("CLEARTEXT")) {
-            return "该地址不允许明文 HTTP 访问";
+            return I18n.text("m_27d0f8469bb1");
         }
-        return "网络错误：" + (message.isEmpty() ? e.getClass().getSimpleName() : message);
+        return I18n.text("m_4a5f658ed9ae") + (message.isEmpty() ? e.getClass().getSimpleName() : message);
     }
 
     private void setBusy(Button button, boolean busy, String label) {

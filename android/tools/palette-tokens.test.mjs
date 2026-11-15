@@ -45,3 +45,14 @@ test('committed Java and XML palettes match the source tokens', () => {
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
 })
+
+test('surfaces, actions, navigation and healthy-state accents use neutral grayscale', () => {
+  for (const { id, colors } of palettes) {
+    for (const [role, color] of Object.entries(colors)) {
+      if (/^(error|warning)/.test(role)) continue
+      const [red, green, blue] = color.slice(-6).match(/../g)
+      assert.equal(red, green, `${id}: ${role} green tint`)
+      assert.equal(green, blue, `${id}: ${role} blue tint`)
+    }
+  }
+})

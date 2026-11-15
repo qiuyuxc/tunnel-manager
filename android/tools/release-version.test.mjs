@@ -8,11 +8,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const read = path => readFileSync(resolve(root, path), 'utf8')
 const json = path => JSON.parse(read(path))
 const version = json('frontend/package.json').version
-const releaseVersion = `${version}-slim`
+const releaseVersion = version.endsWith('-slim') ? version : `${version}-slim`
 const gradle = read('android/app/build.gradle.kts')
 
 test('release versions agree across Android, backend and packages', () => {
-  assert.match(version, /^\d+\.\d+\.\d+$/)
+  assert.match(version, /^\d+\.\d+\.\d+(?:-slim)?$/)
   assert.equal(gradle.match(/versionName\s*=\s*"([^"]+)"/)?.[1], releaseVersion)
   assert.equal(read('backend/main.go').match(/const Version = "v([^"]+)"/)?.[1], releaseVersion)
   const lock = json('frontend/package-lock.json')
@@ -29,7 +29,8 @@ test('both Android packaging paths use the same version metadata', () => {
 })
 
 test('web highlights describe the current slim release', () => {
-  assert.ok(read('frontend/src/views/About.vue').includes(`v${releaseVersion} 的重点变化`))
+  assert.ok(Object.values(json('locales/zh-CN.json')).some(value => value.includes(`v${releaseVersion} 的重点变化`)))
+  assert.ok(Object.values(json('locales/en.json')).some(value => value.includes(`v${releaseVersion}`)))
 })
 
 test('native and web release highlights stay aligned', () => {
@@ -38,7 +39,7 @@ test('native and web release highlights stay aligned', () => {
   const web = read('frontend/src/views/About.vue')
     .match(/<ul class="changelog-list">([\s\S]*?)<\/ul>/)?.[1] || ''
   const nativeItems = [...native.matchAll(/"([^"]+)"/g)].map(match => match[1])
-  const webItems = [...web.matchAll(/<li>([^<]+)<\/li>/g)].map(match => match[1])
+  const webItems = [...web.matchAll(/tr\('([^']+)'\)/g)].map(match => match[1])
   assert.ok(nativeItems.length > 0)
   assert.deepEqual(nativeItems, webItems)
 })

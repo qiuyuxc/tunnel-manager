@@ -1,12 +1,15 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
+import { language, translateError } from '../i18n.ts'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
+    anonymous?: boolean
     skipAuthInvalidation?: boolean
     validateSession?: (token: string | null) => void
   }
 
   interface InternalAxiosRequestConfig {
+    anonymous?: boolean
     skipAuthInvalidation?: boolean
     validateSession?: (token: string | null) => void
   }
@@ -17,13 +20,17 @@ export const api = axios.create({
   timeout: 30000,
 })
 
-// Attach auth token to all requests
+// Session tokens are scoped to this panel's API, including when a future caller
+// supplies an absolute URL. Public bootstrap requests do not carry a session.
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.headers['Accept-Language'] = language.value
   const token = localStorage.getItem('auth_token')
   config.validateSession?.(token)
-  if (token) {
+  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost'
+  const target = new URL(api.getUri(config), origin)
+  if (token && !config.anonymous && target.origin === origin && (target.pathname === '/api' || target.pathname.startsWith('/api/'))) {
     config.headers['X-Auth-Token'] = token
-  }
+  } else config.headers.delete('X-Auth-Token')
   return config
 })
 
@@ -31,8 +38,10 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    if (typeof err.response?.data?.error === 'string') err.response.data.error = translateError(err.response.data.error)
     if (err.response?.status === 401 && !err.config?.skipAuthInvalidation
-      && (!err.config?.validateSession || err.config.headers?.['X-Auth-Token'] === localStorage.getItem('auth_token'))
+      && !!err.config?.headers?.['X-Auth-Token']
+      && err.config.headers['X-Auth-Token'] === localStorage.getItem('auth_token')
       && window.location.pathname !== '/login') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_username')
@@ -226,15 +235,19 @@ export function checkAuthStatus() {
 }
 
 export function changePassword(currentPassword: string, newPassword: string) {
-  return api.put('/admin/password', { current_password: currentPassword, new_password: newPassword })
+  return api.put('/admin/password', { current_password: currentPassword, new_password: newPassword }, { skipAuthInvalidation: true })
 }
 
 export function changeUsername(currentPassword: string, newUsername: string) {
-  return api.put('/admin/username', { current_password: currentPassword, new_username: newUsername })
+  return api.put('/admin/username', { current_password: currentPassword, new_username: newUsername }, { skipAuthInvalidation: true })
 }
 
-export function changeEmail(currentPassword: string, newEmail: string) {
-  return api.put('/admin/email', { current_password: currentPassword, new_email: newEmail })
+export function sendEmailCode(currentPassword: string, newEmail: string) {
+  return api.post('/admin/email/code', { current_password: currentPassword, new_email: newEmail }, { skipAuthInvalidation: true })
+}
+
+export function changeEmail(currentPassword: string, newEmail: string, code: string) {
+  return api.put('/admin/email', { current_password: currentPassword, new_email: newEmail, code }, { skipAuthInvalidation: true })
 }
 
 export function changeProfile(nickname: string, avatar: string) {
@@ -249,12 +262,12 @@ export function uploadAvatar(file: File) {
 }
 
 // Config
-export function getConfig() {
-  return api.get<Config>('/config')
+export function getConfig(signal?: AbortSignal) {
+  return api.get<Config>('/config', { signal })
 }
 
 export function getSiteSettings() {
-  return api.get<SiteSettings>('/site')
+  return api.get<SiteSettings>('/site', { anonymous: true, timeout: 5000 })
 }
 
 export function setTunnelSelection(id: string, name: string) {
@@ -301,12 +314,12 @@ export function disconnectCloudflareOAuth(connectionID?: string) {
 }
 
 // Tunnels
-export function listTunnels() {
-  return api.get<Tunnel[]>('/tunnels')
+export function listTunnels(signal?: AbortSignal) {
+  return api.get<Tunnel[]>('/tunnels', { signal })
 }
 
-export function getTunnelDetail(tunnelID: string) {
-  return api.get<TunnelDetail>(`/tunnels/${tunnelID}`)
+export function getTunnelDetail(tunnelID: string, signal?: AbortSignal) {
+  return api.get<TunnelDetail>(`/tunnels/${tunnelID}`, { signal })
 }
 
 export function addIngressRule(tunnelID: string, hostname: string, service: string) {
@@ -495,20 +508,20 @@ export interface AlertLog {
   created_at: number
 }
 
-export function listMonitorAlerts(id: string) {
-  return api.get<AlertLog[]>(`/monitors/${id}/alerts`)
+export function listMonitorAlerts(id: string, signal?: AbortSignal) {
+  return api.get<AlertLog[]>(`/monitors/${id}/alerts`, { signal })
 }
 
-export function listMonitors() {
-  return api.get<MonitorView[]>('/monitors')
+export function listMonitors(signal?: AbortSignal) {
+  return api.get<MonitorView[]>('/monitors', { signal, params: { summary: '1' } })
 }
 
 export function createMonitor(name: string) {
   return api.post<MonitorView>('/monitors', { name })
 }
 
-export function getMonitor(id: string) {
-  return api.get<MonitorView>(`/monitors/${id}`)
+export function getMonitor(id: string, signal?: AbortSignal) {
+  return api.get<MonitorView>(`/monitors/${id}`, { signal })
 }
 
 export interface MonitorUpdate {
@@ -633,42 +646,8 @@ export interface OverviewResp {
   buckets: BucketStat[]
 }
 
-export function getMonitorOverview() {
-  return api.get<OverviewResp>('/monitors/overview', { timeout: 20000 })
+export function getMonitorOverview(signal?: AbortSignal) {
+  return api.get<OverviewResp>('/monitors/overview', { signal, timeout: 20000 })
 }
 
-/** 公开状态页的页面路由（给浏览器地址栏 / 复制分享用） */
-export function publicStatusPath(token: string) {
-  return `/status/${token}`
-}
-
-/** 公开状态数据的接口地址（仅供页面内部拉取） */
-export function publicStatusApiUrl(token: string) {
-  return `/api/public/status/${token}`
-}
-
-export async function fetchPublicStatus(token: string): Promise<PublicStatusData> {
-  const res = await fetch(publicStatusApiUrl(token))
-  if (!res.ok) throw new Error('status page unavailable')
-  return res.json() as Promise<PublicStatusData>
-}
-
-export interface PublicStatusData {
-  name: string
-  public_title?: string
-  public_icon?: string
-  public_theme?: 'blue' | 'warm'
-  announcement?: string
-  updated_at: number
-  interval_sec: number
-  targets: Array<{
-    name: string
-    state: string
-    latency_ms: number
-    http_code?: number
-    error?: string
-    uptime_24h: number
-    link?: string
-    bars: Heartbeat[]
-  }>
-}
+export { publicStatusPath, publicStatusApiUrl, fetchPublicStatus, type PublicStatusData } from './publicStatus.ts'

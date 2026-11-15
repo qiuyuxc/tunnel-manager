@@ -17,7 +17,7 @@ func TestAppSettingsLabLimitsRoundTripAndPartialSave(t *testing.T) {
 	}{
 		{`{}`, models.LabLimits{DailyRequests: 100000, RequestsPerSecond: 10, MaxWorkers: 32}},
 		{`{"lab_daily_request_limit":250000,"lab_requests_per_second":80,"lab_max_workers":64}`, models.LabLimits{DailyRequests: 250000, RequestsPerSecond: 80, MaxWorkers: 64}},
-		{`{"rate_limit_per_account":9}`, models.LabLimits{DailyRequests: 250000, RequestsPerSecond: 80, MaxWorkers: 64}},
+		{`{"rate_limit_notify":true}`, models.LabLimits{DailyRequests: 250000, RequestsPerSecond: 80, MaxWorkers: 64}},
 		{`{"lab_max_workers":8}`, models.LabLimits{DailyRequests: 250000, RequestsPerSecond: 80, MaxWorkers: 8}},
 	} {
 		response := performJSON(t, handler.UpdateAppSettings, http.MethodPut, "/api/admin/settings", scenario.body, "")
