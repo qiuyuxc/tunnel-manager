@@ -58,7 +58,7 @@ public class TelegramFragment extends PageFragment {
     private EditText webhookInput;
     private EditText endpointInput;
 
-    private boolean loading = true;
+    private boolean loading = false;
     private boolean busy = false;
     private boolean notifyBotSet = false;
     private String banner = "";

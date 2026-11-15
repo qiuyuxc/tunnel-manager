@@ -86,7 +86,7 @@ public class AccountFragment extends PageFragment {
     private EditText pkPasswordInput;
     private boolean pkBusy = false;
 
-    private boolean loading = true;
+    private boolean loading = false;
     private boolean busy = false;
     private String statusMessage = "";
     private boolean statusOk = true;

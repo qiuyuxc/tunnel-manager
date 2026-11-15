@@ -79,7 +79,8 @@ public class SettingsFragment extends PageFragment {
     private final List<EditText> presetNameInputs = new ArrayList<>();
     private final List<EditText> presetValueInputs = new ArrayList<>();
 
-    private boolean loading = true;
+    private boolean loading = false;
+    private boolean configLoaded = false;
     private boolean busy = false;
     private String statusMessage = "";
     private boolean statusOk = true;
@@ -99,7 +100,7 @@ public class SettingsFragment extends PageFragment {
         UI.pagePadding(body);
         scroll.addView(body);
         render();
-        if (loading) load();
+        if (!configLoaded) load();
         else loadIcon();
         return scroll;
     }
@@ -107,8 +108,11 @@ public class SettingsFragment extends PageFragment {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         if (saved == null || !saved.containsKey("settingsConfig")) return;
-        try { applyConfig(new JSONObject(saved.getString("settingsConfig"))); }
-        catch (Exception ignored) { return; }
+        try {
+            JSONObject restored = new JSONObject(saved.getString("settingsConfig"));
+            if (!restored.has("site_name")) return;
+            applyConfig(restored);
+        } catch (Exception ignored) { return; }
         nameDraft = saved.getString("settingsName", nameDraft);
         descriptionDraft = saved.getString("settingsDescription", descriptionDraft);
         iconDraft = saved.getString("settingsIcon", iconDraft);
@@ -127,7 +131,7 @@ public class SettingsFragment extends PageFragment {
 
     @Override public void onSaveInstanceState(@NonNull Bundle saved) {
         capture();
-        saved.putString("settingsConfig", config.toString());
+        if (configLoaded) saved.putString("settingsConfig", config.toString());
         saved.putString("settingsName", nameDraft);
         saved.putString("settingsDescription", descriptionDraft);
         saved.putString("settingsIcon", iconDraft);
@@ -163,6 +167,7 @@ public class SettingsFragment extends PageFragment {
     }
 
     private void applyConfig(JSONObject payload) {
+        configLoaded = true;
         config = payload;
         nameDraft = payload.optString("site_name", "");
         descriptionDraft = payload.optString("site_description", "");

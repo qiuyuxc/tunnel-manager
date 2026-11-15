@@ -94,7 +94,7 @@ public class AdminFragment extends PageFragment {
     /** Set on a tab change so the new tab opens at the top. */
     private boolean resetScroll = false;
 
-    private boolean loading = true;
+    private boolean loading = false;
     private boolean busy = false;
     private int tab = 0;
     private String banner = "";

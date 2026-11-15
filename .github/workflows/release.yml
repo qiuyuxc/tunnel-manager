@@ -17,6 +17,14 @@ jobs:
         with:
           node-version: 22
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Check Android initial page loads
+        run: node --test android/tools/first-load.test.mjs
+
       - name: Build frontend
         working-directory: frontend
         run: |
