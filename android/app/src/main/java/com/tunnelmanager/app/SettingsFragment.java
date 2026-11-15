@@ -1146,6 +1146,10 @@ public class SettingsFragment extends PageFragment {
     /** Runs a write, reloads the system settings, and reports the outcome. */
     private void run(Callable call, String success) {
         if (!beginWrite()) return;
+        // A write may complete while this view is hidden. Re-entry must fetch
+        // the saved server state instead of treating the old snapshot as fresh.
+        sysLoaded = false;
+        sysSnapshot = new JSONObject();
         statusMessage = "";
         render();
         Api.async(call::call, result -> {
@@ -1158,6 +1162,7 @@ public class SettingsFragment extends PageFragment {
             statusMessage = I18n.text("m_6ade7baf8737") + failure.getMessage();
             statusOk = false;
             render();
+            loadSys();
         });
     }
 

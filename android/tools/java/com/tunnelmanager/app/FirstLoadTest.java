@@ -111,6 +111,22 @@ final class FirstLoadTest {
             await(()->Looper.pending()>0,"discarded read did not schedule its completion");Looper.drain();
             check(racing.smtpHost.equals("new.smtp.example"),"a late read overwrote the saved system configuration");
             check(!isPending(pending,racing),"discarded read left the page pending");
+            // Saving while visible, leaving before the PUT response, then Back
+            // must fetch current system data instead of trusting a stale cache.
+            Bundle current=new Bundle();owner.onSaveInstanceState(current);
+            Host leaving=(Host)type.getDeclaredConstructor().newInstance();leaving.onCreate(current);
+            CountDownLatch pendingWrite=new CountDownLatch(1);release=pendingWrite;responseLabel="returned";
+            int beforeLeave=sent.size();mutate.invoke(leaving);
+            await(()->sent.size()==beforeLeave+1,"system write did not dispatch before navigation");
+            Bundle duringWrite=new Bundle();leaving.onSaveInstanceState(duringWrite);
+            check(!duringWrite.containsKey("settingsSystem"),"pending system write preserved a stale loaded snapshot");
+            leaving.active=false;pendingWrite.countDown();
+            await(()->Looper.pending()>0,"hidden page write did not complete");Looper.drain();
+            check(sent.size()==beforeLeave+1,"hidden page dispatched a system refresh");
+            leaving.active=true;release=new CountDownLatch(0);enter.invoke(leaving);
+            await(()->{Looper.drain();return leaving.smtpHost.equals("returned.smtp.example");},"returning after a hidden write reused stale system configuration");
+            check(sent.size()==beforeLeave+5,"Back must request only the four missing system sections");
+
         }
         owner.active = false;
         int beforeDetach=sent.size(); refresh.invoke(owner);
