@@ -37,7 +37,8 @@ import java.util.function.IntConsumer;
  * seven columns never survive a 384dp viewport.
  */
 public class AdminFragment extends PageFragment {
-    @Override void refreshPage() { load(); }
+    @Override boolean canRefresh() { return !busy && !loading; }
+    @Override void refreshPage() { if (canRefresh()) load(); }
 
     private final String[] TABS = {I18n.text("m_0d0e1a86b3aa"), I18n.text("m_963ead08d78d"), I18n.text("m_c8b56dca7aed"), I18n.text("m_68ea5dd4d7af"), I18n.text("m_0ac53099a515"), I18n.text("m_e73d84773a07")};
     /** Audit categories, mirroring the web panel's filter list. */
@@ -225,10 +226,17 @@ public class AdminFragment extends PageFragment {
         return root;
     }
 
+    /** A read and a configuration change must never apply concurrently. */
+    private boolean beginWrite() {
+        if (!alive() || loading || busy) return false;
+        busy = true;
+        return true;
+    }
+
     // ------------------------------------------------------------------- data
 
     private void load() {
-        if (!alive() || loading) return;
+        if (!alive() || loading || busy) return;
         loading = true;
         render();
         Api.async(() -> Api.batch(
@@ -1115,7 +1123,7 @@ public class AdminFragment extends PageFragment {
     private void saveRateLimitSettings() {
 	capture();
 	JSONObject payload = settingsWithPasskeys(null);
-	busy = true;
+	if (!beginWrite()) return;
 	banner = "";
 	render();
 	Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
@@ -1488,7 +1496,7 @@ public class AdminFragment extends PageFragment {
     }
 
     private void run(Callable call, String success, Runnable after) {
-        busy = true;
+        if (!beginWrite()) return;
         banner = "";
         render();
         Api.async(call::call, result -> {
@@ -1562,7 +1570,7 @@ public class AdminFragment extends PageFragment {
     private void savePasskeySettings() {
         capture();
         JSONObject payload = settingsWithPasskeys(null);
-        busy = true;
+        if (!beginWrite()) return;
         banner = "";
         render();
         Api.async(() -> Api.put("/api/admin/settings", payload), result -> {
@@ -1581,7 +1589,7 @@ public class AdminFragment extends PageFragment {
     private void setGlobalPasswordLogin(boolean disabled) {
         capture();
         JSONObject payload = settingsWithPasskeys(disabled);
-        busy = true;
+        if (!beginWrite()) return;
         banner = "";
         render();
         Api.async(() -> Api.put("/api/admin/settings", payload), result -> {

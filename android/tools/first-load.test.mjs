@@ -80,6 +80,12 @@ before(() => {
     const source = readFileSync(resolve(root, `app/src/main/java/com/tunnelmanager/app/${name}.java`), 'utf8')
     const field = source.match(/private boolean loading(?:\s*=\s*(?:true|false))?;/)?.[0]
     assert.ok(field)
+    const busy = source.match(/private boolean busy(?:\s*=\s*(?:true|false))?;/)?.[0]
+    assert.ok(busy)
+    const passkeyBusy = source.match(/private boolean pkBusy(?:\s*=\s*(?:true|false))?;/)?.[0] || ''
+    const canRefresh = method(source, '    @Override boolean canRefresh() {')
+    const beginWrite = method(source, '    private boolean beginWrite() {')
+    const beginPasskeyWrite = name === 'AccountFragment' ? method(source, '    private boolean beginPasskeyWrite() {') : ''
     const build = method(source, source.match(/    (?:@Override )?protected View build[^\n]+/)?.[0])
     const tail = build.slice(build.lastIndexOf('        render();'), build.lastIndexOf('        return '))
     assert.ok(tail.includes('load();'), `${name}: build entry point must include its load decision`)
@@ -89,9 +95,20 @@ before(() => {
     const apply = name === 'SettingsFragment' ? 'void applyConfig(JSONObject payload) { ' + method(source, '    private void applyConfig(JSONObject payload) {').match(/configLoaded\s*=\s*(?:true|false);/)[0] + ' config=payload; }' : ''
     const target = join(directory, `com/tunnelmanager/app/${name}Load.java`)
     writeFileSync(target, `package com.tunnelmanager.app; import org.json.*; import android.os.Bundle;
-      final class ${name}Load extends FirstLoadTest.Host { ${field} ${loaded}
-        ${method(source)} ${restore} ${save} ${apply}
+      final class ${name}Load extends FirstLoadTest.Host { ${field} ${busy} ${passkeyBusy} ${loaded}
+        ${method(source)} ${restore} ${save} ${apply} ${canRefresh} ${beginWrite} ${beginPasskeyWrite}
         void enter(){${tail}} void refresh(){load();} boolean pending(){return loading;}
+        boolean eligible(){return canRefresh();}
+        boolean gateWrite(boolean passkey){
+          boolean started = ${name === 'AccountFragment' ? 'passkey ? beginPasskeyWrite() : beginWrite()' : 'beginWrite()'};
+          if (!started) return false;
+          Api.async(() -> Api.put("/api/fixture/write", new JSONObject()),
+            result -> { busy=false; ${name === 'AccountFragment' ? 'pkBusy=false;' : ''} },
+            failure -> { busy=false; ${name === 'AccountFragment' ? 'pkBusy=false;' : ''} });
+          return true;
+        }
+        boolean writing(){return ${name === 'AccountFragment' ? 'busy || pkBusy' : 'busy'};}
+
       }`)
     sources.push(target)
   }
@@ -103,7 +120,7 @@ before(() => {
 })
 after(() => rmSync(directory, { recursive: true, force: true }))
 for (const name of names) {
-  test(`${name}: first entry dispatches HTTP, concurrent refresh merges, completion permits refresh`, () => {
+  test(`${name}: first entry, refresh merging, write/passkey exclusion and recovery use real HTTP`, () => {
     const expected = name === 'SettingsFragment' ? (slim ? 5 : 1) : name === 'AccountFragment' ? 4 : name === 'AdminFragment' ? 7 : 2
     const result = spawnSync(executable('java'), ['-cp', directory, 'com.tunnelmanager.app.FirstLoadTest', name, String(expected)], { encoding: 'utf8', timeout: 15000 })
     assert.equal(result.status, 0, result.error?.message || result.stderr)

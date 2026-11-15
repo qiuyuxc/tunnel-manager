@@ -26,7 +26,8 @@ import org.json.JSONObject;
  * "is the bot alive" is the one thing the operator keeps coming back to check.
  */
 public class TelegramFragment extends PageFragment {
-    @Override void refreshPage() { load(); }
+    @Override boolean canRefresh() { return !busy && !loading; }
+    @Override void refreshPage() { if (canRefresh()) load(); }
 
     private static final long STATUS_INTERVAL = 10_000L;
     private static final String[] COMMANDS = {
@@ -96,10 +97,17 @@ public class TelegramFragment extends PageFragment {
         super.onDestroyView();
     }
 
+    /** A read and a configuration change must never apply concurrently. */
+    private boolean beginWrite() {
+        if (!alive() || loading || busy) return false;
+        busy = true;
+        return true;
+    }
+
     // ------------------------------------------------------------------- data
 
     private void load() {
-        if (!alive() || loading) return;
+        if (!alive() || loading || busy) return;
         loading = true;
         render();
         Api.async(() -> Api.batch(Api.query("settings", "/api/telegram/settings"), Api.query("status", "/api/telegram/status")), payload -> {
@@ -434,7 +442,7 @@ public class TelegramFragment extends PageFragment {
 
     private void save() {
         capture();
-        busy = true;
+        if (!beginWrite()) return;
         banner = "";
         render();
         Api.async(() -> {
@@ -467,7 +475,7 @@ public class TelegramFragment extends PageFragment {
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -488,7 +496,7 @@ public class TelegramFragment extends PageFragment {
     }
 
     private void reuseFromNotify() {
-        busy = true;
+        if (!beginWrite()) return;
         banner = "";
         render();
         Api.async(() -> Api.post("/api/telegram/reuse", null), result -> {
@@ -505,11 +513,14 @@ public class TelegramFragment extends PageFragment {
     }
 
     private void test() {
+        if (!beginWrite()) return;
         Api.async(() -> Api.post("/api/telegram/test", null), result -> {
+            busy = false;
             banner = result.optString("message", I18n.text("m_a422e5f7f4c4"));
             bannerError = false;
             render();
         }, failure -> {
+            busy = false;
             banner = I18n.text("m_e44775371d6b") + failure.getMessage();
             bannerError = true;
             render();

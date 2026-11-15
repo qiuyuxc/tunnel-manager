@@ -33,6 +33,8 @@ final class FirstLoadTest {
         Host owner = (Host) type.getDeclaredConstructor().newInstance();
         java.lang.reflect.Method enter = type.getDeclaredMethod("enter"), pending = type.getDeclaredMethod("pending"), refresh=type.getDeclaredMethod("refresh");
         enter.setAccessible(true); pending.setAccessible(true); refresh.setAccessible(true);
+        java.lang.reflect.Method write=type.getDeclaredMethod("gateWrite", boolean.class), writing=type.getDeclaredMethod("writing"), eligible=type.getDeclaredMethod("eligible");
+        write.setAccessible(true); writing.setAccessible(true); eligible.setAccessible(true);
         int expected = Integer.parseInt(args[1]);
 
         if (args[0].equals("SettingsFragment")) {
@@ -43,6 +45,9 @@ final class FirstLoadTest {
         enter.invoke(owner);
         await(() -> sent.size() > 0, "first page entry never dispatched an HTTP request");
         check((boolean) pending.invoke(owner), "initial read must remain pending before its HTTP response");
+        check(!(boolean)eligible.invoke(owner), "pending read must disable toolbar refresh eligibility");
+        check(!(boolean)write.invoke(owner,false), "ordinary write must be rejected while the earlier GET is pending");
+        if (args[0].equals("AccountFragment")) check(!(boolean)write.invoke(owner,true), "passkey write must be rejected while GET is pending");
         refresh.invoke(owner);
         release.countDown();
         await(() -> { Looper.drain(); return !isPending(pending, owner); }, "page never finishes its initial load");
@@ -59,6 +64,25 @@ final class FirstLoadTest {
         refresh.invoke(owner);
         await(() -> { Looper.drain(); return !isPending(pending, owner) && sent.size() >= expected * 2; }, "completed page cannot refresh");
         check(sent.size() == expected * 2, "refresh did not dispatch one complete read set");
+        check((boolean)eligible.invoke(owner), "completed load must permit toolbar refresh");
+        for (boolean passkey : args[0].equals("AccountFragment") ? new boolean[]{false,true} : new boolean[]{false}) {
+            release=new CountDownLatch(1);
+            int beforeWrite=sent.size();
+            check((boolean)write.invoke(owner,passkey), "idle page must permit a write");
+            await(() -> sent.size()==beforeWrite+1, "guarded write never dispatched real HTTP");
+            check(sent.get(beforeWrite).equals("/api/fixture/write"), "write must use its own HTTP request");
+            check(!(boolean)eligible.invoke(owner), "ordinary/passkey write must disable toolbar refresh eligibility");
+            refresh.invoke(owner);
+            check(!(boolean)pending.invoke(owner), "write busy state must reject a new load before entering loading");
+            check(!(boolean)write.invoke(owner,false), "concurrent ordinary write must be rejected");
+            if (args[0].equals("AccountFragment")) check(!(boolean)write.invoke(owner,true), "concurrent passkey write must be rejected");
+            check(sent.size()==beforeWrite+1, "busy write must not dispatch refresh or another write");
+            release.countDown();
+            await(() -> {Looper.drain();return !isPending(writing,owner);}, "HTTP completion never leaves its ordinary/passkey busy state");
+            check((boolean)eligible.invoke(owner), "completed write must restore toolbar refresh eligibility");
+            refresh.invoke(owner);
+            await(() -> {Looper.drain();return !isPending(pending,owner)&&sent.size()==beforeWrite+1+expected;}, "page cannot refresh after its write completes");
+        }
         responseStatus=500;
         Host failed=(Host)type.getDeclaredConstructor().newInstance();
         int beforeFailure=sent.size(); enter.invoke(failed);
@@ -90,6 +114,7 @@ final class FirstLoadTest {
             catch (InterruptedException error) { throw new IOException(error); }
             return responseStatus;
         }
+        public OutputStream getOutputStream(){return new ByteArrayOutputStream();}
         public InputStream getInputStream(){return new ByteArrayInputStream("{site_name:Fixture}".getBytes());}
         public InputStream getErrorStream(){return getInputStream();}
     }
@@ -105,7 +130,7 @@ final class FirstLoadTest {
         boolean landingEnabled; final List<String[]> presets=new ArrayList<>();
         final android.os.Handler ui=new android.os.Handler(Looper.getMainLooper()); final Runnable pollTask=()->{}; final long STATUS_INTERVAL=30000;
         public void onCreate(Bundle saved){} public void onSaveInstanceState(Bundle saved){} void capture(){}
-        boolean alive(){return active;} void render(){} void loadAvatar(){} void loadIcon(){}
+        boolean alive(){return active;} boolean canRefresh(){return true;} void render(){} void loadAvatar(){} void loadIcon(){}
         void applyConfig(JSONObject value){} void applySettings(JSONObject value){} void applySettingsDrafts(){}
         void applySmtp(JSONObject value){} void applyOauth(JSONObject value){} void applySysPayload(JSONObject value){}
         JSONObject orEmpty(JSONObject value){return value==null?new JSONObject():value;}

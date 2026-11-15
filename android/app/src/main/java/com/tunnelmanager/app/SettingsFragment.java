@@ -42,7 +42,8 @@ import java.util.List;
  * the operator sees is the value that gets stored.
  */
 public class SettingsFragment extends PageFragment {
-    @Override void refreshPage() { load(); }
+    @Override boolean canRefresh() { return !busy && !loading; }
+    @Override void refreshPage() { if (canRefresh()) load(); }
 
     private static final long MAX_ICON_BYTES = 512L * 1024;
     private static final int MAX_PRESETS = 20;
@@ -146,10 +147,17 @@ public class SettingsFragment extends PageFragment {
         super.onSaveInstanceState(saved);
     }
 
+    /** A read and a configuration change must never apply concurrently. */
+    private boolean beginWrite() {
+        if (!alive() || loading || busy) return false;
+        busy = true;
+        return true;
+    }
+
     // ------------------------------------------------------------------- data
 
     private void load() {
-        if (!alive() || loading) return;
+        if (!alive() || loading || busy) return;
         loading = true;
         render();
         Api.async(() -> Api.get("/api/config"), payload -> {
@@ -590,7 +598,7 @@ public class SettingsFragment extends PageFragment {
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -637,7 +645,7 @@ public class SettingsFragment extends PageFragment {
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -667,7 +675,7 @@ public class SettingsFragment extends PageFragment {
                 return;
             }
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONArray items = new JSONArray();
@@ -709,7 +717,7 @@ public class SettingsFragment extends PageFragment {
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();

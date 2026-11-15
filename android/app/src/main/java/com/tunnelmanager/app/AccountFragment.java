@@ -45,7 +45,8 @@ import java.util.List;
  * phone cannot scan off its own screen.
  */
 public class AccountFragment extends PageFragment {
-    @Override void refreshPage() { load(); }
+    @Override boolean canRefresh() { return !busy && !loading && !pkBusy; }
+    @Override void refreshPage() { if (canRefresh()) load(); }
 
     /** Server-side cap on uploads, mirrored here so the picker can reject early. */
     private static final long MAX_AVATAR_BYTES = 4L << 20;
@@ -110,10 +111,23 @@ public class AccountFragment extends PageFragment {
         return scroll;
     }
 
+    /** A read and a configuration change must never apply concurrently. */
+    private boolean beginWrite() {
+        if (!alive() || loading || busy || pkBusy) return false;
+        busy = true;
+        return true;
+    }
+
+    private boolean beginPasskeyWrite() {
+        if (!alive() || loading || busy || pkBusy) return false;
+        pkBusy = true;
+        return true;
+    }
+
     // ------------------------------------------------------------------- data
 
     private void load() {
-        if (!alive() || loading) return;
+        if (!alive() || loading || busy || pkBusy) return;
         loading = true;
         statusMessage = "";
         render();
@@ -297,7 +311,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void updateProfile(String nickname, String avatar) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -327,7 +341,10 @@ public class AccountFragment extends PageFragment {
 
     /** Re-reads /api/auth/me so the shell's title and this page agree. */
     private void reloadIdentity() {
+        if (!alive() || loading || busy || pkBusy) return;
+        loading = true;
         Api.async(() -> Api.get("/api/auth/me"), payload -> {
+            loading = false;
             me = payload;
             Session.applyConfig(me);
             nicknameDraft = me.optString("nickname", "");
@@ -338,7 +355,8 @@ public class AccountFragment extends PageFragment {
             }
             render();
             loadAvatar();
-        }, failure -> render());
+        }, failure -> {
+            loading = false; render(); });
     }
 
     // -------------------------------------------------------------- avatar IO
@@ -393,7 +411,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void uploadAvatar(byte[] data, String mime) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         String name = "avatar" + (mime.contains("png") ? ".png"
@@ -477,7 +495,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void sendEmailCode(String email, String password) {
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -498,7 +516,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void changeEmail(String email, String password, String code) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -678,7 +696,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void startSetup() {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         tfNotice = "";
         render();
@@ -701,7 +719,7 @@ public class AccountFragment extends PageFragment {
             render();
             return;
         }
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -729,7 +747,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void disableTwoFactor(String password, String code) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -865,7 +883,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void startOAuth() {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> Api.post("/api/cloudflare/oauth/start", null), payload -> {
@@ -897,7 +915,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void activateConnection(String id) {
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> {
             JSONObject payload = new JSONObject();
@@ -917,7 +935,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void disconnectConnection(String id) {
-        busy = true;
+        if (!beginWrite()) return;
         render();
         Api.async(() -> Api.delete("/api/cloudflare/oauth" + (id.isEmpty() ? "" : "?connection_id=" + id)),
                 payload -> {
@@ -934,11 +952,15 @@ public class AccountFragment extends PageFragment {
     }
 
     private void reloadCloudflare() {
+        if (!alive() || loading || busy || pkBusy) return;
+        loading = true;
         Api.async(() -> Api.get("/api/cloudflare/oauth/status"), payload -> {
+            loading = false;
             cf = payload;
             cfError = "";
             render();
         }, failure -> {
+            loading = false;
             cfError = failure.getMessage();
             render();
         });
@@ -1003,7 +1025,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void changeUsername(String username, String password) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -1020,7 +1042,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void changePassword(String current, String next) {
-        busy = true;
+        if (!beginWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -1174,7 +1196,7 @@ public class AccountFragment extends PageFragment {
             return;
         }
         final String name = pkNameInput == null ? "" : pkNameInput.getText().toString().trim();
-        pkBusy = true;
+        if (!beginPasskeyWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -1232,7 +1254,7 @@ public class AccountFragment extends PageFragment {
                 .confirm(I18n.text("m_a3030bf8f16d"), false, () -> {
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) return;
-                    pkBusy = true;
+                    if (!beginPasskeyWrite()) return;
                     render();
                     Api.async(() -> {
                         JSONObject body = new JSONObject();
@@ -1269,7 +1291,7 @@ public class AccountFragment extends PageFragment {
             render();
             return;
         }
-        pkBusy = true;
+        if (!beginPasskeyWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -1298,7 +1320,7 @@ public class AccountFragment extends PageFragment {
             return;
         }
         final boolean disabled = !pk.optBoolean("password_login_disabled", false);
-        pkBusy = true;
+        if (!beginPasskeyWrite()) return;
         statusMessage = "";
         render();
         Api.async(() -> {
@@ -1322,7 +1344,7 @@ public class AccountFragment extends PageFragment {
     }
 
     private void reloadPasskeys() {
-        pkBusy = true;
+        if (!beginPasskeyWrite()) return;
         render();
         Api.async(() -> Api.get("/api/account/passkeys"), payload -> {
             pkBusy = false;
