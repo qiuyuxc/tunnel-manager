@@ -8,11 +8,11 @@ func (client *CloudflareClient) SnapshotForAssistant() (*CloudflareClient, error
 			if !connection.HasToken() || connection.AccountID == "" || client.oauth == nil {
 				return nil, fmt.Errorf("当前 Cloudflare 连接不可用")
 			}
-			token, err := client.oauth.AccessTokenFor(connection)
+			token, err := client.oauth.AccessTokenForContext(client.requestContext(), connection)
 			if err != nil {
 				return nil, err
 			}
-			return &CloudflareClient{apiToken: token, accountID: connection.AccountID, baseURL: client.baseURL, httpClient: client.httpClient}, nil
+			return &CloudflareClient{apiToken: token, accountID: connection.AccountID, baseURL: client.baseURL, httpClient: client.httpClient, context: client.requestContext()}, nil
 		}
 	}
 	token, err := client.accessToken()
@@ -23,5 +23,5 @@ func (client *CloudflareClient) SnapshotForAssistant() (*CloudflareClient, error
 	if err != nil {
 		return nil, err
 	}
-	return &CloudflareClient{apiToken: token, accountID: accountID, baseURL: client.baseURL, httpClient: client.httpClient}, nil
+	return &CloudflareClient{apiToken: token, accountID: accountID, baseURL: client.baseURL, httpClient: client.httpClient, context: client.requestContext()}, nil
 }

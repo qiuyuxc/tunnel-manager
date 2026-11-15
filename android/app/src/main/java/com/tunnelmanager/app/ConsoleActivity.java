@@ -55,6 +55,8 @@ public class ConsoleActivity extends AppCompatActivity {
     private boolean keyboardVisible;
     private View shell;
     private ImageView themeButton;
+    private ImageView refreshButton;
+    private TextView locationLabel;
     private ImageView navigationButton;
     private final List<String> bottomPaths = new ArrayList<>();
     /** The scrolling sidebar, or null on narrow screens. */
@@ -170,7 +172,9 @@ public class ConsoleActivity extends AppCompatActivity {
         LinearLayout body = UI.row(this);
         if (wide) {
             sidebar = buildSidebar();
-            body.addView(sidebar, new LinearLayout.LayoutParams(UI.dp(UI.SIDEBAR_W), ViewGroup.LayoutParams.MATCH_PARENT));
+            LinearLayout.LayoutParams sidebarParams = new LinearLayout.LayoutParams(UI.dp(UI.SIDEBAR_W), ViewGroup.LayoutParams.MATCH_PARENT);
+            sidebarParams.setMargins(UI.dp(12), UI.dp(12), 0, UI.dp(12));
+            body.addView(sidebar, sidebarParams);
         }
         content = new FrameLayout(this);
         content.setId(R.id.tm_content);
@@ -217,10 +221,17 @@ public class ConsoleActivity extends AppCompatActivity {
         });
         navigationButton.setContentDescription(I18n.text("m_69e7a943ab4e"));
         bar.addView(navigationButton);
-        TextView brand = UI.text(this, Session.siteName(), 18, p.ink, Typeface.BOLD);
-        brand.setSingleLine(true);
-        brand.setEllipsize(TextUtils.TruncateAt.END);
-        bar.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        locationLabel = UI.text(this, I18n.text("m_69e7a943ab4e"), 16, p.ink, Typeface.BOLD);
+        locationLabel.setSingleLine(true);
+        locationLabel.setEllipsize(TextUtils.TruncateAt.END);
+        bar.addView(locationLabel, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        refreshButton = (ImageView) iconButton(R.drawable.ic_nav_refresh, p.body, view -> {
+            Fragment active = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+            if (active instanceof PageFragment) ((PageFragment) active).requestRefresh();
+        });
+        refreshButton.setContentDescription(I18n.text("m_5f79b57ee40f"));
+        refreshButton.setTooltipText(I18n.text("m_5f79b57ee40f"));
+        bar.addView(refreshButton);
 
         // Day/night is one tap. There is a single visual theme, so a palette
         // menu would have exactly two entries and no reason to exist; going
@@ -236,7 +247,9 @@ public class ConsoleActivity extends AppCompatActivity {
     private ScrollView buildSidebar() {
         Palette p = Theme.p();
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(p.sidebar);
+        scroll.setBackground(UI.roundedStroke(p.canvasRaised, UI.RADIUS_LG, p.hairline, 1));
+        scroll.setClipToOutline(true);
+        scroll.setVerticalScrollBarEnabled(false);
         LinearLayout column = UI.column(this);
         int pad = UI.dp(UI.SM);
         column.setPadding(pad, UI.dp(UI.SM), pad, UI.dp(UI.SM));
@@ -246,6 +259,12 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void fillSidebar(LinearLayout column) {
+        LinearLayout scope = UI.column(this);
+        scope.setPadding(UI.dp(12), UI.dp(16), UI.dp(12), UI.dp(12));
+        scope.addView(UI.text(this, Session.siteName(), 17, Theme.p().ink, Typeface.BOLD));
+        UI.addRow(scope, UI.muted(this, Session.nickname()), UI.XS);
+        column.addView(scope);
+        column.addView(UI.divider(this));
         Nav.Group lastGroup = null;
         for (Nav.Item item : Nav.visible()) {
             if (item.group != lastGroup) {
@@ -281,13 +300,16 @@ public class ConsoleActivity extends AppCompatActivity {
                 active ? p.sidebarDivider : p.sidebar,
                 1), p.btnGhostHover));
         row.setClickable(true);
+        row.setFocusable(true);
+        row.setSelected(active);
+        row.setMinimumHeight(UI.dp(44));
         row.setOnClickListener(v -> open(item.path));
         return row;
     }
 
     private LinearLayout buildBottomBar() {
         LinearLayout bar = UI.row(this);
-        bar.setBackground(new GlassDrawable(UI.RADIUS_PILL, false));
+        bar.setBackground(new GlassDrawable(22, false));
         bar.setPadding(UI.dp(6), UI.dp(6), UI.dp(6), UI.dp(6));
         bar.setElevation(UI.dp(Theme.reducedEffects() ? 0 : 6));
         fillBottomBar(bar);
@@ -357,7 +379,7 @@ public class ConsoleActivity extends AppCompatActivity {
         }
         int padding = UI.dp(assistant ? 4 : 6);
         bottomBar.setPadding(padding, padding, padding, padding);
-        bottomBar.setBackground(assistant ? UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_MD, Theme.p().hairline, 1) : new GlassDrawable(UI.RADIUS_PILL, false));
+        bottomBar.setBackground(assistant ? UI.roundedStroke(Theme.p().canvasRaised, UI.RADIUS_MD, Theme.p().hairline, 1) : new GlassDrawable(22, false));
         bottomBar.setElevation(UI.dp(assistant || Theme.reducedEffects() ? 0 : 6));
     }
 
@@ -370,7 +392,7 @@ public class ConsoleActivity extends AppCompatActivity {
         int tint = active ? palette.success : palette.mute;
         if (box.isSelected() != active) {
             box.setSelected(active);
-            box.setBackground(active ? new GlassDrawable(UI.RADIUS_PILL, true) : null);
+            box.setBackground(active ? new GlassDrawable(16, true) : null);
         }
         UI.tint((ImageView) box.getChildAt(0), tint);
         if (box.getChildCount() > 1) ((TextView) box.getChildAt(1)).setTextColor(tint);
@@ -438,13 +460,15 @@ public class ConsoleActivity extends AppCompatActivity {
     private View avatarButton() {
         Palette p = Theme.p();
         avatarSlot = new FrameLayout(this);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(UI.dp(32), UI.dp(32));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(UI.dp(44), UI.dp(44));
         lp.leftMargin = UI.dp(UI.XS);
         avatarSlot.setLayoutParams(lp);
         avatarSlot.setBackground(UI.pressable(
                 UI.roundedStroke(p.btnPrimaryBg, UI.RADIUS_PILL, p.hairline, 1), p.btnGhostHover));
         clipToPill(avatarSlot);
         avatarSlot.setClickable(true);
+        avatarSlot.setFocusable(true);
+        avatarSlot.setContentDescription(I18n.text("m_34e5636c63cc"));
         avatarSlot.setOnClickListener(this::showAccountMenu);
         paintAvatar(avatarSlot, 14, p.btnPrimaryText);
         return avatarSlot;
@@ -557,7 +581,7 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showCreateMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_2cb204a57873"));
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_2cb204a57873"), SheetSizing.Tier.COMPACT);
         if (Session.hasPerm("tunnels")) sheet.action(R.drawable.ic_nav_tunnels,
                 I18n.text("m_ee6527b22aaf"), I18n.text("m_e2fc83a2fc84"), this::showCreateTunnel);
         if (Session.hasPerm("domain_bind")) sheet.action(R.drawable.ic_nav_domain,
@@ -568,14 +592,7 @@ public class ConsoleActivity extends AppCompatActivity {
 
     private void showLanguageMenu() {
         closeAccountMenu();
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(I18n.text("language.switch"))
-                .setSingleChoiceItems(new String[]{I18n.text("language.system"), "简体中文", "English"},
-                        "zh-CN".equals(I18n.preference()) ? 1 : "en".equals(I18n.preference()) ? 2 : 0,
-                        (dialog, index) -> {
-                            dialog.dismiss();
-                            I18n.setLanguage(new String[]{"system", "zh-CN", "en"}[index]);
-                        }).show();
+        LanguageSelect.show(this, null);
     }
 
     void showCreateTunnel() {
@@ -588,7 +605,7 @@ public class ConsoleActivity extends AppCompatActivity {
     }
 
     private void showMoreMenu(View anchor) {
-        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_56ca721193c9"));
+        Sheet.Builder sheet = Sheet.of(this, I18n.text("m_38844b135cf7"), SheetSizing.Tier.MEDIUM);
         sheet.content(identityHead());
         List<Nav.Item> visible = Nav.visible();
         List<Nav.Item> network = new ArrayList<>();
@@ -828,6 +845,13 @@ public class ConsoleActivity extends AppCompatActivity {
 
     /** Rebuilds the navigation so the active row follows the current page. */
     private void refreshChrome() {
+        if (locationLabel != null) {
+            String label = currentPath == null ? "" : currentPath;
+            for (Nav.Item item : Nav.visible()) if (Nav.isActive(currentPath, item.path)) { label = item.label(); break; }
+            locationLabel.setText(label);
+        }
+        Fragment active = getSupportFragmentManager().findFragmentById(R.id.tm_content);
+        if (refreshButton != null) refreshButton.setVisibility(active instanceof PageFragment && ((PageFragment) active).canRefresh() ? View.VISIBLE : View.GONE);
         if (navigationButton != null) {
             navigationButton.setImageResource(isDetailRoute() ? R.drawable.ic_nav_back : R.drawable.ic_nav_tunnels);
             navigationButton.setContentDescription(isDetailRoute() ? I18n.text("m_b6050ccef309") : I18n.text("m_69e7a943ab4e"));

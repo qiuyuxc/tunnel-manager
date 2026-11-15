@@ -306,7 +306,7 @@
     <string name="m_199edd1a1d6f" formatted="false">"Recent alarm records"</string>
     <string name="m_19c4ca651c6d" formatted="false">"Removing…"</string>
     <string name="m_19cb7bd10d44" formatted="false">"Authorization TG ID format incorrect: "</string>
-    <string name="m_19dff4cfa946" formatted="false">"Web preserves forms when switching; Android retains AI conversations and settings drafts."</string>
+    <string name="m_19dff4cfa946" formatted="false">"Load independent data concurrently and combine duplicate reads; cancel requests on exit and prevent stale responses from replacing a new session or saved changes."</string>
     <string name="m_19e976b023c8" formatted="false">"sign in now"</string>
     <string name="m_19eb750a55d7" formatted="false">"DNS operation failed: %s"</string>
     <string name="m_19f70a16fba8" formatted="false">"Tunnel Manager Mailbox verification code"</string>
@@ -324,7 +324,7 @@
     <string name="m_1ac79aa3aff0" formatted="false">"Public domain names"</string>
     <string name="m_1ad1463fe16f" formatted="false">"generate"</string>
     <string name="m_1addd42dc1dd" formatted="false">"Domain name binding parameter invalid"</string>
-    <string name="m_1ae15c6bd1be" formatted="false">"Web and Android support Simplified Chinese and English, following browser or system languages by default."</string>
+    <string name="m_1ae15c6bd1be" formatted="false">"Web and Android use monochrome light and dark themes with updated navigation, cards and action layouts."</string>
     <string name="m_1b0049fcfd41" formatted="false">"AI assistant"</string>
     <string name="m_1b33150543c1" formatted="false">"Add, modify, or delete resources by confirmed content"</string>
     <string name="m_1b54e6f260d4" formatted="false">"\"and its full detection history, public link synchronization failure.\""</string>
@@ -441,7 +441,7 @@
     <string name="m_24ea84bdd9a3" formatted="false">"Deactivation confirmation"</string>
     <string name="m_24fdd328e093" formatted="false">"Create a bot and copy Token."</string>
     <string name="m_250e6b30ef71" formatted="false">"Full domain name of existing record"</string>
-    <string name="m_251a77247045" formatted="false">"Save a language preference on this device from the sign-in page or account menu."</string>
+    <string name="m_251a77247045" formatted="false">"Mobile sheets have a fixed height (30% / 60% / 80%) for each scenario, with scrolling content and keyboard avoidance."</string>
     <string name="m_252e26071ac9" formatted="false">"Target host"</string>
     <string name="m_253dbbfd9d0f" formatted="false">"Create and configure services"</string>
     <string name="m_256ad4b67d22" formatted="false">"Please fill in the current password and one-time code"</string>
@@ -735,7 +735,7 @@
     <string name="m_3c50ed52eef5" formatted="false">"Delete current session"</string>
     <string name="m_3c54e6e2ef5d" formatted="false">"Allow password login"</string>
     <string name="m_3c54ef9ee95e" formatted="false">"Consecutive "</string>
-    <string name="m_3c816b7f18b2" formatted="false">"User-supplied names, DNS record values and conversation content stay unchanged."</string>
+    <string name="m_3c816b7f18b2" formatted="false">"Public status pages show 48 half-hour windows over the last 24 hours; empty windows stay unknown and uptime uses recorded checks."</string>
     <string name="m_3c84b65341c8" formatted="false">"Password saving busy, please try again later"</string>
     <string name="m_3c85a9eda97e" formatted="false">"No valid Android signature fingerprint is configured. Please fill in the \"System Settings → Passkey\""</string>
     <string name="m_3c8c5939d685" formatted="false">"panel"</string>
@@ -923,7 +923,7 @@
     <string name="m_4c0839ec2ac6" formatted="false">"The verification request is invalid or expired. Please log in again."</string>
     <string name="m_4c24d8c28433" formatted="false">"Please check the record value after switching"</string>
     <string name="m_4c29f20d005c" formatted="false">"Light effects, turn off blur and motion effects"</string>
-    <string name="m_4c2f23822e3d" formatted="false">"Shared local translations update navigation, controls, dates and validation messages."</string>
+    <string name="m_4c2f23822e3d" formatted="false">"Remove repeated page headings and unify language controls, while preserving resource names and input guidance."</string>
     <string name="m_4c5c1892de86" formatted="false">"Password reset, user logged out"</string>
     <string name="m_4c64fe16fed5" formatted="false">"Scopes must contain openid"</string>
     <string name="m_4c9145a693dc" formatted="false">" Services· "</string>
@@ -1251,7 +1251,7 @@
     <string name="m_6787f82d0c1e" formatted="false">"Icon at top of public page (image link/upload, can be left blank by default)"</string>
     <string name="m_679e917b16ef" formatted="false">"Create account"</string>
     <string name="m_6800fd12e118" formatted="false">"Check and implement 0 items"</string>
-    <string name="m_6808369b92b1" formatted="false">"Highlights of v3.0.0: bilingual Web and Android, shared translations and a common documentation source."</string>
+    <string name="m_6808369b92b1" formatted="false">"Highlights of v3.1.0: monochrome interfaces, fixed sheets, loading improvements, accurate status history and authentication fixes."</string>
     <string name="m_6811d9b40414" formatted="false">"Centralized management Cloudflare Tunnel, check the operation status and public network entrance at any time."</string>
     <string name="m_681395cc358f" formatted="false">"The current version leads online releases"</string>
     <string name="m_682d211b7142" formatted="false">"modified"</string>
@@ -2284,7 +2284,7 @@
     <string name="m_bfbe78b7ec5a" formatted="false">"password reset"</string>
     <string name="m_bfccaf26c23e" formatted="false">" targets"</string>
     <string name="m_c03625923b75" formatted="false">"Chat Completions and OpenAI Responses are supported, both of which support streaming replies and tool calls. HTTP/HTTPS, local or intranet addresses and custom ports are supported;localhost is resolved according to the host or container where the backend is located. HTTP transmits keys and conversations in plaintext, only used on trusted networks. HTTPS is recommended for public networks. Key servers are encrypted and do not echo; replacement endpoints need to be filled in again. Personal configuration is restored after sharing is closed."</string>
-    <string name="m_c046ce1f1e92" formatted="false">"Documentation uses one bilingual content file per page with shared navigation and generation."</string>
+    <string name="m_c046ce1f1e92" formatted="false">"Fix email and OIDC account linking, second-factor authentication, stale challenges and cross-origin sessions; strengthen probe destinations, image uploads and credential isolation."</string>
     <string name="m_c0884fa99289" formatted="false">"Insufficient parameters. Usage: /优选绑定 [primary domain] [secondary domain] [optional preferred CNAME]"</string>
     <string name="m_c08cc2a469e8" formatted="false">"\nEach batch can have up to 100 non-blank lines, added serially one by one. A / AAAA / TXT / MX / NS / PTR is supported. CNAME, SRV and CAA can be added individually."</string>
     <string name="m_c0a70fcb56f0" formatted="false">"preservation of information"</string>
@@ -3040,4 +3040,92 @@
     <string name="m_ffca876d86a2" formatted="false">"AI tool parameters incomplete, no task generated"</string>
     <string name="m_ffd259cf9655" formatted="false">"Not yet public·Only visible by yourself"</string>
     <string name="m_fff49c1e182c" formatted="false">"homepage of the official website"</string>
+    <string name="account_email_code" formatted="false">"New email verification code"</string>
+    <string name="account_send_email_code" formatted="false">"Send code"</string>
+    <string name="account_email_code_sent" formatted="false">"Code sent. Enter it and save."</string>
+    <string name="account_email_code_required" formatted="false">"Enter the verification code for your new email"</string>
+    <string name="security_oidc_binding_required" formatted="false">"An account already uses this email. Sign in to that account, then link this identity in Account settings."</string>
+    <string name="security_email_proof_required" formatted="false">"Verify your new email first"</string>
+    <string name="security_telegram_disabled" formatted="false">"⛔ The account is disabled or no longer exists"</string>
+    <string name="security_telegram_admin_only" formatted="false">"⛔ Only administrators can run this command"</string>
+    <string name="security_telegram_permission" formatted="false">"⛔ This account cannot run this command"</string>
+    <string name="security_email_send_failed" formatted="false">"Email could not be sent. Try again later."</string>
+    <string name="security_public_probe_failed" formatted="false">"Probe failed"</string>
+    <string name="status_public" formatted="false">"Public service status"</string>
+    <string name="status_refresh" formatted="false">"Refresh"</string>
+    <string name="status_refreshing" formatted="false">"Refreshing"</string>
+    <string name="status_lastCheck" formatted="false">"Last check"</string>
+    <string name="status_waitingCheck" formatted="false">"Waiting for the first check"</string>
+    <string name="status_last24h" formatted="false">"Last 24 hours"</string>
+    <string name="status_checkInterval" formatted="false">"Checked every {seconds}s · Page updates every 30s"</string>
+    <string name="status_retry" formatted="false">"Retry"</string>
+    <string name="status_announcement" formatted="false">"Announcement"</string>
+    <string name="status_services" formatted="false">"Services"</string>
+    <string name="status_operational" formatted="false">"Operational"</string>
+    <string name="status_issues" formatted="false">"Issues"</string>
+    <string name="status_unobserved" formatted="false">"Unknown"</string>
+    <string name="status_serviceHistory" formatted="false">"Service history"</string>
+    <string name="status_historyScale" formatted="false">"48 windows · 30 minutes each"</string>
+    <string name="status_noServices" formatted="false">"No public services added yet"</string>
+    <string name="status_observedUptime" formatted="false">"Observed uptime over 24 hours"</string>
+    <string name="status_checkCount" formatted="false">"{count} checks"</string>
+    <string name="status_historyGroup" formatted="false">"24-hour history for {name}; use arrow keys to browse windows"</string>
+    <string name="status_now" formatted="false">"Now"</string>
+    <string name="status_historyNote" formatted="false">"Uptime uses recorded checks and excludes empty windows. Each window shows its worst observed state; gray means no records. Times use your local time zone."</string>
+    <string name="status_unavailable" formatted="false">"Status is unavailable"</string>
+    <string name="status_loading" formatted="false">"Loading service status…"</string>
+    <string name="status_autoRefresh" formatted="false">"Updates every 30 seconds"</string>
+    <string name="status_downCount" formatted="false">"{count} service(s) unreachable"</string>
+    <string name="status_warnCount" formatted="false">"{count} service(s) degraded"</string>
+    <string name="status_unknownSummary" formatted="false">"Some services have no recent check results"</string>
+    <string name="status_state_ok" formatted="false">"Operational"</string>
+    <string name="status_state_warn" formatted="false">"Degraded"</string>
+    <string name="status_state_down" formatted="false">"Unreachable"</string>
+    <string name="status_state_unknown" formatted="false">"No recent data"</string>
+    <string name="status_noChecks" formatted="false">"No checks recorded in this window"</string>
+    <string name="status_bucketDetail" formatted="false">"{count} checks · {ok} operational · {warn} degraded · {down} unreachable"</string>
+    <string name="status_refreshFailed" formatted="false">"Update failed. Showing the last successfully loaded data."</string>
+    <string name="status_loadFailed" formatted="false">"Could not load data. Check your connection and try again."</string>
+    <string name="console_refresh_error" formatted="false">"Refresh failed. Previous data is still shown. Please retry."</string>
+    <string name="console_load_failed" formatted="false">"Unable to load data"</string>
+    <string name="console_no_matches" formatted="false">"No matching results"</string>
+    <string name="console_tunnels_total" formatted="false">"Total tunnels"</string>
+    <string name="console_tunnels_active" formatted="false">"Active tunnels"</string>
+    <string name="console_tunnel_search" formatted="false">"Search tunnels"</string>
+    <string name="console_tunnel_search_placeholder" formatted="false">"Name, ID or connection status"</string>
+    <string name="console_appearance" formatted="false">"Appearance"</string>
+    <string name="console_appearance_description" formatted="false">"Choose the theme and motion preferences for your console."</string>
+    <string name="console_dark_theme" formatted="false">"Dark theme"</string>
+    <string name="console_light_effects" formatted="false">"Reduced effects"</string>
+    <string name="console_warm_theme" formatted="false">"Warm accent"</string>
+    <string name="monitors_workspace" formatted="false">"Workspace / Monitoring"</string>
+    <string name="monitors_projects" formatted="false">"Monitor projects"</string>
+    <string name="monitors_projectsHint" formatted="false">"Organize services by project"</string>
+    <string name="monitors_targets" formatted="false">"Probe targets"</string>
+    <string name="monitors_targetsHint" formatted="false">"HTTP · TCP · ICMP"</string>
+    <string name="monitors_issues" formatted="false">"Services with issues"</string>
+    <string name="monitors_issuesHint" formatted="false">"Latest recorded check results"</string>
+    <string name="monitors_published" formatted="false">"Public status pages"</string>
+    <string name="monitors_publishedHint" formatted="false">"Projects you can share with visitors"</string>
+    <string name="monitors_search" formatted="false">"Search projects, services or domains"</string>
+    <string name="monitors_filter" formatted="false">"Filter monitor projects"</string>
+    <string name="monitors_filter_all" formatted="false">"All"</string>
+    <string name="monitors_filter_issues" formatted="false">"Issues"</string>
+    <string name="monitors_filter_public" formatted="false">"Public"</string>
+    <string name="monitors_refreshFailed" formatted="false">"Update failed. Showing the last results."</string>
+    <string name="monitors_loadFailed" formatted="false">"Could not load monitor projects"</string>
+    <string name="monitors_connectionError" formatted="false">"Check your connection and try again."</string>
+    <string name="monitors_noMatches" formatted="false">"No matching monitor projects"</string>
+    <string name="monitors_noMatchesHint" formatted="false">"Try another keyword or adjust your filters."</string>
+    <string name="monitors_resetFilters" formatted="false">"Clear filters"</string>
+    <string name="monitors_resultCount" formatted="false">"{count} project(s)"</string>
+    <string name="monitors_manageHint" formatted="false">"Open a project to manage targets and its public page"</string>
+    <string name="monitors_targetCount" formatted="false">"{count} target(s)"</string>
+    <string name="monitors_interval" formatted="false">"Checked every {seconds}s"</string>
+    <string name="monitors_noTargets" formatted="false">"Add targets to start checking"</string>
+    <string name="monitors_details" formatted="false">"Details"</string>
+    <string name="monitors_enablePublicFirst" formatted="false">"Enable the public page in project details first"</string>
+    <string name="monitors_deleteNamed" formatted="false">"Delete monitor project {name}"</string>
+    <string name="monitors_createHint" formatted="false">"Name your project, then add the services you want to monitor."</string>
+    <string name="console_login_heading" formatted="false">"Connections and monitoring, together."</string>
 </resources>

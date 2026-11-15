@@ -94,7 +94,7 @@ final class DNSBatchCreate {
             public void onTextChanged(CharSequence text, int start, int before, int count) {}
             public void afterTextChanged(Editable text) { if (!running) refreshPreview(); }
         });
-        sheet = Sheet.of(context, I18n.text("m_8c63234bfc31")).content(form).onDismiss(this::dispose);
+        sheet = Sheet.of(context, I18n.text("m_8c63234bfc31"), SheetSizing.Tier.EXPANDED).content(form).onDismiss(this::dispose);
         observer = (source, event) -> { if (event == Lifecycle.Event.ON_DESTROY) dispose(); };
         lifecycle.addObserver(observer);
         sync(); sheet.show();

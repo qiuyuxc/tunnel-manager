@@ -28,6 +28,7 @@ import org.json.JSONObject;
  * than greyed, so the common 简单模式 case fits a single screen.
  */
 public class DomainFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private SwipeRefreshLayout refresh;
     private LinearLayout body;
@@ -112,7 +113,6 @@ public class DomainFragment extends PageFragment {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_4bf8b66d7390")));
 
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_de782b9792c7"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
@@ -236,7 +236,7 @@ public class DomainFragment extends PageFragment {
     /** The console's CNAMEPicker, flattened into a sheet. */
     private void openCnamePicker() {
         String fallback = config.optString("preferred_cname", "");
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_309710e63b6d"))
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_309710e63b6d"), SheetSizing.Tier.MEDIUM)
                 .label(I18n.text("m_0bb90daa665f"));
 
         sheet.item(R.drawable.ic_nav_check,

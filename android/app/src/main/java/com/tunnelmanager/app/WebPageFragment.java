@@ -1,6 +1,7 @@
 package com.tunnelmanager.app;
 
 import android.annotation.SuppressLint;
+import android.webkit.WebResourceRequest;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +24,7 @@ import org.json.JSONObject;
  * already draws navigation, and two navigation bars stacked is worse than none.
  */
 public class WebPageFragment extends PageFragment {
+    @Override void refreshPage() { if (web != null) web.reload(); }
 
     private static final String ROUTE = "route";
 
@@ -75,12 +77,27 @@ public class WebPageFragment extends PageFragment {
         settings.setDomStorageEnabled(true);
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
         web.setBackgroundColor(Theme.p().canvas);
         web.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (WebOrigin.trusted(Session.server(), request.getUrl().toString())) return false;
+                if (request.isForMainFrame()) openExternal(request.getUrl().toString());
+                return true;
+            }
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+                if (!WebOrigin.trusted(Session.server(), url)) {
+                    view.stopLoading();
+                    openExternal(url);
+                }
+            }
+            @Override
             public void onPageFinished(WebView view, String url) {
-                injectSession(view);
+                if (WebOrigin.trusted(Session.server(), url)) injectSession(view);
             }
         });
         web.loadUrl(Session.server() + route);
@@ -89,7 +106,9 @@ public class WebPageFragment extends PageFragment {
 
     /** Seeds the console's session, then takes its own navigation out of view. */
     private void injectSession(WebView view) {
-        String script = "(function(){try{"
+        String page = view.getUrl();
+        if (!WebOrigin.trusted(Session.server(), page)) return;
+        String script = "(function(){if(location.origin!==" + JSONObject.quote(WebOrigin.origin(Session.server())) + ")return '0';try{"
                 + "var wantTheme='enterprise';"
                 + "var wantDark=" + (Theme.isDark() ? "true" : "false") + ";"
                 + "var changed=localStorage.getItem('visual_theme')!==wantTheme"
@@ -102,6 +121,7 @@ public class WebPageFragment extends PageFragment {
                 + "return changed?'1':'0';"
                 + "}catch(e){return '0'}})()";
         view.evaluateJavascript(script, value -> {
+            if (!WebOrigin.trusted(Session.server(), view.getUrl()) || !page.equals(view.getUrl())) return;
             // The Vue store reads these keys while it boots, so a page that was
             // already painted with the wrong palette has to be re-run once.
             if (!paletteSynced && value != null && value.contains("1")) {
@@ -115,7 +135,8 @@ public class WebPageFragment extends PageFragment {
     }
 
     private void stripWebChrome(WebView view) {
-        String script = "(function(){"
+        if (!WebOrigin.trusted(Session.server(), view.getUrl())) return;
+        String script = "(function(){if(location.origin!==" + JSONObject.quote(WebOrigin.origin(Session.server())) + ")return;"
                 + "if(!document.getElementById('tm-embed')){"
                 + "var s=document.createElement('style');s.id='tm-embed';"
                 + "s.textContent='.sidebar,.mobile-header,.tabbar{display:none!important}"
@@ -125,6 +146,10 @@ public class WebPageFragment extends PageFragment {
                 + "(document.head||document.documentElement).appendChild(s);"
                 + "}})()";
         view.evaluateJavascript(script, null);
+    }
+
+    private void openExternal(String url) {
+        WebAuthorization.open(requireContext(), web, Session.server(), url);
     }
 
     @Override

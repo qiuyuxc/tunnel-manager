@@ -17,6 +17,6 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <style scoped>
-.operation-status{display:flex;align-items:flex-start;gap:12px;padding:16px;margin:16px 0;background:var(--color-canvas-soft);border:1px solid var(--color-hairline);border-radius:var(--radius-md)}.operation-status>div{min-width:0}.operation-status strong{font-size:14px;color:var(--color-ink)}.operation-status p{font-size:12px;color:var(--color-body);margin:6px 0;line-height:1.6}.operation-status span{font-size:12px;color:var(--color-mute);font-variant-numeric:tabular-nums}.operation-spinner{flex:none;width:18px;height:18px;margin-top:1px;border:2px solid var(--color-hairline);border-top-color:var(--color-success);border-radius:50%}
+.operation-status{display:flex;align-items:flex-start;gap:12px;padding:16px;margin:16px 0;background:var(--color-canvas-soft);border:1px solid var(--color-hairline);border-radius:var(--radius-md)}.operation-status>div{min-width:0}.operation-status strong{font-size:14px;color:var(--color-ink)}.operation-status p{font-size:12px;color:var(--color-body);margin:6px 0;line-height:1.6}.operation-status span{font-size:12px;color:var(--color-mute);font-variant-numeric:tabular-nums}.operation-spinner{flex:none;width:18px;height:18px;margin-top:1px;border:2px solid var(--color-hairline);border-top-color:var(--color-ink);border-radius:50%}
 @media (prefers-reduced-motion: reduce) { .operation-spinner { animation: none !important; } }
 </style>

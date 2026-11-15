@@ -1,15 +1,9 @@
 <template>
   <div class="page-container account-page">
-    <div class="page-header">
-            <h2>{{ tr('m_a720b4000be6') }}</h2>
-      <p>{{ tr('m_d86f5c72c33e') }}</p>
-    </div>
-
     <div class="settings-list">
       <section class="settings-card profile-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0s' }" aria-labelledby="profile-title">
         <div class="profile-heading">
           <div>
-            <p class="security-kicker">Personal profile</p>
             <h3 id="profile-title" class="settings-card-title">{{ tr('m_227eef9cd7b1') }}</h3>
             <p class="settings-card-desc">{{ tr('m_c9ce2f44a713') }}</p>
           </div>
@@ -71,9 +65,16 @@
                 <span class="field-label">{{ tr('m_ab48ee83149b') }}</span>
                 <input v-model="emailPassword" type="password" :placeholder="tr('m_632da57acf53')" class="vercel-input" autocomplete="current-password" />
               </label>
+              <label class="field">
+                <span class="field-label">{{ tr('account.email_code') }}</span>
+                <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="vercel-input" />
+              </label>
             </div>
             <div class="form-actions">
-              <button class="btn btn-secondary" type="submit" :disabled="savingEmail || !newEmail.trim() || !emailPassword">
+              <button class="btn btn-secondary" type="button" :disabled="sendingEmailCode || savingEmail || !newEmail.trim() || !emailPassword" @click="requestEmailCode">
+                {{ tr('account.send_email_code') }}
+              </button>
+              <button class="btn btn-secondary" type="submit" :disabled="savingEmail || !newEmail.trim() || !emailPassword || !emailCode.trim()">
                 {{ savingEmail ? tr('m_917b1c1f18d0') : store.email ? tr('m_da0f5e37e88b') : tr('m_6d4b7dce1ee6') }}
               </button>
             </div>
@@ -86,7 +87,6 @@
       <section class="settings-card security-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.04s' }" aria-labelledby="two-factor-title">
         <div class="security-heading">
           <div>
-            <p class="security-kicker">Operations security</p>
             <h3 id="two-factor-title" class="settings-card-title">{{ tr('m_cb5e99d1a4d8') }}</h3>
             <p class="settings-card-desc">{{ tr('m_303aeceaf321') }}</p>
           </div>
@@ -238,7 +238,6 @@
       <section class="settings-card security-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.06s' }" aria-labelledby="passkey-title">
         <div class="security-heading">
           <div>
-            <p class="security-kicker">Passwordless sign-in</p>
             <h3 id="passkey-title" class="settings-card-title">{{ tr('m_102824e51a9d') }}</h3>
             <p class="settings-card-desc">{{ tr('m_49626291c59d') }}</p>
           </div>
@@ -336,7 +335,6 @@
       <section class="settings-card cloudflare-card card-transition" :class="{ 'stagger-item': visible }" :style="{ animationDelay: '0.08s' }" aria-labelledby="cloudflare-title">
         <div class="cloudflare-heading">
           <div>
-            <p class="security-kicker">Account connection</p>
             <h3 id="cloudflare-title" class="settings-card-title">{{ tr('m_c3ee7f86565f') }}</h3>
             <p class="settings-card-desc">{{ tr('m_d5db29a9a5de') }}</p>
           </div>
@@ -469,6 +467,7 @@ import { useDialog, useMessage } from 'naive-ui'
 import QRCode from 'qrcode'
 import {
   changeEmail,
+  sendEmailCode,
   changePassword,
   changeProfile,
   changeUsername,
@@ -515,6 +514,8 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const uploadingAvatar = ref(false)
 const newEmail = ref('')
 const emailPassword = ref('')
+const emailCode = ref('')
+const sendingEmailCode = ref(false)
 const savingEmail = ref(false)
 const newUsername = ref('')
 const usernamePassword = ref('')
@@ -1012,6 +1013,16 @@ async function removeAvatar() {
   }
 }
 
+async function requestEmailCode() {
+  sendingEmailCode.value = true
+  try {
+    await sendEmailCode(emailPassword.value, newEmail.value.trim())
+    message.success(tr('account.email_code_sent'))
+  } catch (e: any) {
+    message.error(e.response?.data?.error || e.message)
+  } finally { sendingEmailCode.value = false }
+}
+
 async function saveEmail() {
   const email = newEmail.value.trim()
   if (!email || !emailPassword.value) {
@@ -1020,9 +1031,10 @@ async function saveEmail() {
   }
   savingEmail.value = true
   try {
-    await changeEmail(emailPassword.value, email)
+    await changeEmail(emailPassword.value, email, emailCode.value.trim())
     newEmail.value = ''
     emailPassword.value = ''
+    emailCode.value = ''
     await store.fetchMe()
     message.success(store.email ? tr('m_0870a627daa8') : tr('m_bb71c4d5fc40'))
   } catch (e: any) {
@@ -1192,8 +1204,8 @@ onMounted(async () => {
   nickname.value = store.nickname || ''
   newEmail.value = ''
   emailPassword.value = ''
-  await store.fetchMe()
-  nickname.value = store.nickname || ''
+  emailCode.value = ''
+  const profileReady = store.fetchMe(false).then(() => { if (!disposed) nickname.value = store.nickname || '' })
   window.addEventListener('beforeunload', handleBeforeUnload)
   visibleFrame = requestAnimationFrame(() => {
     visibleFrame = undefined
@@ -1203,6 +1215,7 @@ onMounted(async () => {
   void loadCloudflareStatus()
   void loadPasskeys()
   void handleCloudflareOAuthResult()
+  await profileReady
 })
 
 onBeforeUnmount(() => {
@@ -1233,11 +1246,11 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: 0 1px 2px rgba(58, 47, 34, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .settings-card:hover {
   border-color: var(--color-hairline-strong);
-  box-shadow: 0 12px 28px rgba(58, 47, 34, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
 }
 
 .settings-card-header { margin-bottom: var(--spacing-md); }
@@ -1415,7 +1428,7 @@ onBeforeUnmount(() => {
 .cloudflare-heading .settings-card-title { font-size: 19px; }
 .cloudflare-heading .settings-card-desc { max-width: 680px; }
 .connection-badge { display: inline-flex; flex: none; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.connection-badge.connected { color: var(--color-success); background: var(--color-result-success-bg); }
+.connection-badge.connected { color: var(--color-ink); background: var(--color-canvas-soft-2); }
 .connection-badge.disconnected { color: var(--color-mute); background: var(--color-canvas-soft); }
 .cloudflare-loading { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 72px; color: var(--color-mute); font-size: 14px; }
 .cloudflare-panel { display: flex; min-width: 0; flex-direction: column; gap: var(--spacing-md); }
@@ -1446,7 +1459,6 @@ onBeforeUnmount(() => {
   padding: 20px var(--spacing-lg) 18px;
 }
 
-.security-kicker,
 .operation-index,
 .field-label,
 .qr-caption {
@@ -1490,8 +1502,8 @@ onBeforeUnmount(() => {
   opacity: 0.72;
 }
 .status-stamp strong { font-size: 13px; }
-.stamp-mark { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent); }
-.stamp-success { color: var(--color-status-healthy-text); border-color: var(--color-status-healthy-border); background: var(--color-status-healthy-bg); }
+.stamp-mark { width: 8px; height: 8px; border-radius: 50%; background: currentColor;  }
+.stamp-success { color: var(--color-ink); border-color: var(--color-hairline); background: var(--color-canvas-soft-2); }
 .stamp-warning { color: var(--color-status-degraded-text); border-color: var(--color-status-degraded-border); background: var(--color-status-degraded-bg); }
 .stamp-error { color: var(--color-status-down-text); border-color: var(--color-status-down-border); background: var(--color-status-down-bg); }
 .stamp-neutral { color: var(--color-body); }
@@ -1532,7 +1544,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.state-live { color: var(--color-status-healthy-text); border-color: var(--color-status-healthy-border); background: var(--color-status-healthy-bg); }
+.state-live { color: var(--color-ink); border-color: var(--color-hairline); background: var(--color-canvas-soft-2); }
 .state-critical { color: var(--color-status-down-text); border-color: var(--color-status-down-border); background: var(--color-status-down-bg); }
 
 .setup-panel,
@@ -1556,7 +1568,7 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 .qr-frame canvas { display: block; width: 100% !important; height: auto !important; max-width: 220px; }
-.qr-frame p { padding: var(--spacing-sm); color: #7e271c; font-size: 12px; text-align: center; }
+.qr-frame p { padding: var(--spacing-sm); color: var(--color-error); font-size: 12px; text-align: center; }
 .qr-error canvas { display: none; }
 .qr-caption { margin: 8px 0 0; text-align: center; text-transform: none; letter-spacing: 0.02em; }
 .setup-instructions { min-width: 0; }

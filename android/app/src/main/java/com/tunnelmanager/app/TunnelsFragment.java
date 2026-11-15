@@ -29,6 +29,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class TunnelsFragment extends PageFragment {
+    @Override void refreshPage() { reload(); }
     private SwipeRefreshLayout refresh;
     private ScrollView scroll;
     private LinearLayout currentSlot;
@@ -41,6 +42,7 @@ public class TunnelsFragment extends PageFragment {
     private String error = "";
     private int selectedFilter;
     private int generation;
+    private boolean loading;
 
     @Override String route() {
         return "/tunnels";
@@ -70,16 +72,13 @@ public class TunnelsFragment extends PageFragment {
         refresh.addView(scroll);
 
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.pageTitle(requireContext(), I18n.text("m_e920f47d0c05")),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        ImageView reload = UI.iconButton(requireContext(), R.drawable.ic_nav_refresh, Theme.p().body, view -> reload());
-        reload.setContentDescription(I18n.text("m_5f79b57ee40f"));
-        header.addView(reload);
-        ImageView create = UI.iconButton(requireContext(), R.drawable.ic_nav_plus, Theme.p().success, view -> console().showCreateTunnel());
+
+        header.setGravity(Gravity.END);
+        TextView create = UI.button(requireContext(), I18n.text("m_ee6527b22aaf"), UI.BTN_SECONDARY);
+        create.setOnClickListener(view -> console().showCreateTunnel());
         create.setContentDescription(I18n.text("m_ee6527b22aaf"));
         header.addView(create);
         body.addView(header);
-        UI.addRow(body, UI.muted(requireContext(), I18n.text("m_6f4973626b77")), UI.XS);
 
         EditText search = UI.input(requireContext(), I18n.text("m_111798a8646d"));
         search.setSingleLine(true);
@@ -130,6 +129,7 @@ public class TunnelsFragment extends PageFragment {
 
     @Override public void onDestroyView() {
         generation++;
+        loading = false;
         refresh = null;
         scroll = null;
         listSlot = null;
@@ -139,13 +139,13 @@ public class TunnelsFragment extends PageFragment {
     }
 
     void reload() {
-        if (!alive() || refresh == null) return;
+        if (!alive() || refresh == null || loading) return;
+        loading = true;
         int request = ++generation;
         refresh.setRefreshing(true);
-        Api.async(() -> new JSONObject()
-                .put("tunnels", Api.getArray("/api/tunnels"))
-                .put("config", Api.get("/api/config")), payload -> {
+        Api.async(() -> Api.batch(Api.arrayQuery("tunnels", "/api/tunnels"), Api.query("config", "/api/config")), payload -> {
             if (!alive() || refresh == null || request != generation) return;
+            loading = false;
             refresh.setRefreshing(false);
             JSONObject config = payload.optJSONObject("config");
             currentId = config == null ? "" : config.optString("tunnel_id", "");
@@ -155,6 +155,7 @@ public class TunnelsFragment extends PageFragment {
             render();
         }, failure -> {
             if (!alive() || refresh == null || request != generation) return;
+            loading = false;
             refresh.setRefreshing(false);
             error = failure.getMessage();
             render();
@@ -272,7 +273,7 @@ public class TunnelsFragment extends PageFragment {
     private void openActions(JSONObject tunnel) {
         String id = tunnel.optString("id");
         String name = tunnel.optString("name", "").isEmpty() ? I18n.text("m_80fa39fefe91") : tunnel.optString("name");
-        Sheet.Builder sheet = Sheet.of(requireContext(), name)
+        Sheet.Builder sheet = Sheet.of(requireContext(), name, SheetSizing.Tier.MEDIUM)
                 .action(R.drawable.ic_nav_tunnels, I18n.text("m_a748cc074f78"), I18n.text("m_e14ac5b6d3e8"), () -> openRoute("/tunnels/" + id));
         if (id.equals(currentId)) sheet.item(R.drawable.ic_nav_close, I18n.text("m_2446e5438f16"), () -> select("", ""));
         else sheet.item(R.drawable.ic_nav_check, I18n.text("m_017c754f6e8b"), () -> select(id, name));

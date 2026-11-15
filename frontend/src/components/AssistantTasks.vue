@@ -62,16 +62,16 @@ h2 { font-size: 16px; margin: 0; } h2 span { font-size: 12px; color: var(--color
 .task { margin-top: 14px; padding: 16px; border: 1px solid var(--color-hairline); border-radius: 16px; background: var(--color-canvas); }
 .task-top { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
 .task-title { display: flex; gap: 8px; min-width: 0; font-weight: 650; font-size: 13px; overflow-wrap: anywhere; }
-.task-title input { flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--color-success); }
+.task-title input { flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--color-ink); }
 .status { flex: none; font-size: 11px; padding: 3px 7px; border-radius: 20px; background: var(--color-canvas-soft-2); }
-.succeeded .status { color: var(--color-success); } .unknown .status { color: var(--color-error); }
+.succeeded .status { color: var(--color-ink); } .unknown .status { color: var(--color-error); }
 .change { display: grid; gap: 5px; font-size: 11px; margin: 14px 0; color: var(--color-mute); }
-.change strong { font-weight: 500; color: var(--color-success); }
+.change strong { font-weight: 500; color: var(--color-ink); }
 dl { display: grid; grid-template-columns: minmax(70px, .8fr) minmax(0, 1.5fr); gap: 8px; font-size: 12px; }
 dt { color: var(--color-mute); } dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-variant-numeric: tabular-nums; }
 .task-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 button { font: inherit; cursor: pointer; border: 1px solid var(--color-hairline); background: var(--color-canvas-soft); color: var(--color-ink); border-radius: 10px; padding: 8px 12px; min-height: 44px; }
-button:disabled { opacity: .5; cursor: default; } button:focus-visible { outline: 2px solid var(--color-success); outline-offset: 3px; }
+button:disabled { opacity: .5; cursor: default; } button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
 .quiet { border: none; color: var(--color-mute); background: none; font-size: 12px; }
 .confirm-bar { position: sticky; bottom: 0; background: var(--color-canvas-raised); padding: 12px 0 0; }
 .confirm-bar p { font-size: 11px; color: var(--color-mute); }

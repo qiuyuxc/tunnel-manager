@@ -22,14 +22,18 @@ const maxAuditRetentionDays = 3650
 // ManagementHandler implements the admin backend: users, groups, invites,
 // registration settings and the SMTP relay.
 type ManagementHandler struct {
-	store         *store.Store
-	encryptionKey []byte
+	store          *store.Store
+	encryptionKey  []byte
+	accountChanged func()
 }
 
 // NewManagementHandler creates the admin backend handler.
 func NewManagementHandler(st *store.Store, encryptionKey []byte) *ManagementHandler {
 	return &ManagementHandler{store: st, encryptionKey: append([]byte(nil), encryptionKey...)}
 }
+
+// SetAccountChangeHook reconciles services after account disablement/deletion.
+func (h *ManagementHandler) SetAccountChangeHook(fn func()) { h.accountChanged = fn }
 
 // ---------------------------------------------------------------------------
 // Users
@@ -108,6 +112,9 @@ func (h *ManagementHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Requ
 	if req.Status == models.UserDisabled {
 		_ = h.store.DeleteUserSessions(id)
 	}
+	if h.accountChanged != nil {
+		h.accountChanged()
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
 }
 
@@ -155,6 +162,9 @@ func (h *ManagementHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := h.store.DeleteUser(id); err != nil {
 		writeManagementError(w, err)
 		return
+	}
+	if h.accountChanged != nil {
+		h.accountChanged()
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	ErrOIDCProviderNotFound   = errors.New("OIDC 接入方不存在或已停用")
-	ErrOIDCIdentityTaken      = errors.New("该 OIDC 身份已关联其他账号")
-	ErrOIDCEmailProofRequired = errors.New("需要验证邮箱归属")
-	ErrOIDCLastLogin          = errors.New("请先设置本站密码或绑定其他可用登录方式")
+	ErrOIDCProviderNotFound       = errors.New("OIDC 接入方不存在或已停用")
+	ErrOIDCIdentityTaken          = errors.New("该 OIDC 身份已关联其他账号")
+	ErrOIDCEmailProofRequired     = errors.New("需要验证邮箱归属")
+	ErrOIDCAccountBindingRequired = errors.New("该邮箱已有本站账号，请先登录本站账号，再在账户设置中绑定此登录方式")
+	ErrOIDCLastLogin              = errors.New("请先设置本站密码或绑定其他可用登录方式")
 )
 
 func (s *Store) ListOIDCProviders() []models.OIDCProvider {
@@ -185,8 +186,8 @@ func (s *Store) ResolveOIDCAccount(identity models.OIDCIdentity, revision uint64
 				break
 			}
 		}
-		if user != nil && !emailProven {
-			return models.User{}, ErrOIDCEmailProofRequired
+		if user != nil {
+			return models.User{}, ErrOIDCAccountBindingRequired
 		}
 		if user == nil && requireNewEmailProof && !emailProven {
 			return models.User{}, ErrOIDCEmailProofRequired

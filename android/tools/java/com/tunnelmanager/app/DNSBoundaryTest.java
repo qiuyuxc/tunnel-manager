@@ -32,12 +32,15 @@ public final class DNSBoundaryTest {
     private static Runnable responded = () -> {};
     private static Runnable writing = () -> {};
     private static int status = 200;
+    private static final AtomicReference<Connection> latest = new AtomicReference<>();
 
     public static void main(String[] args) throws Exception {
         URL.setURLStreamHandlerFactory(protocol -> new URLStreamHandler() {
             protected URLConnection openConnection(URL url) {
                 opened.run();
-                return new Connection(url);
+                Connection connection = new Connection(url);
+                latest.set(connection);
+                return connection;
             }
         });
         Session.init(context);
@@ -111,8 +114,59 @@ public final class DNSBoundaryTest {
                 check(requests.size() == 1 && requests.get(0).getRequestProperty("X-Auth-Token").equals("old-token"),
                         "ordinary post signature and authentication preserved");
                 break;
+            case "api-asset-origin":
+                Api.asset("https://cdn.invalid/avatar.png");
+                check(latest.get().getURL().getHost().equals("cdn.invalid"), "external CDN accepted");
+                check(latest.get().getRequestProperty("X-Auth-Token") == null, "external image cannot receive panel token");
+                Api.asset("/uploads/avatar.png");
+                check(latest.get().getRequestProperty("X-Auth-Token") == null, "public uploaded images need no token");
+                break;
+            case "api-redirect":
+                status = 302;
+                try { Api.get("/api/redirect"); throw new AssertionError("redirect accepted"); }
+                catch (Api.Failure failure) { check(failure.code == 302, "redirect reports failure"); }
+                check(!latest.get().getInstanceFollowRedirects(), "authenticated requests cannot forward token through redirects");
+                break;
+            case "api-forbidden":
+                check(!new Api.Failure(403, "forbidden").auth, "permission denied does not destroy the session");
+                check(new Api.Failure(401, "unauthorized").auth, "invalid token remains an auth failure");
+                break;
+            case "api-batch-parallel":
+                CountDownLatch parallel = new CountDownLatch(2);
+                responded = () -> { parallel.countDown(); await(parallel); };
+                JSONObject grouped = Api.batch(Api.query("left", "/left"), Api.query("right", "/right"), Api.optionalQuery("optional", "/optional"));
+                check(grouped.has("left") && grouped.has("right"), "independent reads complete concurrently");
+                check(grouped.has("optional_error") && !grouped.has("optional"), "optional section failure is isolated");
+                System.exit(0);
+                break;
+            case "api-async-switch":
+                int[] callbacks = {0};
+                Api.async(() -> Api.get("/api/read"), value -> callbacks[0]++, failure -> callbacks[0]++);
+                waitForCallback();
+                login("new");
+                Looper.drain();
+                check(callbacks[0] == 0, "queued old callback cannot paint a new account");
+                System.exit(0);
+                break;
+            case "api-async-unsent":
+                CountDownLatch started = new CountDownLatch(1), resume = new CountDownLatch(1);
+                Api.async(() -> { started.countDown(); await(resume); return Api.post("/api/write", new JSONObject()); }, value -> {}, failure -> {});
+                await(started);
+                login("new");
+                resume.countDown();
+                waitForCallback();
+                check(requests.isEmpty() && latest.get() == null, "queued mutation cannot run under replacement account");
+                Looper.drain();
+                System.exit(0);
+                break;
             default: throw new AssertionError(args[0]);
         }
+    }
+
+    private static void waitForCallback() throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (Looper.pending() == 0 && System.nanoTime() < deadline) Thread.sleep(1);
+        check(Looper.pending() > 0, "async callback was queued");
     }
 
     private static void expectUnauthorized() throws Exception {
@@ -203,7 +257,7 @@ public final class DNSBoundaryTest {
             writing.run();
             return new ByteArrayOutputStream();
         }
-        public int getResponseCode() { responded.run(); return status; }
+        public int getResponseCode() { responded.run(); return url.getPath().equals("/optional") ? 503 : status; }
         public InputStream getInputStream() { return new ByteArrayInputStream("{}".getBytes()); }
         public InputStream getErrorStream() { return getInputStream(); }
     }

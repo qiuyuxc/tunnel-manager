@@ -83,6 +83,7 @@ func (h *UploadsHandler) saveImage(w http.ResponseWriter, r *http.Request) (stri
 	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 		return "", errTooLarge
 	}
+	defer r.MultipartForm.RemoveAll()
 	f, _, err := r.FormFile("file")
 	if err != nil {
 		return "", errMissingFile
@@ -98,6 +99,9 @@ func (h *UploadsHandler) saveImage(w http.ResponseWriter, r *http.Request) (stri
 	body, err := io.ReadAll(f)
 	if err != nil || len(body) == 0 {
 		return "", errEmptyFile
+	}
+	if http.DetectContentType(body) != uploadExt[ext] {
+		return "", errBadImage
 	}
 	sum := sha256.Sum256(body)
 	outName := hex.EncodeToString(sum[:8]) + ext
@@ -119,10 +123,16 @@ func (h *UploadsHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := filepath.Join(h.Dir, name)
-	if _, err := os.Stat(p); err != nil {
+	mime, allowed := uploadExt[strings.ToLower(filepath.Ext(name))]
+	info, err := os.Stat(p)
+	if !allowed || err != nil || !info.Mode().IsRegular() {
 		http.NotFound(w, r)
 		return
 	}
+	// Force a passive image response even for files uploaded before content
+	// validation existed. Never let the browser sniff HTML at our origin.
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeFile(w, r, p)
 }
@@ -145,6 +155,7 @@ var (
 	errMissingFile = &uploadError{"missing file field"}
 	errBadExt      = &uploadError{"only png/jpg/jpeg/gif/webp allowed"}
 	errEmptyFile   = &uploadError{"empty file"}
+	errBadImage    = &uploadError{"image content does not match its file type"}
 )
 
 type uploadError struct{ msg string }

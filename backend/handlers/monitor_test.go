@@ -33,7 +33,10 @@ func TestServiceStatusUsesUserTunnel(t *testing.T) {
 			probedTunnel = "user-tunnel"
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "result": map[string]interface{}{
 				"config": map[string]interface{}{"ingress": []models.IngressRule{
+					{Hostname: "ssh.example.com", Service: "ssh://localhost:22"},
 					{Hostname: "app.example.com", Service: "http://localhost:3000"},
+					{Hostname: "synthetic.example.com", Service: "http_status:200"},
+					{Hostname: "api.example.com", Service: "http://localhost:4000"},
 					{Service: "http_status:404"},
 				}},
 			}})
@@ -61,6 +64,9 @@ func TestServiceStatusUsesUserTunnel(t *testing.T) {
 		return originalTransport.RoundTrip(request)
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	originalProbeClient := services.ProbeHTTPClient
+	services.ProbeHTTPClient = &http.Client{Transport: http.DefaultTransport}
+	t.Cleanup(func() { services.ProbeHTTPClient = originalProbeClient })
 
 	st := newTestStoreAt(t, legacy)
 	userID := st.AdminUserID()
@@ -90,7 +96,7 @@ func TestServiceStatusUsesUserTunnel(t *testing.T) {
 	if body.TunnelID != "user-tunnel" || body.TunnelName != "User Tunnel" {
 		t.Fatalf("response tunnel = %#v, want user's selection", body)
 	}
-	if len(body.Services) != 1 || body.Services[0].Hostname != "app.example.com" {
+	if len(body.Services) != 2 || body.Services[0].Hostname != "app.example.com" || body.Services[1].Hostname != "api.example.com" {
 		t.Fatalf("services = %#v, want routed hostname", body.Services)
 	}
 }

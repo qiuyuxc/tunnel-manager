@@ -1,9 +1,9 @@
 <template>
   <div class="page-container assistant-page" :class="{ 'is-composing': composing }" :style="{ '--assistant-viewport-height': `${viewportHeight}px` }">
-    <header class="assistant-header">
-      <div class="identity"><span class="assistant-mark" v-html="icons.assistant" /><div><h1>{{ tr('m_1b0049fcfd41') }}</h1><p>{{ store.settings?.shared_enabled ? tr('m_cb87e5beac35') : tr('m_07240a74e246') }} {{ tr('m_072c5cf8dc67') }}</p></div></div>
+    <div class="assistant-toolbar">
+      <span class="assistant-context">{{ store.settings?.shared_enabled ? tr('m_cb87e5beac35') : tr('m_07240a74e246') }} {{ tr('m_072c5cf8dc67') }}</span>
       <div class="header-actions"><button type="button" @click="historyOpen = true">{{ tr('m_a63280253f17') }}</button><button type="button" class="icon-button" :aria-label="tr('m_036413404922')" @click="settingsOpen = true" v-html="icons.settings" /></div>
-    </header>
+    </div>
     <div v-if="store.error" class="error-banner" role="alert">{{ store.error }}<button type="button" :aria-label="tr('m_ee618f2d7968')" @click="store.error = ''">×</button></div>
     <div v-if="store.loading" role="status" class="loading">{{ tr('m_8ad81dd8a671') }}</div>
     <div class="workspace">
@@ -11,7 +11,6 @@
         <div class="conversation-top"><span>{{ store.current?.title || tr('m_a114a8c281a2') }}</span><button class="mobile-tasks" :class="{ 'has-pending': pendingTasks > 0 }" :disabled="!store.current?.tasks.length" @click="revealTasks">{{ pendingTasks ? tr('m_fc2be1f048ed', { p0: pendingTasks }) : tr('m_20ab56cbff75', { p0: store.current?.tasks.length || 0 }) }}</button></div>
         <div ref="messagesElement" class="messages" role="log" :aria-label="tr('m_b53654e6b37c')" aria-live="polite">
           <div v-if="!store.current?.messages.length && !currentTurns.length" class="welcome">
-            <span class="eyebrow">TUNNEL MANAGER / ASSISTANT</span><h2><span class="desktop-copy">{{ tr('m_2a0b54d5c2bf') }}<br />{{ tr('m_20ed1d0a4bd3') }}</span><span class="mobile-copy">{{ tr('m_ceb885e52275') }}</span></h2>
             <p><span class="desktop-copy">{{ tr('m_f32f485ea316') }}</span><span class="mobile-copy">{{ tr('m_1d096551d401') }}</span></p>
             <button v-for="prompt in prompts" :key="prompt" type="button" class="suggestion" @click="draft = prompt">{{ prompt }}<span aria-hidden="true">↗</span></button>
           </div>
@@ -153,13 +152,11 @@ function retry(id: string) {
 
 <style scoped>
 .assistant-page { color: var(--color-ink); max-width: 1600px; margin: auto; }
-.assistant-header, .identity, .header-actions { display: flex; align-items: center; gap: 14px; }
-.assistant-header { justify-content: space-between; margin-bottom: 22px; }
-.assistant-mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; background: var(--color-canvas-soft-2); color: var(--color-success); }
-.assistant-mark :deep(svg) { width: 24px; height: 24px; }
-h1 { margin: 0; font-size: 24px; letter-spacing: -.6px; } .identity p { margin: 5px 0 0; color: var(--color-mute); font-size: 12px; }
+.assistant-toolbar, .header-actions { display: flex; align-items: center; gap: 14px; }
+.assistant-toolbar { justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; }
+.assistant-context { color: var(--color-mute); font-size: 12px; }
 button { min-height: 44px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--color-hairline); background: var(--color-canvas-raised); color: var(--color-ink); font: inherit; cursor: pointer; }
-button:disabled { opacity: .5; cursor: default; } :is(button, textarea):focus-visible { outline: 2px solid var(--color-success); outline-offset: 3px; }
+button:disabled { opacity: .5; cursor: default; } :is(button, textarea):focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
 .icon-button { width: 44px; display: grid; place-items: center; padding: 0; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 20px; height: min(800px, calc(100dvh - 190px)); min-height: 560px; }
 .conversation { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--color-hairline); border-radius: 22px; background: var(--color-canvas-raised); overflow: hidden; }
@@ -167,12 +164,10 @@ button:disabled { opacity: .5; cursor: default; } :is(button, textarea):focus-vi
 .conversation-top span { overflow-wrap: anywhere; }
 .messages { overflow-y: auto; flex: 1; min-height: 0; padding: 24px; overscroll-behavior: contain; }
 .welcome { max-width: 500px; padding: 20px 0; }
-.eyebrow { font-size: 10px; letter-spacing: 1.2px; color: var(--color-success); }
-.welcome h2 { font-size: clamp(24px, 3vw, 36px); line-height: 1.4; font-weight: 650; letter-spacing: -1px; margin: 20px 0 14px; }
 .welcome p { color: var(--color-mute); line-height: 1.8; font-size: 13px; margin-bottom: 26px; }
 .suggestion { display: flex; width: 100%; gap: 16px; justify-content: space-between; align-items: center; text-align: left; font-size: 12px; margin-top: 10px; background: var(--color-canvas-soft); }
-.suggestion span { color: var(--color-success); flex: none; }
-.message { margin: 0 0 26px; overflow-wrap: anywhere; }.speaker { display: block; color: var(--color-success); font-size: 11px; margin-bottom: 8px; }
+.suggestion span { color: var(--color-ink); flex: none; }
+.message { margin: 0 0 26px; overflow-wrap: anywhere; }.speaker { display: block; color: var(--color-ink); font-size: 11px; margin-bottom: 8px; }
 .message div { white-space: pre-wrap; font-size: 14px; line-height: 1.9; }
 .message.user { background: var(--color-canvas-soft-2); border-radius: 16px; padding: 15px 18px; margin-left: 24px; }.message.user .speaker { color: var(--color-mute); }
 .thinking, .loading { color: var(--color-mute); font-size: 12px; padding: 8px 0; }
@@ -182,22 +177,19 @@ textarea { flex: 1; min-width: 0; resize: none; border: none; padding: 3px; back
 .send { flex: none; padding: 8px 14px; background: var(--color-btn-primary-bg); color: var(--color-btn-primary-text); border: none; font-size: 12px; font-weight: 650; }
 .privacy { font-size: 10px; line-height: 1.7; color: var(--color-mute); margin: 8px 0 0; }
 .mobile-copy, .privacy-toggle { display: none; }
-.resource-check { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 10px; font-size: 11px; color: var(--color-mute); }.resource-check input { accent-color: var(--color-success); }
-.setup-note { color: var(--color-mute); font-size: 12px; margin-bottom: 10px; }.setup-note button { margin-left: 8px; border: none; font-size: 12px; color: var(--color-success); padding: 0 4px; }
+.resource-check { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 10px; font-size: 11px; color: var(--color-mute); }.resource-check input { accent-color: var(--color-ink); }
+.setup-note { color: var(--color-mute); font-size: 12px; margin-bottom: 10px; }.setup-note button { margin-left: 8px; border: none; font-size: 12px; color: var(--color-ink); padding: 0 4px; }
 .desktop-tasks { overflow-y: auto; min-width: 0; border-radius: 22px; border: 1px solid var(--color-hairline); padding: 20px; background: var(--color-canvas-soft); }
 .mobile-tasks { display: none; }
-.mobile-tasks.has-pending { color: var(--color-success); font-weight: 650; }
+.mobile-tasks.has-pending { color: var(--color-ink); font-weight: 650; }
 .inline-tasks { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-hairline); }
 .error-banner { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--color-error); border-radius: 14px; color: var(--color-error); font-size: 13px; overflow-wrap: anywhere; }.error-banner button { background: none; border: none; color: inherit; padding: 0 8px; }
 .history-new { width: 100%; margin-bottom: 16px; }.history-row { display: flex; gap: 6px; margin: 8px 0; }.history-row button:first-child { text-align: left; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 1050px) { .workspace { grid-template-columns: minmax(0, 1fr); }.desktop-tasks { display: none; }.mobile-tasks { display: block; font-size: 12px; padding: 5px 10px; min-width: 72px; }.workspace { height: calc(100dvh - 190px); } }
 @media (max-width: 768px) {
   .assistant-page { display: flex; flex-direction: column; height: calc(var(--assistant-viewport-height, 100dvh) - 56px - var(--tabbar-height) - env(safe-area-inset-bottom)); min-height: 0; padding: 10px 12px 4px; }
-  .assistant-header { flex: none; margin-bottom: 10px; gap: 8px; }
-  .identity { gap: 9px; }
-  .assistant-mark { width: 32px; height: 32px; border-radius: 10px; flex: none; }
-  h1 { font-size: 18px; }
-  .identity p { font-size: 10px; margin-top: 2px; }
+  .assistant-toolbar { flex: none; margin-bottom: 10px; gap: 8px; }
+  .assistant-context { font-size: 10px; }
   .header-actions { gap: 6px; }
   .header-actions button { padding: 6px 10px; font-size: 12px; }
   .workspace { flex: 1; height: auto; min-height: 0; }
@@ -213,10 +205,9 @@ textarea { flex: 1; min-width: 0; resize: none; border: none; padding: 3px; back
   .composer form { gap: 8px; padding: 5px; border-radius: 13px; align-items: flex-end; }
   textarea { box-sizing: border-box; min-height: 44px; max-height: 104px; padding: 10px 6px; font-size: 16px; line-height: 24px; overflow-y: auto; }
   .send { min-width: 52px; min-height: 44px; padding: 8px 10px; border-radius: 9px; }
-  .privacy, .desktop-copy, .eyebrow { display: none; }
+  .privacy, .desktop-copy { display: none; }
   .mobile-copy { display: inline; }
   .welcome { padding: 4px 0; }
-  .welcome h2 { font-size: 22px; margin: 4px 0 8px; letter-spacing: -.5px; }
   .welcome p { font-size: 12px; margin: 0 0 16px; line-height: 1.7; }
   .suggestion { padding: 10px 12px; gap: 8px; font-size: 12px; margin-top: 8px; }
   .message.user { margin-left: 12px; }

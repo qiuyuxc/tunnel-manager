@@ -60,7 +60,7 @@ final class DNSRecordEditor {
         save = UI.button(context, original == null ? I18n.text("m_42845d86b969") : I18n.text("m_ecf0ea01192d"), UI.BTN_PRIMARY);
         UI.fill(save); UI.margin(save, 0, UI.MD, 0, 0); form.addView(save);
         save.setOnClickListener(view -> submit());
-        sheet = Sheet.of(context, original == null ? I18n.text("m_b6e583370f98") : I18n.text("m_aa4d3660ca67")).content(form);
+        sheet = Sheet.of(context, original == null ? I18n.text("m_b6e583370f98") : I18n.text("m_aa4d3660ca67"), SheetSizing.Tier.EXPANDED).content(form);
         sync(); sheet.show();
     }
 

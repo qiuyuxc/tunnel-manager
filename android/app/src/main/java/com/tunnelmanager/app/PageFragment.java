@@ -19,11 +19,13 @@ import androidx.fragment.app.Fragment;
  * writing the same value twice in two languages.
  */
 public abstract class PageFragment extends Fragment {
+    private boolean viewActive;
 
     @Nullable
     @Override
     public final View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                                    @Nullable Bundle savedInstanceState) {
+        viewActive = true;
         View page = build(inflater, container);
         preparePage(page);
         return page;
@@ -57,6 +59,30 @@ public abstract class PageFragment extends Fragment {
         return super.onCreateAnimation(transit, enter, nextAnim);
     }
 
+    @Override public void onDestroyView() {
+        viewActive = false;
+        super.onDestroyView();
+    }
+
+    /** Explicit toolbar refresh; pages keep ownership of their form and data. */
+    void refreshPage() { }
+
+    boolean canRefresh() { return true; }
+
+    final void requestRefresh() {
+        if (!alive() || isRefreshing(getView())) return;
+        refreshPage();
+    }
+
+    private boolean isRefreshing(View view) {
+        if (view instanceof SwipeRefreshLayout && ((SwipeRefreshLayout) view).isRefreshing()) return true;
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int index = 0; index < group.getChildCount(); index++) if (isRefreshing(group.getChildAt(index))) return true;
+        }
+        return false;
+    }
+
     /** Called when the page is brought back to the front. */
     void onShown() {
     }
@@ -72,7 +98,7 @@ public abstract class PageFragment extends Fragment {
      * without this the late callback crashes the app.
      */
     protected boolean alive() {
-        return isAdded() && getContext() != null;
+        return viewActive && isAdded() && getContext() != null;
     }
 
     /** Navigates within the console, unless the page has already been left. */

@@ -159,7 +159,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', handleOutsideP
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 18px 42px rgba(38, 31, 22, 0.16);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.16);
 }
 .picker-option {
   display: flex;

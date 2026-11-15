@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -45,6 +47,9 @@ func sessionUID(r *http.Request) string {
 
 // withCF attaches the per-user Cloudflare client to the request.
 func withCF(r *http.Request, cf *services.CloudflareClient) *http.Request {
+	if cf != nil {
+		cf = cf.WithContext(r.Context())
+	}
 	return r.WithContext(context.WithValue(r.Context(), cfContextKey{}, cf))
 }
 
@@ -91,6 +96,7 @@ func SessionUser(r *http.Request) *models.SessionUser {
 // attaches the resolved identity to the request context.
 func (m *Middleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		if su, ok := m.sessionFromToken(r.Header.Get("X-Auth-Token")); ok {
 			next(w, withCF(withUser(r, su), m.cfFor(su)))
 			return
@@ -129,6 +135,7 @@ func (m *Middleware) cfFor(user models.SessionUser) *services.CloudflareClient {
 // accepts only a valid session token.
 func (m *Middleware) SessionOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		if su, ok := m.sessionFromToken(r.Header.Get("X-Auth-Token")); ok {
 			next(w, withUser(r, su))
 			return
@@ -179,7 +186,14 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 
 func readJSON(r *http.Request, target interface{}) error {
 	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(target)
+	decoder := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20))
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return fmt.Errorf("request body must contain one JSON value")
+	}
+	return nil
 }
 
 func getBearerToken(r *http.Request) string {

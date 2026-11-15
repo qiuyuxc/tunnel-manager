@@ -1,63 +1,13 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :theme-overrides="currentThemeOverrides" :locale="componentLocale" :date-locale="componentDateLocale">
-    <n-message-provider>
-      <n-dialog-provider>
-        <div class="app-shell" v-if="!route.meta.public">
-          <nav-bar v-if="!isLogin" />
-          <div class="app-area" :class="{ 'app-area-login': isLogin }">
-            <console-header v-if="!isLogin" />
-            <main class="app-main" :class="{ 'app-main-login': isLogin }">
-              <router-view v-slot="{ Component, route: pageRoute }">
-                <transition name="page" mode="out-in">
-                  <component :is="Component" :key="pageRoute.path" />
-                </transition>
-              </router-view>
-            </main>
-          </div>
-          <mobile-nav v-if="!isLogin" />
-        </div>
-        <router-view v-else />
-      </n-dialog-provider>
-    </n-message-provider>
-  </n-config-provider>
+  <router-view v-if="route.name === 'public-status'" />
+  <ConsoleApp v-else />
 </template>
 
 <script setup lang="ts">
-import { darkTheme } from 'naive-ui'
-import { enUS, zhCN, dateEnUS, dateZhCN } from 'naive-ui'
-import { language } from './i18n'
-import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui'
-import { computed } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
-import NavBar from './components/NavBar.vue'
-import ConsoleHeader from './components/ConsoleHeader.vue'
-import MobileNav from './components/MobileNav.vue'
-import { useConfigStore } from './stores/config'
-import {
-  darkThemeOverrides,
-  themeOverrides,
-  warmDarkThemeOverrides,
-  warmThemeOverrides,
-} from './theme'
 
+// Keep console providers, navigation and account bootstrap out of public status.
+const ConsoleApp = defineAsyncComponent(() => import('./ConsoleApp.vue'))
 const route = useRoute()
-const componentLocale = computed(() => language.value === 'zh-CN' ? zhCN : enUS)
-const componentDateLocale = computed(() => language.value === 'zh-CN' ? dateZhCN : dateEnUS)
-const configStore = useConfigStore()
-const isLogin = computed(() => route.path === '/login')
-const naiveTheme = computed(() => configStore.darkMode ? darkTheme : null)
-const currentThemeOverrides = computed(() => {
-  if (configStore.visualTheme === 'warm') {
-    return configStore.darkMode ? warmDarkThemeOverrides : warmThemeOverrides
-  }
-  return configStore.darkMode ? darkThemeOverrides : themeOverrides
-})
-
-configStore.fetchSiteSettings()
-configStore.fetchMe()
 </script>
-
-<style>
-/* Shell layout (.app-shell / .app-area / .app-main) lives in styles.css so the
-   sidebar, top bar and content column share one source of truth. */
-</style>

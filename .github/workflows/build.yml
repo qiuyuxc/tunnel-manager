@@ -3,7 +3,7 @@ name: Build & Push
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['v*', '!v*-slim']
 
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/tunnel-manager

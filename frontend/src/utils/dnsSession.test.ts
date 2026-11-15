@@ -61,3 +61,36 @@ test('an expired in-flight DNS batch request cannot clear a newer login session'
     else Reflect.deleteProperty(globalThis, 'window')
   }
 })
+
+test('an old ordinary API request cannot invalidate a newer session', async () => {
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const previousAdapter = api.defaults.adapter
+  let token = 'original-session'
+  const location = { pathname: '/account', href: '/account' }
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: () => token, removeItem: () => { token = '' },
+  } })
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { location } })
+  api.defaults.adapter = async config => {
+    token = 'newer-session'
+    throw Object.assign(new Error('old session expired'), { config, response: { status: 401 } })
+  }
+  try {
+    await assert.rejects(api.get('/auth/me'), /old session expired/)
+    assert.equal(token, 'newer-session')
+    assert.equal(location.href, '/account')
+    api.defaults.adapter = async config => {
+      throw Object.assign(new Error('current session expired'), { config, response: { status: 401 } })
+    }
+    await assert.rejects(api.get('/auth/me'), /current session expired/)
+    assert.equal(token, '')
+    assert.equal(location.href, '/login')
+  } finally {
+    api.defaults.adapter = previousAdapter
+    if (previousStorage) Object.defineProperty(globalThis, 'localStorage', previousStorage)
+    else Reflect.deleteProperty(globalThis, 'localStorage')
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow)
+    else Reflect.deleteProperty(globalThis, 'window')
+  }
+})

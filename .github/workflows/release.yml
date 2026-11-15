@@ -2,7 +2,7 @@ name: Release binaries
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', '!v*-slim']
 
 permissions:
   contents: write
@@ -15,13 +15,20 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build frontend
         working-directory: frontend
         run: |
           npm ci --loglevel verbose
+          npm test
           npm run build
+
+      - name: Check release metadata and generated resources
+        run: |
+          node --test android/tools/release-version.test.mjs
+          node tools/i18n/generate.mjs --check
+          node android/tools/gen-tokens.mjs --check
 
       - uses: actions/setup-go@v5
         with:
@@ -42,8 +49,13 @@ jobs:
           mv tunnel-manager "$DIR/"
           cp -r frontend/dist "$DIR/frontend/dist"
           tar czf "${DIR}.tar.gz" "$DIR"
+          sha256sum "${DIR}.tar.gz" > "${DIR}.tar.gz.sha256"
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: tunnel-manager_*.tar.gz
+          files: |
+            tunnel-manager_*.tar.gz
+            tunnel-manager_*.tar.gz.sha256
+          draft: true
+          make_latest: false
           prerelease: ${{ contains(github.ref_name, '-') }}

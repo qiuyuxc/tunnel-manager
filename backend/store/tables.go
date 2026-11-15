@@ -43,11 +43,11 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 	for _, u := range users {
 		if _, err := tx.Exec(`INSERT INTO users(id, username, nickname, avatar, email, password_hash, role, group_id, status,
 			email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
-			created_at, last_login_at, active_cf_connection_id, password_login_disabled) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			created_at, last_login_at, active_cf_connection_id, password_login_disabled, auth_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			u.ID, u.Username, u.Nickname, u.Avatar, u.Email, u.PasswordHash, u.Role, u.GroupID, u.Status,
 			boolInt(u.EmailVerified), boolInt(u.TOTPEnabled), u.TOTPSecretEncrypted, u.TOTPLastAcceptedStep,
 			strings.Join(u.TOTPRecoveryCodeHashes, "\n"), u.CreatedAt, u.LastLoginAt, u.ActiveCFConnectionID,
-			boolInt(u.PasswordLoginDisabled)); err != nil {
+			boolInt(u.PasswordLoginDisabled), u.AuthVersion); err != nil {
 			return fmt.Errorf("save user %s: %w", u.ID, err)
 		}
 		p := prefs[u.ID]
@@ -71,7 +71,7 @@ func replaceUsers(tx *sql.Tx, users []models.User, prefs map[string]models.UserP
 func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, error) {
 	rows, err := handle.Query(`SELECT id, username, nickname, avatar, email, password_hash, role, group_id, status,
 		email_verified, totp_enabled, totp_secret_encrypted, totp_last_accepted_step, totp_recovery_code_hashes,
-		created_at, last_login_at, active_cf_connection_id, password_login_disabled FROM users`)
+		created_at, last_login_at, active_cf_connection_id, password_login_disabled, auth_version FROM users`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load users: %w", err)
 	}
@@ -83,7 +83,7 @@ func loadUsers(handle *sql.DB) ([]models.User, map[string]models.UserPrefs, erro
 		var recoveryHashes string
 		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Email, &u.PasswordHash, &u.Role, &u.GroupID, &u.Status,
 			&emailVerified, &totpEnabled, &u.TOTPSecretEncrypted, &u.TOTPLastAcceptedStep, &recoveryHashes,
-			&u.CreatedAt, &u.LastLoginAt, &u.ActiveCFConnectionID, &passwordLoginDisabled); err != nil {
+			&u.CreatedAt, &u.LastLoginAt, &u.ActiveCFConnectionID, &passwordLoginDisabled, &u.AuthVersion); err != nil {
 			return nil, nil, fmt.Errorf("scan user: %w", err)
 		}
 		u.EmailVerified = emailVerified != 0

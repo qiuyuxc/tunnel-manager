@@ -466,6 +466,9 @@ func (b *TelegramBot) handleDNSDeleteConfirm(cfg models.Config, chatID, userID i
 		b.sendMessage(cfg, chatID, "❌ DNS 记录在确认期间已变化，请重新发起删除。")
 		return
 	}
+	if !b.authorizeCommand(cfg, chatID, "/dns_confirm") {
+		return
+	}
 	if err := b.cf.DeleteDNSRecord(c.ZoneID, c.Record.ID); err != nil {
 		b.sendMessage(cfg, chatID, fmt.Sprintf("❌ 删除失败: %s", err))
 		return

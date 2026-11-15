@@ -1,27 +1,28 @@
 <template>
   <div class="page-container">
-    <div class="page-heading-row section">
-      <div class="page-header">
-        <h2>{{ tr('m_e920f47d0c05') }}</h2>
-        <p>{{ tr('m_c7a5c63e5953') }}</p>
-      </div>
-      <div class="toolbar">
-        <button class="btn btn-secondary" :disabled="loading" @click="loadTunnels">
-          <svg :class="{ spin: loading }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          <span>{{ loading ? tr('m_3af7e5489e61') : tr('m_aee887434131') }}</span>
-        </button>
-        <button class="btn btn-primary" @click="startCreate">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>{{ tr('m_ee6527b22aaf') }}</span>
-        </button>
-      </div>
+    <div class="toolbar section">
+      <RefreshButton :busy="loading" @refresh="loadTunnels" />
+      <button class="btn btn-primary" @click="startCreate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>{{ tr('m_ee6527b22aaf') }}</span>
+      </button>
     </div>
-    <div class="card section tunnel-table-card">
-      <div v-if="loading" class="empty-state">
+    <div class="tunnel-summary section">
+      <div><span>{{ tr('console.tunnels_total') }}</span><strong>{{ tunnels.length }}</strong></div>
+      <div><span>{{ tr('console.tunnels_active') }}</span><strong>{{ tunnels.filter(t => t.status === 'healthy').length }}</strong></div>
+      <div><span>{{ tr('m_b903d203f70a') }}</span><strong class="selection-name">{{ config.tunnel_name || tr('m_80a57e03f071') }}</strong></div>
+    </div>
+    <div v-if="loadError" class="load-notice" role="status">{{ loadError }}</div>
+    <div class="tunnel-filter section">
+      <label class="search-field"><span>{{ tr('console.tunnel_search') }}</span><input v-model="search" class="vercel-input" :placeholder="tr('console.tunnel_search_placeholder')" /></label>
+      <span class="filter-count">{{ filteredTunnels.length }} / {{ tunnels.length }}</span>
+    </div>
+    <div class="card section tunnel-table-card" :aria-busy="loading">
+      <div v-if="loading && !loaded" class="empty-state">
         <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-mute)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         <span class="empty-text">{{ tr('m_9dc0825fba54') }}</span>
       </div>
-      <div v-else-if="tunnels.length > 0" class="table-scroll">
+      <div v-else-if="filteredTunnels.length > 0" class="table-scroll">
         <table class="data-table" :aria-label="tr('m_caebfe1e68a0')">
           <colgroup>
             <col class="col-name" />
@@ -40,7 +41,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="tunnel in tunnels" :key="tunnel.id" :class="{ 'row-selected': config.tunnel_id === tunnel.id }">
+            <tr v-for="tunnel in filteredTunnels" :key="tunnel.id" :class="{ 'row-selected': config.tunnel_id === tunnel.id }">
               <td class="cell-name" :data-label="tr('m_d44e9b3d3b31')">{{ tunnel.name }}</td>
               <td :data-label="tr('m_17f261a9385c')"><code class="tunnel-id-code">{{ tunnel.id }}</code></td>
               <td :data-label="tr('m_6320b4a8722a')"><span class="status-tag" :class="tunnel.status">{{ tunnel.status }}</span></td>
@@ -62,7 +63,7 @@
         </table>
       </div>
       <div v-else class="empty-state">
-        <span class="empty-text">{{ tr('m_6413e61b6bc7') }}</span>
+        <span class="empty-text">{{ loadError ? tr('console.load_failed') : search ? tr('console.no_matches') : tr('m_6413e61b6bc7') }}</span>
         <span class="text-muted">{{ tr('m_2efdc680cddf') }}</span>
       </div>
     </div>
@@ -107,7 +108,9 @@
 <script setup lang="ts">
 import { t as tr } from '../i18n'
 
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import RefreshButton from '../components/RefreshButton.vue'
+import { createRefreshTask } from '../utils/refreshTask'
 import { useMessage, useDialog, NModal } from 'naive-ui'
 import { listTunnels, setTunnelSelection, createTunnel, deleteTunnel, type Tunnel, type CreateTunnelResponse } from '../api'
 import { useConfigStore } from '../stores/config'
@@ -117,7 +120,14 @@ const configStore = useConfigStore()
 const config = configStore.config
 const tunnels = ref<Tunnel[]>([])
 const loading = ref(false)
-const listVisible = ref(false)
+const search = ref('')
+const loaded = ref(false)
+const loadError = ref('')
+let disposed = false
+const filteredTunnels = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return tunnels.value.filter(tunnel => !query || [tunnel.name, tunnel.id, tunnel.status].some(value => value.toLowerCase().includes(query)))
+})
 // Create / token state
 const showCreate = ref(false)
 const creating = ref(false)
@@ -134,24 +144,27 @@ async function copyText(text: string) {
     message.warning(tr('m_03ae6cf8db7c'))
   }
 }
-async function loadTunnels() {
+const loadTunnels = createRefreshTask(async (isCurrent, signal) => {
   loading.value = true
-  listVisible.value = false
   try {
-    const { data } = await listTunnels()
+    const { data } = await listTunnels(signal)
+    if (!isCurrent()) return
     tunnels.value = data
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => { listVisible.value = true })
-    })
+    loaded.value = true
+    loadError.value = ''
   } catch (e: any) {
-    message.error(tr('m_6779e3e1d2f2') + (e.response?.data?.error || e.message))
+    if (isCurrent()) loadError.value = tr('m_6779e3e1d2f2') + (e.response?.data?.error || e.message)
   } finally {
     loading.value = false
   }
-}
+})
 async function selectTunnel(tunnel: Tunnel) {
+  if (disposed) return
+  const session = configStore.token
   try {
     await setTunnelSelection(tunnel.id, tunnel.name)
+    if (disposed || configStore.token !== session) return
+    configStore.invalidateConfig()
     config.tunnel_id = tunnel.id
     config.tunnel_name = tunnel.name
     message.success(tr('m_6e2b7249dc7c'))
@@ -160,8 +173,12 @@ async function selectTunnel(tunnel: Tunnel) {
   }
 }
 async function clearTunnel() {
+  if (disposed) return
+  const session = configStore.token
   try {
     await setTunnelSelection('', '')
+    if (disposed || configStore.token !== session) return
+    configStore.invalidateConfig()
     config.tunnel_id = ''
     config.tunnel_name = ''
     message.success(tr('m_58be968d5567'))
@@ -174,16 +191,19 @@ function startCreate() {
   showCreate.value = true
 }
 async function submitCreate() {
+  if (disposed) return
+  const session = configStore.token
   const name = createName.value.trim()
   if (!name || creating.value) return
   creating.value = true
   try {
     const { data } = await createTunnel(name)
+    if (disposed || configStore.token !== session) return
     created.value = data
     showCreate.value = false
     showInstall.value = false
     showToken.value = true
-    await loadTunnels()
+    await loadTunnels(true)
   } catch (e: any) {
     message.error(tr('m_cdcc0d62ab79') + (e.response?.data?.error || e.message))
   } finally {
@@ -197,14 +217,18 @@ function confirmDelete(tunnel: Tunnel) {
     positiveText: tr('m_a3ea3c17b401'),
     negativeText: tr('m_2cd0f3be8738'),
     async onPositiveClick() {
+      if (disposed) return false
+      const session = configStore.token
       try {
         await deleteTunnel(tunnel.id)
+        if (disposed || configStore.token !== session) return
+        configStore.invalidateConfig()
         if (config.tunnel_id === tunnel.id) {
           config.tunnel_id = ''
           config.tunnel_name = ''
         }
         message.success(tr('m_72d83d119709'))
-        await loadTunnels()
+        await loadTunnels(true)
       } catch (e: any) {
         message.error(tr('m_48477dd59e05') + (e.response?.data?.error || e.message))
         return false
@@ -220,14 +244,23 @@ async function copy(text: string) {
     message.warning(tr('m_03ae6cf8db7c'))
   }
 }
-onMounted(() => { loadTunnels() })
+onMounted(() => { void configStore.fetchConfig(); void loadTunnels() })
+onBeforeUnmount(() => { disposed = true; loadTunnels.dispose() })
 </script>
 <style scoped>
-.page-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-xl); }
-/* The heading sits in a row with the toolbar, so it drops the shared bottom margin. */
-.page-header { margin-bottom: 0; }
-.toolbar { display: flex; gap: var(--spacing-sm); flex-shrink: 0; }
-.tunnel-table-card { overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.tunnel-summary { display: grid; grid-template-columns: 1fr 1fr 2fr; overflow: hidden; border: 1px solid var(--color-hairline); border-radius: 18px; background: var(--color-canvas-raised); }
+.tunnel-summary > div { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 20px 24px; }
+.tunnel-summary > div + div { border-left: 1px solid var(--color-hairline); }
+.tunnel-summary span { color: var(--color-mute); font-size: 12px; }
+.tunnel-summary strong { color: var(--color-ink); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tunnel-summary .selection-name { font-size: 18px; overflow-wrap: anywhere; }
+.tunnel-filter { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.search-field { display: flex; flex-direction: column; gap: 8px; width: min(100%, 380px); color: var(--color-mute); font-size: 12px; }
+.filter-count { flex-shrink: 0; padding-bottom: 12px; color: var(--color-mute); font: 12px var(--font-mono); }
+@media (max-width: 640px) { .tunnel-summary { grid-template-columns: 1fr 1fr; } .tunnel-summary > div:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--color-hairline); } .tunnel-summary > div { padding: 18px; } }
+
+.toolbar { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--spacing-sm); }
+.tunnel-table-card { overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 .table-scroll { overflow-x: auto; }
 .data-table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .col-name { width: 18%; }
@@ -243,8 +276,8 @@ onMounted(() => { loadTunnels() })
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .cell-name { color: var(--color-ink); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .tunnel-id-code { display: inline-block; max-width: 100%; overflow: hidden; color: var(--color-body); font-family: var(--font-mono); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.selected-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--color-status-healthy-text); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.selected-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-success); box-shadow: 0 0 0 3px var(--color-status-healthy-bg); }
+.selected-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--color-ink); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.selected-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-ink);  }
 .text-muted { color: var(--color-mute); font-size: 12px; }
 .action-column { text-align: right !important; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
@@ -260,14 +293,12 @@ onMounted(() => { loadTunnels() })
 .install-script { max-height: 260px; white-space: pre-wrap; }
 .tunnel-modal { width: 100%; max-width: 520px; }
 @media (max-width: 768px) {
-.page-heading-row { align-items: stretch; flex-direction: column; gap: var(--spacing-lg); }
-.toolbar { justify-content: flex-end; }
 .table-scroll { overflow: visible; }
 .tunnel-table-card { overflow: visible; border: 0; background: transparent; box-shadow: none; }
 .data-table { display: block; min-width: 0; }
 .data-table colgroup, .data-table thead { display: none; }
 .data-table tbody { display: grid; gap: var(--spacing-md); }
-.data-table tr { display: grid; overflow: hidden; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.data-table tr { display: grid; overflow: hidden; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 .data-table td { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--spacing-md); padding: 11px 14px; border-bottom: 1px solid var(--color-hairline); }
 .data-table td::before { content: attr(data-label); color: var(--color-mute); font-size: 12px; font-weight: 500; }
 .data-table .action-column { display: block; padding: 12px 14px; text-align: left !important; }

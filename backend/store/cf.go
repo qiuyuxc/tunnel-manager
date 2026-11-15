@@ -68,6 +68,18 @@ func (s *Store) ActiveCFConnection(userID string) (models.CFConnection, bool) {
 	return copyCFConnection(*conn), true
 }
 
+// CFConnection returns one owned connection, including the latest rotated
+// credentials. It never returns another account's connection.
+func (s *Store) CFConnection(userID, connID string) (models.CFConnection, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	conn := s.findCFConnectionLocked(connID)
+	if conn == nil || conn.UserID != userID {
+		return models.CFConnection{}, false
+	}
+	return copyCFConnection(*conn), true
+}
+
 func (s *Store) findCFConnectionLocked(id string) *models.CFConnection {
 	for i := range s.cfConns {
 		if s.cfConns[i].ID == id {
@@ -174,19 +186,25 @@ func (s *Store) DeleteCFConnection(userID, connID string) error {
 	previousConns := append([]models.CFConnection(nil), s.cfConns...)
 	s.cfConns = append(s.cfConns[:idx], s.cfConns[idx+1:]...)
 	owner := s.findUserLocked(userID)
-	clearedActive, clearedTunnel := false, false
+	previousPrefs, hadPrefs := s.prefs[userID]
+	clearedActive := false
 	if owner != nil && owner.ActiveCFConnectionID == connID {
 		owner.ActiveCFConnectionID = ""
 		clearedActive = true
-		s.clearAllTunnelSelectionsLocked()
-		clearedTunnel = true
+		prefs := s.prefs[userID]
+		prefs.TunnelID, prefs.TunnelName = "", ""
+		s.prefs[userID] = prefs
 	}
 	if err := s.saveLocked(); err != nil {
 		s.cfConns = previousConns
 		if owner != nil && clearedActive {
 			owner.ActiveCFConnectionID = connID
 		}
-		_ = clearedTunnel
+		if hadPrefs {
+			s.prefs[userID] = previousPrefs
+		} else {
+			delete(s.prefs, userID)
+		}
 		return err
 	}
 	return nil

@@ -57,7 +57,7 @@ final class AssistantTaskEditor {
     }
 
     private void chooseDNSType() {
-        Sheet.Builder sheet = Sheet.of(context, I18n.text("m_e17cf46a4083"));
+        Sheet.Builder sheet = Sheet.of(context, I18n.text("m_e17cf46a4083"), SheetSizing.Tier.MEDIUM);
         for (String type : new String[]{"A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA", "PTR"}) {
             sheet.action(R.drawable.ic_nav_assistant, type, I18n.text("m_4c24d8c28433"), () -> {
                 if (type.equals(draft.optString("type"))) return;
@@ -98,7 +98,7 @@ final class AssistantTaskEditor {
             add.setOnClickListener(view -> { try { array.put(new JSONObject().put("name", "").put("value", "")); render(); } catch (Exception ignored) { } });
             parent.addView(add);
         } else if (value instanceof Boolean) {
-            CheckBox check = new CheckBox(context);
+            CheckBox check = UI.checkBox(context);
             check.setText(label); check.setTextColor(Theme.p().ink); check.setChecked((Boolean) value);
             check.setOnCheckedChangeListener((button, checked) -> { try { setter.set(checked); } catch (Exception ignored) { } });
             parent.addView(check);

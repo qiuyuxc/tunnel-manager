@@ -1,14 +1,19 @@
 <template>
   <div class="login-page">
     <div class="login-language"><LanguageSelect /></div>
+    <aside class="login-story">
+      <BrandMark :size="52" />
+      <div class="login-features">
+        <div><span>01</span><strong>{{ tr('m_e920f47d0c05') }}</strong><small>{{ tr('m_91e0e3d19ebf') }}</small></div>
+        <div><span>02</span><strong>{{ tr('m_7fab82054a8f') }}</strong><small>{{ tr('m_c9c94c3a6470') }}</small></div>
+        <div><span>03</span><strong>{{ tr('m_474fb6002594') }}</strong><small>{{ tr('m_8f643f738546') }}</small></div>
+      </div>
+    </aside>
     <div class="login-card" :class="{ 'login-card-shake': shaking }">
       <div class="login-logo">
         <span class="logo-mark" aria-hidden="true">
           <img v-if="store.config.site_icon" :src="store.config.site_icon" alt="" class="brand-icon" />
-          <svg v-else width="18" height="18" viewBox="0 0 76 76" fill="none">
-            <path d="M49 26H27v24l22-24z" fill="currentColor"/>
-            <path d="M38 38L27 50h22L38 38z" fill="currentColor" fill-opacity="0.42"/>
-          </svg>
+<BrandMark v-else :size="32" />
         </span>
       </div>
       <h1 class="login-title">{{ store.config.site_name }}</h1>
@@ -204,6 +209,7 @@
 </template>
 <script setup lang="ts">
 import LanguageSelect from '../components/LanguageSelect.vue'
+import BrandMark from '../components/BrandMark.vue'
 import { t as tr } from '../i18n'
 
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
@@ -280,6 +286,7 @@ onMounted(() => {
     if (!disposed) usernameInput.value?.focus()
   })
   getAuthConfig().then(({ data }) => {
+    if (disposed) return
     authConfig.value = data
     modeSwitchable.value = data.registration_enabled
     turnstileEnabled.value = data.turnstile_enabled
@@ -369,13 +376,16 @@ function takeTurnstileToken(): string {
 
 // 通行密钥免密登录：用户名可选，留空则由浏览器挑选已绑定的通行密钥。
 async function handlePasskeyLogin() {
-  if (passkeyBusy.value) return
+  if (passkeyBusy.value || loading.value || disposed) return
   passkeyBusy.value = true
   error.value = ''
   try {
     const { data } = await beginPasskeyLogin(form.username.trim())
+    if (disposed) return
     const credential = await startAuthentication({ optionsJSON: data.public_key })
+    if (disposed) return
     const response = await finishPasskeyLogin({ ceremony_token: data.ceremony_token, credential })
+    if (disposed) return
     store.setAuth(response.data.token, response.data.username)
     await router.replace('/dashboard')
   } catch (e: any) {
@@ -392,17 +402,20 @@ async function handlePasskeyLogin() {
 
 // 2FA 的通行密钥分支：密码已通过，这里只证明持有通行密钥。
 async function handlePasskeyFactor() {
-  if (passkeyBusy.value || !challengeToken.value) return
+  if (passkeyBusy.value || loading.value || disposed || !challengeToken.value) return
   passkeyBusy.value = true
   error.value = ''
   try {
     const { data } = await beginPasskeyTwoFactor(challengeToken.value)
+    if (disposed) return
     const credential = await startAuthentication({ optionsJSON: data.public_key })
+    if (disposed) return
     const response = await finishPasskeyTwoFactor({
       challenge_token: challengeToken.value,
       ceremony_token: data.ceremony_token,
       credential,
     })
+    if (disposed) return
     store.setAuth(response.data.token, response.data.username)
     await router.replace('/dashboard')
   } catch (e: any) {
@@ -418,6 +431,7 @@ async function handlePasskeyFactor() {
 }
 
 async function handleLogin() {
+  if (loading.value || passkeyBusy.value || disposed) return
   if (!form.username || !form.password) {
     error.value = tr('m_1793872ca1c9')
     triggerShake()
@@ -434,6 +448,7 @@ async function handleLogin() {
   error.value = ''
   try {
     const response = await loginApi(form.username, form.password, turnstileTokenValue)
+    if (disposed) return
     if (response.status === 202 && 'two_factor_required' in response.data) {
       const expiresAt = Date.parse(response.data.expires_at)
       if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
@@ -456,6 +471,7 @@ async function handleLogin() {
       return
     }
     if ('token' in response.data) {
+      if (disposed) return
       store.setAuth(response.data.token, response.data.username)
       await router.replace('/dashboard')
     }
@@ -472,6 +488,7 @@ async function handleLogin() {
   }
 }
 async function handleFactorLogin() {
+  if (loading.value || passkeyBusy.value || disposed) return
   const code = factorCode.value.trim()
   if (!code) {
     error.value = tr('m_61eb3fa7e4f4')
@@ -486,6 +503,7 @@ async function handleFactorLogin() {
   try {
     const { data } = await completeTwoFactorLogin(challengeToken.value, code)
     clearChallengeTimer()
+    if (disposed) return
     store.setAuth(data.token, data.username)
     await router.replace('/dashboard')
   } catch (e: any) {
@@ -602,6 +620,7 @@ async function finishOIDCLogin() {
       factorInput.value?.focus()
     } else if ('token' in data) {
       oidcTicket.value = ''
+      if (disposed) return
       store.setAuth(data.token, data.username, data.role)
       await router.replace('/dashboard')
     } else error.value = tr('m_4fe7e7ab747e')
@@ -642,6 +661,7 @@ function cancelOIDC() {
 }
 
 async function handleSendCode() {
+  if (codeSending.value || codeCooldown.value > 0 || disposed) return
   const email = regForm.email.trim()
   if (!email) {
     error.value = tr('m_bed85797d991')
@@ -657,6 +677,7 @@ async function handleSendCode() {
   error.value = ''
   try {
     await sendRegisterCode(email, turnstileTokenValue)
+    if (disposed) return
     codeCooldown.value = 60
     cooldownTimer = window.setInterval(() => {
       codeCooldown.value -= 1
@@ -674,6 +695,7 @@ async function handleSendCode() {
 }
 
 async function handleForgotSend() {
+  if (codeSending.value || codeCooldown.value > 0 || disposed) return
   const email = forgotForm.email.trim()
   if (!email) {
     error.value = tr('m_9643ca765953')
@@ -689,6 +711,7 @@ async function handleForgotSend() {
   error.value = ''
   try {
     await forgotPassword(email, turnstileTokenValue)
+    if (disposed) return
     codeCooldown.value = 60
     cooldownTimer = window.setInterval(() => {
       codeCooldown.value -= 1
@@ -706,6 +729,7 @@ async function handleForgotSend() {
 }
 
 async function handleResetPassword() {
+  if (loading.value || passkeyBusy.value || disposed) return
   const email = forgotForm.email.trim()
   if (!email || !forgotForm.code.trim() || !forgotForm.newPassword) {
     error.value = tr('m_3be67f5752f6')
@@ -726,6 +750,7 @@ async function handleResetPassword() {
   error.value = ''
   try {
     await resetPassword(email, forgotForm.code.trim(), forgotForm.newPassword, turnstileTokenValue)
+    if (disposed) return
     forgotForm.email = ''
     forgotForm.code = ''
     forgotForm.newPassword = ''
@@ -740,6 +765,7 @@ async function handleResetPassword() {
 }
 
 async function handleRegister() {
+  if (loading.value || passkeyBusy.value || disposed) return
   const username = regForm.username.trim()
   const email = regForm.email.trim()
   if (!username || !email || !regForm.password) {
@@ -775,6 +801,7 @@ async function handleRegister() {
       verify_code: regForm.verifyCode.trim() || undefined,
       cf_turnstile_response: turnstileTokenValue,
     })
+    if (disposed) return
     store.setAuth(data.token, data.username, data.role || 'user')
     regForm.password = ''
     await router.replace('/dashboard')
@@ -803,19 +830,30 @@ function triggerShake() {
 }
 </script>
 <style scoped>
+.login-language { position: fixed; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); z-index: 30; width: min(244px, calc(100vw - 32px)); background: var(--color-canvas-raised); border: 1px solid var(--color-hairline); border-radius: 14px; }
+
+.login-story { width: min(420px, 40vw); min-width: 0; }
+.login-features { display: flex; flex-direction: column; gap: 20px; margin-top: 28px; }
+.login-features > div { display: grid; grid-template-columns: 30px 1fr; gap: 5px 12px; }
+.login-features span { grid-row: 1 / 3; color: var(--color-link); font: 12px var(--font-mono); padding-top: 3px; }
+.login-features strong { color: var(--color-ink); font-weight: 500; font-size: 14px; }
+.login-features small { color: var(--color-mute); font-size: 12px; line-height: 1.7; }
+@media (max-width: 768px) { .login-story { display: none; } .login-page { padding: 72px 16px 32px; } }
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-lg);
+  gap: clamp(40px, 8vw, 100px);
+  padding: 72px 32px;
   background: var(--color-canvas-soft);
   box-sizing: border-box;
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   background: var(--color-canvas-raised);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
@@ -832,8 +870,8 @@ function triggerShake() {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
-  background: var(--color-link);
-  color: #fff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;

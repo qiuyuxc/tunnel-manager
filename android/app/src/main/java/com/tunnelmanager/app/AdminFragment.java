@@ -37,6 +37,7 @@ import java.util.function.IntConsumer;
  * seven columns never survive a 384dp viewport.
  */
 public class AdminFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private final String[] TABS = {I18n.text("m_0d0e1a86b3aa"), I18n.text("m_963ead08d78d"), I18n.text("m_c8b56dca7aed"), I18n.text("m_68ea5dd4d7af"), I18n.text("m_0ac53099a515"), I18n.text("m_e73d84773a07")};
     /** Audit categories, mirroring the web panel's filter list. */
@@ -227,19 +228,14 @@ public class AdminFragment extends PageFragment {
     // ------------------------------------------------------------------- data
 
     private void load() {
+        if (!alive() || loading) return;
         loading = true;
         render();
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("users", Api.get("/api/admin/users"));
-            payload.put("groups", Api.get("/api/admin/groups"));
-            payload.put("invites", Api.get("/api/admin/invites"));
-            payload.put("settings", Api.get("/api/admin/settings"));
-            payload.put("smtp", Api.get("/api/admin/smtp"));
-            payload.put("oauth", Api.get("/api/admin/oauth"));
-            payload.put("key", Api.get("/api/admin/encryption-key"));
-            return payload;
-        }, payload -> {
+        Api.async(() -> Api.batch(
+                Api.query("users", "/api/admin/users"), Api.query("groups", "/api/admin/groups"),
+                Api.query("invites", "/api/admin/invites"), Api.query("settings", "/api/admin/settings"),
+                Api.query("smtp", "/api/admin/smtp"), Api.query("oauth", "/api/admin/oauth"),
+                Api.query("key", "/api/admin/encryption-key")), payload -> {
             loading = false;
             users = array(payload.optJSONObject("users"), "users");
             groups = array(payload.optJSONObject("groups"), "groups");
@@ -345,7 +341,6 @@ public class AdminFragment extends PageFragment {
         header.removeAllViews();
         body.removeAllViews();
 
-        header.addView(UI.pageTitle(requireContext(), I18n.text("m_87354adb1c31")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_74420630cb1f"));
         UI.margin(subtitle, 0, UI.XS, 0, 0);
         header.addView(subtitle);
@@ -665,7 +660,7 @@ public class AdminFragment extends PageFragment {
     private void userActions(JSONObject user) {
         String username = user.optString("username");
         boolean active = "active".equals(user.optString("status"));
-        Sheet.of(requireContext(), username)
+        Sheet.of(requireContext(), username, SheetSizing.Tier.MEDIUM)
                 .item(R.drawable.ic_nav_logout, active ? I18n.text("m_7943ebc6d9a9") : I18n.text("m_11ad8210bc60"), () -> run(
                         () -> Api.put("/api/admin/users/" + user.optString("id") + "/status",
                                 new JSONObject().put("status", active ? "disabled" : "active")),
@@ -690,7 +685,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_92df516e1593")).label(user.optString("username"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_92df516e1593"), SheetSizing.Tier.MEDIUM).label(user.optString("username"));
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> run(
@@ -770,7 +765,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"), SheetSizing.Tier.MEDIUM);
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -1003,7 +998,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_faa794fa59d6"), SheetSizing.Tier.MEDIUM);
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -1329,7 +1324,7 @@ public class AdminFragment extends PageFragment {
             labels.add(group.optString("name"));
             ids.add(group.optString("id"));
         }
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_e69c528d68a8"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_e69c528d68a8"), SheetSizing.Tier.MEDIUM);
         for (int i = 0; i < labels.size(); i++) {
             final String id = ids.get(i);
             sheet.item(R.drawable.ic_nav_admin, labels.get(i), () -> {
@@ -1733,7 +1728,7 @@ public class AdminFragment extends PageFragment {
                              String[] options, IntConsumer onPick) {
         TextView button = UI.button(ctx, current, UI.BTN_SECONDARY);
         button.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(ctx, sheetTitle);
+            Sheet.Builder sheet = Sheet.of(ctx, sheetTitle, options.length <= 3 ? SheetSizing.Tier.COMPACT : SheetSizing.Tier.MEDIUM);
             for (int i = 0; i < options.length; i++) {
                         final int index = i;
                         sheet.item(R.drawable.ic_nav_check, options[i], () -> onPick.accept(index));

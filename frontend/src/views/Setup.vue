@@ -356,8 +356,8 @@ onMounted(load)
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
-  background: var(--color-link);
-  color: #fff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -452,7 +452,7 @@ onMounted(load)
   border-radius: var(--radius-md);
   font-size: 13px;
 }
-.setup-result.ok { color: var(--color-status-healthy-text); background: var(--color-status-healthy-bg); border: 1px solid var(--color-status-healthy-border); }
+.setup-result.ok { color: var(--color-ink); background: var(--color-canvas-soft-2); border: 1px solid var(--color-hairline); }
 .setup-result.bad { color: var(--color-status-down-text); background: var(--color-status-down-bg); border: 1px solid var(--color-status-down-border); }
 
 .setup-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }

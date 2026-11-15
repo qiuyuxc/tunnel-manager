@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -36,11 +37,12 @@ const (
 )
 
 type loginChallenge struct {
-	userID    string
-	expiresAt time.Time
-	epoch     uint64
-	attempts  int
-	inUse     bool
+	authVersion uint64
+	userID      string
+	expiresAt   time.Time
+	epoch       uint64
+	attempts    int
+	inUse       bool
 }
 
 type pendingTOTPSetup struct {
@@ -118,7 +120,7 @@ func (h *AdminHandler) userIDFromToken(token string) (string, models.SessionUser
 // through here so the audit entry, login notification and panel-host seeding
 // stay identical.
 func (h *AdminHandler) completeLogin(w http.ResponseWriter, r *http.Request, user models.User, auditAction string) {
-	token, err := h.createSession(user.ID, h.currentAuthEpoch())
+	token, err := h.createSession(user.ID, h.currentAuthEpoch(), user.AuthVersion)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
@@ -293,7 +295,7 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "two-factor authentication unavailable"})
 			return
 		}
-		token, expiresAt, err := h.newChallenge(user.ID, epoch)
+		token, expiresAt, err := h.newChallenge(user.ID, epoch, user.AuthVersion)
 		if err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 			return
@@ -675,44 +677,113 @@ func (h *AdminHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "username updated successfully"})
 }
 
-// ChangeEmail handles PUT /api/admin/email: binds or replaces the account
-// email (password confirmation required).
-func (h *AdminHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
+// emailChangeRequest checks the current account and password for both steps.
+func (h *AdminHandler) emailChangeRequest(w http.ResponseWriter, r *http.Request) (models.ChangeEmailRequest, models.User, bool) {
 	var req models.ChangeEmailRequest
-	if err := readAdminJSON(w, r, &req); err != nil || len(req.CurrentPassword) > maxPasswordLength || len(req.NewEmail) > maxUsernameLength {
+	if err := readAdminJSON(w, r, &req); err != nil || len(req.CurrentPassword) > maxPasswordLength || len(req.NewEmail) > maxUsernameLength || len(req.Code) > maxCodeLength {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
+		return req, models.User{}, false
 	}
 	userID, _, ok := h.userIDFromToken(r.Header.Get("X-Auth-Token"))
 	if !ok {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-		return
+		return req, models.User{}, false
 	}
 	if !h.acquirePasswordVerify() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
-		return
+		return req, models.User{}, false
 	}
 	stored, _ := h.store.GetUserByID(userID)
-	passwordValid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
+	valid := h.store.ValidateUserPassword(userID, req.CurrentPassword, stored.PasswordHash)
 	h.releasePasswordVerify()
-	if !passwordValid {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "password is incorrect"})
-		return
+	if !valid {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "password is incorrect"})
+		return req, stored, false
 	}
-	email := strings.TrimSpace(strings.ToLower(req.NewEmail))
-	if email != "" && !validEmail(email) {
+	req.NewEmail = strings.TrimSpace(strings.ToLower(req.NewEmail))
+	if req.NewEmail != "" && !validEmail(req.NewEmail) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "邮箱格式不正确"})
+		return req, stored, false
+	}
+	return req, stored, true
+}
+
+func emailChangePurpose(user models.User) string {
+	return "email-change:" + user.ID + ":" + fmt.Sprint(user.AuthVersion)
+}
+
+// SendEmailCode leaves the existing email untouched until the new owner proves it.
+func (h *AdminHandler) SendEmailCode(w http.ResponseWriter, r *http.Request) {
+	req, user, ok := h.emailChangeRequest(w, r)
+	if !ok {
 		return
 	}
-	if err := h.store.SetUserEmail(userID, email, email != ""); err != nil {
+	if req.NewEmail == "" {
+		writeJSON(w, 400, map[string]string{"error": "邮箱格式不正确"})
+		return
+	}
+	registration := NewAuthHandler(h.store, h.encryptionKey)
+	registration.SetThrottle(h.throttle)
+	if !registration.guardAuth(w, r, req.NewEmail) {
+		return
+	}
+	registration.chargeAuth(r, req.NewEmail)
+	mailer := registration.mailer()
+	if mailer == nil {
+		writeJSON(w, 400, map[string]string{"error": "邮件服务未配置，请联系管理员"})
+		return
+	}
+	if owner, exists := h.store.GetUserByEmail(req.NewEmail); exists && owner.ID != user.ID {
+		writeJSON(w, 409, map[string]string{"error": "邮箱已被其他账号使用"})
+		return
+	}
+	if h.store.LastCodeSentWithin(req.NewEmail, "email-change-mail", verifyCodeResendWait) {
+		writeJSON(w, 429, map[string]string{"error": "发送过于频繁，请稍后再试"})
+		return
+	}
+	code, err := generateNumericCode()
+	if err != nil {
+		writeJSON(w, 503, map[string]string{"error": "生成验证码失败"})
+		return
+	}
+	sum := sha256.Sum256([]byte(code))
+	h.store.PutVerifyCode(req.NewEmail, emailChangePurpose(user), hex.EncodeToString(sum[:]), verifyCodeTTL)
+	h.store.PutVerifyCode(req.NewEmail, "email-change-mail", "", verifyCodeTTL)
+	plain, html := services.VerificationCodeEmail("更换邮箱", code, int(verifyCodeTTL/time.Minute))
+	if err := mailer.Send(req.NewEmail, "Tunnel Manager 邮箱验证码", plain, html); err != nil {
+		writeJSON(w, 503, map[string]string{"error": "邮件发送失败，请稍后再试"})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"message": "验证码已发送"})
+}
+
+// ChangeEmail requires a code for every new nonempty address, even when
+// registration email verification has been disabled by the administrator.
+func (h *AdminHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
+	req, user, ok := h.emailChangeRequest(w, r)
+	if !ok {
+		return
+	}
+	if req.NewEmail != "" && !(strings.EqualFold(user.Email, req.NewEmail) && user.EmailVerified) {
+		if req.Code == "" {
+			writeJSON(w, 400, map[string]string{"error": "请先验证新邮箱"})
+			return
+		}
+		sum := sha256.Sum256([]byte(strings.TrimSpace(req.Code)))
+		if !h.store.ConsumeVerifyCode(req.NewEmail, emailChangePurpose(user), hex.EncodeToString(sum[:])) {
+			writeJSON(w, 400, map[string]string{"error": "验证码错误或已过期"})
+			return
+		}
+	}
+	if err := h.store.SetVerifiedUserEmail(user.ID, req.NewEmail, user.AuthVersion); err != nil {
 		if errors.Is(err, store.ErrEmailTaken) {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "邮箱已被其他账号使用"})
+			writeJSON(w, 409, map[string]string{"error": "邮箱已被其他账号使用"})
 		} else {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unable to update email"})
+			writeJSON(w, 503, map[string]string{"error": "unable to update email"})
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "邮箱已更新"})
+	writeJSON(w, 200, map[string]string{"message": "邮箱已更新"})
 }
 
 // ChangeProfile handles PUT /api/admin/profile: updates the account display
@@ -827,25 +898,24 @@ func (h *AdminHandler) consumeFactor(userID string, prepared *preparedFactor) er
 }
 
 // createSession persists a database-backed session for the account.
-func (h *AdminHandler) createSession(userID string, epoch uint64) (string, error) {
+func (h *AdminHandler) createSession(userID string, epoch uint64, authVersion ...uint64) (string, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", err
 	}
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	if h.authEpoch != epoch {
-		h.mu.Unlock()
 		return "", errInvalidAuthState
 	}
-	h.mu.Unlock()
 	expiresAt := h.now().Add(h.tokenTTL)
-	if err := h.store.CreateSession(hashToken(token), userID, expiresAt.Unix()); err != nil {
+	if err := h.store.CreateSession(hashToken(token), userID, expiresAt.Unix(), authVersion...); err != nil {
 		return "", err
 	}
 	return token, nil
 }
 
-func (h *AdminHandler) newChallenge(userID string, epoch uint64) (string, time.Time, error) {
+func (h *AdminHandler) newChallenge(userID string, epoch uint64, authVersion ...uint64) (string, time.Time, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", time.Time{}, err
@@ -861,7 +931,11 @@ func (h *AdminHandler) newChallenge(userID string, epoch uint64) (string, time.T
 		return "", time.Time{}, errors.New("challenge capacity reached")
 	}
 	expiresAt := now.Add(twoFactorTTL)
-	h.challenges[token] = &loginChallenge{userID: userID, expiresAt: expiresAt, epoch: epoch}
+	user, ok := h.store.GetUserByID(userID)
+	if !ok || user.Status != models.UserActive || (len(authVersion) > 0 && user.AuthVersion != authVersion[0]) {
+		return "", time.Time{}, errInvalidAuthState
+	}
+	h.challenges[token] = &loginChallenge{userID: userID, expiresAt: expiresAt, epoch: epoch, authVersion: user.AuthVersion}
 	return token, expiresAt, nil
 }
 
@@ -902,6 +976,10 @@ func (h *AdminHandler) claimChallenge(token string) (*loginChallenge, bool) {
 	if !ok || challenge.inUse || challenge.attempts >= maxFactorAttempts || challenge.epoch != h.authEpoch || !now.Before(challenge.expiresAt) {
 		return nil, false
 	}
+	if !h.store.AuthVersionValid(challenge.userID, challenge.authVersion) {
+		delete(h.challenges, token)
+		return nil, false
+	}
 	challenge.inUse = true
 	return challenge, true
 }
@@ -930,7 +1008,7 @@ func (h *AdminHandler) finishChallenge(token string, claimed *loginChallenge, se
 	h.mu.Lock()
 	challenge := h.challenges[token]
 	now := h.now()
-	if challenge != claimed || !challenge.inUse || challenge.epoch != h.authEpoch || !now.Before(challenge.expiresAt) {
+	if challenge != claimed || !challenge.inUse || challenge.epoch != h.authEpoch || !now.Before(challenge.expiresAt) || !h.store.AuthVersionValid(challenge.userID, challenge.authVersion) {
 		h.mu.Unlock()
 		return false, nil
 	}
@@ -948,12 +1026,18 @@ func (h *AdminHandler) finishChallenge(token string, claimed *loginChallenge, se
 			return false, err
 		}
 	}
-	if err := h.store.CreateSession(hashToken(sessionToken), userID, h.now().Add(h.tokenTTL).Unix()); err != nil {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.challenges[token] != claimed || challenge.epoch != h.authEpoch || !h.now().Before(challenge.expiresAt) {
+		return false, nil
+	}
+	if err := h.store.CreateSession(hashToken(sessionToken), userID, h.now().Add(h.tokenTTL).Unix(), challenge.authVersion); err != nil {
+		if errors.Is(err, store.ErrAuthStateChanged) {
+			return false, nil
+		}
 		return false, err
 	}
-	h.mu.Lock()
 	delete(h.challenges, token)
-	h.mu.Unlock()
 	return true, nil
 }
 

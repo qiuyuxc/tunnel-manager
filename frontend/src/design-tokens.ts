@@ -2,37 +2,21 @@ export const fontSans = '"MiSans", -apple-system, BlinkMacSystemFont, "Segoe UI"
 export const fontMono = '"SFMono-Regular", Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", monospace'
 
 export const lightPalette = {
-  canvas: '#EDF4F0', panel: '#FAFDFB', input: '#DCE8E2', text: '#1B2A27',
-  secondary: '#4D5C58', muted: '#586660', accent: '#127250', onAccent: '#F6F9F7',
-  hover: '#0E6244', line: '#D0DED6', strongLine: '#91A89A',
-  success: '#127250', successSurface: '#DCEEE3',
-  warning: '#8B5A10', warningSurface: '#F8EBD3', error: '#AE3842', errorSurface: '#F8E4E6',
+  canvas: '#F5F5F5', panel: '#FFFFFF', input: '#F1F1F1', text: '#171717',
+  secondary: '#525252', muted: '#666666', accent: '#1A1A1A', onAccent: '#FFFFFF',
+  hover: '#333333', line: '#E0E0E0', strongLine: '#A3A3A3',
+  success: '#333333', successSurface: '#EBEBEB',
+  warning: '#906313', warningSurface: '#F1F1F1', error: '#C13F3F', errorSurface: '#F1F1F1',
 }
 
 export type Palette = typeof lightPalette
 
 export const darkPalette: Palette = {
-  canvas: '#0B1211', panel: '#151D1C', input: '#1E2625', text: '#E7ECEA',
-  secondary: '#96A19F', muted: '#83908B', accent: '#6EDDAD', onAccent: '#042317',
-  hover: '#8AE8BE', line: '#283330', strongLine: '#566860',
-  success: '#6EDDAD', successSurface: '#1B3329',
-  warning: '#E9BD73', warningSurface: '#332B1E', error: '#F09898', errorSurface: '#382326',
-}
-
-export const warmPalette: Palette = {
-  canvas: '#F5F0E8', panel: '#FAF9F5', input: '#EFE9DE', text: '#141413',
-  secondary: '#3D3D3A', muted: '#5F5D57', accent: '#A9583E', onAccent: '#FFFFFF',
-  hover: '#8F4A34', line: '#E6DFD8', strongLine: '#C9C0B2',
-  success: '#287847', successSurface: '#E3EFE3',
-  warning: '#896019', warningSurface: '#F5EACF', error: '#AC3535', errorSurface: '#F7E2E0',
-}
-
-export const warmDarkPalette: Palette = {
-  canvas: '#181715', panel: '#1F1E1B', input: '#252320', text: '#FAF9F5',
-  secondary: '#B7B3AB', muted: '#A8A49C', accent: '#E08B67', onAccent: '#2C130A',
-  hover: '#EBA98B', line: '#33312C', strongLine: '#69645B',
-  success: '#A9D4B4', successSurface: '#25352A',
-  warning: '#E8BC78', warningSurface: '#382D1D', error: '#EAA0A0', errorSurface: '#3B2525',
+  canvas: '#0F0F0F', panel: '#181818', input: '#232323', text: '#F5F5F5',
+  secondary: '#B5B5B5', muted: '#999999', accent: '#EDEDED', onAccent: '#171717',
+  hover: '#D1D1D1', line: '#303030', strongLine: '#6B6B6B',
+  success: '#D4D4D4', successSurface: '#292929',
+  warning: '#E4BA6A', warningSurface: '#252525', error: '#ED9A9A', errorSurface: '#252525',
 }
 
 export function themeVariables(palette: Palette): Record<string, string> {
@@ -98,8 +82,6 @@ export function installDesignTokens() {
   const themes: [string, Palette][] = [
     [':root', lightPalette],
     ['[data-theme="dark"]', darkPalette],
-    ['[data-visual-theme="warm"]', warmPalette],
-    ['[data-visual-theme="warm"][data-theme="dark"]', warmDarkPalette],
   ]
   const sheet = document.createElement('style')
   sheet.id = 'tunnel-design-tokens'

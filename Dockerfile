@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Stage 1: Build frontend
-FROM node:20-alpine AS frontend
+FROM node:22-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm npm ci --loglevel verbose
@@ -17,7 +17,7 @@ COPY backend/ .
 RUN CGO_ENABLED=0 go build -v -o tunnel-manager .
 
 # Stage 3: Final image
-FROM alpine:3.19
+FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=backend /app/tunnel-manager .

@@ -271,6 +271,8 @@ const schemaV15 = `CREATE TABLE familiar_ips (
 CREATE INDEX idx_familiar_ips_user ON familiar_ips(user_id);
 `
 
+const schemaV16 = `ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0;`
+
 var migrations = []migration{
 	{version: 1, stmts: schemaV1},
 	{version: 2, stmts: schemaV2},
@@ -287,6 +289,7 @@ var migrations = []migration{
 	{version: 13, stmts: schemaV13},
 	{version: 14, stmts: schemaV14},
 	{version: 15, stmts: schemaV15},
+	{version: 16, stmts: schemaV16},
 }
 
 // Open connects to the database named by dsn. A postgres:// or postgresql://

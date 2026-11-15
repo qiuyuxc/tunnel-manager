@@ -40,6 +40,12 @@ public class DashboardFragment extends PageFragment {
     private SwipeRefreshLayout refresh;
     private LinearLayout body;
     private ScrollView scroll;
+    private JSONObject overview;
+    private JSONArray monitors;
+    private boolean loading;
+    private int generation;
+    private int pending;
+    private String error = "";
 
     @Override
     String route() {
@@ -59,27 +65,58 @@ public class DashboardFragment extends PageFragment {
         scroll.addView(body);
         refresh.addView(scroll);
 
-        render(null, null, true);
+        render(overview, monitors, overview == null && monitors == null);
         load();
         return refresh;
     }
 
     private void load() {
-        Api.async(() -> {
-            JSONObject overview = Api.get("/api/monitors/overview");
-            JSONArray monitors = Api.getArray("/api/monitors");
-            JSONObject pair = new JSONObject();
-            pair.put("overview", overview);
-            pair.put("monitors", monitors);
-            return pair;
-        }, result -> {
-            refresh.setRefreshing(false);
-            render(result.optJSONObject("overview"), result.optJSONArray("monitors"), false);
+        if (!alive() || refresh == null || loading) return;
+        int request = ++generation;
+        loading = true;
+        pending = 2;
+        error = "";
+        refresh.setRefreshing(true);
+        Api.async(() -> Api.get("/api/monitors/overview"), value -> {
+            if (!accept(request)) return;
+            overview = value;
+            finishSection();
         }, failure -> {
-            refresh.setRefreshing(false);
-            render(null, null, false, failure.getMessage());
+            if (!accept(request)) return;
+            error = failure.getMessage();
+            finishSection();
+        });
+        Api.async(() -> Api.getArray("/api/monitors?summary=1"), value -> {
+            if (!accept(request)) return;
+            monitors = value;
+            finishSection();
+        }, failure -> {
+            if (!accept(request)) return;
+            error = failure.getMessage();
+            finishSection();
         });
     }
+
+    private boolean accept(int request) {
+        return request == generation && refresh != null && body != null && alive();
+    }
+
+    private void finishSection() {
+        loading = --pending > 0;
+        refresh.setRefreshing(loading);
+        render(overview, monitors, loading && overview == null && monitors == null, error.isEmpty() ? null : error);
+    }
+
+    @Override public void onDestroyView() {
+        generation++;
+        loading = false;
+        refresh = null;
+        body = null;
+        scroll = null;
+        super.onDestroyView();
+    }
+
+    @Override void refreshPage() { load(); }
 
     // --------------------------------------------------------------- rendering
 
@@ -95,30 +132,30 @@ public class DashboardFragment extends PageFragment {
         TextView date = UI.label(requireContext(), java.text.DateFormat.getDateInstance(java.text.DateFormat.FULL, I18n.locale()).format(new Date()));
         body.addView(date);
         UI.margin(date, 0, 0, 0, UI.SM);
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_0db8ec03228d")));
-        TextView subtitle = UI.muted(requireContext(), I18n.text("m_8ec0d0243772"));
-        UI.margin(subtitle, 0, UI.XS, 0, UI.LG);
-        body.addView(subtitle);
+
+        body.addView(UI.spacer(requireContext(), UI.LG));
 
         if (error != null) {
             body.addView(UI.banner(requireContext(), error, true));
-            return;
         }
         if (loading) {
             body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
             return;
         }
-        if (overview == null) return;
-        body.addView(healthCard(overview));
-        body.addView(UI.spacer(requireContext(), UI.LG));
-        body.addView(stats(overview));
-        body.addView(UI.spacer(requireContext(), UI.LG));
+        if (overview != null) {
+            body.addView(healthCard(overview));
+            body.addView(UI.spacer(requireContext(), UI.LG));
+            body.addView(stats(overview));
+            body.addView(UI.spacer(requireContext(), UI.LG));
+        }
         if (Session.hasPerm("tunnels") || Session.hasPerm("domain_bind")) {
             body.addView(quickActions());
             body.addView(UI.spacer(requireContext(), UI.LG));
         }
-        body.addView(chartCard(overview));
-        body.addView(UI.spacer(requireContext(), UI.LG));
+        if (overview != null) {
+            body.addView(chartCard(overview));
+            body.addView(UI.spacer(requireContext(), UI.LG));
+        }
         body.addView(monitorList(monitors));
         UI.restoreScroll(scroll, scrollY);
     }
@@ -363,7 +400,7 @@ public class DashboardFragment extends PageFragment {
      */
     private void showBucketDetail(JSONObject bucket) {
 	Context ctx = requireContext();
-	Sheet.Builder sheet = Sheet.of(ctx, dayLabel(bucket.optLong("hour")) + I18n.text("m_70bcee5995c2"));
+	Sheet.Builder sheet = Sheet.of(ctx, dayLabel(bucket.optLong("hour")) + I18n.text("m_70bcee5995c2"), SheetSizing.Tier.EXPANDED);
 	sheet.content(bucketStats(bucket));
 
 	JSONArray issues = bucket.optJSONArray("issues");

@@ -31,6 +31,7 @@ public class MonitorsFragment extends PageFragment {
     private boolean loading;
     private boolean creating;
     private int generation;
+    private int pending;
 
     @Override String route() {
         return "/monitors";
@@ -62,34 +63,41 @@ public class MonitorsFragment extends PageFragment {
         super.onDestroyView();
     }
 
+    @Override void refreshPage() { load(); }
+
     private void load() {
         if (!alive() || refresh == null || loading) return;
         int request = ++generation;
         loading = true;
+        pending = 2;
         error = "";
+        summaryError = "";
         render();
-        Api.async(() -> {
-            JSONObject result = new JSONObject();
-            result.put("monitors", Api.getArray("/api/monitors"));
-            try {
-                result.put("overview", Api.get("/api/monitors/overview"));
-            } catch (Exception failure) {
-                result.put("summary_error", I18n.text("m_ec17571f0591"));
-            }
-            return result;
-        }, result -> {
-            if (request != generation || body == null || !alive()) return;
-            loading = false;
-            monitors = result.optJSONArray("monitors");
-            overview = result.optJSONObject("overview");
-            summaryError = result.optString("summary_error");
-            render();
+        Api.async(() -> Api.getArray("/api/monitors"), value -> {
+            if (!accept(request)) return;
+            monitors = value;
+            finishSection();
         }, failure -> {
-            if (request != generation || body == null || !alive()) return;
-            loading = false;
+            if (!accept(request)) return;
             error = failure.getMessage() == null ? I18n.text("m_abe7d7c55e82") : failure.getMessage();
-            render();
+            finishSection();
         });
+        Api.async(() -> Api.get("/api/monitors/overview"), value -> {
+            if (!accept(request)) return;
+            overview = value;
+            finishSection();
+        }, failure -> {
+            if (!accept(request)) return;
+            summaryError = I18n.text("m_ec17571f0591");
+            finishSection();
+        });
+    }
+
+    private boolean accept(int request) { return request == generation && body != null && alive(); }
+
+    private void finishSection() {
+        loading = --pending > 0;
+        render();
     }
 
     private void render() {
@@ -98,14 +106,14 @@ public class MonitorsFragment extends PageFragment {
         refresh.setRefreshing(loading);
         body.removeAllViews();
         LinearLayout head = UI.row(requireContext());
-        head.addView(UI.pageTitle(requireContext(), I18n.text("m_6496450c34cc")),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        ImageView create = UI.iconButton(requireContext(), R.drawable.ic_nav_plus, Theme.p().success, view -> askCreate());
+
+        head.setGravity(Gravity.END);
+        TextView create = UI.button(requireContext(), I18n.text("m_f9313095ee64"), UI.BTN_SECONDARY);
+        create.setOnClickListener(view -> askCreate());
         create.setContentDescription(I18n.text("m_f9313095ee64"));
         create.setEnabled(!creating);
         head.addView(create);
         body.addView(head);
-        UI.addRow(body, UI.muted(requireContext(), I18n.text("m_9bc73d27682d")), UI.XS);
         if (!error.isEmpty()) {
             UI.addRow(body, UI.banner(requireContext(), error + (monitors == null ? "" : I18n.text("m_d695dc5b7076")), true), UI.MD);
             TextView retry = UI.button(requireContext(), I18n.text("m_7bdd5ce1e298"), UI.BTN_SECONDARY);

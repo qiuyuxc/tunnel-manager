@@ -153,6 +153,11 @@ func TestOIDCKeepsLocalTwoFactor(t *testing.T) {
 	if err := h.store.EnableTOTP(uid, encrypted, nil, 0); err != nil {
 		t.Fatal(err)
 	}
+	user, _ := h.store.GetUserByID(uid)
+	_, err = h.store.ResolveOIDCAccount(models.OIDCIdentity{ProviderID: p.ID, Issuer: p.Issuer, Subject: "subject", Email: user.Email}, p.Revision, true, false, uid, user.PasswordHash)
+	if err != nil {
+		t.Fatal(err)
+	}
 	addOIDCPending(h, p, "ticket", "login", "", "")
 	w := oidcTestRequest(t, h, "ticket", "browser", "", nil, h.Complete)
 	if w.Code != 202 || !bytes.Contains(w.Body.Bytes(), []byte(`"two_factor_required":true`)) || bytes.Contains(w.Body.Bytes(), []byte(`"token":`)) {

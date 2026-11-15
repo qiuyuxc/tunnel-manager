@@ -27,6 +27,7 @@ import org.json.JSONObject;
 import java.util.function.Consumer;
 
 public class MonitorDetailFragment extends PageFragment {
+    @Override void refreshPage() { if (state != null) state.load(); }
     private static final String ARG_ID = "id";
     private MonitorDetailState state;
     private SwipeRefreshLayout refresh;
@@ -137,7 +138,9 @@ public class MonitorDetailFragment extends PageFragment {
         refresh.setEnabled(!state.busy);
         body.removeAllViews();
         JSONObject monitor = state.monitor;
-        body.addView(UI.pageTitle(requireContext(), monitor == null ? I18n.text("m_ce0d1c8bffa4") : monitor.optString("name", I18n.text("m_ce0d1c8bffa4"))));
+        if (monitor != null && !monitor.optString("name").isEmpty()) {
+            body.addView(UI.resourceTitle(requireContext(), monitor.optString("name")));
+        }
         if (!state.error.isEmpty()) {
             UI.addRow(body, UI.banner(requireContext(), state.error, true), UI.MD);
             UI.addRow(body, button(I18n.text("m_7bdd5ce1e298"), UI.BTN_SECONDARY, state::load), UI.SM);
@@ -248,7 +251,7 @@ public class MonitorDetailFragment extends PageFragment {
     }
 
     private void chooseTarget(JSONArray targets) {
-        picker = Sheet.of(requireContext(), I18n.text("m_b44c04b58c8b"));
+        picker = Sheet.of(requireContext(), I18n.text("m_b44c04b58c8b"), SheetSizing.Tier.MEDIUM);
         for (int index = 0; index < targets.length(); index++) {
             JSONObject target = targets.optJSONObject(index);
             if (target == null) continue;
@@ -307,7 +310,7 @@ public class MonitorDetailFragment extends PageFragment {
             if ("public".equals(state.form)) state.setPublish(!state.monitor.optBoolean("publish_enabled"));
             else state.submitForm();
         });
-        sheet = Sheet.of(requireContext(), title).content(formBody).footer(submit).onDismiss(() -> {
+        sheet = Sheet.of(requireContext(), title, "interval".equals(state.form) ? SheetSizing.Tier.MEDIUM : SheetSizing.Tier.EXPANDED).content(formBody).footer(submit).onDismiss(() -> {
             if (!destroyingView) {
                 state.form = "";
                 state.formError = "";

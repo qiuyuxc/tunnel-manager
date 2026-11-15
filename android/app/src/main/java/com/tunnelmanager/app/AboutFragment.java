@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AboutFragment extends PageFragment {
+    @Override void refreshPage() { loadVersion(); loadRelease(); }
 
     private static final String REPO_URL = "https://github.com/qiuyuxc/tunnel-manager";
     private static final String DOCS_URL = "https://docs.kukie.cn";
@@ -161,7 +162,6 @@ public class AboutFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_52d25a9e30ba")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_5f96499d539c"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);

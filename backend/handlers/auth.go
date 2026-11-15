@@ -286,7 +286,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}
-	if err := h.store.CreateSession(hashToken(token), created.ID, time.Now().Add(userSessionTTL).Unix()); err != nil {
+	if err := h.store.CreateSession(hashToken(token), created.ID, time.Now().Add(userSessionTTL).Unix(), created.AuthVersion); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "authentication temporarily unavailable"})
 		return
 	}

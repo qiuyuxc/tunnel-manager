@@ -5,9 +5,8 @@
        here maps to a real route or a real preference — nothing decorative. -->
   <header class="topbar">
     <nav class="breadcrumb" :aria-label="tr('m_6770d01e7d15')">
-      <span class="crumb-root">{{ configStore.config.site_name }}</span>
       <template v-for="(crumb, i) in crumbs" :key="i">
-        <span class="sep" aria-hidden="true">/</span>
+        <span v-if="i > 0" class="sep" aria-hidden="true">/</span>
         <router-link v-if="crumb.path" :to="crumb.path" class="crumb-link">{{ crumb.label }}</router-link>
         <span v-else class="crumb-current">{{ crumb.label }}</span>
       </template>
@@ -64,11 +63,7 @@
           <span class="menu-label">{{ tr('m_a720b4000be6') }}</span>
           <span class="menu-chevron" v-html="icons.chevron" />
         </router-link>
-        <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleVisualTheme()">
-          <span class="menu-icon" v-html="icons.palette" />
-          <span class="menu-label">{{ tr('m_5acca162e7f6') }}</span>
-          <span class="menu-tail">{{ themeLabel }}</span>
-        </button>
+
         <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleDarkMode()">
           <span class="menu-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
           <span class="menu-label">{{ tr('m_0426e084560f') }}</span>
@@ -111,7 +106,6 @@ const jumpOpen = ref(false)
 const crumbs = computed(() => breadcrumbFor(route.path))
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
 const roleLabel = computed(() => (configStore.isAdmin() ? tr('m_e19796712f1c') : tr('m_0d0e1a86b3aa')))
-const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? tr('m_1a407ccbb6dc') : tr('m_844b8cc8dff7')))
 
 // ⌘K on macOS, Ctrl+K elsewhere — the label follows the platform.
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -158,7 +152,8 @@ async function handleLogout() {
   justify-content: space-between;
   gap: 16px;
   height: var(--header-height);
-  padding: 0 36px;
+  margin: 0 32px;
+  padding: 0 2px;
   background: var(--color-header-bg);
   border-bottom: 1px solid var(--color-header-border);
 }
@@ -173,7 +168,6 @@ async function handleLogout() {
 }
 
 .breadcrumb .sep { color: var(--color-hairline-strong); }
-.crumb-root { color: var(--color-mute); }
 .crumb-link { color: var(--color-body); text-decoration: none; }
 .crumb-link:hover { color: var(--color-ink); }
 .crumb-current { color: var(--color-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -187,7 +181,7 @@ async function handleLogout() {
   min-height: 36px;
   padding: 7px 13px;
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   background: transparent;
   color: var(--color-mute);
   font-size: 12px;

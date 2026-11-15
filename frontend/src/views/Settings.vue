@@ -1,11 +1,16 @@
 <template>
   <div class="page-container">
-    <div class="page-header settings-heading">
-            <h2>{{ tr('m_3f754f38a654') }}</h2>
-      <p>{{ tr('m_3729a3070b01') }}</p>
-    </div>
     <div class="settings-grid section">
-      <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.04s;">
+      <section class="settings-card settings-card-wide appearance-card">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">{{ tr('console.appearance') }}</div><div class="settings-card-desc">{{ tr('console.appearance_description') }}</div></div>
+        </div>
+        <div class="appearance-options">
+          <label><span>{{ tr('console.dark_theme') }}</span><n-switch v-model:value="store.darkMode" /></label>
+          <label><span>{{ tr('console.light_effects') }}</span><n-switch v-model:value="store.lightEffects" /></label>
+        </div>
+      </section>
+      <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">{{ tr('m_a719b867f3fc') }}</div>
@@ -66,7 +71,7 @@
           </div>
         </div>
       </section>
-      <section class="settings-card settings-card-wide" :class="{ '': visible }" style="animation-delay: 0.1s;">
+      <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">{{ tr('m_f60a2d511962') }}</div>
@@ -107,7 +112,7 @@
           {{ tr('m_f47cac452640') }}
         </button>
       </section>
-      <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.16s;">
+      <section class="settings-card">
         <div class="settings-card-header compact">
           <div>
             <div class="settings-card-title">{{ tr('m_119e1fd67f70') }}</div>
@@ -121,7 +126,7 @@
           </button>
         </div>
       </section>
-      <section class="settings-card" :class="{ '': visible }" style="animation-delay: 0.22s;">
+      <section class="settings-card">
         <div class="settings-card-header compact">
           <div>
             <div class="settings-card-title">{{ tr('m_b903d203f70a') }}</div>
@@ -160,7 +165,6 @@ import { useConfigStore } from '../stores/config'
 const message = useMessage()
 const store = useConfigStore()
 const config = store.config
-const visible = ref(false)
 const iconInput = ref<HTMLInputElement | null>(null)
 const site = reactive({ name: '', description: '', icon: '', panelHost: '', landingEnabled: false })
 const cnamePresets = ref<CNAMEPreset[]>([])
@@ -282,10 +286,12 @@ async function saveFallback() {
 onMounted(async () => {
   await store.fetchConfig()
   syncFormFromConfig()
-  requestAnimationFrame(() => { visible.value = true })
 })
 </script>
 <style scoped>
+.appearance-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.appearance-options label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--color-hairline); border-radius: 14px; color: var(--color-body); font-size: 13px; }
+@media (max-width: 640px) { .appearance-options { grid-template-columns: 1fr; gap: 10px; } }
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

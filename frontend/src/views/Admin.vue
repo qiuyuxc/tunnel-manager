@@ -1,10 +1,5 @@
 <template>
   <div class="page-container admin-page">
-    <div class="page-header">
-      <h2>{{ tr('m_87354adb1c31') }}</h2>
-      <p>{{ tr('m_74420630cb1f') }}</p>
-    </div>
-
     <div class="admin-tabs">
       <button v-for="tab in tabs" :key="tab.key" type="button" class="admin-tab" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key">
         {{ tab.label }}
@@ -796,6 +791,12 @@ async function sendTestMail() {
 </script>
 
 <style scoped>
+.admin-page .admin-tabs { display: flex; width: fit-content; max-width: 100%; overflow-x: auto; gap: 6px; padding: 5px; margin-bottom: 24px; background: var(--color-canvas-raised); border: 1px solid var(--color-hairline); border-radius: 15px; }
+.admin-page .admin-tab { border: 0; border-radius: 10px; min-height: 38px; padding: 8px 16px; white-space: nowrap; }
+.admin-page .admin-tab.active { color: var(--color-link); background: var(--color-sidebar-active-bg); }
+.admin-page .admin-card { border-radius: 20px; }
+.admin-page .admin-card-head { padding: 20px 24px; }
+
 .admin-tabs { display: flex; gap: 6px; margin-bottom: var(--spacing-lg); flex-wrap: wrap; }
 .admin-tab {
   padding: 8px 18px;
@@ -843,7 +844,7 @@ async function sendTestMail() {
   border: 1px solid var(--color-hairline);
   color: var(--color-mute);
 }
-.tag-ok { color: var(--color-status-ok, #10b981); border-color: currentColor; }
+.tag-ok { color: var(--color-ink); border-color: currentColor; }
 .tag-down { color: var(--color-error); border-color: currentColor; }
 .tag-admin { color: var(--color-link); border-color: currentColor; }
 .group-row { padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-hairline); }

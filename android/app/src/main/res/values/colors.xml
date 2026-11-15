@@ -12,12 +12,12 @@
     <color name="error">#EE0000</color>
     <color name="logo">#171717</color>
     <color name="logo_dim">#8F8F8F</color>
-    <color name="icon_bg">#131B2D</color>
+    <color name="icon_bg">#171717</color>
     <color name="ink">#171717</color>
     <!-- Top edge of the launch artwork, so the window the system paints before
          the app exists blends into the illustration instead of flashing. Both
          are defined here rather than in values-night: which one to use is the
          app's own light/dark preference, not the system's. -->
-    <color name="splash_day_bg">#5CA1F0</color>
-    <color name="splash_night_bg">#061844</color>
+    <color name="splash_day_bg">@color/liquid_light_canvas</color>
+    <color name="splash_night_bg">@color/liquid_dark_canvas</color>
 </resources>

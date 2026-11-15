@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"tunnel-manager/models"
+	"tunnel-manager/services"
 	"tunnel-manager/store"
 )
 
@@ -28,7 +29,11 @@ func TestAuditMiddlewareRecordsOutcomeAndTarget(t *testing.T) {
 	req = withUser(req, models.SessionUser{ID: "u1", Username: "alice"})
 	req.Header.Set("X-Forwarded-For", "203.0.113.7, 10.0.0.1")
 	rec := httptest.NewRecorder()
-	handler(rec, req)
+	proxy, err := services.ClientIPMiddleware("192.0.2.0/24,10.0.0.0/8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy(handler).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("handler status = %d, want 201", rec.Code)

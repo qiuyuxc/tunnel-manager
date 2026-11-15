@@ -39,6 +39,7 @@ const stubs = {
       static final java.util.Queue<Runnable> QUEUE = new java.util.concurrent.ConcurrentLinkedQueue<>();
       public static Looper getMainLooper() { return MAIN; }
       public static void drain() { Runnable next; while ((next = QUEUE.poll()) != null) next.run(); }
+      public static int pending() { return QUEUE.size(); }
     }`,
   'android/os/Handler.java': `package android.os;
     public final class Handler {
@@ -47,10 +48,11 @@ const stubs = {
     }`,
   'org/json/JSONObject.java': `package org.json;
     public class JSONObject {
+      private final java.util.Map<String, Object> values = new java.util.HashMap<>();
       public JSONObject() {}
       public JSONObject(String raw) {}
-      public JSONObject put(String key, Object value) { return this; }
-      public boolean has(String key) { return false; }
+      public JSONObject put(String key, Object value) { values.put(key, value); return this; }
+      public boolean has(String key) { return values.containsKey(key); }
       public String optString(String key, String fallback) { return fallback; }
       public boolean optBoolean(String key, boolean fallback) { return fallback; }
       public JSONArray optJSONArray(String key) { return null; }
@@ -87,6 +89,8 @@ before(() => {
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/RequestScope.java'),
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/Session.java'),
     resolve(root, 'app/src/main/java/com/tunnelmanager/app/Api.java'),
+    resolve(root, 'app/src/main/java/com/tunnelmanager/app/NativeRequestPolicy.java'),
+    resolve(root, 'app/src/main/java/com/tunnelmanager/app/WebOrigin.java'),
     resolve(root, 'tools/java/com/tunnelmanager/app/DNSValuesTest.java'),
     resolve(root, 'tools/java/com/tunnelmanager/app/DNSBoundaryTest.java'),
   ], { encoding: 'utf8' })
@@ -102,7 +106,8 @@ for (const scenario of ['types', 'addresses', 'structured', 'preview', 'retry', 
   })
 }
 for (const scenario of ['api-snapshot', 'api-stale-401', 'api-old-response-401', 'api-unsent',
-  'api-inflight-switch', 'api-inflight-destroy', 'api-send-race', 'session-aba', 'session-snapshot-atomic', 'api-compatible']) {
+  'api-inflight-switch', 'api-inflight-destroy', 'api-send-race', 'session-aba', 'session-snapshot-atomic', 'api-compatible', 'api-asset-origin', 'api-redirect',
+  'api-forbidden', 'api-batch-parallel', 'api-async-switch', 'api-async-unsent']) {
   test(`native DNS boundary: ${scenario}`, () => {
     const result = spawnSync(executable('java'), ['-cp', directory,
       'com.tunnelmanager.app.DNSBoundaryTest', scenario,

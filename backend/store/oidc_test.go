@@ -25,10 +25,17 @@ func TestOIDCEmailOwnershipAndStableIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := models.OIDCIdentity{ProviderID: p.ID, Issuer: p.Issuer, Subject: "member-sub", Email: "MEMBER@example.com"}
-	if _, err := s.ResolveOIDCAccount(id, p.Revision, false, false, "", ""); !errors.Is(err, ErrOIDCEmailProofRequired) {
+	if _, err := s.ResolveOIDCAccount(id, p.Revision, false, false, "", ""); !errors.Is(err, ErrOIDCAccountBindingRequired) {
 		t.Fatalf("unverified email: %v", err)
 	}
-	u, err := s.ResolveOIDCAccount(id, p.Revision, true, false, "", "")
+	if _, err := s.ResolveOIDCAccount(id, p.Revision, true, false, "", ""); !errors.Is(err, ErrOIDCAccountBindingRequired) {
+		t.Fatalf("verified email alone merged account: %v", err)
+	}
+	proof, err := s.ConfirmOIDCBindingPassword(existing.ID, "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := s.ResolveOIDCAccount(id, p.Revision, true, false, existing.ID, proof)
 	if err != nil || u.ID != existing.ID || u.Role != existing.Role {
 		t.Fatalf("existing account: %+v, %v", u, err)
 	}
@@ -194,5 +201,20 @@ func TestOIDCBindingPasswordProofIsAtomic(t *testing.T) {
 	user, err := s.ResolveOIDCAccount(identity, p.Revision, true, false, uid, proof)
 	if err != nil || user.ID != uid || len(s.ListOIDCIdentities(uid)) != 1 {
 		t.Fatalf("confirmed binding: %+v %v", user, err)
+	}
+}
+
+func TestOIDCUnverifiedLocalRegistrationCannotAutoBind(t *testing.T) {
+	s := testStore(t)
+	provider := testOIDCProvider(t, s)
+	if err := s.CreateUser(models.User{ID: "unverified", Username: "claimant", Email: "victim@example.com", PasswordHash: HashPassword("claimant-password"), EmailVerified: false}); err != nil {
+		t.Fatal(err)
+	}
+	identity := models.OIDCIdentity{ProviderID: provider.ID, Issuer: provider.Issuer, Subject: "victim", Email: "victim@example.com"}
+	if _, err := s.ResolveOIDCAccount(identity, provider.Revision, true, false, "", ""); !errors.Is(err, ErrOIDCAccountBindingRequired) {
+		t.Fatalf("auto-bound unverified registration: %v", err)
+	}
+	if len(s.ListOIDCIdentities("unverified")) != 0 {
+		t.Fatal("identity attached to claimant")
 	}
 }

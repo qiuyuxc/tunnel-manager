@@ -1,7 +1,15 @@
 package com.tunnelmanager.app;
 
 import android.animation.ValueAnimator;
-import android.app.Dialog;
+import android.os.Build;
+import android.util.DisplayMetrics;
+import android.view.ViewTreeObserver;
+import android.widget.FrameLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.widget.NestedScrollView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -14,8 +22,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
+import java.util.ArrayDeque;
 
 /**
  * The phone console's bottom sheet — the web {@code SheetPanel} in native form.
@@ -28,42 +36,52 @@ import android.widget.TextView;
  */
 final class Sheet {
 
-    /** Mirrors the web sheet's max-height: 88vh, less the handle and header. */
-    private static final float MAX_HEIGHT_RATIO = 0.88f;
-
-    /** The sheet on screen, if any — the shell's back handler needs to see it. */
-    private static Builder visible;
+    /** The topmost open sheet owns the shell's back action, including nested pickers. */
+    private static final ArrayDeque<Builder> visible = new ArrayDeque<>();
 
     private Sheet() {
     }
 
     /** Closes the open sheet. Returns false when there was nothing to close. */
     static boolean dismissVisible() {
-        if (visible == null || !visible.dialog.isShowing()) return false;
-        if (visible.allowDismiss) visible.dismiss();
+        while (!visible.isEmpty() && !visible.peekLast().dialog.isShowing()) visible.removeLast();
+        if (visible.isEmpty()) return false;
+        Builder top = visible.peekLast();
+        if (top.allowDismiss) top.dismiss();
         return true;
     }
 
-    static Builder of(Context ctx, String title) {
-        return new Builder(ctx, title);
+    static Builder of(Context ctx, String title, SheetSizing.Tier tier) {
+        return new Builder(ctx, title, tier);
     }
 
     static final class Builder {
 
         private final Context ctx;
-        private final Dialog dialog;
+        private final BottomSheetDialog dialog;
         private final LinearLayout body;
         private final LinearLayout root;
-        private final Capped scroll;
+        private final NestedScrollView scroll;
         private ImageView closeButton;
         private boolean allowDismiss = true;
         private Runnable dismissed;
         /** Rows added since the last {@link #label}; drives the hairline seams. */
         private int rowsInGroup;
         private ValueAnimator dimAnimator;
+        private SheetSizing.Tier tier;
+        private SheetSizing.Geometry geometry;
+        private FrameLayout panel;
+        private BottomSheetBehavior<FrameLayout> behavior;
+        private int lastScreenHeight, lastParentHeight, lastWindowWidth;
+        private int navigationBottom;
+        private boolean keyboardVisible;
+        private boolean applyingGeometry;
+        private boolean geometryReady;
+        private final ViewTreeObserver.OnGlobalLayoutListener layoutWatcher = () -> updateGeometry(false);
 
-        private Builder(Context ctx, String title) {
+        private Builder(Context ctx, String title, SheetSizing.Tier tier) {
             this.ctx = ctx;
+            this.tier = tier;
             Palette p = Theme.p();
 
             root = UI.column(ctx);
@@ -71,29 +89,30 @@ final class Sheet {
             // Without this the dim scrim's tap would fall through to the page.
             root.setClickable(true);
 
-            root.addView(buildHandle());
             root.addView(buildHead(title));
 
             body = UI.column(ctx);
             int side = UI.dp(20);
             body.setPadding(side, 0, side, UI.dp(20));
 
-            scroll = new Capped(ctx);
+            scroll = new NestedScrollView(ctx);
+            scroll.setFillViewport(false);
+            ViewCompat.setNestedScrollingEnabled(scroll, true);
             scroll.setClipToPadding(false);
             scroll.setVerticalScrollBarEnabled(false);
             scroll.addView(body, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             root.addView(scroll, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-            dialog = new Dialog(ctx, R.style.SheetDialog);
+            dialog = new BottomSheetDialog(ctx, R.style.SheetDialog);
             dialog.setContentView(root);
             Window window = dialog.getWindow();
             if (window != null) {
                 window.setGravity(Gravity.BOTTOM);
-                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                // A floating dialog window still carries the platform's own
-                // inset background; the sheet paints its own.
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                // Scene height is calculated against the full window;
+                // the visible sheet paints its own surface.
                 window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
                 window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 window.setDimAmount(0f);
@@ -101,17 +120,6 @@ final class Sheet {
                 applyInsets(window, root);
             }
             dialog.setCanceledOnTouchOutside(true);
-        }
-
-        private View buildHandle() {
-            Palette p = Theme.p();
-            LinearLayout wrap = UI.row(ctx);
-            wrap.setGravity(Gravity.CENTER);
-            wrap.setPadding(0, UI.dp(9), 0, 0);
-            View handle = new View(ctx);
-            handle.setBackground(UI.rounded(p.hairlineStrong, UI.RADIUS_PILL));
-            wrap.addView(handle, new LinearLayout.LayoutParams(UI.dp(36), UI.dp(4)));
-            return wrap;
         }
 
         private View buildHead(String title) {
@@ -142,13 +150,93 @@ final class Sheet {
             return head;
         }
 
-        /** Keeps the last row clear of the gesture bar when the window is flush. */
-        private void applyInsets(Window window, View root) {
-            window.getDecorView().setOnApplyWindowInsetsListener((v, insets) -> {
-                int bottom = insets.getSystemWindowInsetBottom();
-                root.setPadding(0, 0, 0, bottom);
+        /** The resized window already avoids the IME; only pad the system navigation bar. */
+        private void applyInsets(Window window, View view) {
+            ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
+                navigationBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+                boolean keyboard = insets.isVisible(WindowInsetsCompat.Type.ime());
+                boolean changed = keyboard != keyboardVisible;
+                keyboardVisible = keyboard;
+                v.setPadding(0, 0, 0, keyboard ? 0 : navigationBottom);
+                if (changed) geometryReady = false;
+                v.post(() -> updateGeometry(changed));
                 return insets;
             });
+        }
+
+        /** Fixed scene height uses the full activity window, including when the IME resizes it. */
+        private int screenHeight() {
+            WindowManager manager = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
+            if (manager != null && Build.VERSION.SDK_INT >= 30) return manager.getCurrentWindowMetrics().getBounds().height();
+            DisplayMetrics metrics = new DisplayMetrics();
+            if (manager != null) manager.getDefaultDisplay().getRealMetrics(metrics);
+            else metrics.setTo(ctx.getResources().getDisplayMetrics());
+            return metrics.heightPixels;
+        }
+
+        private void updateGeometry(boolean forceLayout) {
+            if (panel == null || behavior == null || applyingGeometry || !dialog.isShowing()) return;
+            View parent = (View) panel.getParent();
+            int parentHeight = parent.getHeight();
+            int screenHeight = screenHeight();
+            if (parentHeight <= 0 || screenHeight <= 0) return;
+            int width = ctx.getResources().getConfiguration().screenWidthDp >= 600
+                    ? UI.dp(560) : ViewGroup.LayoutParams.MATCH_PARENT;
+            boolean changed = !geometryReady || parentHeight != lastParentHeight || screenHeight != lastScreenHeight || width != lastWindowWidth;
+            if (changed || forceLayout) {
+                applyingGeometry = true;
+                geometry = SheetSizing.geometry(screenHeight, parentHeight);
+                lastParentHeight = parentHeight;
+                lastScreenHeight = screenHeight;
+                if (width != lastWindowWidth && dialog.getWindow() != null) {
+                    dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.MATCH_PARENT);
+                }
+                lastWindowWidth = width;
+                int height = geometry.height(tier);
+                ViewGroup.LayoutParams panelParams = panel.getLayoutParams();
+                if (panelParams.height != height) {
+                    panelParams.height = height;
+                    panel.setLayoutParams(panelParams);
+                }
+                ViewGroup.LayoutParams contentParams = root.getLayoutParams();
+                if (contentParams.height != height) {
+                    contentParams.height = height;
+                    root.setLayoutParams(contentParams);
+                }
+                behavior.setPeekHeight(height, false);
+                geometryReady = true;
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                clearResizeActions();
+                applyingGeometry = false;
+            }
+        }
+
+        private void clearResizeActions() {
+            ViewCompat.removeAccessibilityAction(panel, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND.getId());
+            ViewCompat.removeAccessibilityAction(panel, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_COLLAPSE.getId());
+        }
+
+        private void bindBehavior() {
+            panel = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (panel == null) return;
+            panel.setBackgroundColor(Color.TRANSPARENT);
+            ViewCompat.setImportantForAccessibility(panel, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            behavior = dialog.getBehavior();
+            behavior.setFitToContents(true);
+            behavior.setDraggable(false);
+            behavior.setSkipCollapsed(true);
+            behavior.setGestureInsetBottomIgnored(true);
+            behavior.setHideable(false);
+            panel.getViewTreeObserver().addOnGlobalLayoutListener(layoutWatcher);
+            ViewCompat.requestApplyInsets(root);
+            updateGeometry(true);
+            panel.post(() -> updateGeometry(true));
+        }
+
+        /** Credential details are a new result scene, not a user-selectable resize. */
+        void showResultDetails() {
+            tier = SheetSizing.Tier.EXPANDED;
+            updateGeometry(true);
         }
 
         // ------------------------------------------------------------- content
@@ -257,6 +345,17 @@ final class Sheet {
             return this;
         }
 
+        Builder choice(String title, boolean selected, Runnable onClick) {
+            item(R.drawable.ic_nav_check, title, onClick);
+            LinearLayout row = (LinearLayout) body.getChildAt(body.getChildCount() - 1);
+            row.setSelected(selected);
+            row.setBackground(UI.pressable(UI.rounded(selected ? Theme.p().canvasSoft2 : Theme.p().canvasRaised,
+                    UI.RADIUS_MD), Theme.p().btnGhostHover));
+            row.getChildAt(0).setVisibility(selected ? View.VISIBLE : View.INVISIBLE);
+            row.getChildAt(row.getChildCount() - 1).setVisibility(View.GONE);
+            return this;
+        }
+
         /** Arbitrary content, for sheets that are not a list of links. */
         Builder content(View view) {
             body.addView(view);
@@ -269,7 +368,6 @@ final class Sheet {
             footer.setPadding(UI.dp(20), UI.dp(12), UI.dp(20), UI.dp(16));
             footer.addView(view);
             root.addView(footer);
-            scroll.footer = footer;
             body.setPadding(UI.dp(20), 0, UI.dp(20), 0);
             return this;
         }
@@ -285,6 +383,7 @@ final class Sheet {
             dialog.setCanceledOnTouchOutside(enabled);
             closeButton.setEnabled(enabled);
             closeButton.setAlpha(enabled ? 1f : 0.4f);
+            if (behavior != null) behavior.setHideable(false);
         }
 
         boolean isShowing() {
@@ -298,10 +397,12 @@ final class Sheet {
         }
 
         void show() {
-            visible = this;
+            visible.remove(this);
+            visible.addLast(this);
             dialog.setOnDismissListener(d -> {
                 if (dimAnimator != null) dimAnimator.cancel();
-                if (visible == this) visible = null;
+                if (panel != null && panel.getViewTreeObserver().isAlive()) panel.getViewTreeObserver().removeOnGlobalLayoutListener(layoutWatcher);
+                visible.remove(this);
                 if (dismissed != null) dismissed.run();
             });
             Window window = dialog.getWindow();
@@ -310,9 +411,10 @@ final class Sheet {
             if (window != null) {
                 int width = ctx.getResources().getConfiguration().screenWidthDp >= 600
                         ? UI.dp(560) : ViewGroup.LayoutParams.MATCH_PARENT;
-                window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+                window.setLayout(width, ViewGroup.LayoutParams.MATCH_PARENT);
                 window.setNavigationBarColor(Theme.p().canvasRaised);
             }
+            bindBehavior();
             fadeDim(0f, 0.45f);
         }
 
@@ -344,31 +446,4 @@ final class Sheet {
         return d;
     }
 
-    /**
-     * A ScrollView that stops growing at {@link #cap}. Without it the sheet would
-     * measure its content at full length and the header would be pushed off the
-     * top of the screen instead of the body scrolling.
-     */
-    private static final class Capped extends ScrollView {
-
-        private final int cap;
-        private View footer;
-
-        Capped(Context ctx) {
-            super(ctx);
-            int screen = ctx.getResources().getDisplayMetrics().heightPixels;
-            cap = (int) (screen * MAX_HEIGHT_RATIO) - UI.dp(63);
-        }
-
-        @Override
-        protected void onMeasure(int widthSpec, int heightSpec) {
-            int available = MeasureSpec.getMode(heightSpec) == MeasureSpec.UNSPECIFIED
-                    ? cap : Math.min(cap, MeasureSpec.getSize(heightSpec));
-            if (footer != null) {
-                footer.measure(widthSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-                available = Math.max(0, available - footer.getMeasuredHeight());
-            }
-            super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST));
-        }
-    }
 }

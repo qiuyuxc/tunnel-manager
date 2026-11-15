@@ -31,6 +31,7 @@ import java.util.List;
  * fields, not tear down every input on the page.
  */
 public class BatchBindFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     /** One 绑定组: the values, its own last result, and its current widgets. */
     private static final class Group {
@@ -112,7 +113,6 @@ public class BatchBindFragment extends PageFragment {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_6f7ce20a6c76")));
 
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_47569b64b367"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
@@ -232,7 +232,7 @@ public class BatchBindFragment extends PageFragment {
 
     private void openCnamePicker(final Group group) {
         String fallback = config.optString("preferred_cname", "");
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ff425d8a519d")).label(I18n.text("m_0bb90daa665f"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ff425d8a519d"), SheetSizing.Tier.MEDIUM).label(I18n.text("m_0bb90daa665f"));
         sheet.item(R.drawable.ic_nav_check,
                 fallback.isEmpty() ? I18n.text("m_f779cb9be535") : I18n.text("m_dbcddd8ad553") + fallback + "）",
                 () -> group.cnameView.setText(""));

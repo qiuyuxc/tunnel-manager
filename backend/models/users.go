@@ -37,6 +37,7 @@ type User struct {
 	Avatar                 string
 	Email                  string
 	PasswordHash           string
+	AuthVersion            uint64
 	Role                   string
 	GroupID                string
 	Status                 string

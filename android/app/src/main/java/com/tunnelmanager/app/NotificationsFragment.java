@@ -38,6 +38,7 @@ import java.util.Set;
  * send, who to email, and which bot token to use.
  */
 public class NotificationsFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private static final int REQ_NOTIFY = 71;
     private final String[] CHANNEL_LABELS = {I18n.text("m_27413c315695"), I18n.text("m_128003be2c2c"), I18n.text("m_e7d8fb7fa65f"), I18n.text("m_2b36843d5a74")};
@@ -80,7 +81,6 @@ public class NotificationsFragment extends PageFragment {
         UI.pagePadding(body);
         scroll.addView(body);
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_247ca01ae280")));
         body.addView(UI.muted(requireContext(), I18n.text("m_4927a53bcc88")));
         load();
         return scroll;
@@ -148,7 +148,6 @@ public class NotificationsFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_247ca01ae280")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_3767e83d1c67"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);

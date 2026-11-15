@@ -1,9 +1,5 @@
 <template>
   <div class="page-container">
-    <div class="page-header about-heading">
-      <h2>{{ tr('m_52d25a9e30ba') }}</h2>
-      <p>{{ tr('m_5ef9a1754675') }}</p>
-    </div>
     <div class="settings-grid section">
       <section class="settings-card settings-card-wide">
         <div class="settings-card-header">
@@ -292,8 +288,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-lg);
-  background: var(--color-ink);
-  color: #fff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-text);
 }
 
 .about-app-text { min-width: 0; }
@@ -347,8 +343,8 @@ onMounted(async () => {
   text-align: right;
 }
 
-.version-row .status-new { color: var(--color-warning); }
-.version-row .status-ok { color: var(--color-success); }
+.version-row .status-new { color: var(--color-ink); }
+.version-row .status-ok { color: var(--color-ink); }
 .version-row .status-ahead { color: var(--color-link); }
 
 .release-body {

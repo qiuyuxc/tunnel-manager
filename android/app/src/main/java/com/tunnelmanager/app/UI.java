@@ -24,9 +24,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.CompoundButton;
+import android.widget.CheckBox;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.DecelerateInterpolator;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.core.view.ViewCompat;
 import android.view.ViewTreeObserver;
 
 import java.util.function.IntConsumer;
@@ -42,8 +44,8 @@ final class UI {
     static final int XXXL = 48;
 
     static final int RADIUS_SM = 10;
-    static final int RADIUS_MD = 14;
-    static final int RADIUS_LG = 22;
+    static final int RADIUS_MD = 12;
+    static final int RADIUS_LG = 18;
     static final int RADIUS_PILL = 999;
 
     static final int HEADER_H = 56;
@@ -101,7 +103,7 @@ final class UI {
     static void pagePadding(LinearLayout body) {
         int side = dp(20);
         boolean wide = body.getResources().getConfiguration().screenWidthDp >= WIDE_DP;
-        body.setPadding(side, dp(MD), side, dp(wide ? XXXL : TABBAR_H + 40));
+        body.setPadding(side, dp(LG), side, dp(wide ? XXXL : TABBAR_H + 40));
     }
 
     static View spacer(Context ctx, int heightDp) {
@@ -181,9 +183,10 @@ final class UI {
         return v;
     }
 
-    /** Page heading, matches the console's h2. */
-    static TextView pageTitle(Context ctx, String value) {
+    /** Actual tunnel or monitor name; page names belong in the shell toolbar. */
+    static TextView resourceTitle(Context ctx, String value) {
         TextView title = text(ctx, value, 26, Theme.p().ink, Typeface.BOLD);
+        ViewCompat.setAccessibilityHeading(title, true);
         title.setLetterSpacing(-0.025f);
         return title;
     }
@@ -276,23 +279,23 @@ final class UI {
             case BTN_PRIMARY:
                 fill = p.btnPrimaryBg;
                 v.setTextColor(p.btnPrimaryText);
-                shape = rounded(fill, RADIUS_PILL);
+                shape = rounded(fill, RADIUS_MD);
                 break;
             case BTN_DANGER:
                 fill = p.resultErrorBg;
                 v.setTextColor(p.error);
-                shape = roundedStroke(fill, RADIUS_PILL, p.resultErrorBorder, 1);
+                shape = roundedStroke(fill, RADIUS_MD, p.resultErrorBorder, 1);
                 break;
             case BTN_GHOST:
                 v.setTextColor(p.mute);
                 v.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
-                shape = rounded(p.canvas, RADIUS_PILL);
+                shape = rounded(p.canvas, RADIUS_MD);
                 break;
             case BTN_SECONDARY:
             default:
                 fill = p.canvasSoft2;
                 v.setTextColor(p.ink);
-                shape = rounded(fill, RADIUS_PILL);
+                shape = rounded(fill, RADIUS_MD);
                 break;
         }
         v.setBackground(pressable(shape, p.btnGhostHover));
@@ -312,7 +315,7 @@ final class UI {
         tint(button, tint);
         button.setClickable(true);
         button.setFocusable(true);
-        button.setBackground(pressable(rounded(p.canvasSoft2, RADIUS_PILL), p.btnGhostHover));
+        button.setBackground(pressable(rounded(p.canvasSoft2, RADIUS_MD), p.btnGhostHover));
         pressFeedback(button);
         int inset = dp(SM);
         button.setPadding(inset, inset, inset, inset);
@@ -475,14 +478,26 @@ final class UI {
 
     /**
      * A row of mutually exclusive chips. The console's segmented control, used
-     * wherever a form would otherwise need a Spinner.
+     * for inline choices in forms.
      */
+    static CheckBox checkBox(Context context) {
+        CheckBox box = new CheckBox(context);
+        box.setButtonTintList(checkColors(Theme.p()));
+        return box;
+    }
+
+    private static ColorStateList checkColors(Palette palette) {
+        return new ColorStateList(
+                new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{android.R.attr.state_checked}, new int[]{}},
+                new int[]{palette.mute, palette.btnPrimaryBg, palette.hairlineStrong});
+    }
+
     static LinearLayout segmented(Context ctx, String[] options, int selected, IntConsumer onChange) {
         Palette p = Theme.p();
         LinearLayout row = row(ctx);
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        row.setBackground(rounded(p.canvasSoft2, RADIUS_PILL));
+        row.setBackground(rounded(p.canvasSoft2, RADIUS_MD));
         row.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         for (int i = 0; i < options.length; i++) {
@@ -622,9 +637,7 @@ final class UI {
             }
         }
         if (view instanceof CompoundButton) {
-            ((CompoundButton) view).setButtonTintList(new ColorStateList(
-                    new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
-                    new int[]{next.btnPrimaryBg, next.hairlineStrong}));
+            ((CompoundButton) view).setButtonTintList(checkColors(next));
         }
         if (view instanceof SwipeRefreshLayout) {
             ((SwipeRefreshLayout) view).setColorSchemeColors(next.success);

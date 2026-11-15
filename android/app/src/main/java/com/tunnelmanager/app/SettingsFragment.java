@@ -42,6 +42,7 @@ import java.util.List;
  * the operator sees is the value that gets stored.
  */
 public class SettingsFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private static final long MAX_ICON_BYTES = 512L * 1024;
     private static final int MAX_PRESETS = 20;
@@ -144,6 +145,7 @@ public class SettingsFragment extends PageFragment {
     // ------------------------------------------------------------------- data
 
     private void load() {
+        if (!alive() || loading) return;
         loading = true;
         render();
         Api.async(() -> Api.get("/api/config"), payload -> {
@@ -236,7 +238,6 @@ public class SettingsFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3f754f38a654")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_304845c555ff"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);

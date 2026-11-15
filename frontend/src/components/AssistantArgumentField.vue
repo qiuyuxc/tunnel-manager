@@ -34,7 +34,7 @@ function removeItem(index: number) { emit('update:modelValue', (props.modelValue
 <style scoped>
 label { display: grid; gap: 6px; margin: 10px 0; font-size: 12px; color: var(--color-mute); }
 input, textarea, select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--color-hairline); border-radius: 8px; padding: 9px; color: var(--color-ink); background: var(--color-canvas-raised); font: inherit; }
-input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--color-success); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
 textarea { resize: vertical; }
 fieldset { min-width: 0; margin: 12px 0; padding: 8px; border: 1px solid var(--color-hairline); border-radius: 8px; }
 legend { font-size: 12px; color: var(--color-mute); }

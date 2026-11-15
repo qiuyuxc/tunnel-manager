@@ -1,19 +1,35 @@
 <template>
-  <label class="language-select">
+  <div class="language-select">
     <span>{{ tr('language.label') }}</span>
-    <select :value="languagePreference" @change="setLanguage(($event.target as HTMLSelectElement).value as LanguagePreference)">
-      <option value="system">{{ tr('language.system') }}</option>
-      <option value="zh-CN">简体中文</option>
-      <option value="en">English</option>
-    </select>
-  </label>
+    <n-select
+      class="language-control"
+      :value="languagePreference"
+      :options="options"
+      :aria-label="tr('language.label')"
+      size="small"
+      @update:value="selectPreference"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { NSelect } from 'naive-ui'
 import { languagePreference, setLanguage, t as tr, type LanguagePreference } from '../i18n'
+
+const options = computed(() => [
+  { value: 'system', label: tr('language.system') },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en', label: 'English' },
+])
+function selectPreference(value: unknown) {
+  if (value === 'system' || value === 'zh-CN' || value === 'en') setLanguage(value as LanguagePreference)
+}
 </script>
 
 <style scoped>
-.language-select { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;color:var(--color-ink);font-size:14px }
-select { min-width:0;max-width:160px;min-height:36px;border:1px solid var(--color-hairline);border-radius:8px;padding:6px;background:var(--color-canvas-raised);color:inherit;font:inherit }
+.language-select { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--color-ink); font-size: 13px; }
+.language-select > span { flex-shrink: 0; }
+.language-control { flex: 1; min-width: 116px; max-width: 160px; }
+.language-control :deep(.n-base-selection) { font-size: 12px; }
 </style>

@@ -37,6 +37,7 @@ import java.util.Set;
  * would tear down the form fields the operator may still be editing.
  */
 public class LabFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private static final long POLL_INTERVAL = 1000L;
 
@@ -139,14 +140,10 @@ public class LabFragment extends PageFragment {
         loading = true;
         render();
         Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("settings", Api.get("/api/lab/ip-selector"));
-            payload.put("status", Api.get("/api/lab/ip-selector/status"));
-            try {
-                payload.put("dns", Api.get("/api/lab/ip-selector/ownership/dns"));
-            } catch (Exception failure) {
-                payload.put("dns", new JSONObject().put("available", false).put("message", I18n.text("m_1f4884fcf7fe")));
-            }
+            JSONObject payload = Api.batch(Api.query("settings", "/api/lab/ip-selector"),
+                    Api.query("status", "/api/lab/ip-selector/status"),
+                    Api.optionalQuery("dns", "/api/lab/ip-selector/ownership/dns"));
+            if (!payload.has("dns")) payload.put("dns", new JSONObject().put("available", false).put("message", I18n.text("m_1f4884fcf7fe")));
             return payload;
         }, payload -> {
             if (!viewActive || !alive()) return;
@@ -327,7 +324,6 @@ public class LabFragment extends PageFragment {
         body.removeAllViews();
         progressSlot = null;
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3db29474a184")));
         TextView subtitle = UI.muted(requireContext(),
                 I18n.text("m_c903232627f5"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);

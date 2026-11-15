@@ -29,6 +29,7 @@ import org.json.JSONObject;
  * because the form is two fields and a keyboard.
  */
 public class TunnelDetailFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private static final String ARG_ID = "id";
 
@@ -75,12 +76,7 @@ public class TunnelDetailFragment extends PageFragment {
     }
 
     private void load() {
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("detail", Api.get("/api/tunnels/" + tunnelId));
-            payload.put("config", Api.get("/api/config"));
-            return payload;
-        }, payload -> {
+        Api.async(() -> Api.batch(Api.query("detail", "/api/tunnels/" + tunnelId), Api.query("config", "/api/config")), payload -> {
             refresh.setRefreshing(false);
             JSONObject config = payload.optJSONObject("config");
             currentId = config == null ? "" : config.optString("tunnel_id", "");
@@ -114,7 +110,7 @@ public class TunnelDetailFragment extends PageFragment {
         String status = detail.optString("status");
         boolean locked = tunnelId.equals(currentId);
 
-        body.addView(UI.pageTitle(requireContext(), name));
+        body.addView(UI.resourceTitle(requireContext(), name));
 
         LinearLayout meta = UI.row(requireContext());
         meta.setGravity(Gravity.CENTER_VERTICAL);
@@ -283,7 +279,7 @@ public class TunnelDetailFragment extends PageFragment {
                 hostname.getText().toString().trim(), service.getText().toString().trim()));
         form.addView(save);
 
-        Sheet.of(requireContext(), editing ? I18n.text("m_daa951cf34e2") : I18n.text("m_a9ea26f64358")).content(form).show();
+        Sheet.of(requireContext(), editing ? I18n.text("m_daa951cf34e2") : I18n.text("m_a9ea26f64358"), SheetSizing.Tier.MEDIUM).content(form).show();
     }
 
     private void submitForm(boolean editing, @Nullable JSONObject rule, String hostname, String service) {

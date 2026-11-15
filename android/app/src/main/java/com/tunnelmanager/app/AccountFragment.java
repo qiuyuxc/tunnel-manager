@@ -45,6 +45,7 @@ import java.util.List;
  * phone cannot scan off its own screen.
  */
 public class AccountFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     /** Server-side cap on uploads, mirrored here so the picker can reject early. */
     private static final long MAX_AVATAR_BYTES = 4L << 20;
@@ -66,6 +67,7 @@ public class AccountFragment extends PageFragment {
     private EditText nicknameInput;
     private EditText emailInput;
     private EditText emailPasswordInput;
+    private EditText emailCodeInput;
     private EditText usernameInput;
     private EditText usernamePasswordInput;
     private EditText currentPasswordInput;
@@ -111,28 +113,13 @@ public class AccountFragment extends PageFragment {
     // ------------------------------------------------------------------- data
 
     private void load() {
+        if (!alive() || loading) return;
         loading = true;
         statusMessage = "";
         render();
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("me", Api.get("/api/auth/me"));
-            // Both of these can fail on their own without taking the page down.
-            try {
-                payload.put("tf", Api.get("/api/admin/2fa/status"));
-            } catch (Api.Failure ignored) {
-            }
-            try {
-                payload.put("cf", Api.get("/api/cloudflare/oauth/status"));
-            } catch (Api.Failure failure) {
-                payload.put("cf_error", failure.getMessage());
-            }
-            try {
-                payload.put("pk", Api.get("/api/account/passkeys"));
-            } catch (Api.Failure ignored) {
-            }
-            return payload;
-        }, payload -> {
+        Api.async(() -> Api.batch(
+                Api.query("me", "/api/auth/me"), Api.optionalQuery("tf", "/api/admin/2fa/status"),
+                Api.optionalQuery("cf", "/api/cloudflare/oauth/status"), Api.optionalQuery("pk", "/api/account/passkeys")), payload -> {
             loading = false;
             me = payload.optJSONObject("me") == null ? new JSONObject() : payload.optJSONObject("me");
             tf = payload.optJSONObject("tf") == null ? new JSONObject() : payload.optJSONObject("tf");
@@ -175,7 +162,6 @@ public class AccountFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_a720b4000be6")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_d86f5c72c33e"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
@@ -449,12 +435,27 @@ public class AccountFragment extends PageFragment {
                 ? I18n.text("m_e6bddbeaa97b")
                 : I18n.text("m_af4dddc3c14e") + email, UI.SM);
 
+        String draftEmail = emailInput == null ? "" : emailInput.getText().toString();
+        String draftPassword = emailPasswordInput == null ? "" : emailPasswordInput.getText().toString();
+        String draftCode = emailCodeInput == null ? "" : emailCodeInput.getText().toString();
         emailInput = UI.input(requireContext(), "name@example.com");
+        emailInput.setText(draftEmail);
         emailInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         card.addView(UI.field(requireContext(), email.isEmpty() ? I18n.text("m_2e412e03837f") : I18n.text("m_3067c39fa4b2"), emailInput, UI.MD));
 
         emailPasswordInput = passwordInput(I18n.text("m_632da57acf53"));
+        emailPasswordInput.setText(draftPassword);
         card.addView(UI.field(requireContext(), I18n.text("m_ab48ee83149b"), emailPasswordInput, UI.MD));
+
+        emailCodeInput = UI.input(requireContext(), I18n.text("account.email_code"));
+        emailCodeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        emailCodeInput.setText(draftCode);
+        card.addView(UI.field(requireContext(), I18n.text("account.email_code"), emailCodeInput, UI.MD));
+        TextView send = UI.button(requireContext(), I18n.text("account.send_email_code"), UI.BTN_SECONDARY);
+        send.setEnabled(!busy);
+        send.setOnClickListener(v -> sendEmailCode(emailInput.getText().toString().trim(), emailPasswordInput.getText().toString()));
+        UI.margin(send, 0, UI.MD, 0, 0);
+        card.addView(send);
 
         TextView save = UI.button(requireContext(), email.isEmpty() ? I18n.text("m_6d4b7dce1ee6") : I18n.text("m_da0f5e37e88b"), UI.BTN_SECONDARY);
         save.setOnClickListener(v -> {
@@ -466,14 +467,37 @@ public class AccountFragment extends PageFragment {
                 render();
                 return;
             }
-            changeEmail(value, password);
+            String code = emailCodeInput.getText().toString().trim();
+            if (code.isEmpty()) { statusMessage = I18n.text("account.email_code_required"); statusOk = false; render(); return; }
+            changeEmail(value, password, code);
         });
         UI.margin(save, 0, UI.MD, 0, 0);
         card.addView(save);
         return card;
     }
 
-    private void changeEmail(String email, String password) {
+    private void sendEmailCode(String email, String password) {
+        busy = true;
+        render();
+        Api.async(() -> {
+            JSONObject payload = new JSONObject();
+            payload.put("current_password", password);
+            payload.put("new_email", email);
+            return Api.post("/api/admin/email/code", payload);
+        }, result -> {
+            busy = false;
+            statusMessage = I18n.text("account.email_code_sent");
+            statusOk = true;
+            render();
+        }, failure -> {
+            busy = false;
+            statusMessage = failure.getMessage();
+            statusOk = false;
+            render();
+        });
+    }
+
+    private void changeEmail(String email, String password, String code) {
         busy = true;
         statusMessage = "";
         render();
@@ -481,6 +505,7 @@ public class AccountFragment extends PageFragment {
             JSONObject payload = new JSONObject();
             payload.put("current_password", password);
             payload.put("new_email", email);
+            payload.put("code", code);
             return Api.put("/api/admin/email", payload);
         }, result -> {
             busy = false;
@@ -488,6 +513,7 @@ public class AccountFragment extends PageFragment {
             statusOk = true;
             emailInput = null;
             emailPasswordInput = null;
+            emailCodeInput = null;
             reloadIdentity();
         }, failure -> {
             busy = false;

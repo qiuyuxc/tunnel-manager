@@ -306,7 +306,7 @@
     <string name="m_199edd1a1d6f" formatted="false">"最近告警记录"</string>
     <string name="m_19c4ca651c6d" formatted="false">"移除中…"</string>
     <string name="m_19cb7bd10d44" formatted="false">"授权 TG ID 格式不正确: "</string>
-    <string name="m_19dff4cfa946" formatted="false">"Web 切换保留表单；Android 保留 AI 对话与设置草稿。"</string>
+    <string name="m_19dff4cfa946" formatted="false">"独立读取并行加载，重复读取合并；离页取消请求，旧响应不覆盖新会话或已保存变更。"</string>
     <string name="m_19e976b023c8" formatted="false">"立即登录"</string>
     <string name="m_19eb750a55d7" formatted="false">"❌ DNS 操作失败: %s"</string>
     <string name="m_19f70a16fba8" formatted="false">"Tunnel Manager 邮箱验证码"</string>
@@ -324,7 +324,7 @@
     <string name="m_1ac79aa3aff0" formatted="false">"公开域名"</string>
     <string name="m_1ad1463fe16f" formatted="false">"生成"</string>
     <string name="m_1addd42dc1dd" formatted="false">"域名绑定参数无效"</string>
-    <string name="m_1ae15c6bd1be" formatted="false">"Web 和 Android 支持简体中文与 English，默认跟随浏览器或系统语言。"</string>
+    <string name="m_1ae15c6bd1be" formatted="false">"Web 与 Android 统一黑白灰深浅主题，调整导航、卡片和操作布局。"</string>
     <string name="m_1b0049fcfd41" formatted="false">"AI 助手"</string>
     <string name="m_1b33150543c1" formatted="false">"按已确认内容新增、修改或删除资源"</string>
     <string name="m_1b54e6f260d4" formatted="false">"」及其全部检测历史，公开链接同步失效。"</string>
@@ -441,7 +441,7 @@
     <string name="m_24ea84bdd9a3" formatted="false">"停用确认中"</string>
     <string name="m_24fdd328e093" formatted="false">"创建机器人并复制 Token。"</string>
     <string name="m_250e6b30ef71" formatted="false">"现有记录的完整域名"</string>
-    <string name="m_251a77247045" formatted="false">"手动语言偏好保存在当前设备，登录页和账户菜单均可切换。"</string>
+    <string name="m_251a77247045" formatted="false">"移动弹层按场景固定为 30% / 60% / 80%，正文溢出时滚动，键盘避让输入。"</string>
     <string name="m_252e26071ac9" formatted="false">"目标主机"</string>
     <string name="m_253dbbfd9d0f" formatted="false">"创建并配置服务"</string>
     <string name="m_256ad4b67d22" formatted="false">"请填写当前密码和动态口令"</string>
@@ -735,7 +735,7 @@
     <string name="m_3c50ed52eef5" formatted="false">"删除当前会话"</string>
     <string name="m_3c54e6e2ef5d" formatted="false">"允许密码"</string>
     <string name="m_3c54ef9ee95e" formatted="false">"连续 "</string>
-    <string name="m_3c816b7f18b2" formatted="false">"用户填写的名称、DNS 记录值和对话内容保留原样。"</string>
+    <string name="m_3c816b7f18b2" formatted="false">"公开状态页显示真实近 24 小时的 48 个半小时区间；无记录显示未知，可用率按实际检查计算。"</string>
     <string name="m_3c84b65341c8" formatted="false">"密码保存繁忙，请稍后重试"</string>
     <string name="m_3c85a9eda97e" formatted="false">"未配置有效的 Android 签名指纹，请在「系统设置 → 通行密钥」填写"</string>
     <string name="m_3c8c5939d685" formatted="false">"面板"</string>
@@ -923,7 +923,7 @@
     <string name="m_4c0839ec2ac6" formatted="false">"验证请求无效或已过期，请重新登录"</string>
     <string name="m_4c24d8c28433" formatted="false">"切换后请核对记录值"</string>
     <string name="m_4c29f20d005c" formatted="false">"轻量效果，关闭模糊与动效"</string>
-    <string name="m_4c2f23822e3d" formatted="false">"共享本地翻译资源，导航、控件、日期和校验提示随语言更新。"</string>
+    <string name="m_4c2f23822e3d" formatted="false">"删除正文重复页名大标题，统一语言选择控件；保留实际资源名称和输入说明。"</string>
     <string name="m_4c5c1892de86" formatted="false">"密码已重置，该用户已被登出"</string>
     <string name="m_4c64fe16fed5" formatted="false">"Scopes 必须包含 openid"</string>
     <string name="m_4c9145a693dc" formatted="false">" 个服务 · "</string>
@@ -1251,7 +1251,7 @@
     <string name="m_6787f82d0c1e" formatted="false">"公开页顶部图标（图片链接 / 上传，可留空用默认）"</string>
     <string name="m_679e917b16ef" formatted="false">"注册账号"</string>
     <string name="m_6800fd12e118" formatted="false">"核对并执行 0 项"</string>
-    <string name="m_6808369b92b1" formatted="false">"v3.0.0 的重点变化：中英文面板与 App、共享翻译资源和共同文档来源。"</string>
+    <string name="m_6808369b92b1" formatted="false">"v3.1.0 的重点变化：黑白界面、固定场景弹层、加载优化、准确状态历史与认证安全修复。"</string>
     <string name="m_6811d9b40414" formatted="false">"集中管理 Cloudflare Tunnel，随时查看运行状态与公网入口。"</string>
     <string name="m_681395cc358f" formatted="false">"当前版本领先线上发布"</string>
     <string name="m_682d211b7142" formatted="false">"已修改"</string>
@@ -2284,7 +2284,7 @@
     <string name="m_bfbe78b7ec5a" formatted="false">"密码重置"</string>
     <string name="m_bfccaf26c23e" formatted="false">" 个目标"</string>
     <string name="m_c03625923b75" formatted="false">"支持 Chat Completions 与 OpenAI Responses，均支持流式回复与工具调用。支持 HTTP/HTTPS、本机或内网地址及自定义端口；localhost 按后端所在主机或容器解析。HTTP 明文传输密钥与对话，仅在可信网络使用，公网建议 HTTPS。密钥服务端加密、不回显；更换端点需重新填写。关闭共享后恢复个人配置。"</string>
-    <string name="m_c046ce1f1e92" formatted="false">"文档改为每页一个双语内容文件，共用导航与生成流程。"</string>
+    <string name="m_c046ce1f1e92" formatted="false">"修复邮箱与 OIDC 账户绑定、双重验证、旧认证挑战及跨源会话问题，加固探测地址、图片上传与凭据隔离。"</string>
     <string name="m_c0884fa99289" formatted="false">"❌ 参数不足。用法: /优选绑定 [主域名] [辅助域名] [可选优选CNAME]"</string>
     <string name="m_c08cc2a469e8" formatted="false">"\n每批最多 100 条非空行，逐条串行新增。支持 A / AAAA / TXT / MX / NS / PTR。CNAME、SRV、CAA 请单条添加。"</string>
     <string name="m_c0a70fcb56f0" formatted="false">"保存资料"</string>
@@ -3040,4 +3040,92 @@
     <string name="m_ffca876d86a2" formatted="false">"AI 工具参数不完整，未生成任务"</string>
     <string name="m_ffd259cf9655" formatted="false">"尚未公开 · 仅自己可见"</string>
     <string name="m_fff49c1e182c" formatted="false">"官网首页"</string>
+    <string name="account_email_code" formatted="false">"新邮箱验证码"</string>
+    <string name="account_send_email_code" formatted="false">"发送验证码"</string>
+    <string name="account_email_code_sent" formatted="false">"验证码已发送，请输入后保存"</string>
+    <string name="account_email_code_required" formatted="false">"请输入新邮箱验证码"</string>
+    <string name="security_oidc_binding_required" formatted="false">"该邮箱已有本站账号，请先登录本站账号，再在账户设置中绑定此登录方式"</string>
+    <string name="security_email_proof_required" formatted="false">"请先验证新邮箱"</string>
+    <string name="security_telegram_disabled" formatted="false">"⛔ 账号已禁用或不存在"</string>
+    <string name="security_telegram_admin_only" formatted="false">"⛔ 此命令仅管理员可执行"</string>
+    <string name="security_telegram_permission" formatted="false">"⛔ 当前账号无权执行此命令"</string>
+    <string name="security_email_send_failed" formatted="false">"邮件发送失败，请稍后再试"</string>
+    <string name="security_public_probe_failed" formatted="false">"探测失败"</string>
+    <string name="status_public" formatted="false">"公开服务状态"</string>
+    <string name="status_refresh" formatted="false">"刷新"</string>
+    <string name="status_refreshing" formatted="false">"刷新中"</string>
+    <string name="status_lastCheck" formatted="false">"最近检查"</string>
+    <string name="status_waitingCheck" formatted="false">"等待首次检查"</string>
+    <string name="status_last24h" formatted="false">"近 24 小时"</string>
+    <string name="status_checkInterval" formatted="false">"每 {seconds} 秒检查一次 · 页面每 30 秒更新"</string>
+    <string name="status_retry" formatted="false">"重试"</string>
+    <string name="status_announcement" formatted="false">"公告"</string>
+    <string name="status_services" formatted="false">"服务总数"</string>
+    <string name="status_operational" formatted="false">"运行正常"</string>
+    <string name="status_issues" formatted="false">"出现异常"</string>
+    <string name="status_unobserved" formatted="false">"状态未知"</string>
+    <string name="status_serviceHistory" formatted="false">"服务运行情况"</string>
+    <string name="status_historyScale" formatted="false">"48 个时间段 · 每段 30 分钟"</string>
+    <string name="status_noServices" formatted="false">"暂未添加公开服务"</string>
+    <string name="status_observedUptime" formatted="false">"近 24 小时观测可用率"</string>
+    <string name="status_checkCount" formatted="false">"{count} 次检查"</string>
+    <string name="status_historyGroup" formatted="false">"{name}近24小时历史，使用左右方向键查看时间段"</string>
+    <string name="status_now" formatted="false">"现在"</string>
+    <string name="status_historyNote" formatted="false">"可用率按实际检查记录计算，空白时段不计入。时间段颜色取其中最严重的状态；灰色表示无记录。时间按你的本地时区显示。"</string>
+    <string name="status_unavailable" formatted="false">"暂时无法查看状态"</string>
+    <string name="status_loading" formatted="false">"正在获取服务状态…"</string>
+    <string name="status_autoRefresh" formatted="false">"每 30 秒自动更新"</string>
+    <string name="status_downCount" formatted="false">"{count} 个服务不可达"</string>
+    <string name="status_warnCount" formatted="false">"{count} 个服务出现异常"</string>
+    <string name="status_unknownSummary" formatted="false">"部分服务尚无近期检查结果"</string>
+    <string name="status_state_ok" formatted="false">"正常"</string>
+    <string name="status_state_warn" formatted="false">"异常"</string>
+    <string name="status_state_down" formatted="false">"不可达"</string>
+    <string name="status_state_unknown" formatted="false">"暂无记录"</string>
+    <string name="status_noChecks" formatted="false">"此时段暂无检查记录"</string>
+    <string name="status_bucketDetail" formatted="false">"{count} 次检查 · 正常 {ok} · 异常 {warn} · 不可达 {down}"</string>
+    <string name="status_refreshFailed" formatted="false">"更新失败，当前显示上次获取的数据。"</string>
+    <string name="status_loadFailed" formatted="false">"暂时无法获取数据，请检查网络后重试。"</string>
+    <string name="console_refresh_error" formatted="false">"刷新失败，已保留上次数据。请稍后重试。"</string>
+    <string name="console_load_failed" formatted="false">"数据加载失败"</string>
+    <string name="console_no_matches" formatted="false">"没有匹配的结果"</string>
+    <string name="console_tunnels_total" formatted="false">"隧道总数"</string>
+    <string name="console_tunnels_active" formatted="false">"在线隧道"</string>
+    <string name="console_tunnel_search" formatted="false">"搜索隧道"</string>
+    <string name="console_tunnel_search_placeholder" formatted="false">"名称、ID 或连接状态"</string>
+    <string name="console_appearance" formatted="false">"外观与体验"</string>
+    <string name="console_appearance_description" formatted="false">"选择主题与轻量效果，立即应用到控制台。"</string>
+    <string name="console_dark_theme" formatted="false">"深色主题"</string>
+    <string name="console_light_effects" formatted="false">"轻量效果"</string>
+    <string name="console_warm_theme" formatted="false">"暖色强调"</string>
+    <string name="monitors_workspace" formatted="false">"工作空间 / 监控"</string>
+    <string name="monitors_projects" formatted="false">"监控项目"</string>
+    <string name="monitors_projectsHint" formatted="false">"按业务管理你的服务"</string>
+    <string name="monitors_targets" formatted="false">"探测目标"</string>
+    <string name="monitors_targetsHint" formatted="false">"HTTP · TCP · ICMP"</string>
+    <string name="monitors_issues" formatted="false">"异常服务"</string>
+    <string name="monitors_issuesHint" formatted="false">"最近一次检查结果"</string>
+    <string name="monitors_published" formatted="false">"公开状态页"</string>
+    <string name="monitors_publishedHint" formatted="false">"可分享给访客的项目"</string>
+    <string name="monitors_search" formatted="false">"搜索项目、服务名称或域名"</string>
+    <string name="monitors_filter" formatted="false">"筛选监控项目"</string>
+    <string name="monitors_filter_all" formatted="false">"全部"</string>
+    <string name="monitors_filter_issues" formatted="false">"有异常"</string>
+    <string name="monitors_filter_public" formatted="false">"已公开"</string>
+    <string name="monitors_refreshFailed" formatted="false">"更新失败，保留上次结果。"</string>
+    <string name="monitors_loadFailed" formatted="false">"无法加载监控项目"</string>
+    <string name="monitors_connectionError" formatted="false">"请检查网络后重试。"</string>
+    <string name="monitors_noMatches" formatted="false">"没有匹配的监控项目"</string>
+    <string name="monitors_noMatchesHint" formatted="false">"试试其他关键词，或调整筛选条件。"</string>
+    <string name="monitors_resetFilters" formatted="false">"清除筛选"</string>
+    <string name="monitors_resultCount" formatted="false">"{count} 个项目"</string>
+    <string name="monitors_manageHint" formatted="false">"进入详情可管理目标和公开页面"</string>
+    <string name="monitors_targetCount" formatted="false">"{count} 个目标"</string>
+    <string name="monitors_interval" formatted="false">"每 {seconds} 秒检查"</string>
+    <string name="monitors_noTargets" formatted="false">"等待添加探测目标"</string>
+    <string name="monitors_details" formatted="false">"查看详情"</string>
+    <string name="monitors_enablePublicFirst" formatted="false">"请先在项目详情中启用公开页"</string>
+    <string name="monitors_deleteNamed" formatted="false">"删除监控项目 {name}"</string>
+    <string name="monitors_createHint" formatted="false">"先为项目取个名字，创建后添加需要监控的服务。"</string>
+    <string name="console_login_heading" formatted="false">"连接、监控，尽在一处。"</string>
 </resources>

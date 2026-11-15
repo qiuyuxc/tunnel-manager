@@ -39,6 +39,7 @@ import java.util.Set;
  * across.
  */
 public class DNSFragment extends PageFragment {
+    @Override void refreshPage() { loadZones(); }
 
     private static final String[] TYPES = DNSValues.SIMPLE_TYPES;
     private static final int[] TTLS = {1, 60, 120, 300, 600, 1800, 3600, 7200, 18000, 43200, 86400};
@@ -165,7 +166,6 @@ public class DNSFragment extends PageFragment {
         if (body == null || !alive()) return;
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_474fb6002594")));
         TextView subtitle = UI.muted(requireContext(), I18n.text("m_7157e9363786"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);
         body.addView(subtitle);
@@ -456,7 +456,7 @@ public class DNSFragment extends PageFragment {
     // ------------------------------------------------------------------ sheets
 
     private void openZonePicker() {
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_8b34c0fd32be")).label(I18n.text("m_4fab6a8be07d"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_8b34c0fd32be"), SheetSizing.Tier.MEDIUM).label(I18n.text("m_4fab6a8be07d"));
         for (int i = 0; i < zones.length(); i++) {
             JSONObject zone = zones.optJSONObject(i);
             if (zone == null) continue;
@@ -541,7 +541,7 @@ public class DNSFragment extends PageFragment {
         UI.fill(proxyButton);
 
         typeButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_d45e6a43ac72")).label(I18n.text("m_8f98ede913e1"));
+            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_d45e6a43ac72"), SheetSizing.Tier.MEDIUM).label(I18n.text("m_8f98ede913e1"));
             for (int i = 0; i < typeLabels.length; i++) {
                 final int index = i;
                 sheet.item(R.drawable.ic_nav_check, typeLabels[i], () -> {
@@ -557,7 +557,7 @@ public class DNSFragment extends PageFragment {
         });
 
         ttlButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), "TTL").label(I18n.text("m_8f98ede913e1"));
+            Sheet.Builder sheet = Sheet.of(requireContext(), "TTL", SheetSizing.Tier.MEDIUM).label(I18n.text("m_8f98ede913e1"));
             sheet.item(R.drawable.ic_nav_check, I18n.text("m_b531bbc08116"), () -> {
                 ttl[0] = -1;
                 ttlButton.setText(I18n.text("m_b531bbc08116"));
@@ -573,7 +573,7 @@ public class DNSFragment extends PageFragment {
 
         final String[] proxyLabels = {I18n.text("m_b531bbc08116"), I18n.text("m_5c7bbf98286f"), I18n.text("m_80848ec9f9a4")};
         proxyButton.setOnClickListener(v -> {
-            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_b90665e74c01")).label(I18n.text("m_8f98ede913e1"));
+            Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_b90665e74c01"), SheetSizing.Tier.COMPACT).label(I18n.text("m_8f98ede913e1"));
             for (int i = 0; i < proxyLabels.length; i++) {
                 final int index = i;
                 sheet.item(R.drawable.ic_nav_check, proxyLabels[i], () -> {
@@ -615,7 +615,7 @@ public class DNSFragment extends PageFragment {
         });
         form.addView(apply);
 
-        Sheet.of(requireContext(), I18n.text("m_542fce600639")).content(form).show();
+        Sheet.of(requireContext(), I18n.text("m_542fce600639"), SheetSizing.Tier.EXPANDED).content(form).show();
     }
 
     /** The console PUTs each selected record in turn; so does this. */

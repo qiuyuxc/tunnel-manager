@@ -84,5 +84,5 @@ input:not([type='checkbox']), select { width: 100%; min-height: 44px; box-sizing
 .error { color: var(--color-error); overflow-wrap: anywhere; }
 .primary { min-height: 44px; padding: 10px 20px; border: none; border-radius: 12px; background: var(--color-btn-primary-bg); color: var(--color-btn-primary-text); font: inherit; font-weight: 650; cursor: pointer; }
 button:disabled { opacity: .55; cursor: wait; }
-:is(input, select, button):focus-visible { outline: 2px solid var(--color-success); outline-offset: 3px; }
+:is(input, select, button):focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
 </style>

@@ -84,6 +84,7 @@ for (const [, key, svg] of entries) {
   const body = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')
   const tags = body.match(/<[a-zA-Z]+[\s\S]*?\/>/g) || []
   const paths = tags.map(toPath)
+  const strokeWidth = num(svg, 'stroke-width', 2)
   // Feather icons are 24x24 stroke drawings; the shell tints them per state,
   // so the colour baked in here is only a placeholder.
   const xml = [
@@ -98,7 +99,7 @@ for (const [, key, svg] of entries) {
       '    <path',
       '        android:fillColor="#00000000"',
       '        android:strokeColor="#FF000000"',
-      '        android:strokeWidth="2"',
+      `        android:strokeWidth="${strokeWidth}"`,
       '        android:strokeLineCap="round"',
       '        android:strokeLineJoin="round"',
       `        android:pathData="${d}" />`,

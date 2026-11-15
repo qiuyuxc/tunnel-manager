@@ -17,7 +17,7 @@ summary::-webkit-details-marker { display: none; }
 .chevron { display: inline-block; transition: transform .15s; }
 [open] .chevron { transform: rotate(180deg); }
 p { margin: 4px 0 12px; padding-left: 12px; border-left: 2px solid var(--color-hairline); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; line-height: 1.7; }
-.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); animation: thinking-pulse 1.5s ease-in-out infinite; }
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--color-ink); animation: thinking-pulse 1.5s ease-in-out infinite; }
 @keyframes thinking-pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 </style>

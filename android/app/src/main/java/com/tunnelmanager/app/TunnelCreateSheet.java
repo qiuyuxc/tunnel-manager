@@ -119,7 +119,7 @@ public final class TunnelCreateSheet {
             if (state.result != null) sheet.dismiss();
             else create();
         });
-        sheet = Sheet.of(activity, I18n.text("m_389b92b75e48")).content(content).footer(submit).onDismiss(() -> {
+        sheet = Sheet.of(activity, I18n.text("m_389b92b75e48"), SheetSizing.Tier.MEDIUM).content(content).footer(submit).onDismiss(() -> {
             if (disposed) return;
             state.open = false;
             state.name = "";
@@ -140,6 +140,7 @@ public final class TunnelCreateSheet {
 
     private void showResult(JSONObject result) {
         showingResult = true;
+        sheet.showResultDetails();
         content.removeAllViews();
         content.addView(UI.strong(activity, I18n.text("m_2c410ba6c66f")));
         TextView hint = UI.muted(activity, I18n.text("m_b83305d65d40"));

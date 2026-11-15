@@ -3,13 +3,11 @@ package com.tunnelmanager.app;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
-import android.graphics.LinearGradient;
 import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 
 final class GlassDrawable extends Drawable {
@@ -38,8 +36,7 @@ final class GlassDrawable extends Drawable {
     public void draw(Canvas canvas) {
         Palette palette = Theme.p();
         if (paintedPalette != palette) {
-            edge.setShader(new LinearGradient(0, bounds.top, 0, bounds.bottom,
-                    palette.glassHighlight, Color.TRANSPARENT, Shader.TileMode.CLAMP));
+            edge.setColor(palette.hairline);
             paintedPalette = palette;
         }
         int color = selected ? palette.sidebarActiveBg

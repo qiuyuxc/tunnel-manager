@@ -1,12 +1,12 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h2>{{ tr('m_69e7a943ab4e') }}</h2>
-      <p>{{ tr('m_c275624d9980') }}</p>
+  <div class="page-container dashboard-page">
+    <div class="dashboard-actions">
+      <RefreshButton :busy="refreshing || configStore.loading" @refresh="refresh" />
     </div>
+    <div v-if="overviewError" class="load-notice" role="status">{{ overviewError }}</div>
     <!-- Status Cards -->
-    <div class="card-grid card-grid-4 section">
-      <div class="metric-card">
+    <div class="card-grid card-grid-4 section" :aria-busy="configStore.loading">
+      <div class="metric-card"><span class="metric-symbol" aria-hidden="true" v-html="icons.tunnel" />
         <span class="metric-label">{{ tr('m_b903d203f70a') }}</span>
         <div class="metric-value">
           <template v-if="config.tunnel_id"><span class="metric-text" :title="config.tunnel_name">{{ config.tunnel_name || tr('m_8ce5320404d5') }}</span></template>
@@ -16,7 +16,7 @@
           <router-link to="/tunnels" class="link">{{ tr('m_506383a3c781') }}</router-link>
         </div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card"><span class="metric-symbol" aria-hidden="true" v-html="icons.domain" />
         <span class="metric-label">{{ tr('m_c762fbaaad6f') }}</span>
         <div class="metric-value">
           <code v-if="config.service_url" class="inline-code" :title="config.service_url">{{ config.service_url }}</code>
@@ -26,7 +26,7 @@
           <router-link to="/domain" class="link">{{ tr('m_e402aa7f1798') }}</router-link>
         </div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card"><span class="metric-symbol" aria-hidden="true" v-html="icons.dns" />
         <span class="metric-label">{{ tr('m_71b3aeb8f73c') }}</span>
         <div class="metric-value">
           <code class="inline-code" :title="config.preferred_cname">{{ config.preferred_cname }}</code>
@@ -35,7 +35,7 @@
           <router-link to="/settings" class="link">{{ tr('m_7cab1449964d') }}</router-link>
         </div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card"><span class="metric-symbol" aria-hidden="true" v-html="icons.monitor" />
         <span class="metric-label">{{ tr('m_e46b0272bd64') }}</span>
         <div class="metric-value">
           <span class="status-tag" :class="isReady ? 'healthy' : 'down'">
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Monitor Overview -->
-    <div class="card section">
+    <div class="card section monitor-overview" :aria-busy="refreshing">
       <div class="card-header ov-header">
         <span class="caption-mono">{{ tr('m_c3f43bf6cb8e') }}</span>
         <router-link to="/monitors" class="link ov-more">{{ tr('m_105410a6df72') }}</router-link>
@@ -112,7 +112,7 @@
         </div>
       </div>
 
-      <div v-else class="ov-empty"><p>{{ tr('m_4927a53bcc88') }}</p></div>
+      <div v-else class="ov-empty"><p>{{ overviewError || tr('m_4927a53bcc88') }}</p></div>
     </div>
 
     <!-- Quick Actions -->
@@ -160,7 +160,7 @@
     </div>
 
     <!-- 柱子点开后的当日明细：概览的柱子把所有目标汇总成一根，这里补上是谁 -->
-    <SheetPanel :open="detailOpen" :title="detailTitle" @close="detailOpen = false">
+    <SheetPanel size="large" :open="detailOpen" :title="detailTitle" @close="detailOpen = false">
       <template v-if="detail">
         <div class="detail-stats">
           <span>{{ tr('m_071089398bfd') }} {{ detail.total }} {{ tr('m_172fb7e67b9b') }}</span>
@@ -214,6 +214,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getMonitorOverview, type BucketIncident, type BucketStat, type OverviewResp } from '../api'
 import { icons as navIcons } from '../navigation'
 import SheetPanel from '../components/SheetPanel.vue'
+import RefreshButton from '../components/RefreshButton.vue'
+import { createRefreshTask } from '../utils/refreshTask'
 import { useConfigStore } from '../stores/config'
 
 const configStore = useConfigStore()
@@ -229,15 +231,25 @@ const icons = {
 }
 
 const ov = ref<OverviewResp | null>(null)
+const refreshing = ref(false)
+const overviewError = ref('')
+let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
 
-async function loadOverview() {
+const loadOverview = createRefreshTask(async (isCurrent, signal) => {
+  refreshing.value = true
   try {
-    const { data } = await getMonitorOverview()
-    ov.value = data
-  } catch (_) {
-    // keep previous snapshot; empty state handled by targets check
+    const { data } = await getMonitorOverview(signal)
+    if (isCurrent()) { ov.value = data; overviewError.value = '' }
+  } catch (error: any) {
+    if (isCurrent()) overviewError.value = error.response?.data?.error || tr('console.refresh_error')
+  } finally {
+    refreshing.value = false
   }
+})
+
+async function refresh() {
+  await Promise.allSettled([configStore.fetchConfig(), loadOverview()])
 }
 
 function maxPeak() {
@@ -314,14 +326,20 @@ function incidentDetail(inc: BucketIncident) {
 }
 
 onMounted(async () => {
-  await configStore.fetchConfig()
-  await loadOverview()
-  timer = setInterval(loadOverview, 60000)
+  timer = setInterval(() => { if (!document.hidden) void loadOverview() }, 60000)
+  await refresh()
 })
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+onBeforeUnmount(() => { disposed = true; loadOverview.dispose(); if (timer) clearInterval(timer) })
 </script>
 
 <style scoped>
+.dashboard-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.metric-card { position: relative; overflow: hidden; }
+.metric-symbol { display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 16px; color: var(--color-link); background: var(--color-canvas-soft-2); border-radius: 12px; }
+.monitor-overview { overflow: hidden; }
+.dashboard-page .ov-header { padding: 18px 24px; }
+.dashboard-page .quick-actions { padding: 18px; }
+@media (min-width: 641px) and (max-width: 1024px) { .dashboard-page .card-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Monitor overview */
 .ov-header { display: flex; align-items: center; justify-content: space-between; }
 .ov-empty { padding: 34px 20px; text-align: center; color: var(--color-mute); font-size: 13.5px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -333,7 +351,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .stat-num { font-size: 21px; font-weight: 600; color: var(--color-ink); line-height: 1.2; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 .stat-num em { font-style: normal; font-size: 12px; font-weight: 500; color: var(--color-mute); margin-left: 3px; }
 .stat-split i { font-style: normal; margin-right: 10px; }
-.okc { color: var(--color-success); }
+.okc { color: var(--color-ink); }
 .warnc { color: var(--color-warning); }
 .downc { color: var(--color-error); }
 .stat-lab { font-size: 11px; letter-spacing: .04em; color: var(--color-mute); }
@@ -353,7 +371,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .h-good .bar-avg { background: var(--color-ink); }
 .h-mid .bar-avg { background: var(--color-warning); }
 .h-bad .bar-avg { background: var(--color-error); }
-.h-bad .bar-peak { background: color-mix(in srgb, var(--color-error) 12%, transparent); border-color: color-mix(in srgb, var(--color-error) 25%, transparent); }
+.h-bad .bar-peak { background: color-mix(in srgb, var(--color-ink) 10%, transparent); border-color: color-mix(in srgb, var(--color-ink) 14%, transparent); }
 /* The label is centred on its own tick and allowed to bleed past the column,
    so a narrow track never clips it into "1…". */
 .bar-label { margin-top: 8px; text-align: center; font-size: 11px; color: var(--color-body); white-space: nowrap; }

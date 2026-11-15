@@ -104,7 +104,7 @@ function close() {
   align-items: flex-start;
   justify-content: center;
   padding: 12vh 16px 16px;
-  background: rgb(0 8 5 / 55%);
+  background: rgb(0 0 0 / 55%);
 }
 
 .jump-panel {

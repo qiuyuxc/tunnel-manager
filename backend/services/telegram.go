@@ -395,6 +395,10 @@ func (b *TelegramBot) handleUpdate(u tgUpdate) {
 		return
 	}
 
+	if !b.authorizeCommand(cfg, chatID, command) {
+		return
+	}
+
 	switch command {
 	case "/start", "/help":
 		b.handleHelp(cfg, chatID)
@@ -998,4 +1002,34 @@ func generateRandomHex(length int) string {
 	b := make([]byte, length/2)
 	rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// authorizeCommand re-reads account status and group permissions on every update,
+// including delayed DNS confirmations. Aliases share the same permission map.
+func (b *TelegramBot) authorizeCommand(cfg models.Config, chatID int64, command string) bool {
+	owner, active := b.store.SessionUserForAccount(b.ownerID())
+	if !active {
+		b.sendMessage(cfg, chatID, "⛔ 账号已禁用或不存在")
+		return false
+	}
+	permissions := []string{}
+	switch command {
+	case "/列出隧道", "/tunnels", "/选择隧道", "/转发":
+		permissions = []string{models.PermTunnels}
+	case "/列出区域", "/zones", "/选择区域", "/select_zone", "/DNS列表", "/dns_list", "/DNS详情", "/dns_detail", "/DNS添加", "/dns_add", "/DNS修改", "/dns_update", "/DNS删除", "/dns_delete", "/确认删除", "/dns_confirm":
+		permissions = []string{models.PermDNS}
+	case "/绑定域名", "/直连域名", "/bind_direct", "/优选绑定", "/bind_preferred":
+		permissions = []string{models.PermDomainBind}
+	case "/设置回退源":
+		permissions = []string{models.PermDomainBind}
+	case "/全局优选":
+		permissions = []string{models.PermDomainBind}
+	}
+	for _, permission := range permissions {
+		if !owner.HasPerm(permission) {
+			b.sendMessage(cfg, chatID, "⛔ 当前账号无权执行此命令")
+			return false
+		}
+	}
+	return true
 }

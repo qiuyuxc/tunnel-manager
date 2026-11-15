@@ -285,10 +285,11 @@ func (s *Store) SetAdminCredentials(username, passwordHash string) error {
 	if err := s.usernameFreeLocked(username, admin.ID); err != nil {
 		return err
 	}
-	prevName, prevHash := admin.Username, admin.PasswordHash
+	prevName, prevHash, prevVersion, prevSessions := admin.Username, admin.PasswordHash, admin.AuthVersion, s.sessions
 	admin.Username, admin.PasswordHash = username, passwordHash
+	s.revokeUserAuthLocked(admin)
 	if err := s.saveLocked(); err != nil {
-		admin.Username, admin.PasswordHash = prevName, prevHash
+		admin.Username, admin.PasswordHash, admin.AuthVersion, s.sessions = prevName, prevHash, prevVersion, prevSessions
 		return err
 	}
 	return nil
@@ -303,10 +304,11 @@ func (s *Store) SetAdminPasswordHash(passwordHash string) error {
 	if admin == nil {
 		return ErrUserNotFound
 	}
-	previous := admin.PasswordHash
+	previous, prevVersion, prevSessions := admin.PasswordHash, admin.AuthVersion, s.sessions
 	admin.PasswordHash = passwordHash
+	s.revokeUserAuthLocked(admin)
 	if err := s.saveLocked(); err != nil {
-		admin.PasswordHash = previous
+		admin.PasswordHash, admin.AuthVersion, s.sessions = previous, prevVersion, prevSessions
 		return err
 	}
 	return nil
@@ -513,10 +515,13 @@ func (s *Store) SetUserStatus(id, status string) error {
 			return ErrLastAdmin
 		}
 	}
-	previous := user.Status
+	previous, prevVersion, prevSessions := user.Status, user.AuthVersion, s.sessions
 	user.Status = status
+	if status != models.UserActive {
+		s.revokeUserAuthLocked(user)
+	}
 	if err := s.saveLocked(); err != nil {
-		user.Status = previous
+		user.Status, user.AuthVersion, s.sessions = previous, prevVersion, prevSessions
 		return err
 	}
 	return nil
@@ -550,10 +555,11 @@ func (s *Store) SetUserPasswordHash(id, passwordHash string) error {
 	if user == nil {
 		return ErrUserNotFound
 	}
-	previous := user.PasswordHash
+	previous, prevVersion, prevSessions := user.PasswordHash, user.AuthVersion, s.sessions
 	user.PasswordHash = passwordHash
+	s.revokeUserAuthLocked(user)
 	if err := s.saveLocked(); err != nil {
-		user.PasswordHash = previous
+		user.PasswordHash, user.AuthVersion, s.sessions = previous, prevVersion, prevSessions
 		return err
 	}
 	return nil
@@ -817,11 +823,15 @@ func (s *Store) disableTOTPLocked(user *models.User) error {
 // Sessions (database-backed, survive restarts)
 
 // CreateSession persists one session token hash with its expiry.
-func (s *Store) CreateSession(tokenHash, userID string, expiresAt int64) error {
+func (s *Store) CreateSession(tokenHash, userID string, expiresAt int64, authVersion ...uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.findUserLocked(userID) == nil {
+	user := s.findUserLocked(userID)
+	if user == nil {
 		return ErrUserNotFound
+	}
+	if user.Status != models.UserActive || (len(authVersion) > 0 && user.AuthVersion != authVersion[0]) {
+		return ErrAuthStateChanged
 	}
 	s.pruneSessionsLocked()
 	s.sessions = append(s.sessions, sessionRecord{
@@ -1568,11 +1578,25 @@ func (s *Store) ClearTunnelSelectionIfUsed(tunnelID string) error {
 	return s.saveLocked()
 }
 
-// SetUserEmail binds or replaces one account's email address. Uniqueness is
-// enforced case-insensitively; pass verified=false to mark it pending.
+// SetVerifiedUserEmail atomically rejects a password reset during email proof.
+func (s *Store) SetVerifiedUserEmail(id, email string, version uint64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user := s.findUserLocked(id)
+	if user == nil || user.Status != models.UserActive || user.AuthVersion != version {
+		return ErrAuthStateChanged
+	}
+	return s.setUserEmailLocked(id, email, email != "")
+}
+
+// SetUserEmail enforces case-insensitive uniqueness; verified=false marks it pending.
 func (s *Store) SetUserEmail(id, email string, verified bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.setUserEmailLocked(id, email, verified)
+}
+
+func (s *Store) setUserEmailLocked(id, email string, verified bool) error {
 	user := s.findUserLocked(id)
 	if user == nil {
 		return ErrUserNotFound
@@ -1608,4 +1632,39 @@ func (s *Store) SetUserProfile(id, nickname, avatar string) error {
 		return err
 	}
 	return nil
+}
+
+// ErrAuthStateChanged rejects authentication begun before credential revocation.
+var ErrAuthStateChanged = errors.New("authentication state changed")
+
+// revokeUserAuthLocked is persisted in the same transaction as a credential or
+// status change. A concurrent login either predates the revocation or fails its
+// version check when it tries to issue a session.
+func (s *Store) revokeUserAuthLocked(user *models.User) {
+	user.AuthVersion++
+	sessions := make([]sessionRecord, 0, len(s.sessions))
+	for _, session := range s.sessions {
+		if session.UserID != user.ID {
+			sessions = append(sessions, session)
+		}
+	}
+	s.sessions = sessions
+}
+
+func (s *Store) AuthVersionValid(userID string, version uint64) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	user := s.findUserLocked(userID)
+	return user != nil && user.Status == models.UserActive && user.AuthVersion == version
+}
+
+// SessionUserForAccount reads current permissions for non-Web entry points.
+func (s *Store) SessionUserForAccount(userID string) (models.SessionUser, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	user := s.findUserLocked(userID)
+	if user == nil || user.Status != models.UserActive {
+		return models.SessionUser{}, false
+	}
+	return s.sessionUserLocked(user), true
 }

@@ -1,13 +1,14 @@
 <template>
   <div class="page-container">
-    <router-link to="/monitors" class="back-link">{{ tr('m_dfc19cac6dd8') }}</router-link>
-
-    <div class="page-header det-head">
-      <div class="det-title">
-        <h2>{{ monitor?.name || tr('m_4927a53bcc88') }}</h2>
-        <span v-if="monitor" class="text-muted">{{ tr('m_d8b82d5765fa') }} {{ monitor.interval_sec }}{{ tr('m_48ba2cb7a48d') }}</span>
+    <div class="det-head">
+      <div v-if="monitor" class="det-title">
+        <h2>{{ monitor.name }}</h2>
+        <span class="text-muted">{{ tr('m_d8b82d5765fa') }} {{ monitor.interval_sec }}{{ tr('m_48ba2cb7a48d') }}</span>
       </div>
-      <div v-if="monitor" class="det-actions">
+      <div class="det-actions">
+        <router-link to="/monitors" class="back-link">{{ tr('m_dfc19cac6dd8') }}</router-link>
+        <RefreshButton :busy="refreshing" @refresh="refresh" />
+        <template v-if="monitor">
         <span class="pub-chip" :class="{ on: monitor.publish_enabled }">
           {{ monitor.publish_enabled ? tr('m_9f1e25609b1a') : tr('m_abcd7f608563') }}
         </span>
@@ -16,8 +17,11 @@
         </button>
         <button v-if="monitor.public_token && monitor.publish_enabled" class="btn btn-secondary btn-sm" @click="copyLink">{{ tr('m_2596d7de6c7b') }}</button>
         <button class="btn btn-primary btn-sm" :disabled="checking" @click="checkNow()">{{ checking ? tr('m_3a1abf3422d2') : tr('m_14ca09ce1fd2') }}</button>
+        </template>
       </div>
     </div>
+
+    <div v-if="loadError" class="load-notice" role="status">{{ loadError }}</div>
 
     <!-- 公开链接区 -->
     <div v-if="monitor?.publish_enabled && monitor.public_token" class="card pub-card">
@@ -38,11 +42,7 @@
             <button type="button" class="btn btn-secondary btn-sm up-btn" :disabled="uploading" @click="pickIconFile">{{ uploading ? tr('m_ce1c9d61565f') : tr('m_9fbb4750bb39') }}</button>
             <input ref="iconFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden-file" @change="onIconFile" />
           </div></label>
-        <label class="fld"><span>{{ tr('m_0c3421deb8a7') }}</span>
-          <select v-model="pubTheme" class="vercel-input theme-sel">
-            <option value="">{{ tr('m_5e938f31fea4') }}</option>
-            <option value="warm">{{ tr('m_78e143c20da6') }}</option>
-          </select></label>
+
         <label class="fld"><span>{{ tr('m_0c1da4d3cd29') }}</span>
           <div class="icon-row">
             <code class="path-prefix">/status/</code>
@@ -233,6 +233,8 @@
 import { locale, t as tr, localized } from '../i18n'
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import RefreshButton from '../components/RefreshButton.vue'
+import { createRefreshTask } from '../utils/refreshTask'
 import { useRoute } from 'vue-router'
 import { NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
@@ -262,6 +264,9 @@ const monitorId = route.params.id as string
 
 const monitor = ref<MonitorView | null>(null)
 const loading = ref(true)
+const refreshing = ref(false)
+const loadError = ref('')
+let disposed = false
 const checking = ref(false)
 const adding = ref(false)
 
@@ -364,32 +369,47 @@ const urlHint = computed(() =>
 const removing = ref<TargetStatus | null>(null)
 const busy = ref(false)
 
+const routeController = new AbortController()
 let timer: ReturnType<typeof setInterval> | undefined
 
 const fullPublicUrl = computed(() =>
   monitor.value?.publish_enabled && (monitor.value.public_slug || monitor.value.public_token) ? location.origin + publicStatusPath(monitor.value.public_slug || monitor.value.public_token || '') : ''
 )
 
-async function load() {
+const load = createRefreshTask(async (isCurrent, signal) => {
+  refreshing.value = true
   try {
-    const { data } = await getMonitor(monitorId)
+    const { data } = await getMonitor(monitorId, signal)
+    if (!isCurrent()) return
+    const syncForm = monitor.value === null
     monitor.value = data
+    loadError.value = ''
     document.title = (data.name || tr('m_fdc390061698')) + tr('m_812af8bfea68')
-    pubTitle.value = data.public_title || ''
-    pubIcon.value = data.public_icon || ''
-    pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
-    pubSlug.value = data.public_slug || ''
-    pubDomain.value = data.public_domain || ''
-    pubDomainMode.value = data.public_domain_mode === 'preferred' ? 'preferred' : 'simple'
-    pubAuxDomain.value = data.public_aux_domain || ''
-    pubPreferredCNAME.value = data.public_preferred_cname || ''
-    announcement.value = data.announcement || ''
-    alertEnabled.value = Boolean(data.alert_enabled)
-    alertEmails.value = data.alert_emails || ''
-    void loadAlertLogs()
+    // Polling updates observations while keeping unsaved public-page and
+    // notification fields under the user's control.
+    if (syncForm) {
+      pubTitle.value = data.public_title || ''
+      pubIcon.value = data.public_icon || ''
+      pubTheme.value = data.public_theme === 'warm' ? 'warm' : ''
+      pubSlug.value = data.public_slug || ''
+      pubDomain.value = data.public_domain || ''
+      pubDomainMode.value = data.public_domain_mode === 'preferred' ? 'preferred' : 'simple'
+      pubAuxDomain.value = data.public_aux_domain || ''
+      pubPreferredCNAME.value = data.public_preferred_cname || ''
+      announcement.value = data.announcement || ''
+      alertEnabled.value = Boolean(data.alert_enabled)
+      alertEmails.value = data.alert_emails || ''
+    }
+  } catch (error: any) {
+    if (isCurrent()) loadError.value = error.response?.data?.error || tr('console.refresh_error')
   } finally {
     loading.value = false
+    refreshing.value = false
   }
+})
+
+async function refresh() {
+  await Promise.allSettled([load(), loadAlertLogs()])
 }
 
 function stateText(s?: string) {
@@ -414,6 +434,7 @@ async function addTarget() {
   adding.value = true
   try {
     const { data } = await addMonitorTarget(monitorId, tName.value, tUrl.value, probeType.value, probeMethod.value, linkEnabled.value)
+    load.invalidate()
     monitor.value = data
     message.success(tr('m_45500ea63957'))
     tName.value = ''
@@ -444,10 +465,12 @@ function pickRoute(h: string) {
 }
 
 async function loadRoutes() {
+  if (disposed) return
   try {
     const tid = configStore.config.tunnel_id
     if (!tid) return
-    const { data } = await getTunnelDetail(tid)
+    const { data } = await getTunnelDetail(tid, routeController.signal)
+    if (disposed || configStore.config.tunnel_id !== tid) return
     const hosts = (data.ingress || [])
       .map((r) => (r.hostname || '').trim())
       .filter((h) => h && h !== '*' && !h.startsWith('*'))
@@ -470,6 +493,7 @@ async function saveAlertSettings() {
       alert_enabled: alertEnabled.value,
       alert_emails: alertEmails.value.trim(),
     })
+    load.invalidate()
     monitor.value = data
     message.success(alertEnabled.value ? tr('m_448c83281819') : tr('m_e2fc2905c1e5'))
   } catch (_) {
@@ -479,14 +503,14 @@ async function saveAlertSettings() {
   }
 }
 
-async function loadAlertLogs() {
+const loadAlertLogs = createRefreshTask(async (isCurrent, signal) => {
   try {
-    const { data } = await listMonitorAlerts(monitorId)
-    alertLogs.value = data || []
+    const { data } = await listMonitorAlerts(monitorId, signal)
+    if (isCurrent()) alertLogs.value = data || []
   } catch (_) {
-    alertLogs.value = []
+    // Keep the previous log snapshot when a read is interrupted.
   }
-}
+})
 
 async function savePublishSettings() {
   try {
@@ -501,6 +525,7 @@ async function savePublishSettings() {
       public_preferred_cname: pubPreferredCNAME.value.toLowerCase(),
       announcement: announcement.value.trim(),
     })
+    load.invalidate()
     monitor.value = data
     if (data.domain_warning) {
       message.warning(tr('m_adfd7207d786', { p0: data.domain_warning }))
@@ -539,6 +564,7 @@ async function saveEdit() {
       method: editMethod.value,
       link_enabled: editLink.value,
     })
+    load.invalidate()
     monitor.value = data
     message.success(tr('m_6522a5dd6164'))
     editOpen.value = false
@@ -581,7 +607,7 @@ async function confirmRemove() {
     await removeMonitorTarget(monitorId, removing.value.id)
     message.success(tr('m_174688c755b9'))
     removing.value = null
-    await load()
+    await load(true)
   } catch (_) {
     message.error(tr('m_4757fc1d4709'))
   } finally {
@@ -590,9 +616,12 @@ async function confirmRemove() {
 }
 
 async function checkNow(silent = false) {
-  if (!silent) checking.value = true
+  if (checking.value || disposed) return
+  checking.value = true
   try {
     const { data } = await checkMonitorNow(monitorId)
+    if (disposed) return
+    load.invalidate()
     applyOutcomes(data.outcomes || [])
     if (!silent) message.success(tr('m_37888055c912'))
   } catch (_) {
@@ -618,6 +647,7 @@ async function togglePublish() {
   if (!monitor.value) return
   try {
     const { data } = await updateMonitor(monitorId, { publish_enabled: !monitor.value.publish_enabled })
+    load.invalidate()
     monitor.value = data
     message.success(data.publish_enabled ? tr('m_9f1e25609b1a') : tr('m_4741640d846b'))
   } catch (_) {
@@ -628,7 +658,7 @@ async function togglePublish() {
 async function regenToken() {
   try {
     await updateMonitor(monitorId, { regenerate_token: true })
-    await load()
+    await load(true)
     message.success(tr('m_1babceb12194'))
   } catch (_) {
     message.error(tr('m_470f92db3d64'))
@@ -648,21 +678,21 @@ function copyText(text: string) {
 }
 
 onMounted(() => {
-  load()
+  void refresh()
   void configStore.fetchConfig().then(loadRoutes)
-  timer = setInterval(() => { void load() }, 30000)
+  timer = setInterval(() => { if (!document.hidden) void refresh() }, 30000)
 })
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+onBeforeUnmount(() => { disposed = true; load.dispose(); loadAlertLogs.dispose(); routeController.abort(); if (timer) clearInterval(timer) })
 </script>
 
 <style scoped>
-.back-link { display: inline-block; margin-bottom: 10px; font-size: 12.5px; color: var(--color-body); }
+.back-link { display: inline-flex; align-items: center; min-height: 42px; font-size: 12.5px; color: var(--color-body); text-decoration: none; }
 .back-link:hover { color: var(--color-ink); }
-.det-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.det-title h2 { margin: 0 0 4px; }
+.det-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.det-title h2 { margin: 0 0 4px; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
 .pub-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
   background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); color: var(--color-mute); }
-.pub-chip.on { color: var(--color-success); border-color: var(--color-success); background: color-mix(in srgb, var(--color-success) 8%, transparent); }
+.pub-chip.on { color: var(--color-ink); border-color: var(--color-ink); background: color-mix(in srgb, var(--color-ink) 8%, transparent); }
 .det-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .pub-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 14px; overflow: hidden; }
@@ -775,7 +805,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
 .bars { flex: 1; min-width: 120px; display: flex; align-items: stretch; gap: 2px; height: 22px; }
 .bars i { flex: 1; border-radius: 2px; background: var(--color-canvas-soft-2); }
-.bars i.b-ok { background: var(--color-success); opacity: .85; }
+.bars i.b-ok { background: var(--color-ink); opacity: .85; }
 .bars i.b-warn { background: var(--color-warning); }
 .bars i.b-down { background: var(--color-error); }
 
@@ -792,7 +822,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 .row-delete:hover:not(:disabled) { color: var(--color-error); background: var(--color-status-down-bg); border-color: var(--color-status-down-border); }
-.dlg-mask { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px; background: rgba(8, 10, 18, .45); }
+.dlg-mask { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .45); }
 .dlg { width: min(420px, 100%); background: var(--color-canvas-raised); border: 1px solid var(--color-hairline);
   border-radius: 10px; padding: 20px; box-shadow: 0 16px 48px rgba(0, 0, 0, .22); }
 .dlg h3 { margin: 0 0 8px; font-size: 15px; color: var(--color-ink); }

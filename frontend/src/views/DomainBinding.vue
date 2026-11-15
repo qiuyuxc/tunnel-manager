@@ -1,9 +1,6 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <h2>{{ tr('m_4bf8b66d7390') }}</h2>
-      <p>{{ tr('m_de782b9792c7') }}</p>
-    </div>
+    <p class="body-sm section">{{ tr('m_de782b9792c7') }}</p>
     <div v-if="!config.tunnel_id || !config.service_url" class="prereq-banner section">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-banner-warning-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
@@ -140,6 +137,7 @@ async function saveServiceURL() {
   savingService.value = true
   try {
     await setServiceURL(serviceURL.value)
+    configStore.invalidateConfig()
     config.service_url = serviceURL.value
     message.success(tr('m_0aaac7dade14'))
   } catch (e: any) {
@@ -157,6 +155,7 @@ async function handleBind() {
     const nextServiceURL = serviceURL.value.trim()
     if (nextServiceURL !== config.service_url.trim()) {
       await setServiceURL(nextServiceURL)
+      configStore.invalidateConfig()
       config.service_url = nextServiceURL
     }
     const { data } = await bindDomain(payload)
@@ -267,7 +266,7 @@ onMounted(async () => {
   border-color: var(--color-link);
   color: var(--color-ink);
 }
-.mode-option:hover:not(.active) { background: rgba(37, 99, 235, 0.05); }
+.mode-option:hover:not(.active) { background: var(--color-canvas-soft-2); }
 
 .form-fields {
   display: grid;
@@ -296,15 +295,15 @@ onMounted(async () => {
   margin-top: var(--spacing-xl);
 }
 .result-card.success {
-  background: var(--color-status-healthy-bg);
-  border: 1px solid var(--color-status-healthy-border);
+  background: var(--color-canvas-soft-2);
+  border: 1px solid var(--color-hairline);
 }
 .result-card.error {
   background: var(--color-status-down-bg);
   border: 1px solid var(--color-status-down-border);
 }
 .result-header { display: flex; align-items: center; gap: var(--spacing-xs); font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-xs); }
-.result-card.success .result-header { color: var(--color-status-healthy-text); }
+.result-card.success .result-header { color: var(--color-ink); }
 .result-card.error .result-header { color: var(--color-status-down-text); }
 .result-body { font-size: 14px; color: var(--color-body); overflow-wrap: anywhere; }
 

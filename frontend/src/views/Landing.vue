@@ -14,18 +14,7 @@
       </router-link>
       <nav class="lp-nav-actions">
         <div class="lp-toggles">
-          <button class="lp-icon-btn" type="button"
-            :title="store.visualTheme === 'warm' ? tr('m_c11290963d00') : tr('m_b8ed1338c2b7')"
-            :aria-label="store.visualTheme === 'warm' ? tr('m_c11290963d00') : tr('m_b8ed1338c2b7')"
-            @click="store.toggleVisualTheme()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 2a10 10 0 0 0 0 20h1.7a1.8 1.8 0 0 0 1.3-3l-.5-.5a1.8 1.8 0 0 1 1.3-3H18a4 4 0 0 0 4-4A10 10 0 0 0 12 2z"/>
-              <circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/>
-              <circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/>
-              <circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/>
-              <circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/>
-            </svg>
-          </button>
+
           <button class="lp-icon-btn" type="button"
             :title="store.darkMode ? tr('m_21aed8552b72') : tr('m_ce80e5ddfedc')"
             :aria-label="store.darkMode ? tr('m_21aed8552b72') : tr('m_ce80e5ddfedc')"
@@ -49,10 +38,6 @@
     <main class="lp-main">
       <!-- Hero: dark canvas + product screenshot panel as protagonist -->
       <section class="lp-hero">
-        <p class="lp-eyebrow">
-          <span class="lp-eyebrow-dot"></span>
-          {{ tr('m_c95339962545') }}
-        </p>
         <h1 class="lp-h1">{{ store.config.site_name || 'Tunnel Manager' }}</h1>
         <p class="lp-sub">{{ store.config.site_description || tr('m_c2c8982623de') }}</p>
         <div class="lp-hero-actions">
@@ -107,9 +92,7 @@
 
       <!-- Features: charcoal card grid, 3-up -->
       <section class="lp-section lp-features">
-        <p class="lp-eyebrow">{{ tr('m_25f5ce57a190') }}</p>
-        <h2 class="lp-h2">{{ tr('m_db8f00ee38f8') }}</h2>
-        <p class="lp-sub">{{ tr('m_6a8e76940f06') }}</p>
+        <h2 class="lp-h2">{{ tr('m_25f5ce57a190') }}</h2>
         <div class="lp-feature-grid">
           <div class="lp-feature">
             <span class="lp-feature-icon">
@@ -142,22 +125,6 @@
         </div>
       </section>
 
-      <!-- CTA banner -->
-      <section class="lp-section lp-cta">
-        <div class="lp-cta-card">
-          <h2 class="lp-h3">{{ tr('m_3e36fbccc1af') }}</h2>
-          <p class="lp-sub">{{ tr('m_c94eb5be1bc1') }}</p>
-          <div class="lp-hero-actions">
-            <template v-if="store.isAuthenticated">
-              <router-link to="/dashboard" class="lp-btn lp-btn-primary lp-btn-lg">{{ tr('m_567b91c0859b') }}</router-link>
-            </template>
-            <template v-else>
-              <router-link to="/login" class="lp-btn lp-btn-primary lp-btn-lg">{{ tr('m_19e976b023c8') }}</router-link>
-              <router-link v-if="registrationEnabled" to="/login?mode=register" class="lp-btn lp-btn-secondary lp-btn-lg">{{ tr('m_679e917b16ef') }}</router-link>
-            </template>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="lp-footer">
@@ -194,6 +161,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.landing-page .lp-nav { width: min(1120px, calc(100% - 32px)); margin: 16px auto 0; top: 12px; border: 1px solid var(--color-hairline); border-radius: 18px; padding: 12px 24px; background: var(--color-canvas-raised); }
+.landing-page .lp-feature { padding: 24px; border: 1px solid var(--color-hairline); border-radius: 20px; background: var(--color-canvas-raised); }
+.landing-page .lp-feature-grid { gap: 16px; }
+.landing-page .lp-hero { padding-top: 80px; }
+@media (max-width: 480px) { .landing-page .lp-nav { padding: 10px 12px; } .landing-page .lp-feature { padding: 20px; } }
+
 /* The landing page rides the app theme instead of carrying its own palette, so
    it follows both the visual theme (vercel.md / Claude.md) and the light/dark
    switch. Local aliases keep the rules below readable. */
@@ -220,8 +193,8 @@ onMounted(() => {
   --lp-primary: var(--color-btn-primary-bg);
   --lp-primary-hover: var(--color-btn-primary-hover);
   --lp-primary-text: var(--color-btn-primary-text);
-  --lp-success-bg: var(--color-result-success-bg);
-  --lp-success-text: var(--color-result-success-text);
+  --lp-success-bg: var(--color-canvas-soft-2);
+  --lp-success-text: var(--color-ink);
   --lp-edge: color-mix(in srgb, var(--color-ink) 6%, transparent);
   min-height: 100vh;
   display: flex;
@@ -610,20 +583,6 @@ onMounted(() => {
   color: var(--lp-ink-subtle);
 }
 
-/* ---------- CTA banner ---------- */
-.lp-cta { padding-bottom: 96px; }
-
-.lp-cta-card {
-  padding: 48px 32px;
-  text-align: center;
-  background: var(--lp-card);
-  border: 1px solid var(--lp-hairline);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 var(--lp-edge);
-}
-
-.lp-cta-card .lp-sub { margin-top: 12px; }
-
 /* ---------- footer ---------- */
 .lp-footer {
   display: flex;
@@ -693,7 +652,6 @@ onMounted(() => {
   .lp-hero-actions { flex-direction: column; align-items: stretch; }
   .lp-hero-actions .lp-btn { width: 100%; }
   .lp-shot { display: none; }
-  .lp-cta-card { padding: 32px 20px; }
   .lp-footer { padding: 32px 20px 48px; }
 }
 </style>

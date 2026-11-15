@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"tunnel-manager/auth"
+	"tunnel-manager/models"
 	"tunnel-manager/store"
 )
 
@@ -102,6 +103,9 @@ func (m *UserTelegramManager) Reconcile() {
 	desired := map[string]userBotMeta{}
 	apiEndpoint := m.store.GetConfig().TGApiEndpoint
 	for _, u := range m.store.ListUsers() {
+		if u.Status != models.UserActive {
+			continue
+		}
 		prefs := m.store.GetUserPrefs(u.ID)
 		if !prefs.TGRemoteEnabled || strings.TrimSpace(prefs.TGOperatorIDs) == "" || prefs.TGRemoteTokenEncrypted == "" {
 			continue

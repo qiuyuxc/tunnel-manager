@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class AssistantFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
     static final class LiveTurn {
         String conversationID, message, content = "", reasoning = "", status = I18n.text("m_22eb0f8779ab"), error = "";
         boolean active = true, expanded, resources;
@@ -78,7 +79,8 @@ public class AssistantFragment extends PageFragment {
         root.setPadding(UI.dp(12), UI.dp(8), UI.dp(12), UI.dp(8));
         root.setFocusableInTouchMode(true);
         LinearLayout header = UI.row(requireContext());
-        header.addView(UI.text(requireContext(), I18n.text("m_1b0049fcfd41"), 22, Theme.p().ink, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        header.setGravity(Gravity.END);
+
         historyButton = compactButton(I18n.text("m_a63280253f17"), UI.BTN_GHOST);
         historyButton.setOnClickListener(view -> showHistory());
         header.addView(historyButton);
@@ -100,7 +102,7 @@ public class AssistantFragment extends PageFragment {
         scroll.addView(messages);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         LinearLayout options = UI.row(requireContext());
-        CheckBox resources = new CheckBox(requireContext());
+        CheckBox resources = UI.checkBox(requireContext());
         resources.setText(I18n.text("m_03e9099ca5f2"));
         resources.setMinHeight(UI.dp(44));
         resources.setTextColor(Theme.p().mute);
@@ -110,7 +112,7 @@ public class AssistantFragment extends PageFragment {
         options.addView(resources, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         TextView privacy = compactButton(I18n.text("m_9d06d61ee41f"), UI.BTN_GHOST);
         privacy.setTextSize(11);
-        privacy.setOnClickListener(view -> Sheet.of(requireContext(), I18n.text("m_de66e65c470b"))
+        privacy.setOnClickListener(view -> Sheet.of(requireContext(), I18n.text("m_de66e65c470b"), SheetSizing.Tier.MEDIUM)
                 .content(UI.muted(requireContext(), I18n.text("m_6a78a7d91819")))
                 .show());
         options.addView(privacy);
@@ -170,7 +172,7 @@ public class AssistantFragment extends PageFragment {
         if (!sameSession()) return;
         Api.async(() -> {
             if (!sameSession()) throw new IllegalStateException(I18n.text("m_c99b9db61d79"));
-            return new JSONObject().put("settings", Api.get("/api/assistant/settings")).put("history", Api.get("/api/assistant/conversations"));
+            return Api.batch(Api.query("settings", "/api/assistant/settings"), Api.query("history", "/api/assistant/conversations"));
         }, result -> {
             if (!sameSession()) return;
             state.settings = result.optJSONObject("settings");
@@ -200,7 +202,6 @@ public class AssistantFragment extends PageFragment {
         boolean hasLiveTurn = false;
         for (LiveTurn turn : state.turns) if (turn.conversationID.equals(state.currentID)) hasLiveTurn = true;
         if ((history == null || history.length() == 0) && !hasLiveTurn) {
-            messages.addView(UI.text(requireContext(), I18n.text("m_ceb885e52275"), 22, Theme.p().ink, Typeface.BOLD));
             messages.addView(UI.muted(requireContext(), I18n.text("m_1d096551d401")));
             for (String prompt : new String[]{I18n.text("m_b1eeed66e829"), I18n.text("m_eb810bee3888"), I18n.text("m_838187f984bc")}) {
                 TextView suggestion = UI.button(requireContext(), prompt, UI.BTN_SECONDARY);
@@ -328,7 +329,7 @@ public class AssistantFragment extends PageFragment {
 
     private void showHistory() {
         if (state.sending) return;
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ed008a400d30"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_ed008a400d30"), SheetSizing.Tier.MEDIUM);
         sheet.action(R.drawable.ic_nav_plus, I18n.text("m_58e21b8737cc"), I18n.text("m_cfa6cece711c"), () -> {
             if (state.sending) return;
             state.currentID = "";
@@ -346,7 +347,7 @@ public class AssistantFragment extends PageFragment {
         }
         if (!state.currentID.isEmpty()) sheet.action(R.drawable.ic_nav_close, I18n.text("m_3c50ed52eef5"), I18n.text("m_3bc480a5db25"), () -> {
             String id = state.currentID;
-            Sheet.Builder confirmation = Sheet.of(requireContext(), I18n.text("m_6a825121f6bc"));
+            Sheet.Builder confirmation = Sheet.of(requireContext(), I18n.text("m_6a825121f6bc"), SheetSizing.Tier.COMPACT);
             confirmation.content(UI.muted(requireContext(), I18n.text("m_ac27ba239983")));
             confirmation.action(R.drawable.ic_nav_close, I18n.text("m_a3ea3c17b401"), I18n.text("m_1f1a8e3dece2"), () -> Api.async(() -> Api.delete("/api/assistant/conversations/" + id), result -> {
                 if (sameSession()) { state.currentID = ""; state.drafts.remove(id); load(); }
@@ -389,7 +390,7 @@ public class AssistantFragment extends PageFragment {
             String title = task.optString("title") + " · " + (state.busy.contains(id) ? I18n.text("m_694b71bc8013") : statusName(taskStatus));
             if ("pending".equals(taskStatus)) {
                 if (firstPendingCard == null) firstPendingCard = card;
-                CheckBox check = new CheckBox(requireContext());
+                CheckBox check = UI.checkBox(requireContext());
                 check.setText(title);
                 check.setTextColor(Theme.p().ink);
                 check.setTextSize(14);
@@ -436,7 +437,7 @@ public class AssistantFragment extends PageFragment {
             if ("paused".equals(taskStatus)) addButton(controls, I18n.text("m_e0534b8a4e46"), () -> taskAction(conversationID, id, "resume", false, null));
             if ("unknown".equals(taskStatus)) addButton(controls, I18n.text("m_276ce6b7b87a"), () -> {
                 int revision = task.optInt("revision", 0);
-                Sheet.Builder retry = Sheet.of(requireContext(), I18n.text("m_261d556d04c1"));
+                Sheet.Builder retry = Sheet.of(requireContext(), I18n.text("m_261d556d04c1"), SheetSizing.Tier.COMPACT);
                 retry.content(UI.muted(requireContext(), I18n.text("m_403c05a15d9a")));
                 retry.action(R.drawable.ic_nav_assistant, I18n.text("m_d26eea749abf"), I18n.text("m_1b33150543c1"), () -> taskAction(conversationID, id, "retry", true, revision, null));
                 retry.show();
@@ -469,7 +470,7 @@ public class AssistantFragment extends PageFragment {
         if (approved.isEmpty() || !sameSession()) return;
         Map<String, Integer> revisions = new HashMap<>();
         for (int i = 0; i < tasks().length(); i++) { JSONObject task = tasks().optJSONObject(i); if (task != null) revisions.put(task.optString("id"), task.optInt("revision", 0)); }
-        Sheet.Builder confirm = Sheet.of(requireContext(), I18n.text("m_bab8ac410782") + approved.size() + I18n.text("m_3fbf7b0f5a92"));
+        Sheet.Builder confirm = Sheet.of(requireContext(), I18n.text("m_bab8ac410782") + approved.size() + I18n.text("m_3fbf7b0f5a92"), SheetSizing.Tier.COMPACT);
         confirm.content(UI.muted(requireContext(), I18n.text("m_28557d2026fc")));
         confirm.action(R.drawable.ic_nav_assistant, I18n.text("m_68a35e224268"), I18n.text("m_f837f51681bf"), () -> {
             selection.clear();
@@ -548,7 +549,7 @@ public class AssistantFragment extends PageFragment {
         final AssistantTaskEditor editor;
         try { editor = new AssistantTaskEditor(requireContext(), task); }
         catch (Exception invalid) { state.error = I18n.text("m_d345e1fe6071"); render(); return; }
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_32b1a87a33e8"));
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_32b1a87a33e8"), SheetSizing.Tier.EXPANDED);
         TextView error = UI.muted(requireContext(), "");
         LinearLayout content = UI.column(requireContext());
         content.addView(editor.form); content.addView(error);
@@ -575,8 +576,9 @@ public class AssistantFragment extends PageFragment {
 
     private void showSettings() { showSettings(state.settings.optBoolean("shared_enabled") && state.settings.optBoolean("is_admin")); }
     private void showSettings(boolean sharedScope) {
-        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_036413404922"));
         boolean admin = state.settings.optBoolean("is_admin");
+        Sheet.Builder sheet = Sheet.of(requireContext(), I18n.text("m_036413404922"),
+                state.settings.optBoolean("shared_enabled") && !admin ? SheetSizing.Tier.COMPACT : SheetSizing.Tier.EXPANDED);
         if (state.settings.optBoolean("shared_enabled") && !admin) {
             sheet.content(UI.muted(requireContext(), I18n.text("m_7b5dd092dde7")));
             sheet.show();
@@ -586,7 +588,7 @@ public class AssistantFragment extends PageFragment {
         JSONObject connection = state.settings.optJSONObject(sharedScope ? "shared" : "personal");
         if (connection == null) connection = new JSONObject();
         LinearLayout form = UI.column(requireContext());
-        CheckBox shared = new CheckBox(requireContext());
+        CheckBox shared = UI.checkBox(requireContext());
         shared.setText(I18n.text("m_f6f63440e200"));
         shared.setTextColor(Theme.p().ink);
         shared.setChecked(state.settings.optBoolean("shared_enabled"));
@@ -597,7 +599,7 @@ public class AssistantFragment extends PageFragment {
         final String[] apiFormat = {connection.optString("api_format", "chat_completions")};
         form.addView(UI.label(requireContext(), I18n.text("m_77ff2042727b")));
         form.addView(UI.segmented(requireContext(), new String[]{I18n.text("m_0b1863617b31"), I18n.text("m_b193877d0270")}, "responses".equals(apiFormat[0]) ? 1 : 0, index -> apiFormat[0] = index == 1 ? "responses" : "chat_completions"));
-        CheckBox reasoningSummary = new CheckBox(requireContext());
+        CheckBox reasoningSummary = UI.checkBox(requireContext());
         reasoningSummary.setText(I18n.text("m_abfd70997635")); reasoningSummary.setTextColor(Theme.p().ink); reasoningSummary.setChecked(connection.optBoolean("reasoning_summary")); form.addView(reasoningSummary);
         EditText model = UI.input(requireContext(), I18n.text("m_5ec4a61c05d5"));
         model.setText(connection.optString("model"));

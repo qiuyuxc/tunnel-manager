@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -88,35 +89,37 @@ func (h *TunnelHandler) DeleteTunnel(w http.ResponseWriter, r *http.Request) {
 func (h *TunnelHandler) GetTunnelDetail(w http.ResponseWriter, r *http.Request) {
 	tunnelID := chi.URLParam(r, "tunnelID")
 
-	tunnels, err := UserCF(r).ListTunnels()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	var tunnel *models.Tunnel
+	var cfg *models.TunnelConfigResponse
+	var tunnelErr, configErr error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		tunnel, tunnelErr = UserCF(r).GetTunnel(tunnelID)
+	}()
+	go func() {
+		defer wg.Done()
+		cfg, configErr = UserCF(r).GetTunnelConfig(tunnelID)
+	}()
+	wg.Wait()
+	if tunnelErr != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": tunnelErr.Error()})
 		return
 	}
-
-	var tunnelName, tunnelStatus string
-	for _, t := range tunnels {
-		if t.ID == tunnelID {
-			tunnelName = t.Name
-			tunnelStatus = t.Status
-			break
-		}
-	}
-	if tunnelName == "" {
+	if tunnel.ID != tunnelID || tunnel.Name == "" {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tunnel not found"})
 		return
 	}
-
-	cfg, err := UserCF(r).GetTunnelConfig(tunnelID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if configErr != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": configErr.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"id":      tunnelID,
-		"name":    tunnelName,
-		"status":  tunnelStatus,
+		"name":    tunnel.Name,
+		"status":  tunnel.Status,
 		"ingress": cfg.Result.Config.Ingress,
 	})
 }

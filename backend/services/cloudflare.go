@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ type CloudflareClient struct {
 	}
 	userID     string
 	pinnedConn *models.CFConnection
+	context    context.Context
 }
 
 // NewCloudflareClient creates a new Cloudflare API client
@@ -68,6 +70,21 @@ func (c *CloudflareClient) WithConnection(conn models.CFConnection) *CloudflareC
 	return &clone
 }
 
+// WithContext binds upstream calls to the lifetime of the caller. The shared
+// client remains immutable, so cancellation never affects another account.
+func (c *CloudflareClient) WithContext(ctx context.Context) *CloudflareClient {
+	clone := *c
+	clone.context = ctx
+	return &clone
+}
+
+func (c *CloudflareClient) requestContext() context.Context {
+	if c.context != nil {
+		return c.context
+	}
+	return context.Background()
+}
+
 // DefaultAccountID returns the account configured through the environment.
 func (c *CloudflareClient) DefaultAccountID() string {
 	return c.accountID
@@ -90,7 +107,7 @@ func (c *CloudflareClient) HasStaticCredentials() bool {
 
 func (c *CloudflareClient) accessToken() (string, error) {
 	if c.oauth != nil && c.pinnedConn != nil {
-		return c.oauth.AccessTokenFor(*c.pinnedConn)
+		return c.oauth.AccessTokenForContext(c.requestContext(), *c.pinnedConn)
 	}
 	if c.userID != "" && c.store != nil {
 		// A connection that cannot produce a token falls back to the environment
@@ -99,7 +116,7 @@ func (c *CloudflareClient) accessToken() (string, error) {
 		// with it, and the account page can authorize the connection again.
 		// Registered users get no fallback, which keeps the isolation intact.
 		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.HasToken() && c.oauth != nil {
-			token, err := c.oauth.AccessTokenFor(conn)
+			token, err := c.oauth.AccessTokenForContext(c.requestContext(), conn)
 			if err == nil {
 				return token, nil
 			}
@@ -115,7 +132,7 @@ func (c *CloudflareClient) accessToken() (string, error) {
 		return "", fmt.Errorf("尚未授权 Cloudflare 账户，请先在账户页完成授权")
 	}
 	if c.oauth != nil && c.oauth.Connected() {
-		return c.oauth.AccessToken()
+		return c.oauth.AccessTokenContext(c.requestContext())
 	}
 	if c.apiToken == "" {
 		return "", fmt.Errorf("Cloudflare 未连接，请先完成 OAuth 授权")
@@ -124,6 +141,12 @@ func (c *CloudflareClient) accessToken() (string, error) {
 }
 
 func (c *CloudflareClient) currentAccountID() (string, error) {
+	if c.pinnedConn != nil {
+		if c.pinnedConn.AccountID == "" {
+			return "", fmt.Errorf("Cloudflare 账户未选择")
+		}
+		return c.pinnedConn.AccountID, nil
+	}
 	if c.store != nil && c.userID != "" {
 		if conn, ok := c.store.ActiveCFConnection(c.userID); ok && conn.AccountID != "" {
 			return conn.AccountID, nil
@@ -148,7 +171,7 @@ func (c *CloudflareClient) newRequest(method, path string, body io.Reader) (*htt
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(method, c.baseURL+path, body)
+	req, err := http.NewRequestWithContext(c.requestContext(), method, c.baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -206,6 +229,24 @@ func (c *CloudflareClient) ListTunnels() ([]models.Tunnel, error) {
 		return nil, err
 	}
 	return tunnels, nil
+}
+
+// GetTunnel fetches one tunnel without downloading the whole account list.
+func (c *CloudflareClient) GetTunnel(tunnelID string) (*models.Tunnel, error) {
+	accountID, err := c.currentAccountID()
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s", accountID, url.PathEscape(tunnelID))
+	req, err := c.newRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var tunnel models.Tunnel
+	if err := c.do(req, &tunnel); err != nil {
+		return nil, err
+	}
+	return &tunnel, nil
 }
 
 // CreateTunnel creates a remotely-managed tunnel so its ingress can be edited through this API.

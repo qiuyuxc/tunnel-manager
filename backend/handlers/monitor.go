@@ -68,7 +68,7 @@ func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
 		service string
 	}
 	var targets []target
-	for i, rule := range detail.Result.Config.Ingress {
+	for _, rule := range detail.Result.Config.Ingress {
 		host := strings.TrimSpace(rule.Hostname)
 		svc := strings.TrimSpace(rule.Service)
 		if host == "" || svc == "" {
@@ -77,7 +77,7 @@ func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(svc, "http://") && !strings.HasPrefix(svc, "https://") {
 			continue // unix sockets and synthetic responses cannot be probed
 		}
-		targets = append(targets, target{index: i, host: host, service: svc})
+		targets = append(targets, target{index: len(targets), host: host, service: svc})
 	}
 
 	results := make([]ServiceProbe, len(targets))
@@ -87,7 +87,11 @@ func (h *MonitorHandler) ServiceStatus(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func(t target) {
 			defer wg.Done()
-			sem <- struct{}{}
+			select {
+			case sem <- struct{}{}:
+			case <-r.Context().Done():
+				return
+			}
 			defer func() { <-sem }()
 			res := services.ProbeURL(r.Context(), "https://"+t.host+"/")
 			results[t.index] = ServiceProbe{

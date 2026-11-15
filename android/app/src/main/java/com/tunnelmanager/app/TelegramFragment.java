@@ -26,6 +26,7 @@ import org.json.JSONObject;
  * "is the bot alive" is the one thing the operator keeps coming back to check.
  */
 public class TelegramFragment extends PageFragment {
+    @Override void refreshPage() { load(); }
 
     private static final long STATUS_INTERVAL = 10_000L;
     private static final String[] COMMANDS = {
@@ -98,14 +99,10 @@ public class TelegramFragment extends PageFragment {
     // ------------------------------------------------------------------- data
 
     private void load() {
+        if (!alive() || loading) return;
         loading = true;
         render();
-        Api.async(() -> {
-            JSONObject payload = new JSONObject();
-            payload.put("settings", Api.get("/api/telegram/settings"));
-            payload.put("status", Api.get("/api/telegram/status"));
-            return payload;
-        }, payload -> {
+        Api.async(() -> Api.batch(Api.query("settings", "/api/telegram/settings"), Api.query("status", "/api/telegram/status")), payload -> {
             loading = false;
             applySettings(payload.optJSONObject("settings"));
             status = orEmpty(payload.optJSONObject("status"));
@@ -160,7 +157,6 @@ public class TelegramFragment extends PageFragment {
         int keepScroll = scroll.getScrollY();
         body.removeAllViews();
 
-        body.addView(UI.pageTitle(requireContext(), I18n.text("m_3ba721cb5dd3")));
         TextView subtitle = UI.muted(requireContext(),
                 I18n.text("m_d4463e3d9fb2"));
         UI.margin(subtitle, 0, UI.XS, 0, UI.MD);

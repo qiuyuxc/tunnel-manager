@@ -1,10 +1,10 @@
 import { t as tr } from '../i18n.ts'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { getConfig, getSiteSettings, listTunnels, setTunnelSelection, type Config } from '../api'
+import { getConfig, getSiteSettings, listTunnels, type Config } from '../api'
 import { getMe } from '../api/admin'
 
-export type VisualTheme = 'enterprise' | 'warm'
+export type VisualTheme = 'enterprise'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<Config>({
@@ -21,8 +21,7 @@ export const useConfigStore = defineStore('config', () => {
   })
   const darkMode = ref(localStorage.getItem('dark_mode') !== 'false')
   const lightEffects = ref(localStorage.getItem('light_effects') === 'true')
-  const savedVisualTheme = localStorage.getItem('visual_theme')
-  const visualTheme = ref<VisualTheme>(savedVisualTheme === 'warm' ? 'warm' : 'enterprise')
+  const visualTheme = ref<VisualTheme>('enterprise')
   const loading = ref(false)
   const landingEnabled = ref(false)
   const experimentalFeatures = ref(false)
@@ -38,6 +37,11 @@ export const useConfigStore = defineStore('config', () => {
   const role = ref(localStorage.getItem('auth_role') || '')
   const permissions = ref<string[]>([])
   const isAuthenticated = ref(!!token.value)
+  let mePromise: { token: string; promise: Promise<void> } | null = null
+  let meLoadedToken = ''
+  let meLoadedAt = 0
+  let configPromise: { token: string; promise: Promise<void>; controller: AbortController } | null = null
+  let configGeneration = 0
 
   const displayName = computed(() => nickname.value || username.value)
 
@@ -50,24 +54,35 @@ export const useConfigStore = defineStore('config', () => {
     return role.value === 'admin'
   }
 
-  async function fetchMe() {
-    if (!token.value) return
-    try {
-      const { data } = await getMe()
-      role.value = data.role
-      permissions.value = data.permissions || []
-      username.value = data.username
-      nickname.value = data.nickname || ''
-      avatar.value = data.avatar || ''
-      email.value = data.email || ''
-      localStorage.setItem('auth_role', data.role)
-      localStorage.setItem('auth_username', data.username)
-      localStorage.setItem('auth_nickname', data.nickname || '')
-      localStorage.setItem('auth_avatar', data.avatar || '')
-      localStorage.setItem('auth_email', data.email || '')
-    } catch (_) {
-      // 401 is handled by the shared interceptor; keep cached state otherwise.
-    }
+  function fetchMe(refresh = true): Promise<void> {
+    const requestToken = token.value
+    if (!requestToken || (!refresh && meLoadedToken === requestToken && Date.now() - meLoadedAt < 60000)) return Promise.resolve()
+    if (mePromise?.token === requestToken) return mePromise.promise
+    const promise = (async () => {
+      try {
+        const { data } = await getMe()
+        if (token.value !== requestToken) return
+        role.value = data.role
+        permissions.value = data.permissions || []
+        username.value = data.username
+        nickname.value = data.nickname || ''
+        avatar.value = data.avatar || ''
+        email.value = data.email || ''
+        localStorage.setItem('auth_role', data.role)
+        localStorage.setItem('auth_username', data.username)
+        localStorage.setItem('auth_nickname', data.nickname || '')
+        localStorage.setItem('auth_avatar', data.avatar || '')
+        localStorage.setItem('auth_email', data.email || '')
+        meLoadedToken = requestToken
+        meLoadedAt = Date.now()
+      } catch (_) {
+        // 401 is handled by the shared interceptor; keep cached state otherwise.
+      } finally {
+        if (mePromise?.token === requestToken) mePromise = null
+      }
+    })()
+    mePromise = { token: requestToken, promise }
+    return promise
   }
 
   // Persist darkMode
@@ -100,6 +115,7 @@ export const useConfigStore = defineStore('config', () => {
         experimentalFeatures.value = !!data.experimental_features_enabled
       } catch (_) {
         // Keep local defaults when the public endpoint is unavailable.
+        siteSettingsPromise = null
       } finally {
         siteSettingsLoaded.value = true
       }
@@ -107,21 +123,43 @@ export const useConfigStore = defineStore('config', () => {
     return siteSettingsPromise
   }
 
-  async function fetchConfig() {
+  function fetchConfig(): Promise<void> {
+    const requestToken = token.value
+    if (!requestToken) return Promise.resolve()
+    if (configPromise?.token === requestToken) return configPromise.promise
+    const generation = ++configGeneration
+    const controller = new AbortController()
     loading.value = true
-    try {
-      const { data } = await getConfig()
-      Object.assign(config.value, data)
-      landingEnabled.value = !!data.landing_enabled
-      experimentalFeatures.value = !!data.experimental_features_enabled
-      if (data.tunnel_id && !data.tunnel_name) {
-        await resolveLegacyTunnelName(data.tunnel_id)
+    const promise = (async () => {
+      try {
+        const { data } = await getConfig(controller.signal)
+        if (token.value !== requestToken || generation !== configGeneration) return
+        Object.assign(config.value, data)
+        landingEnabled.value = !!data.landing_enabled
+        experimentalFeatures.value = !!data.experimental_features_enabled
+        if (data.tunnel_id && !data.tunnel_name) {
+          // The selected ID and other settings are usable immediately. Legacy
+          // name resolution may need a slow Cloudflare request.
+          void resolveLegacyTunnelName(data.tunnel_id, requestToken)
+        }
+      } catch (e) {
+        // Config might not be loaded yet
+      } finally {
+        if (configPromise?.controller === controller) {
+          configPromise = null
+          loading.value = false
+        }
       }
-    } catch (e) {
-      // Config might not be loaded yet
-    } finally {
-      loading.value = false
-    }
+    })()
+    configPromise = { token: requestToken, promise, controller }
+    return promise
+  }
+
+  function invalidateConfig() {
+    configGeneration++
+    configPromise?.controller.abort()
+    configPromise = null
+    loading.value = false
   }
 
   function setExperimentalFeatures(enabled: boolean) {
@@ -132,15 +170,14 @@ export const useConfigStore = defineStore('config', () => {
     darkMode.value = !darkMode.value
   }
 
-  function toggleVisualTheme() {
-    visualTheme.value = visualTheme.value === 'warm' ? 'enterprise' : 'warm'
-  }
-
   function toggleLightEffects() {
     lightEffects.value = !lightEffects.value
   }
 
   function setAuth(tokenVal: string, usernameVal: string, roleVal = '') {
+    invalidateConfig()
+    meLoadedToken = ''
+    permissions.value = []
     token.value = tokenVal
     username.value = usernameVal
     role.value = roleVal
@@ -152,6 +189,14 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function clearAuth() {
+    invalidateConfig()
+    meLoadedToken = ''
+    mePromise = null
+    configPromise = null
+    loading.value = false
+    config.value.tunnel_id = ''
+    config.value.tunnel_name = ''
+    config.value.service_url = ''
     token.value = ''
     username.value = ''
     nickname.value = ''
@@ -168,12 +213,13 @@ export const useConfigStore = defineStore('config', () => {
     localStorage.removeItem('auth_role')
   }
 
-  async function resolveLegacyTunnelName(tunnelID: string) {
+  async function resolveLegacyTunnelName(tunnelID: string, requestToken: string) {
     try {
       const { data } = await listTunnels()
       const tunnel = data.find((item) => item.id === tunnelID)
-      if (!tunnel) return
-      await setTunnelSelection(tunnel.id, tunnel.name)
+      if (!tunnel || token.value !== requestToken || config.value.tunnel_id !== tunnelID) return
+      // A display-name lookup is read-only; it must not rewrite a selection
+      // that another page or session changed while Cloudflare was responding.
       config.value.tunnel_name = tunnel.name
     } catch (_) {
       // The ID remains usable even if Cloudflare is temporarily unavailable.
@@ -181,6 +227,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function applySiteBranding() {
+    if (document.documentElement.dataset.entry === 'status') return
     document.title = config.value.site_name || 'Tunnel Manager'
     const existing = document.querySelector<HTMLLinkElement>('link[data-site-icon]')
     if (!config.value.site_icon) {
@@ -198,6 +245,6 @@ export const useConfigStore = defineStore('config', () => {
     config, darkMode, lightEffects, visualTheme, loading, landingEnabled, experimentalFeatures, siteSettingsLoaded,
     token, username, nickname, avatar, email, displayName,
     role, permissions, isAuthenticated,
-    hasPerm, isAdmin, fetchMe, fetchConfig, fetchSiteSettings, setExperimentalFeatures, toggleDarkMode, toggleVisualTheme, toggleLightEffects, setAuth, clearAuth,
+    hasPerm, isAdmin, fetchMe, fetchConfig, invalidateConfig, fetchSiteSettings, setExperimentalFeatures, toggleDarkMode, toggleLightEffects, setAuth, clearAuth,
   }
 })

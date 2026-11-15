@@ -443,7 +443,8 @@ func (h *OIDCHandler) needsEmail(pending *oidcPending) bool {
 		return false
 	}
 	if exists {
-		return !pending.claims.EmailVerified
+		// Email proof cannot authorize binding to an existing local account.
+		return false
 	}
 	return h.auth.mailer() != nil && !h.store.GetAppSettings().EmailVerifyDisabled
 }
@@ -521,6 +522,11 @@ func (h *OIDCHandler) Complete(w http.ResponseWriter, r *http.Request) {
 	_, exists, _ := h.store.OIDCAccount(identity.ProviderID, identity.Issuer, identity.Subject, identity.Email)
 	emailProven := pending.mailVerified || (pending.claims.EmailVerified && (exists || !requireNewEmail))
 	user, err := h.store.ResolveOIDCAccount(identity, pending.flow.provider.Revision, emailProven, requireNewEmail, pending.flow.ownerID, pending.flow.ownerPasswordHash)
+	if errors.Is(err, store.ErrOIDCAccountBindingRequired) {
+		consume = true
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
 	if errors.Is(err, store.ErrOIDCEmailProofRequired) {
 		writeJSON(w, 202, map[string]any{"email_verification_required": true, "email": pending.claims.Email, "ticket": req.Ticket})
 		return
@@ -593,7 +599,7 @@ func (h *AdminHandler) beginOIDCLogin(w http.ResponseWriter, r *http.Request, us
 			writeJSON(w, 503, map[string]string{"error": "二步验证暂不可用"})
 			return
 		}
-		token, expires, err := h.newChallenge(user.ID, h.currentAuthEpoch())
+		token, expires, err := h.newChallenge(user.ID, h.currentAuthEpoch(), user.AuthVersion)
 		if err != nil {
 			writeJSON(w, 503, map[string]string{"error": "登录暂不可用"})
 			return

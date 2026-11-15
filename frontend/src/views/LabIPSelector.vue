@@ -1,16 +1,10 @@
 <template>
   <div class="page-container lab-page">
-    <div class="page-header">
-      <div>
-        <h2>{{ tr('m_3db29474a184') }}</h2>
-        <p>{{ tr('m_c903232627f5') }}</p>
-      </div>
-      <div class="header-actions">
-        <span class="tag" :class="running ? 'tag-warn' : 'tag-down'">{{ running ? tr('m_5df4f96d6d93') : tr('m_dae661d17c2d') }}</span>
-        <button class="btn btn-secondary" :disabled="loading" @click="refresh()">{{ tr('m_802a407c7743') }}</button>
-        <button v-if="running || form.schedule" class="btn btn-secondary" :disabled="acting" @click="stop">{{ tr('m_db53b055cad4') }}</button>
-        <button class="btn btn-primary" :disabled="!canRun" @click="run">{{ running ? tr('m_14d9f2d830ad') : tr('m_126a24ed51ca') }}</button>
-      </div>
+    <div class="header-actions lab-toolbar">
+      <span class="tag">{{ running ? tr('m_5df4f96d6d93') : tr('m_dae661d17c2d') }}</span>
+      <button class="btn btn-secondary" :disabled="loading" @click="refresh()">{{ tr('m_802a407c7743') }}</button>
+      <button v-if="running || form.schedule" class="btn btn-secondary" :disabled="acting" @click="stop">{{ tr('m_db53b055cad4') }}</button>
+      <button class="btn btn-primary" :disabled="!canRun" @click="run">{{ running ? tr('m_14d9f2d830ad') : tr('m_126a24ed51ca') }}</button>
     </div>
 
     <p v-if="loadError" role="alert">{{ loadError }}</p>
@@ -566,10 +560,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* The heading sits in a row with the toolbar, so it drops the shared block
-   layout and the shared bottom margin. */
 .lab-page { display: flex; flex-direction: column; gap: 20px; }
-.lab-page .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-xl); flex-wrap: wrap; margin-bottom: 0; }
+.lab-toolbar { justify-content: flex-end; }
 .progress-card { padding-bottom: 20px; }
 .progress-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
 .progress-track { height: 10px; border-radius: 999px; background: var(--color-canvas-soft-2); overflow: hidden; }
@@ -607,7 +599,6 @@ onBeforeUnmount(() => {
 .segment-wrap { max-height: 360px; overflow-y: auto; }
 .segment-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 768px) {
-  .lab-page .page-header { align-items: flex-start; }
   .header-actions { width: 100%; }
   .header-actions .btn { flex: 1 1 auto; justify-content: center; }
 }

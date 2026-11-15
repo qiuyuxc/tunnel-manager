@@ -1,11 +1,7 @@
 <template>
-  <!-- Phone chrome: a slim header that only carries identity, and the tab bar
-       that does the navigating. The sidebar and its drawer are desktop-only.
-       The header deliberately shows the site name rather than the page title:
-       every console page already renders its own heading, and the tab bar
-       already says where you are. -->
+  <!-- The header shows the current page; the bottom dock provides navigation. -->
   <header class="mobile-header">
-    <span class="mobile-title">{{ configStore.config.site_name }}</span>
+    <span class="mobile-title">{{ pageTitle }}</span>
     <button
       type="button"
       class="avatar-btn"
@@ -42,11 +38,7 @@
         <span class="menu-label">{{ tr('m_34e5636c63cc') }}</span>
         <span class="menu-chevron" v-html="icons.chevron" />
       </router-link>
-      <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleVisualTheme()">
-        <span class="menu-icon" v-html="icons.palette" />
-        <span class="menu-label">{{ tr('m_5acca162e7f6') }}</span>
-        <span class="menu-tail">{{ themeLabel }}</span>
-      </button>
+
       <button type="button" class="menu-row" role="menuitem" @click="configStore.toggleDarkMode()">
         <span class="menu-icon" v-html="configStore.darkMode ? icons.sun : icons.moon" />
         <span class="menu-label">{{ tr('m_0426e084560f') }}</span>
@@ -92,7 +84,7 @@
     </template>
   </nav>
 
-  <SheetPanel :open="createOpen" :title="tr('m_50ef2f4cf6a4')" @close="createOpen = false">
+  <SheetPanel :open="createOpen" size="compact" :title="tr('m_50ef2f4cf6a4')" @close="createOpen = false">
     <router-link
       v-for="action in CREATE_ACTIONS"
       :key="action.path"
@@ -109,7 +101,7 @@
     </router-link>
   </SheetPanel>
 
-  <SheetPanel :open="moreOpen" :title="tr('m_38844b135cf7')" @close="moreOpen = false">
+  <SheetPanel :open="moreOpen" size="medium" :title="tr('m_38844b135cf7')" @close="moreOpen = false">
     <template v-for="group in moreGroups" :key="group.label">
       <div class="group-label">{{ group.label }}</div>
       <div class="group-list">
@@ -140,6 +132,7 @@ import {
   CREATE_ACTIONS,
   GROUP_LABELS,
   TAB_PATHS,
+  breadcrumbFor,
   icons,
   isActivePath,
   useNavItems,
@@ -159,13 +152,13 @@ const route = useRoute()
 const router = useRouter()
 const configStore = useConfigStore()
 const navItems = useNavItems()
+const pageTitle = computed(() => breadcrumbFor(route.path).map(crumb => crumb.label).join(' / '))
 
 const menuOpen = ref(false)
 const createOpen = ref(false)
 const moreOpen = ref(false)
 
 const initial = computed(() => (configStore.displayName || '?').charAt(0).toUpperCase())
-const themeLabel = computed(() => (configStore.visualTheme === 'warm' ? tr('m_1a407ccbb6dc') : tr('m_844b8cc8dff7')))
 const roleLabel = computed(() => (configStore.isAdmin() ? tr('m_e19796712f1c') : tr('m_0d0e1a86b3aa')))
 
 // 概览 · 监控 · [+] · DNS 管理 · 更多, with any entry the account cannot see
@@ -254,18 +247,17 @@ async function handleLogout() {
    blur globally. */
 .tabbar {
   position: fixed;
-  left: 20px;
-  right: 20px;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
   bottom: max(14px, env(safe-area-inset-bottom));
   z-index: 100;
   align-items: center;
   justify-content: space-around;
   gap: 4px;
-  padding: 7px 10px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-canvas-raised) 88%, transparent);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 8px 30px rgb(0 0 0 / 20%);
-  backdrop-filter: blur(18px);
+  padding: 7px 8px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-canvas-raised) 96%, transparent);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
   border: 1px solid var(--color-hairline);
 }
 
@@ -274,10 +266,12 @@ async function handleLogout() {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 46px;
-  padding: 7px 12px;
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
+  padding: 7px 6px;
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: 14px;
   background: transparent;
   color: var(--color-mute);
   font-family: inherit;

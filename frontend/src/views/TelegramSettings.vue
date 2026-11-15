@@ -1,9 +1,6 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-            <h2>{{ tr('m_3ba721cb5dd3') }}</h2>
-      <p>{{ tr('m_d4463e3d9fb2') }}</p>
-    </div>
+    <p class="body-sm section">{{ tr('m_d4463e3d9fb2') }}</p>
     <div class="settings-list section">
       <!-- Status card -->
       <div class="settings-card" :class="{ '': visible }" :style="{ animationDelay: '0.08s' }">
@@ -388,7 +385,7 @@ onUnmounted(() => {
   background: var(--color-error);
 }
 
-.status-dot.on { background: var(--color-success); }
+.status-dot.on { background: var(--color-ink); }
 .status-dot.off { background: var(--color-error); }
 
 .status-text { font-size: 14px; color: var(--color-ink); }

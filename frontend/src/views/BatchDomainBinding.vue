@@ -1,9 +1,6 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-            <h2>{{ tr('m_6f7ce20a6c76') }}</h2>
-      <p>{{ tr('m_df37ef8cbb2e') }}</p>
-    </div>
+    <p class="body-sm section">{{ tr('m_df37ef8cbb2e') }}</p>
     <div v-if="!config.tunnel_id" class="prereq-banner section">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-banner-warning-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
@@ -263,7 +260,7 @@ onMounted(async () => {
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-.group-result.success { color: var(--color-status-healthy-text); background: var(--color-status-healthy-bg); border: 1px solid var(--color-status-healthy-border); }
+.group-result.success { color: var(--color-ink); background: var(--color-canvas-soft-2); border: 1px solid var(--color-hairline); }
 .group-result.error { color: var(--color-status-down-text); background: var(--color-status-down-bg); border: 1px solid var(--color-status-down-border); }
 
 .form-action {
@@ -276,7 +273,7 @@ onMounted(async () => {
   border-top: 1px solid var(--color-hairline);
 }
 .summary { font-size: 14px; }
-.summary-success { color: var(--color-success); }
+.summary-success { color: var(--color-ink); }
 .summary-error { color: var(--color-error); }
 
 .icon-button {
